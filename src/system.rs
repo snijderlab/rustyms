@@ -11,7 +11,7 @@ pub mod mass {
         quantity: Mass; "mass";
         dimension: Q< P1, Z0>;
         units {
-            @dalton: 1.0; "dalton", "da", "Da";
+            @dalton: 1.0; "da", "dalton", "daltons";
         }
     }
 }
@@ -24,7 +24,7 @@ pub mod charge {
         quantity: Charge; "charge";
         dimension: Q< Z0, P1>;
         units {
-            @e: 1.0; "e", "auc", "atomic_unit_of_charge";
+            @e: 1.0; "e", "atomic_unit_of_charge", "atomic_units_of_charge";
         }
     }
 }
@@ -37,7 +37,7 @@ pub mod mass_over_charge {
         quantity: MassOverCharge; "mass_over_charge";
         dimension: Q< P1, N1>;
         units {
-            @mz: 1.0; "mz", "Th", "mass_over_charge";
+            @mz: 1.0; "mz", "mass_over_charge", "mass_over_charge";
         }
     }
 }

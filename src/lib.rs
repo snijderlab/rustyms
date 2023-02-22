@@ -1,7 +1,7 @@
 mod aminoacids;
+mod atomic_weights;
 mod fragment;
 mod model;
-mod std_masses;
 mod system;
 //mod units;
 
