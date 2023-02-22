@@ -93,7 +93,52 @@ impl TryFrom<u8> for AminoAcid {
     }
 }
 
+#[allow(non_upper_case_globals)]
 impl AminoAcid {
+    pub const A: AminoAcid = AminoAcid::Alanine;
+    pub const C: AminoAcid = AminoAcid::Cysteine;
+    pub const D: AminoAcid = AminoAcid::AsparticAcid;
+    pub const E: AminoAcid = AminoAcid::GlutamicAcid;
+    pub const F: AminoAcid = AminoAcid::Phenylalanine;
+    pub const G: AminoAcid = AminoAcid::Glycine;
+    pub const H: AminoAcid = AminoAcid::Histidine;
+    pub const I: AminoAcid = AminoAcid::Isoleucine;
+    pub const J: AminoAcid = AminoAcid::AmbiguousLeucine;
+    pub const K: AminoAcid = AminoAcid::Lysine;
+    pub const L: AminoAcid = AminoAcid::Leucine;
+    pub const M: AminoAcid = AminoAcid::Methionine;
+    pub const N: AminoAcid = AminoAcid::Asparagine;
+    pub const O: AminoAcid = AminoAcid::Pyrrolysine;
+    pub const P: AminoAcid = AminoAcid::Proline;
+    pub const Q: AminoAcid = AminoAcid::Glutamine;
+    pub const R: AminoAcid = AminoAcid::Arginine;
+    pub const S: AminoAcid = AminoAcid::Serine;
+    pub const T: AminoAcid = AminoAcid::Threonine;
+    pub const U: AminoAcid = AminoAcid::Selenocysteine;
+    pub const V: AminoAcid = AminoAcid::Valine;
+    pub const W: AminoAcid = AminoAcid::Tryptophan;
+    pub const Ala: AminoAcid = AminoAcid::Alanine;
+    pub const Cys: AminoAcid = AminoAcid::Cysteine;
+    pub const Asp: AminoAcid = AminoAcid::AsparticAcid;
+    pub const Glu: AminoAcid = AminoAcid::GlutamicAcid;
+    pub const Phe: AminoAcid = AminoAcid::Phenylalanine;
+    pub const Gly: AminoAcid = AminoAcid::Glycine;
+    pub const His: AminoAcid = AminoAcid::Histidine;
+    pub const Ile: AminoAcid = AminoAcid::Isoleucine;
+    pub const Xle: AminoAcid = AminoAcid::AmbiguousLeucine;
+    pub const Lys: AminoAcid = AminoAcid::Lysine;
+    pub const Leu: AminoAcid = AminoAcid::Leucine;
+    pub const Met: AminoAcid = AminoAcid::Methionine;
+    pub const Asn: AminoAcid = AminoAcid::Asparagine;
+    pub const Pyl: AminoAcid = AminoAcid::Pyrrolysine;
+    pub const Pro: AminoAcid = AminoAcid::Proline;
+    pub const Gln: AminoAcid = AminoAcid::Glutamine;
+    pub const Arg: AminoAcid = AminoAcid::Arginine;
+    pub const Ser: AminoAcid = AminoAcid::Serine;
+    pub const Thr: AminoAcid = AminoAcid::Threonine;
+    pub const Sec: AminoAcid = AminoAcid::Selenocysteine;
+    pub const Val: AminoAcid = AminoAcid::Valine;
+    pub const Trp: AminoAcid = AminoAcid::Tryptophan;
     ///Data source: https://proteomicsresource.washington.edu/protocols06/masses.php
     pub fn avg_mass(&self) -> Mass {
         match self {

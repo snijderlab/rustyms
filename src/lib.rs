@@ -52,12 +52,7 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let sequence = vec![
-            AminoAcid::Tryptophan,
-            AminoAcid::Phenylalanine,
-            AminoAcid::Tryptophan,
-            AminoAcid::Phenylalanine,
-        ];
+        let sequence = vec![AminoAcid::W, AminoAcid::F, AminoAcid::W, AminoAcid::F];
         let fragments =
             generate_theoretical_fragments(&sequence, Charge::new::<e>(1.0), &Model::all());
         println!("{}", fragments.len());
