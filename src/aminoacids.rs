@@ -1,7 +1,7 @@
-use crate::atomic_weights::*;
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
 use crate::system::f64::*;
+use crate::MassSystem;
 
 pub enum AminoAcid {
     Alanine,
@@ -139,69 +139,88 @@ impl AminoAcid {
     pub const Sec: AminoAcid = AminoAcid::Selenocysteine;
     pub const Val: AminoAcid = AminoAcid::Valine;
     pub const Trp: AminoAcid = AminoAcid::Tryptophan;
-    ///Data source: https://proteomicsresource.washington.edu/protocols06/masses.php
-    pub fn avg_mass(&self) -> Mass {
+
+    pub fn mass<M: MassSystem>(&self) -> Mass {
         match self {
-            AminoAcid::Alanine => da(BACKBONE + CH3),
-            AminoAcid::AmbiguousLeucine => da(BACKBONE + C * 4.0 + H * 9.0),
-            AminoAcid::Arginine => da(BACKBONE + CH2 * 3.0 + NH + NH2 * 2.0),
-            AminoAcid::Asparagine => da(BACKBONE + CH2 + C + O + NH2),
-            AminoAcid::AsparticAcid => da(BACKBONE + CH2 + C + O * 2.0),
-            AminoAcid::Cysteine => da(BACKBONE + CH2 + S + H),
-            AminoAcid::GlutamicAcid => da(BACKBONE + CH2 * 2.0 + C + O * 2.0),
-            AminoAcid::Glutamine => da(BACKBONE + CH2 * 2.0 + C + O + NH2),
-            AminoAcid::Glycine => da(BACKBONE + H),
-            AminoAcid::Histidine => da(BACKBONE + CH2 + C + N + CH + NH + CH),
-            AminoAcid::Isoleucine => da(BACKBONE + CH + CH3 + CH2 + CH3),
-            AminoAcid::Leucine => da(BACKBONE + CH2 + CH + CH3 + CH3),
-            AminoAcid::Lysine => da(BACKBONE + CH2 * 4.0 + NH2),
-            AminoAcid::Methionine => da(BACKBONE + CH2 * 2.0 + S + CH3),
-            AminoAcid::Phenylalanine => da(BACKBONE + CH2 + C + CH * 5.0),
-            AminoAcid::Proline => da(BACKBONE + CH2 * 3.0 - H),
-            AminoAcid::Pyrrolysine => {
-                da(BACKBONE + CH2 * 4.0 + NH + C + O + CH + N + CH + CH2 + CH + CH3)
+            AminoAcid::Alanine => da(M::BACKBONE + M::CH3),
+            AminoAcid::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
+            AminoAcid::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::NH2 * 2.0),
+            AminoAcid::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
+            AminoAcid::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::O * 2.0),
+            AminoAcid::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
+            AminoAcid::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O * 2.0),
+            AminoAcid::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
+            AminoAcid::Glycine => da(M::BACKBONE + M::H),
+            AminoAcid::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
+            AminoAcid::Isoleucine => da(M::BACKBONE + M::CH + M::CH3 + M::CH2 + M::CH3),
+            AminoAcid::Leucine => da(M::BACKBONE + M::CH2 + M::CH + M::CH3 + M::CH3),
+            AminoAcid::Lysine => da(M::BACKBONE + M::CH2 * 4.0 + M::NH2),
+            AminoAcid::Methionine => da(M::BACKBONE + M::CH2 * 2.0 + M::S + M::CH3),
+            AminoAcid::Phenylalanine => da(M::BACKBONE + M::CH2 + M::C + M::CH * 5.0),
+            AminoAcid::Proline => da(M::BACKBONE + M::CH2 * 3.0 - M::H),
+            AminoAcid::Pyrrolysine => da(M::BACKBONE
+                + M::CH2 * 4.0
+                + M::NH
+                + M::C
+                + M::O
+                + M::CH
+                + M::N
+                + M::CH
+                + M::CH2
+                + M::CH
+                + M::CH3),
+            AminoAcid::Selenocysteine => da(M::BACKBONE + M::CH2 + M::Se),
+            AminoAcid::Serine => da(M::BACKBONE + M::CH2 + M::OH),
+            AminoAcid::Threonine => da(M::BACKBONE + M::CH + M::OH + M::CH3),
+            AminoAcid::Tryptophan => {
+                da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::C + M::NH + M::CH)
             }
-            AminoAcid::Selenocysteine => da(BACKBONE + CH2 + Se),
-            AminoAcid::Serine => da(BACKBONE + CH2 + OH),
-            AminoAcid::Threonine => da(BACKBONE + CH + OH + CH3),
-            AminoAcid::Tryptophan => da(BACKBONE + CH2 + C * 2.0 + CH * 4.0 + C + NH + CH),
-            AminoAcid::Tyrosine => da(BACKBONE + CH2 + C * 2.0 + CH * 4.0 + OH),
-            AminoAcid::Valine => da(BACKBONE + CH + CH3 * 2.0),
+            AminoAcid::Tyrosine => da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::OH),
+            AminoAcid::Valine => da(M::BACKBONE + M::CH + M::CH3 * 2.0),
         }
     }
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
-    pub fn satellite_ion_masses(&self) -> Vec<Mass> {
+    pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
         match self {
             AminoAcid::Alanine => vec![],
             AminoAcid::AmbiguousLeucine => vec![],
-            AminoAcid::Arginine => vec![da(CH2 * 2.0 + NH + NH2 * 2.0)],
-            AminoAcid::Asparagine => vec![da(C + O + NH2)],
-            AminoAcid::AsparticAcid => vec![da(C + O * 2.0)],
-            AminoAcid::Cysteine => vec![da(S + H)],
-            AminoAcid::GlutamicAcid => vec![da(CH2 + C + O * 2.0)],
-            AminoAcid::Glutamine => vec![da(CH2 + C + O + NH2)],
+            AminoAcid::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
+            AminoAcid::Asparagine => vec![da(M::C + M::O + M::NH2)],
+            AminoAcid::AsparticAcid => vec![da(M::C + M::O * 2.0)],
+            AminoAcid::Cysteine => vec![da(M::S + M::H)],
+            AminoAcid::GlutamicAcid => vec![da(M::CH2 + M::C + M::O * 2.0)],
+            AminoAcid::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
             AminoAcid::Glycine => vec![],
             AminoAcid::Histidine => vec![], // Aromatic
-            AminoAcid::Isoleucine => vec![da(CH3), da(CH2 + CH3)],
-            AminoAcid::Leucine => vec![da(CH + CH3 * 2.0)],
-            AminoAcid::Lysine => vec![da(CH2 * 3.0 + NH2)],
-            AminoAcid::Methionine => vec![da(CH2 + S + CH3)],
+            AminoAcid::Isoleucine => vec![da(M::CH3), da(M::CH2 + M::CH3)],
+            AminoAcid::Leucine => vec![da(M::CH + M::CH3 * 2.0)],
+            AminoAcid::Lysine => vec![da(M::CH2 * 3.0 + M::NH2)],
+            AminoAcid::Methionine => vec![da(M::CH2 + M::S + M::CH3)],
             AminoAcid::Phenylalanine => vec![], // Aromatic
             AminoAcid::Proline => vec![], // Interesting, TODO: see what other software packages think about this one
             AminoAcid::Pyrrolysine => {
-                vec![da(CH2 * 3.0 + NH + C + O + CH + N + CH + CH2 + CH + CH3)]
+                vec![da(M::CH2 * 3.0
+                    + M::NH
+                    + M::C
+                    + M::O
+                    + M::CH
+                    + M::N
+                    + M::CH
+                    + M::CH2
+                    + M::CH
+                    + M::CH3)]
             } // Weird, TODO: figure out what to make of this
-            AminoAcid::Selenocysteine => vec![da(Se)],
-            AminoAcid::Serine => vec![da(OH)],
-            AminoAcid::Threonine => vec![da(OH), da(CH3)],
-            AminoAcid::Tryptophan => vec![],    // Aromatic
-            AminoAcid::Tyrosine => vec![],      // Aromatic
-            AminoAcid::Valine => vec![da(CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
+            AminoAcid::Selenocysteine => vec![da(M::Se)],
+            AminoAcid::Serine => vec![da(M::OH)],
+            AminoAcid::Threonine => vec![da(M::OH), da(M::CH3)],
+            AminoAcid::Tryptophan => vec![],       // Aromatic
+            AminoAcid::Tyrosine => vec![],         // Aromatic
+            AminoAcid::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
         }
     }
 
-    pub fn fragments(
+    pub fn fragments<M: MassSystem>(
         &self,
         n_term: Mass,
         c_term: Mass,
@@ -212,7 +231,7 @@ impl AminoAcid {
         let mut output = Vec::new();
         if ions.a {
             output.push(Fragment::new(
-                n_term + self.avg_mass() - da(CO) + da(H * charge.value),
+                n_term + self.mass::<M>() - da(M::CO + M::H * charge.value),
                 charge,
                 idx,
                 FragmentType::a,
@@ -220,7 +239,7 @@ impl AminoAcid {
         }
         if ions.b {
             output.push(Fragment::new(
-                n_term + self.avg_mass() + da(H * charge.value),
+                n_term + self.mass::<M>() + da(M::H * charge.value),
                 charge,
                 idx,
                 FragmentType::b,
@@ -228,16 +247,16 @@ impl AminoAcid {
         }
         if ions.c {
             output.push(Fragment::new(
-                n_term + self.avg_mass() + da(NH3) + da(H * charge.value),
+                n_term + self.mass::<M>() + da(M::NH3 + M::H * charge.value),
                 charge,
                 idx,
                 FragmentType::c,
             ))
         }
         if ions.d {
-            for satellite in self.satellite_ion_masses() {
+            for satellite in self.satellite_ion_masses::<M>() {
                 output.push(Fragment::new(
-                    n_term + self.avg_mass() - satellite - da(CO) + da(H * charge.value),
+                    n_term + self.mass::<M>() - satellite + da(-M::CO + M::H * charge.value),
                     charge,
                     idx,
                     FragmentType::d,
@@ -246,16 +265,16 @@ impl AminoAcid {
         }
         if ions.v {
             output.push(Fragment::new(
-                c_term + da(BACKBONE) + da(H * (charge.value + 1.0)) + da(OH),
+                c_term + da(M::BACKBONE) + da(M::H * (charge.value + 1.0) + M::OH),
                 charge,
                 idx,
                 FragmentType::v,
             ))
         }
         if ions.w {
-            for satellite in self.satellite_ion_masses() {
+            for satellite in self.satellite_ion_masses::<M>() {
                 output.push(Fragment::new(
-                    c_term + self.avg_mass() - satellite - da(NH) + da(O) + da(H * charge.value),
+                    c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H * charge.value),
                     charge,
                     idx,
                     FragmentType::w,
@@ -264,7 +283,7 @@ impl AminoAcid {
         }
         if ions.x {
             output.push(Fragment::new(
-                c_term + self.avg_mass() + da(CO) + da(O) + da(H * charge.value),
+                c_term + self.mass::<M>() + da(M::CO + M::O + M::H * charge.value),
                 charge,
                 idx,
                 FragmentType::x,
@@ -272,7 +291,7 @@ impl AminoAcid {
         }
         if ions.y {
             output.push(Fragment::new(
-                c_term + self.avg_mass() + da(H * (charge.value + 1.0)) + da(OH),
+                c_term + self.mass::<M>() + da(M::H * (charge.value + 1.0) + M::OH),
                 charge,
                 idx,
                 FragmentType::y,
@@ -280,12 +299,26 @@ impl AminoAcid {
         }
         if ions.z {
             output.push(Fragment::new(
-                c_term + self.avg_mass() - da(NH) + da(O) + da(H * charge.value),
+                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * charge.value),
                 charge,
                 idx,
                 FragmentType::z,
             ))
         }
         output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mass() {
+        let weight_ala = AminoAcid::A.mass::<crate::AverageWeight>();
+        let mass_ala = AminoAcid::Ala.mass::<crate::MonoIsotopic>();
+        assert_ne!(weight_ala, mass_ala);
+        assert_eq!(weight_ala.value, 71.07793);
+        assert_eq!(mass_ala.value, 71.037113783);
     }
 }

@@ -1,9 +1,13 @@
 mod aminoacids;
-mod atomic_weights;
 mod fragment;
+mod mass;
+mod mgf;
 mod model;
+mod spectrum;
 mod system;
 //mod units;
+
+pub use crate::mass::*;
 
 //use crate::units::*;
 use aminoacids::AminoAcid;
@@ -17,7 +21,7 @@ use crate::system::f64::*;
 #[macro_use]
 extern crate uom;
 
-pub fn generate_theoretical_fragments(
+pub fn generate_theoretical_fragments<M: MassSystem>(
     sequence: &[AminoAcid],
     max_charge: Charge,
     model: &Model,
@@ -29,11 +33,11 @@ pub fn generate_theoretical_fragments(
         for charge in 1..=(max_charge.value as u64) {
             let n_term = sequence[0..index]
                 .iter()
-                .fold(Mass::zero(), |acc, aa| acc + aa.avg_mass());
+                .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
             let c_term = sequence[index + 1..sequence.len()]
                 .iter()
-                .fold(Mass::zero(), |acc, aa| acc + aa.avg_mass());
-            output.append(&mut sequence[index].fragments(
+                .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
+            output.append(&mut sequence[index].fragments::<M>(
                 n_term,
                 c_term,
                 Charge::new::<e>(charge as f64),
@@ -53,8 +57,11 @@ mod test {
     #[test]
     fn simple_fragments() {
         let sequence = vec![AminoAcid::W, AminoAcid::F, AminoAcid::W, AminoAcid::F];
-        let fragments =
-            generate_theoretical_fragments(&sequence, Charge::new::<e>(1.0), &Model::all());
+        let fragments = generate_theoretical_fragments::<AverageWeight>(
+            &sequence,
+            Charge::new::<e>(1.0),
+            &Model::all(),
+        );
         println!("{}", fragments.len());
         println!("{fragments:?}");
     }

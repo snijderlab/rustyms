@@ -9,7 +9,7 @@ pub mod mass {
 
     quantity! {
         quantity: Mass; "mass";
-        dimension: Q< P1, Z0>;
+        dimension: Q< P1, Z0, Z0>;
         units {
             @dalton: 1.0; "da", "dalton", "daltons";
         }
@@ -22,7 +22,7 @@ pub mod charge {
 
     quantity! {
         quantity: Charge; "charge";
-        dimension: Q< Z0, P1>;
+        dimension: Q< Z0, P1, Z0>;
         units {
             @e: 1.0; "e", "atomic_unit_of_charge", "atomic_units_of_charge";
         }
@@ -30,12 +30,26 @@ pub mod charge {
 }
 
 #[macro_use]
+pub mod time {
+    use uom::*;
+
+    quantity! {
+        quantity: Time; "time";
+        dimension: Q< Z0, Z0, P1>;
+        units {
+            @s: 1.0; "s", "second", "seconds";
+        }
+    }
+}
+
+
+#[macro_use]
 pub mod mass_over_charge {
     use uom::*;
 
     quantity! {
         quantity: MassOverCharge; "mass_over_charge";
-        dimension: Q< P1, N1>;
+        dimension: Q< P1, N1, Z0>;
         units {
             @mz: 1.0; "mz", "mass_over_charge", "mass_over_charge";
         }
@@ -46,11 +60,13 @@ system! {
     quantities: Q {
         mass: dalton, M;
         charge: e, C;
+        time: s, T;
     }
 
     units: U {
         mod mass::Mass,
         mod charge::Charge,
+        mod time::Time,
         mod mass_over_charge::MassOverCharge,
     }
 }

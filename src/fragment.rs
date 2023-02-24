@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::system::f64::*;
 
 pub struct Fragment {
-    pub mass: Mass,
+    pub theoretical_mass: Mass,
     pub sequence_index: usize,
     pub charge: Charge,
     pub ion: FragmentType,
@@ -11,12 +11,12 @@ pub struct Fragment {
 
 impl Fragment {
     pub fn mz(&self) -> MassOverCharge {
-        self.mass / self.charge
+        self.theoretical_mass / self.charge
     }
 
-    pub fn new(mass: Mass, charge: Charge, idx: usize, ion: FragmentType) -> Self {
+    pub fn new(theoretical_mass: Mass, charge: Charge, idx: usize, ion: FragmentType) -> Self {
         Self {
-            mass,
+            theoretical_mass,
             charge,
             sequence_index: idx,
             ion,
