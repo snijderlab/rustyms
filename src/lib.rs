@@ -65,4 +65,18 @@ mod test {
         println!("{}", fragments.len());
         println!("{fragments:?}");
     }
+
+    #[test]
+    fn simple_matching() {
+        let model = Model::all();
+        let spectrum = mgf::open("data/example.mgf").unwrap();
+        let sequence = vec![AminoAcid::W, AminoAcid::F, AminoAcid::W, AminoAcid::F];
+        let fragments = generate_theoretical_fragments::<AverageWeight>(
+            &sequence,
+            Charge::new::<e>(1.0),
+            &model,
+        );
+        let annotated = spectrum[0].annotate(sequence, fragments, &model);
+        println!("{:?}", annotated)
+    }
 }

@@ -1,3 +1,5 @@
+use crate::system::{f64::MassOverCharge, mass_over_charge::mz};
+
 pub struct Model {
     pub a: Location,
     pub b: Location,
@@ -8,6 +10,7 @@ pub struct Model {
     pub x: Location,
     pub y: Location,
     pub z: Location,
+    pub ppm: MassOverCharge,
 }
 
 pub struct PossibleIons {
@@ -47,6 +50,7 @@ impl Model {
         x: Location,
         y: Location,
         z: Location,
+        ppm: MassOverCharge,
     ) -> Self {
         Self {
             a,
@@ -58,10 +62,11 @@ impl Model {
             x,
             y,
             z,
+            ppm,
         }
     }
 
-    pub const fn all() -> Self {
+    pub fn all() -> Self {
         Self {
             a: Location::SkipC(1),
             b: Location::SkipC(1),
@@ -72,6 +77,7 @@ impl Model {
             x: Location::SkipN(1),
             y: Location::SkipN(1),
             z: Location::SkipN(1),
+            ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
 }

@@ -3,6 +3,7 @@ use crate::model::*;
 use crate::system::f64::*;
 use crate::MassSystem;
 
+#[derive(Clone, Debug)]
 pub enum AminoAcid {
     Alanine,
     Arginine,

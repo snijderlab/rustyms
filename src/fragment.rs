@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::system::f64::*;
 
+#[derive(Clone)]
 pub struct Fragment {
     pub theoretical_mass: Mass,
     pub sequence_index: usize,
@@ -36,7 +37,7 @@ impl Debug for Fragment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     a,
