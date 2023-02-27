@@ -62,9 +62,9 @@ impl TryFrom<char> for AminoAcid {
     }
 }
 
-impl TryFrom<u8> for AminoAcid {
+impl TryFrom<&u8> for AminoAcid {
     type Error = ();
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: &u8) -> Result<Self, Self::Error> {
         match value {
             b'A' => Ok(AminoAcid::Alanine),
             b'C' => Ok(AminoAcid::Cysteine),
@@ -307,6 +307,34 @@ impl AminoAcid {
             ))
         }
         output
+    }
+
+    pub fn char(&self) -> char {
+        match self {
+            AminoAcid::Alanine => 'A',
+            AminoAcid::Cysteine => 'C',
+            AminoAcid::AsparticAcid => 'D',
+            AminoAcid::GlutamicAcid => 'E',
+            AminoAcid::Phenylalanine => 'F',
+            AminoAcid::Glycine => 'G',
+            AminoAcid::Histidine => 'H',
+            AminoAcid::Isoleucine => 'I',
+            AminoAcid::AmbiguousLeucine => 'J',
+            AminoAcid::Lysine => 'K',
+            AminoAcid::Leucine => 'L',
+            AminoAcid::Methionine => 'M',
+            AminoAcid::Asparagine => 'N',
+            AminoAcid::Pyrrolysine => 'O',
+            AminoAcid::Proline => 'P',
+            AminoAcid::Glutamine => 'Q',
+            AminoAcid::Arginine => 'R',
+            AminoAcid::Serine => 'S',
+            AminoAcid::Threonine => 'T',
+            AminoAcid::Selenocysteine => 'U',
+            AminoAcid::Valine => 'V',
+            AminoAcid::Tryptophan => 'W',
+            AminoAcid::Tyrosine => 'Y',
+        }
     }
 }
 

@@ -2,6 +2,7 @@ use crate::{
     aminoacids::AminoAcid,
     fragment::Fragment,
     model::Model,
+    peptide::Peptide,
     system::{f64::*, mass_over_charge::mz},
 };
 
@@ -18,7 +19,7 @@ pub struct RawSpectrum {
 impl RawSpectrum {
     pub fn annotate(
         &self,
-        peptide: Vec<AminoAcid>,
+        peptide: Peptide,
         theoretical_fragments: Vec<Fragment>,
         model: &Model,
     ) -> AnnotatedSpectrum {
@@ -64,7 +65,7 @@ pub struct AnnotatedSpectrum {
     pub rt: Time,
     pub charge: Charge,
     pub mass: Mass,
-    pub peptide: Vec<AminoAcid>,
+    pub peptide: Peptide,
     pub spectrum: Vec<AnnotatedPeak>,
 }
 
