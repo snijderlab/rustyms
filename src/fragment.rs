@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::system::f64::*;
 
@@ -37,7 +37,7 @@ impl Debug for Fragment {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     a,
@@ -49,4 +49,24 @@ pub enum FragmentType {
     x,
     y,
     z,
+}
+
+impl Display for FragmentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                FragmentType::a => "a",
+                FragmentType::b => "b",
+                FragmentType::c => "c",
+                FragmentType::d => "d",
+                FragmentType::v => "v",
+                FragmentType::w => "w",
+                FragmentType::x => "x",
+                FragmentType::y => "y",
+                FragmentType::z => "z",
+            }
+        )
+    }
 }

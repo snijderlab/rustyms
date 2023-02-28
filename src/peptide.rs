@@ -1,12 +1,8 @@
-use std::{fmt::Display, ops::Index};
+use std::fmt::Display;
 
 use uom::num_traits::Zero;
 
-use crate::{
-    aminoacids::AminoAcid,
-    system::{f64::Mass, mass::dalton},
-    MassSystem,
-};
+use crate::{aminoacids::AminoAcid, system::f64::*, MassSystem};
 
 #[derive(Debug, Clone)]
 pub struct Peptide {
@@ -86,17 +82,17 @@ impl Peptide {
                     if let Some(aa) = last_aa {
                         peptide.sequence.push((aa, None));
                     }
-                    dbg!(&ch);
+                    //dbg!(&ch);
                     last_aa = Some(ch.try_into().map_err(|_| "Invalid Amino Acid code")?);
                     index += 1;
                 }
             }
         }
-        dbg!(&value, &peptide, &last_aa);
+        //dbg!(&value, &peptide, &last_aa);
         if let Some(aa) = last_aa {
             peptide.sequence.push((aa, None))
         }
-        dbg!(&peptide);
+        //dbg!(&peptide);
         Ok(peptide)
     }
 
@@ -133,12 +129,39 @@ impl Display for Peptide {
 pub enum Modification {
     /// Monoisotopic mass shift
     Mass(Mass),
+    Formula {
+        H: isize,
+        C: isize,
+        N: isize,
+        O: isize,
+        F: isize,
+        P: isize,
+        S: isize,
+        Se: isize,
+    },
 }
 
 impl Modification {
     pub fn mass<M: MassSystem>(&self) -> Mass {
         match self {
             Self::Mass(m) => *m,
+            Self::Formula {
+                H,
+                C,
+                N,
+                O,
+                F,
+                P,
+                S,
+                Se,
+            } => da(M::H * (*H as f64)
+                + M::C * (*C as f64)
+                + M::N * (*N as f64)
+                + M::O * (*O as f64)
+                + M::F * (*F as f64)
+                + M::P * (*P as f64)
+                + M::S * (*S as f64)
+                + M::Se * (*Se as f64)),
         }
     }
 }
@@ -161,8 +184,46 @@ impl TryFrom<&str> for Modification {
 impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Modification::Mass(m) => write!(f, "{:+}", m.value),
+            Modification::Mass(m) => {
+                write!(f, "{:+}", m.value).unwrap();
+            }
+            Self::Formula {
+                H,
+                C,
+                N,
+                O,
+                F,
+                P,
+                S,
+                Se,
+            } => {
+                let mut pr = |n: &isize, c: &str| {
+                    if *n != 0 {
+                        write!(f, "{c}{n}").unwrap();
+                    }
+                };
+                // Display in Hill order (if C: C first followed by H rest alphabetical, otherwise all alphabetical)
+                if *C != 0 {
+                    pr(C, "C");
+                    pr(H, "H");
+                    pr(F, "F");
+                    pr(N, "N");
+                    pr(O, "O");
+                    pr(P, "P");
+                    pr(S, "S");
+                    pr(Se, "Se");
+                } else {
+                    pr(F, "F");
+                    pr(H, "H");
+                    pr(N, "N");
+                    pr(O, "O");
+                    pr(P, "P");
+                    pr(S, "S");
+                    pr(Se, "Se");
+                }
+            }
         }
+        Ok(())
     }
 }
 

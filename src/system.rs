@@ -42,7 +42,6 @@ pub mod time {
     }
 }
 
-
 #[macro_use]
 pub mod mass_over_charge {
     use uom::*;
@@ -52,6 +51,19 @@ pub mod mass_over_charge {
         dimension: Q< P1, N1, Z0>;
         units {
             @mz: 1.0; "mz", "mass_over_charge", "mass_over_charge";
+        }
+    }
+}
+
+#[macro_use]
+pub mod ratio {
+    use uom::*;
+
+    quantity! {
+        quantity: Ratio; "ratio";
+        dimension: Q< Z0, Z0, Z0>;
+        units {
+            @r: 1.0; "r", "ratio", "ratios";
         }
     }
 }
@@ -68,6 +80,7 @@ system! {
         mod charge::Charge,
         mod time::Time,
         mod mass_over_charge::MassOverCharge,
+        mod ratio::Ratio,
     }
 }
 
@@ -77,6 +90,12 @@ pub mod f64 {
     }
 
     Q!(self::mks, f64);
+
+    pub use super::charge::e;
+    pub use super::mass::dalton;
+    pub use super::mass_over_charge::mz;
+    pub use super::ratio::r;
+    pub use super::time::s;
 
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)

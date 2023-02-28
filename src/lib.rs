@@ -1,26 +1,22 @@
 #![allow(dead_code)]
 
-mod aminoacids;
-mod fragment;
-mod mass;
-mod mgf;
-mod model;
-mod peptide;
-mod spectrum;
-mod system;
-//mod units;
+pub mod aminoacids;
+pub mod fragment;
+pub mod mass;
+pub mod mgf;
+pub mod model;
+pub mod peptide;
+pub mod spectrum;
+pub mod system;
 
 pub use crate::mass::*;
 
-//use crate::units::*;
-use aminoacids::AminoAcid;
-use fragment::Fragment;
-use model::Model;
-use peptide::Peptide;
-use uom::num_traits::Zero;
-//use uom::{num_traits::Zero, si::f64::*};
-use crate::system::charge::e;
-use crate::system::f64::*;
+pub use crate::system::f64::*;
+pub use aminoacids::AminoAcid;
+pub use fragment::Fragment;
+pub use model::Model;
+pub use peptide::Peptide;
+pub use uom::num_traits::Zero;
 
 #[macro_use]
 extern crate uom;
