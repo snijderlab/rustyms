@@ -234,24 +234,21 @@ impl AminoAcid {
             output.push(Fragment::new(
                 n_term + self.mass::<M>() - da(M::CO + M::H * charge.value),
                 charge,
-                idx,
-                FragmentType::a,
+                FragmentType::a(idx),
             ))
         }
         if ions.b {
             output.push(Fragment::new(
                 n_term + self.mass::<M>() + da(M::H * charge.value),
                 charge,
-                idx,
-                FragmentType::b,
+                FragmentType::b(idx),
             ))
         }
         if ions.c {
             output.push(Fragment::new(
                 n_term + self.mass::<M>() + da(M::NH3 + M::H * charge.value),
                 charge,
-                idx,
-                FragmentType::c,
+                FragmentType::c(idx),
             ))
         }
         if ions.d {
@@ -259,8 +256,7 @@ impl AminoAcid {
                 output.push(Fragment::new(
                     n_term + self.mass::<M>() - satellite + da(-M::CO + M::H * charge.value),
                     charge,
-                    idx,
-                    FragmentType::d,
+                    FragmentType::d(idx),
                 ))
             }
         }
@@ -268,8 +264,7 @@ impl AminoAcid {
             output.push(Fragment::new(
                 c_term + da(M::BACKBONE) + da(M::H * (charge.value + 1.0) + M::OH),
                 charge,
-                idx,
-                FragmentType::v,
+                FragmentType::v(idx),
             ))
         }
         if ions.w {
@@ -277,8 +272,7 @@ impl AminoAcid {
                 output.push(Fragment::new(
                     c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H * charge.value),
                     charge,
-                    idx,
-                    FragmentType::w,
+                    FragmentType::w(idx),
                 ))
             }
         }
@@ -286,24 +280,21 @@ impl AminoAcid {
             output.push(Fragment::new(
                 c_term + self.mass::<M>() + da(M::CO + M::O + M::H * charge.value),
                 charge,
-                idx,
-                FragmentType::x,
+                FragmentType::x(idx),
             ))
         }
         if ions.y {
             output.push(Fragment::new(
                 c_term + self.mass::<M>() + da(M::H * (charge.value + 1.0) + M::OH),
                 charge,
-                idx,
-                FragmentType::y,
+                FragmentType::y(idx),
             ))
         }
         if ions.z {
             output.push(Fragment::new(
                 c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * charge.value),
                 charge,
-                idx,
-                FragmentType::z,
+                FragmentType::z(idx),
             ))
         }
         output

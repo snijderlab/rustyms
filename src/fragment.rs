@@ -5,7 +5,6 @@ use crate::system::f64::*;
 #[derive(Clone)]
 pub struct Fragment {
     pub theoretical_mass: Mass,
-    pub sequence_index: usize,
     pub charge: Charge,
     pub ion: FragmentType,
 }
@@ -15,11 +14,10 @@ impl Fragment {
         self.theoretical_mass / self.charge
     }
 
-    pub fn new(theoretical_mass: Mass, charge: Charge, idx: usize, ion: FragmentType) -> Self {
+    pub fn new(theoretical_mass: Mass, charge: Charge, ion: FragmentType) -> Self {
         Self {
             theoretical_mass,
             charge,
-            sequence_index: idx,
             ion,
         }
     }
@@ -40,15 +38,33 @@ impl Debug for Fragment {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
-    a,
-    b,
-    c,
-    d,
-    v,
-    w,
-    x,
-    y,
-    z,
+    a(usize),
+    b(usize),
+    c(usize),
+    d(usize),
+    v(usize),
+    w(usize),
+    x(usize),
+    y(usize),
+    z(usize),
+    precursor,
+}
+
+impl FragmentType {
+    pub fn sequence_index(&self) -> Option<usize> {
+        match self {
+            FragmentType::a(n) => Some(*n),
+            FragmentType::b(n) => Some(*n),
+            FragmentType::c(n) => Some(*n),
+            FragmentType::d(n) => Some(*n),
+            FragmentType::v(n) => Some(*n),
+            FragmentType::w(n) => Some(*n),
+            FragmentType::x(n) => Some(*n),
+            FragmentType::y(n) => Some(*n),
+            FragmentType::z(n) => Some(*n),
+            FragmentType::precursor => None,
+        }
+    }
 }
 
 impl Display for FragmentType {
@@ -57,15 +73,16 @@ impl Display for FragmentType {
             f,
             "{}",
             match self {
-                FragmentType::a => "a",
-                FragmentType::b => "b",
-                FragmentType::c => "c",
-                FragmentType::d => "d",
-                FragmentType::v => "v",
-                FragmentType::w => "w",
-                FragmentType::x => "x",
-                FragmentType::y => "y",
-                FragmentType::z => "z",
+                FragmentType::a(_) => "a",
+                FragmentType::b(_) => "b",
+                FragmentType::c(_) => "c",
+                FragmentType::d(_) => "d",
+                FragmentType::v(_) => "v",
+                FragmentType::w(_) => "w",
+                FragmentType::x(_) => "x",
+                FragmentType::y(_) => "y",
+                FragmentType::z(_) => "z",
+                FragmentType::precursor => "precursor",
             }
         )
     }

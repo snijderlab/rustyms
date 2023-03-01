@@ -20,7 +20,7 @@ impl RawSpectrum {
     pub fn annotate(
         &self,
         peptide: Peptide,
-        theoretical_fragments: Vec<Fragment>,
+        theoretical_fragments: &[Fragment],
         model: &Model,
     ) -> AnnotatedSpectrum {
         let mut annotated = AnnotatedSpectrum {
@@ -39,13 +39,13 @@ impl RawSpectrum {
             let close = peaks
                 .iter()
                 .enumerate()
-                .map(|(i, p)| (i, p.ppm(&fragment)))
+                .map(|(i, p)| (i, p.ppm(fragment)))
                 .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             if let Some((index, ppm)) = close {
                 if ppm <= model.ppm {
                     annotated
                         .spectrum
-                        .push(AnnotatedPeak::new(&peaks[index], fragment));
+                        .push(AnnotatedPeak::new(&peaks[index], fragment.clone()));
                     peaks.remove(index);
                 }
             }

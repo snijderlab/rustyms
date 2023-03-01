@@ -60,6 +60,11 @@ pub fn generate_theoretical_fragments<M: MassSystem>(
             ));
         }
     }
+    output.push(Fragment::new(
+        peptide.mass::<M>(),
+        max_charge,
+        fragment::FragmentType::precursor,
+    ));
     output
 }
 
@@ -89,7 +94,7 @@ mod test {
             Charge::new::<e>(1.0),
             &model,
         );
-        let annotated = spectrum[0].annotate(peptide, fragments, &model);
+        let annotated = spectrum[0].annotate(peptide, &fragments, &model);
         println!("{annotated:?}")
     }
 }
