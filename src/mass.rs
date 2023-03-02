@@ -10,7 +10,8 @@ pub trait MassSystem {
     const P: f64;
     const S: f64;
     const Se: f64;
-    
+    const e: f64 = 5.48579909065e-4;
+
     // Common combined pieces (for easy reading of calculations)
     const CO: f64 = Self::C + Self::O;
     const OH: f64 = Self::O + Self::H;
@@ -20,6 +21,7 @@ pub trait MassSystem {
     const CH: f64 = Self::C + Self::H;
     const CH2: f64 = Self::C + Self::H * 2.0;
     const CH3: f64 = Self::C + Self::H * 3.0;
+    const CHO: f64 = Self::C + Self::H + Self::O;
     const BACKBONE: f64 = Self::CO + Self::CH + Self::NH;
 }
 

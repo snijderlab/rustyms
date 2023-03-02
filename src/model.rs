@@ -68,15 +68,30 @@ impl Model {
 
     pub fn all() -> Self {
         Self {
-            a: Location::SkipC(1),
-            b: Location::SkipC(1),
-            c: Location::SkipC(1),
+            a: Location::SkipN(1),
+            b: Location::SkipN(1),
+            c: Location::SkipN(1),
+            d: Location::All,
+            v: Location::All,
+            w: Location::All,
+            x: Location::All,
+            y: Location::All,
+            z: Location::All,
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
+
+    pub fn ethcd() -> Self {
+        Self {
+            a: Location::None,
+            b: Location::SkipN(1),
+            c: Location::SkipN(1),
             d: Location::None,
             v: Location::None,
-            w: Location::None,
-            x: Location::SkipN(1),
-            y: Location::SkipN(1),
-            z: Location::SkipN(1),
+            w: Location::SkipN(1),
+            x: Location::None,
+            y: Location::All,
+            z: Location::All,
             ppm: MassOverCharge::new::<mz>(20.0),
         }
     }

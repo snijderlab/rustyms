@@ -47,6 +47,7 @@ pub enum FragmentType {
     x(usize),
     y(usize),
     z(usize),
+    z·(usize),
     precursor,
 }
 
@@ -62,6 +63,7 @@ impl FragmentType {
             FragmentType::x(n) => Some(*n),
             FragmentType::y(n) => Some(*n),
             FragmentType::z(n) => Some(*n),
+            FragmentType::z·(n) => Some(*n),
             FragmentType::precursor => None,
         }
     }
@@ -82,6 +84,7 @@ impl Display for FragmentType {
                 FragmentType::x(_) => "x",
                 FragmentType::y(_) => "y",
                 FragmentType::z(_) => "z",
+                FragmentType::z·(_) => "z·",
                 FragmentType::precursor => "precursor",
             }
         )

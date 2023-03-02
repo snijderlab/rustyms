@@ -147,9 +147,9 @@ impl AminoAcid {
             AminoAcid::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
             AminoAcid::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::NH2 * 2.0),
             AminoAcid::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
-            AminoAcid::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::O * 2.0),
+            AminoAcid::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
             AminoAcid::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
-            AminoAcid::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O * 2.0),
+            AminoAcid::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::OH + M::O),
             AminoAcid::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
             AminoAcid::Glycine => da(M::BACKBONE + M::H),
             AminoAcid::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
@@ -232,7 +232,7 @@ impl AminoAcid {
         let mut output = Vec::new();
         if ions.a {
             output.push(Fragment::new(
-                n_term + self.mass::<M>() - da(M::CO + M::H * charge.value),
+                n_term + self.mass::<M>() + da(-M::CO + M::H * charge.value),
                 charge,
                 FragmentType::a(idx),
             ))
@@ -270,7 +270,8 @@ impl AminoAcid {
         if ions.w {
             for satellite in self.satellite_ion_masses::<M>() {
                 output.push(Fragment::new(
-                    c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H * charge.value),
+                    c_term + self.mass::<M>() - satellite
+                        + da(-M::NH + M::O + M::H * (1.0 + charge.value)),
                     charge,
                     FragmentType::w(idx),
                 ))
@@ -295,6 +296,11 @@ impl AminoAcid {
                 c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * charge.value),
                 charge,
                 FragmentType::z(idx),
+            ));
+            output.push(Fragment::new(
+                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * (1.0 + charge.value) - M::e),
+                charge,
+                FragmentType::z·(idx),
             ))
         }
         output
@@ -340,5 +346,14 @@ mod tests {
         assert_ne!(weight_ala, mass_ala);
         assert_eq!(weight_ala.value, 71.07793);
         assert_eq!(mass_ala.value, 71.037113783);
+    }
+
+    #[test]
+    fn mass_lysine() {
+        let weight_lys = AminoAcid::K.mass::<crate::AverageWeight>();
+        let mass_lys = AminoAcid::Lys.mass::<crate::MonoIsotopic>();
+        assert_ne!(weight_lys, mass_lys);
+        assert_eq!(weight_lys.value, 128.17240999999999);
+        assert_eq!(mass_lys.value, 128.094963010536);
     }
 }

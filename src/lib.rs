@@ -28,7 +28,7 @@ pub fn generate_theoretical_fragments<M: MassSystem>(
 ) -> Vec<Fragment> {
     assert!(max_charge.value >= 1.0);
     assert!(max_charge.value <= u64::MAX as f64);
-    let mut output = Vec::new();
+    let mut output = Vec::with_capacity(20 * peptide.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
     for index in 0..peptide.sequence.len() {
         for charge in 1..=(max_charge.value as u64) {
             let n_term = peptide
