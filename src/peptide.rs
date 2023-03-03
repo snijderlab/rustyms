@@ -24,20 +24,21 @@ impl Peptide {
         let mut last_aa = None;
         let chars: Vec<char> = value.chars().collect();
         let mut index = 0;
+        let mut c_term = false;
 
         // N term modification
-        if chars[index] == '{' {
+        if chars[index] == '[' {
             let mut end_index = 0;
-            for i in index..value.len() {
-                if chars[i] == '}' {
-                    end_index = i;
+            for i in index..value.len() - 1 {
+                if chars[i] == ']' && chars[i + 1] == '-' {
+                    end_index = i + 1;
                     break;
                 }
             }
             if end_index == 0 {
                 return Err("No valid closing delimiter for N term modification");
             }
-            peptide.n_term = Some((&value[index + 1..end_index]).try_into()?);
+            peptide.n_term = Some((&value[index + 1..end_index - 1]).try_into()?);
             index = end_index + 1;
         }
 
@@ -54,29 +55,24 @@ impl Peptide {
                     if end_index == 0 {
                         return Err("No valid closing delimiter aminoacid modification");
                     }
-                    peptide.sequence.push((
-                        last_aa.unwrap(),
-                        Some((&value[index + 1..end_index]).try_into()?),
-                    ));
+                    let modification = Some((&value[index + 1..end_index]).try_into()?);
+                    if c_term {
+                        peptide.c_term = modification;
+                        if end_index != value.len() - 1 {
+                            return Err(
+                                "There cannot be any characters after the C terminal modification",
+                            );
+                        }
+                        break; // Allow the last aa to be placed
+                    } else {
+                        peptide.sequence.push((last_aa.unwrap(), modification));
+                    }
                     last_aa = None;
                     index = end_index + 1;
                 }
-                '{' => {
-                    let mut end_index = 0;
-                    for i in index..value.len() {
-                        if chars[i] == '}' {
-                            end_index = i;
-                            break;
-                        }
-                    }
-                    if end_index == 0 {
-                        return Err("No valid closing delimiter for C term modification");
-                    }
-                    if end_index != value.len() - 1 {
-                        return Err("Characters present after C terminus");
-                    }
-                    peptide.c_term = Some((&value[index + 1..end_index]).try_into()?);
-                    break; // SHOULD be last characters of the string
+                '-' => {
+                    c_term = true;
+                    index += 1;
                 }
                 ch => {
                     if let Some(aa) = last_aa {
@@ -110,7 +106,7 @@ impl Peptide {
 impl Display for Peptide {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(m) = &self.n_term {
-            write!(f, "{{{m}}}")?;
+            write!(f, "[{m}]-")?;
         }
         for position in &self.sequence {
             write!(f, "{}", position.0.char())?;
@@ -119,7 +115,7 @@ impl Display for Peptide {
             }
         }
         if let Some(m) = &self.c_term {
-            write!(f, "{{{m}}}")?;
+            write!(f, "-[{m}]")?;
         }
         Ok(())
     }
@@ -129,15 +125,16 @@ impl Display for Peptide {
 pub enum Modification {
     /// Monoisotopic mass shift
     Mass(Mass),
+    #[allow(non_snake_case)]
     Formula {
-        H: isize,
-        C: isize,
-        N: isize,
-        O: isize,
-        F: isize,
-        P: isize,
-        S: isize,
-        Se: isize,
+        H: i8,
+        C: i8,
+        N: i8,
+        O: i8,
+        F: i8,
+        P: i8,
+        S: i8,
+        Se: i8,
     },
 }
 
@@ -176,8 +173,22 @@ impl TryFrom<&str> for Modification {
     ///     * Do not crash on other input, provide shift as string with 0 mass
     fn try_from(value: &str) -> Result<Modification, Self::Error> {
         dbg!(&value);
-        let mass = value.parse::<f64>().map_err(|_| "Invalid mass shift")?;
-        Ok(Modification::Mass(Mass::new::<dalton>(mass)))
+        match value.split_once(':') {
+            Some(("Formula", tail)) => Ok(Modification::Formula {
+                H: 0,
+                C: 0,
+                N: 0,
+                O: 0,
+                F: 0,
+                P: 0,
+                S: 0,
+                Se: 0,
+            }),
+            Some((head, tail)) => Err("Does not support these types yet"),
+            None => Ok(Modification::Mass(Mass::new::<dalton>(
+                value.parse::<f64>().map_err(|_| "Invalid mass shift")?,
+            ))),
+        }
     }
 }
 
@@ -197,7 +208,7 @@ impl Display for Modification {
                 S,
                 Se,
             } => {
-                let mut pr = |n: &isize, c: &str| {
+                let mut pr = |n: &i8, c: &str| {
                     if *n != 0 {
                         write!(f, "{c}{n}").unwrap();
                     }
@@ -234,26 +245,19 @@ mod tests {
     use super::Peptide;
 
     #[test]
-    fn parse_pro_forma_simple() {
-        let inp = "AAA";
-        let peptide = Peptide::pro_forma(inp).unwrap();
-        assert_eq!(
-            peptide.mass::<MonoIsotopic>(),
-            AminoAcid::Alanine.mass::<MonoIsotopic>() * 3.0
-        );
-        assert_eq!(peptide.sequence.len(), 3);
-        assert_eq!(peptide.to_string(), "AAA".to_string());
+    fn test_many_pro_forma() {
+        for v in ["AAA", "[+12.2]-AAA-[-12.2]", "[+12.2]-AAA[-10.1]-[-2.1]"] {
+            assume_mass_3ala(v)
+        }
     }
 
-    #[test]
-    fn parse_pro_forma_termini() {
-        let inp = "{+12.2}AAA{-12.2}";
-        let peptide = Peptide::pro_forma(inp).unwrap();
+    fn assume_mass_3ala(value: &str) {
+        let peptide = Peptide::pro_forma(value).unwrap();
         assert_eq!(
             peptide.mass::<MonoIsotopic>(),
             AminoAcid::Alanine.mass::<MonoIsotopic>() * 3.0
         );
         assert_eq!(peptide.sequence.len(), 3);
-        assert_eq!(peptide.to_string(), "{+12.2}AAA{-12.2}".to_string());
+        assert_eq!(peptide.to_string(), value.to_string());
     }
 }
