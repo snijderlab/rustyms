@@ -1,5 +1,8 @@
-use crate::{da, Mass, MassSystem};
+use std::fmt::Display;
 
+use crate::{da, HasMass, Mass, MassSystem};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MonoSaccharide {
     Hep,
     phosphate,
@@ -27,8 +30,36 @@ pub enum MonoSaccharide {
     Hex,
 }
 
-impl MonoSaccharide {
-    pub fn mass<M: MassSystem>(&self) -> Mass {
+/// All monosaccharides ordered to be able to parse glycans by matching them from the top
+pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
+    ("phosphate", MonoSaccharide::phosphate),
+    ("sulfate", MonoSaccharide::sulfate),
+    ("Sug", MonoSaccharide::Sug),
+    ("Tri", MonoSaccharide::Tri),
+    ("Tet", MonoSaccharide::Tet),
+    ("Pen", MonoSaccharide::Pen),
+    ("a-Hex", MonoSaccharide::a_Hex),
+    ("en,a-Hex", MonoSaccharide::en_a_Hex),
+    ("d-Hex", MonoSaccharide::d_Hex),
+    ("HexNAc(S)", MonoSaccharide::HexNAcS),
+    ("HexNAc", MonoSaccharide::HexNAc),
+    ("HexNS", MonoSaccharide::HexNS),
+    ("HexN", MonoSaccharide::HexN),
+    ("HexS", MonoSaccharide::HexS),
+    ("HexP", MonoSaccharide::HexP),
+    ("Hex", MonoSaccharide::Hex),
+    ("Hep", MonoSaccharide::Hep),
+    ("Oct", MonoSaccharide::Oct),
+    ("Non", MonoSaccharide::Non),
+    ("Dec", MonoSaccharide::Dec),
+    ("Neu5Ac", MonoSaccharide::Neu5Ac),
+    ("Neu5Gc", MonoSaccharide::Neu5Gc),
+    ("Neu", MonoSaccharide::Neu),
+    ("Fuc", MonoSaccharide::Fuc),
+];
+
+impl HasMass for MonoSaccharide {
+    fn mass<M: MassSystem>(&self) -> Mass {
         match self {
             Self::Hep => da(M::C * 7.0 + M::H * 12.0 + M::O * 6.0),
             Self::phosphate => da(M::H + M::O * 3.0 + M::P),
@@ -88,5 +119,40 @@ impl TryFrom<&str> for MonoSaccharide {
             "Hex" => Ok(Self::Hex),
             _ => Err(()),
         }
+    }
+}
+
+impl Display for MonoSaccharide {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Hep => "Hep",
+                Self::phosphate => "phosphate",
+                Self::a_Hex => "a-Hex",
+                Self::Sug => "Sug",
+                Self::d_Hex => "d-Hex",
+                Self::HexN => "HexN",
+                Self::Pen => "Pen",
+                Self::Tet => "Tet",
+                Self::HexS => "HexS",
+                Self::HexP => "HexP",
+                Self::Neu5Ac => "Neu5Ac",
+                Self::Non => "Non",
+                Self::HexNAcS => "HexNAc(S)",
+                Self::Dec => "Dec",
+                Self::en_a_Hex => "en,a-Hex",
+                Self::Neu5Gc => "Neu5Gc",
+                Self::Neu => "Neu",
+                Self::HexNAc => "HexNAc",
+                Self::Fuc => "Fuc",
+                Self::HexNS => "HexNS",
+                Self::Tri => "Tri",
+                Self::Oct => "Oct",
+                Self::sulfate => "sulfate",
+                Self::Hex => "Hex",
+            }
+        )
     }
 }

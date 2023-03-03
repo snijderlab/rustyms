@@ -2,9 +2,11 @@ use std::fmt::Display;
 
 use uom::num_traits::Zero;
 
-use crate::{aminoacids::AminoAcid, system::f64::*, MassSystem};
+use crate::{
+    aminoacids::AminoAcid, element::*, system::f64::*, HasMass, MassSystem, MonoSaccharide,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Peptide {
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
@@ -14,7 +16,7 @@ pub struct Peptide {
 impl Peptide {
     /// https://github.com/HUPO-PSI/ProForma
     /// Only supports a subset of the specification, some functions are not possible to be represented.
-    pub fn pro_forma(value: &str) -> Result<Self, &'static str> {
+    pub fn pro_forma(value: &str) -> Result<Self, String> {
         assert!(value.is_ascii());
         let mut peptide = Peptide {
             n_term: None,
@@ -36,7 +38,7 @@ impl Peptide {
                 }
             }
             if end_index == 0 {
-                return Err("No valid closing delimiter for N term modification");
+                return Err("No valid closing delimiter for N term modification".to_string());
             }
             peptide.n_term = Some((&value[index + 1..end_index - 1]).try_into()?);
             index = end_index + 1;
@@ -53,14 +55,15 @@ impl Peptide {
                         }
                     }
                     if end_index == 0 {
-                        return Err("No valid closing delimiter aminoacid modification");
+                        return Err("No valid closing delimiter aminoacid modification".to_string());
                     }
                     let modification = Some((&value[index + 1..end_index]).try_into()?);
                     if c_term {
                         peptide.c_term = modification;
                         if end_index != value.len() - 1 {
                             return Err(
-                                "There cannot be any characters after the C terminal modification",
+                                "There cannot be any characters after the C terminal modification"
+                                    .to_string(),
                             );
                         }
                         break; // Allow the last aa to be placed
@@ -91,8 +94,10 @@ impl Peptide {
         //dbg!(&peptide);
         Ok(peptide)
     }
+}
 
-    pub fn mass<M: MassSystem>(&self) -> Mass {
+impl HasMass for Peptide {
+    fn mass<M: MassSystem>(&self) -> Mass {
         let mut mass = self.n_term.as_ref().map_or(Mass::zero(), |m| m.mass::<M>())
             + self.c_term.as_ref().map_or(Mass::zero(), |m| m.mass::<M>());
         for position in &self.sequence {
@@ -121,75 +126,90 @@ impl Display for Peptide {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Modification {
     /// Monoisotopic mass shift
     Mass(Mass),
     #[allow(non_snake_case)]
-    Formula {
-        H: i8,
-        C: i8,
-        N: i8,
-        O: i8,
-        F: i8,
-        P: i8,
-        S: i8,
-        Se: i8,
-    },
+    Formula(Vec<(Element, isize)>),
+    Glycan(Vec<(MonoSaccharide, isize)>),
 }
 
-impl Modification {
-    pub fn mass<M: MassSystem>(&self) -> Mass {
+impl HasMass for Modification {
+    fn mass<M: MassSystem>(&self) -> Mass {
         match self {
             Self::Mass(m) => *m,
-            Self::Formula {
-                H,
-                C,
-                N,
-                O,
-                F,
-                P,
-                S,
-                Se,
-            } => da(M::H * (*H as f64)
-                + M::C * (*C as f64)
-                + M::N * (*N as f64)
-                + M::O * (*O as f64)
-                + M::F * (*F as f64)
-                + M::P * (*P as f64)
-                + M::S * (*S as f64)
-                + M::Se * (*Se as f64)),
+            Self::Formula(elements) => elements.iter().map(|m| m.1 as f64 * m.0.mass::<M>()).sum(),
+            Self::Glycan(monosaccharides) => monosaccharides
+                .iter()
+                .map(|m| m.1 as f64 * m.0.mass::<M>())
+                .sum(),
         }
     }
 }
 
 impl TryFrom<&str> for Modification {
-    type Error = &'static str;
-    /// TODO: support more parts of the spec:
-    ///     * Glycans (at least 'formula' based: 'HexNac')
-    ///     * Formulas (generic over mass system)
+    type Error = String;
+    /// TODO: support more parts of the ProForma spec:
     ///     * Think about a way to enforce knowledge about the monoisotopic nature of the modifications in normal mass shifts
     ///     * Allow zero mass gap (X[+365])
-    ///     * Do not crash on other input, provide shift as string with 0 mass
+    ///     * Do not crash on other input, provide shift as string with 0 mass?
     fn try_from(value: &str) -> Result<Modification, Self::Error> {
         dbg!(&value);
         match value.split_once(':') {
-            Some(("Formula", tail)) => Ok(Modification::Formula {
-                H: 0,
-                C: 0,
-                N: 0,
-                O: 0,
-                F: 0,
-                P: 0,
-                S: 0,
-                Se: 0,
-            }),
-            Some((head, tail)) => Err("Does not support these types yet"),
+            Some(("Formula", tail)) => Ok(Modification::Formula(parse_named_counter(
+                tail,
+                ELEMENT_PARSE_LIST,
+                true,
+            )?)),
+            Some(("Glycan", tail)) => Ok(Modification::Glycan(parse_named_counter(
+                tail,
+                crate::GLYCAN_PARSE_LIST,
+                false,
+            )?)),
+            Some((head, _tail)) => Err(format!("Does not support these types yet: {head}")),
             None => Ok(Modification::Mass(Mass::new::<dalton>(
                 value.parse::<f64>().map_err(|_| "Invalid mass shift")?,
             ))),
         }
     }
+}
+
+fn parse_named_counter<T: Copy>(
+    value: &str,
+    names: &[(&str, T)],
+    allow_negative: bool,
+) -> Result<Vec<(T, isize)>, String> {
+    let mut index = 0;
+    let mut output = Vec::new();
+    while index < value.len() {
+        if value[index..].starts_with(' ') {
+            index += 1;
+        } else {
+            let mut found = false;
+            for name in names {
+                if value[index..].starts_with(name.0) {
+                    index += name.0.len();
+                    let num = &value[index..]
+                        .chars()
+                        .take_while(|c| c.is_ascii_digit() || (allow_negative && *c == '-'))
+                        .collect::<String>();
+                    if num.is_empty() {
+                        output.push((name.1, 1))
+                    } else {
+                        output.push((name.1, dbg!(num).parse().unwrap()));
+                        index += num.len();
+                    }
+                    found = true;
+                    break; // Names loop
+                }
+            }
+            if !found {
+                return Err(format!("Name not recognised {}", &value[index..]));
+            }
+        }
+    }
+    Ok(output)
 }
 
 impl Display for Modification {
@@ -198,41 +218,17 @@ impl Display for Modification {
             Modification::Mass(m) => {
                 write!(f, "{:+}", m.value).unwrap();
             }
-            Self::Formula {
-                H,
-                C,
-                N,
-                O,
-                F,
-                P,
-                S,
-                Se,
-            } => {
-                let mut pr = |n: &i8, c: &str| {
-                    if *n != 0 {
-                        write!(f, "{c}{n}").unwrap();
-                    }
-                };
-                // Display in Hill order (if C: C first followed by H rest alphabetical, otherwise all alphabetical)
-                if *C != 0 {
-                    pr(C, "C");
-                    pr(H, "H");
-                    pr(F, "F");
-                    pr(N, "N");
-                    pr(O, "O");
-                    pr(P, "P");
-                    pr(S, "S");
-                    pr(Se, "Se");
-                } else {
-                    pr(F, "F");
-                    pr(H, "H");
-                    pr(N, "N");
-                    pr(O, "O");
-                    pr(P, "P");
-                    pr(S, "S");
-                    pr(Se, "Se");
-                }
+            Self::Formula(elements) => {
+                write!(f, "Formula:{}", Element::hill_notation(elements)).unwrap();
             }
+            Self::Glycan(monosaccharides) => write!(
+                f,
+                "Glycan:{}",
+                monosaccharides
+                    .iter()
+                    .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
+            )
+            .unwrap(),
         }
         Ok(())
     }
@@ -240,7 +236,7 @@ impl Display for Modification {
 
 #[cfg(test)]
 mod tests {
-    use crate::{aminoacids::AminoAcid, MonoIsotopic};
+    use crate::{aminoacids::AminoAcid, HasMass, MonoIsotopic};
 
     use super::Peptide;
 
@@ -259,5 +255,30 @@ mod tests {
         );
         assert_eq!(peptide.sequence.len(), 3);
         assert_eq!(peptide.to_string(), value.to_string());
+    }
+
+    #[test]
+    fn parse_glycan() {
+        let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
+        let spaces = Peptide::pro_forma("A[Glycan:    Hex    ]").unwrap();
+        assert_eq!(glycan.sequence.len(), 1);
+        assert_eq!(spaces.sequence.len(), 1);
+        assert_eq!(glycan, spaces);
+        let incorrect = Peptide::pro_forma("A[Glycan:Hec]");
+        assert!(incorrect.is_err());
+        let incorrect = Peptide::pro_forma("A[glycan:Hex]");
+        assert!(incorrect.is_err());
+    }
+
+    #[test]
+    fn parse_formula() {
+        let peptide = Peptide::pro_forma("A[Formula:C6H10O5]").unwrap();
+        let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
+        assert_eq!(peptide.sequence.len(), 1);
+        assert_eq!(glycan.sequence.len(), 1);
+        assert_eq!(
+            glycan.mass::<MonoIsotopic>(),
+            peptide.mass::<MonoIsotopic>()
+        );
     }
 }

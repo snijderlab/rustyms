@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
 mod aminoacids;
+mod element;
 mod fragment;
 mod glycan;
 mod mass;
-mod mgf;
+pub mod mgf;
 mod model;
 mod peptide;
 mod spectrum;
@@ -12,7 +13,10 @@ mod system;
 
 pub use crate::mass::*;
 
+pub use crate::fragment::*;
 pub use crate::glycan::*;
+pub use crate::peptide::*;
+pub use crate::spectrum::*;
 pub use crate::system::f64::*;
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;

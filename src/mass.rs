@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+use std::fmt::Display;
+
+use crate::{da, Mass};
+
 pub trait MassSystem {
     const H: f64;
     const C: f64;
@@ -52,4 +56,8 @@ impl MassSystem for MonoIsotopic {
     const P: f64 = 30.97376199768;
     const S: f64 = 31.97207117354;
     const Se: f64 = 79.916521761;
+}
+
+pub trait HasMass {
+    fn mass<M: MassSystem>(&self) -> Mass;
 }
