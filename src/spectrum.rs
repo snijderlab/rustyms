@@ -1,5 +1,4 @@
 use crate::{
-    aminoacids::AminoAcid,
     fragment::Fragment,
     model::Model,
     peptide::Peptide,
@@ -92,7 +91,7 @@ pub struct AnnotatedPeak {
 
 impl AnnotatedPeak {
     pub fn new(peak: &RawPeak, annotation: Fragment) -> Self {
-        AnnotatedPeak {
+        Self {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
             charge: peak.charge,
@@ -101,7 +100,7 @@ impl AnnotatedPeak {
     }
 
     pub fn background(peak: &RawPeak) -> Self {
-        AnnotatedPeak {
+        Self {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
             charge: peak.charge,

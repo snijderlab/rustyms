@@ -14,11 +14,11 @@ pub struct Peptide {
 }
 
 impl Peptide {
-    /// https://github.com/HUPO-PSI/ProForma
+    /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Only supports a subset of the specification, some functions are not possible to be represented.
     pub fn pro_forma(value: &str) -> Result<Self, String> {
         assert!(value.is_ascii());
-        let mut peptide = Peptide {
+        let mut peptide = Self {
             n_term: None,
             c_term: None,
             sequence: Vec::new(),
@@ -67,9 +67,8 @@ impl Peptide {
                             );
                         }
                         break; // Allow the last aa to be placed
-                    } else {
-                        peptide.sequence.push((last_aa.unwrap(), modification));
                     }
+                    peptide.sequence.push((last_aa.unwrap(), modification));
                     last_aa = None;
                     index = end_index + 1;
                 }
@@ -89,7 +88,7 @@ impl Peptide {
         }
         //dbg!(&value, &peptide, &last_aa);
         if let Some(aa) = last_aa {
-            peptide.sequence.push((aa, None))
+            peptide.sequence.push((aa, None));
         }
         //dbg!(&peptide);
         Ok(peptide)
@@ -98,11 +97,20 @@ impl Peptide {
 
 impl HasMass for Peptide {
     fn mass<M: MassSystem>(&self) -> Mass {
-        let mut mass = self.n_term.as_ref().map_or(Mass::zero(), |m| m.mass::<M>())
-            + self.c_term.as_ref().map_or(Mass::zero(), |m| m.mass::<M>());
+        let mut mass = self
+            .n_term
+            .as_ref()
+            .map_or_else(Mass::zero, HasMass::mass::<M>)
+            + self
+                .c_term
+                .as_ref()
+                .map_or_else(Mass::zero, HasMass::mass::<M>);
         for position in &self.sequence {
             mass += position.0.mass::<M>()
-                + position.1.as_ref().map_or(Mass::zero(), |m| m.mass::<M>());
+                + position
+                    .1
+                    .as_ref()
+                    .map_or_else(Mass::zero, HasMass::mass::<M>);
         }
         mass
     }
@@ -150,25 +158,25 @@ impl HasMass for Modification {
 
 impl TryFrom<&str> for Modification {
     type Error = String;
-    /// TODO: support more parts of the ProForma spec:
+    /// TODO: support more parts of the Pro Forma spec:
     ///     * Think about a way to enforce knowledge about the monoisotopic nature of the modifications in normal mass shifts
     ///     * Allow zero mass gap (X[+365])
     ///     * Do not crash on other input, provide shift as string with 0 mass?
-    fn try_from(value: &str) -> Result<Modification, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         dbg!(&value);
         match value.split_once(':') {
-            Some(("Formula", tail)) => Ok(Modification::Formula(parse_named_counter(
+            Some(("Formula", tail)) => Ok(Self::Formula(parse_named_counter(
                 tail,
                 ELEMENT_PARSE_LIST,
                 true,
             )?)),
-            Some(("Glycan", tail)) => Ok(Modification::Glycan(parse_named_counter(
+            Some(("Glycan", tail)) => Ok(Self::Glycan(parse_named_counter(
                 tail,
                 crate::GLYCAN_PARSE_LIST,
                 false,
             )?)),
             Some((head, _tail)) => Err(format!("Does not support these types yet: {head}")),
-            None => Ok(Modification::Mass(Mass::new::<dalton>(
+            None => Ok(Self::Mass(Mass::new::<dalton>(
                 value.parse::<f64>().map_err(|_| "Invalid mass shift")?,
             ))),
         }
@@ -195,7 +203,7 @@ fn parse_named_counter<T: Copy>(
                         .take_while(|c| c.is_ascii_digit() || (allow_negative && *c == '-'))
                         .collect::<String>();
                     if num.is_empty() {
-                        output.push((name.1, 1))
+                        output.push((name.1, 1));
                     } else {
                         output.push((name.1, dbg!(num).parse().unwrap()));
                         index += num.len();
@@ -215,7 +223,7 @@ fn parse_named_counter<T: Copy>(
 impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Modification::Mass(m) => {
+            Self::Mass(m) => {
                 write!(f, "{:+}", m.value).unwrap();
             }
             Self::Formula(elements) => {
@@ -243,7 +251,7 @@ mod tests {
     #[test]
     fn test_many_pro_forma() {
         for v in ["AAA", "[+12.2]-AAA-[-12.2]", "[+12.2]-AAA[-10.1]-[-2.1]"] {
-            assume_mass_3ala(v)
+            assume_mass_3ala(v);
         }
     }
 

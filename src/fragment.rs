@@ -14,6 +14,7 @@ impl Fragment {
         self.theoretical_mass / self.charge
     }
 
+    #[must_use]
     pub fn new(theoretical_mass: Mass, charge: Charge, ion: FragmentType) -> Self {
         Self {
             theoretical_mass,
@@ -22,6 +23,7 @@ impl Fragment {
         }
     }
 
+    #[must_use]
     pub fn with_charge<M: MassSystem>(&self, charge: Charge) -> Self {
         Self {
             theoretical_mass: self.theoretical_mass + da(M::Proton * charge.value),
@@ -60,19 +62,19 @@ pub enum FragmentType {
 }
 
 impl FragmentType {
-    pub fn sequence_index(&self) -> Option<usize> {
+    pub const fn sequence_index(&self) -> Option<usize> {
         match self {
-            FragmentType::a(n) => Some(*n),
-            FragmentType::b(n) => Some(*n),
-            FragmentType::c(n) => Some(*n),
-            FragmentType::d(n) => Some(*n),
-            FragmentType::v(n) => Some(*n),
-            FragmentType::w(n) => Some(*n),
-            FragmentType::x(n) => Some(*n),
-            FragmentType::y(n) => Some(*n),
-            FragmentType::z(n) => Some(*n),
-            FragmentType::z·(n) => Some(*n),
-            FragmentType::precursor => None,
+            Self::a(n)
+            | Self::b(n)
+            | Self::c(n)
+            | Self::d(n)
+            | Self::v(n)
+            | Self::w(n)
+            | Self::x(n)
+            | Self::y(n)
+            | Self::z(n)
+            | Self::z·(n) => Some(*n),
+            Self::precursor => None,
         }
     }
 }
@@ -83,17 +85,17 @@ impl Display for FragmentType {
             f,
             "{}",
             match self {
-                FragmentType::a(_) => "a",
-                FragmentType::b(_) => "b",
-                FragmentType::c(_) => "c",
-                FragmentType::d(_) => "d",
-                FragmentType::v(_) => "v",
-                FragmentType::w(_) => "w",
-                FragmentType::x(_) => "x",
-                FragmentType::y(_) => "y",
-                FragmentType::z(_) => "z",
-                FragmentType::z·(_) => "z·",
-                FragmentType::precursor => "precursor",
+                Self::a(_) => "a",
+                Self::b(_) => "b",
+                Self::c(_) => "c",
+                Self::d(_) => "d",
+                Self::v(_) => "v",
+                Self::w(_) => "w",
+                Self::x(_) => "x",
+                Self::y(_) => "y",
+                Self::z(_) => "z",
+                Self::z·(_) => "z·",
+                Self::precursor => "precursor",
             }
         )
     }
