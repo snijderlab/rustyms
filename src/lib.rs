@@ -1,4 +1,11 @@
 #![allow(dead_code)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 
 mod aminoacids;
 mod element;
@@ -36,35 +43,25 @@ pub fn generate_theoretical_fragments<M: MassSystem>(
     assert!(max_charge.value <= u64::MAX as f64);
     let mut output = Vec::with_capacity(20 * peptide.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
     for index in 0..peptide.sequence.len() {
-        for charge in 1..=(max_charge.value as u64) {
-            let n_term = peptide
-                .n_term
-                .as_ref()
-                .map_or(Mass::zero(), |m| m.mass::<M>())
-                + peptide.sequence[0..index]
-                    .iter()
-                    .fold(Mass::zero(), |acc, aa| {
-                        acc + aa.0.mass::<M>()
-                            + aa.1.as_ref().map_or(Mass::zero(), |m| m.mass::<M>())
-                    });
-            let c_term = peptide
-                .c_term
-                .as_ref()
-                .map_or(Mass::zero(), |m| m.mass::<M>())
-                + peptide.sequence[index + 1..peptide.sequence.len()]
-                    .iter()
-                    .fold(Mass::zero(), |acc, aa| {
-                        acc + aa.0.mass::<M>()
-                            + aa.1.as_ref().map_or(Mass::zero(), |m| m.mass::<M>())
-                    });
-            output.append(&mut peptide.sequence[index].0.fragments::<M>(
-                n_term,
-                c_term,
-                Charge::new::<e>(charge as f64),
-                index,
-                model.ions(index, peptide.sequence.len()),
-            ));
-        }
+        let n_term = peptide.n_term.mass::<M>()
+            + peptide.sequence[0..index]
+                .iter()
+                .fold(Mass::zero(), |acc, aa| {
+                    acc + aa.0.mass::<M>() + aa.1.mass::<M>()
+                });
+        let c_term = peptide.c_term.mass::<M>()
+            + peptide.sequence[index + 1..peptide.sequence.len()]
+                .iter()
+                .fold(Mass::zero(), |acc, aa| {
+                    acc + aa.0.mass::<M>() + aa.1.mass::<M>()
+                });
+        output.append(&mut peptide.sequence[index].0.fragments::<M>(
+            n_term,
+            c_term,
+            max_charge,
+            index,
+            &model.ions(index, peptide.sequence.len()),
+        ));
     }
     output.push(Fragment::new(
         peptide.mass::<M>(),
@@ -101,6 +98,6 @@ mod test {
             &model,
         );
         let annotated = spectrum[0].annotate(peptide, &fragments, &model);
-        println!("{annotated:?}")
+        println!("{annotated:?}");
     }
 }

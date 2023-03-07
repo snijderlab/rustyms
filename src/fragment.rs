@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::system::f64::*;
+use crate::{system::f64::*, MassSystem};
 
 #[derive(Clone)]
 pub struct Fragment {
@@ -19,6 +19,14 @@ impl Fragment {
             theoretical_mass,
             charge,
             ion,
+        }
+    }
+
+    pub fn with_charge<M: MassSystem>(&self, charge: Charge) -> Self {
+        Self {
+            theoretical_mass: self.theoretical_mass + da(M::Proton * charge.value),
+            charge,
+            ion: self.ion,
         }
     }
 }

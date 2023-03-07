@@ -12,7 +12,7 @@ pub struct Model {
     pub z: Location,
     pub ppm: MassOverCharge,
 }
-
+#[allow(clippy::struct_excessive_bools)]
 pub struct PossibleIons {
     pub a: bool,
     pub b: bool,
@@ -25,8 +25,22 @@ pub struct PossibleIons {
     pub z: bool,
 }
 
+impl PossibleIons {
+    pub fn size_upper_bound(&self) -> usize {
+        usize::from(self.a)
+            + usize::from(self.b)
+            + usize::from(self.c)
+            + usize::from(self.d) * 2
+            + usize::from(self.v)
+            + usize::from(self.w) * 2
+            + usize::from(self.x)
+            + usize::from(self.y)
+            + usize::from(self.z) * 2
+    }
+}
+
 impl Model {
-    pub fn ions(&self, index: usize, length: usize) -> PossibleIons {
+    pub const fn ions(&self, index: usize, length: usize) -> PossibleIons {
         PossibleIons {
             a: self.a.possible(index, length),
             b: self.b.possible(index, length),
@@ -40,6 +54,7 @@ impl Model {
         }
     }
 
+    #[allow(clippy::too_many_arguments, clippy::many_single_char_names)]
     pub fn new(
         a: Location,
         b: Location,
@@ -84,14 +99,14 @@ impl Model {
     pub fn ethcd() -> Self {
         Self {
             a: Location::None,
-            b: Location::SkipN(1),
-            c: Location::SkipN(1),
+            b: Location::SkipNC(1, 1),
+            c: Location::SkipNC(1, 1),
             d: Location::None,
             v: Location::None,
-            w: Location::SkipN(1),
+            w: Location::All,
             x: Location::None,
-            y: Location::All,
-            z: Location::All,
+            y: Location::SkipN(1),
+            z: Location::SkipN(1),
             ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
@@ -99,6 +114,7 @@ impl Model {
 
 pub enum Location {
     SkipN(usize),
+    SkipNC(usize, usize),
     TakeN(usize),
     SkipC(usize),
     TakeC(usize),
@@ -107,14 +123,15 @@ pub enum Location {
 }
 
 impl Location {
-    pub fn possible(&self, index: usize, length: usize) -> bool {
+    pub const fn possible(&self, index: usize, length: usize) -> bool {
         match self {
-            Location::SkipN(n) => index + 1 > *n,
-            Location::TakeN(n) => index < *n,
-            Location::SkipC(n) => length - index > *n,
-            Location::TakeC(n) => length - index <= *n,
-            Location::All => true,
-            Location::None => false,
+            Self::SkipN(n) => index + 1 > *n,
+            Self::SkipNC(n, c) => index + 1 > *n && length - index > *c,
+            Self::TakeN(n) => index < *n,
+            Self::SkipC(n) => length - index > *n,
+            Self::TakeC(n) => length - index <= *n,
+            Self::All => true,
+            Self::None => false,
         }
     }
 }

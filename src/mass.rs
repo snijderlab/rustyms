@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
+#![allow(clippy::unreadable_literal)]
 
-use std::fmt::Display;
+use uom::num_traits::Zero;
 
-use crate::{da, Mass};
+use crate::Mass;
 
 pub trait MassSystem {
     const H: f64;
@@ -17,6 +18,7 @@ pub trait MassSystem {
     const e: f64 = 5.48579909065e-4;
 
     // Common combined pieces (for easy reading of calculations)
+    const Proton: f64 = Self::H - Self::e;
     const CO: f64 = Self::C + Self::O;
     const OH: f64 = Self::O + Self::H;
     const NH: f64 = Self::N + Self::H;
@@ -29,7 +31,7 @@ pub trait MassSystem {
     const BACKBONE: f64 = Self::CO + Self::CH + Self::NH;
 }
 
-/// Source: https://www.ciaaw.org/atomic-weights.htm
+/// Source: [CIAAW](https://www.ciaaw.org/atomic-weights.htm)
 /// When a range of weight is given the average value of the top and bottom is used.
 /// All values are given in dalton.
 pub struct AverageWeight {}
@@ -60,4 +62,10 @@ impl MassSystem for MonoIsotopic {
 
 pub trait HasMass {
     fn mass<M: MassSystem>(&self) -> Mass;
+}
+
+impl<T: HasMass> HasMass for Option<T> {
+    fn mass<M: MassSystem>(&self) -> Mass {
+        self.as_ref().map_or_else(Mass::zero, HasMass::mass::<M>)
+    }
 }

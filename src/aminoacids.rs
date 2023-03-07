@@ -1,3 +1,5 @@
+use uom::num_traits::Zero;
+
 use crate::fragment::{Fragment, FragmentType};
 use crate::system::f64::*;
 use crate::MassSystem;
@@ -34,29 +36,29 @@ impl TryFrom<char> for AminoAcid {
     type Error = ();
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            'A' => Ok(AminoAcid::Alanine),
-            'C' => Ok(AminoAcid::Cysteine),
-            'D' => Ok(AminoAcid::AsparticAcid),
-            'E' => Ok(AminoAcid::GlutamicAcid),
-            'F' => Ok(AminoAcid::Phenylalanine),
-            'G' => Ok(AminoAcid::Glycine),
-            'H' => Ok(AminoAcid::Histidine),
-            'I' => Ok(AminoAcid::Isoleucine),
-            'J' => Ok(AminoAcid::AmbiguousLeucine),
-            'K' => Ok(AminoAcid::Lysine),
-            'L' => Ok(AminoAcid::Leucine),
-            'M' => Ok(AminoAcid::Methionine),
-            'N' => Ok(AminoAcid::Asparagine),
-            'O' => Ok(AminoAcid::Pyrrolysine),
-            'P' => Ok(AminoAcid::Proline),
-            'Q' => Ok(AminoAcid::Glutamine),
-            'R' => Ok(AminoAcid::Arginine),
-            'S' => Ok(AminoAcid::Serine),
-            'T' => Ok(AminoAcid::Threonine),
-            'U' => Ok(AminoAcid::Selenocysteine),
-            'V' => Ok(AminoAcid::Valine),
-            'W' => Ok(AminoAcid::Tryptophan),
-            'Y' => Ok(AminoAcid::Tyrosine),
+            'A' => Ok(Self::Alanine),
+            'C' => Ok(Self::Cysteine),
+            'D' => Ok(Self::AsparticAcid),
+            'E' => Ok(Self::GlutamicAcid),
+            'F' => Ok(Self::Phenylalanine),
+            'G' => Ok(Self::Glycine),
+            'H' => Ok(Self::Histidine),
+            'I' => Ok(Self::Isoleucine),
+            'J' => Ok(Self::AmbiguousLeucine),
+            'K' => Ok(Self::Lysine),
+            'L' => Ok(Self::Leucine),
+            'M' => Ok(Self::Methionine),
+            'N' => Ok(Self::Asparagine),
+            'O' => Ok(Self::Pyrrolysine),
+            'P' => Ok(Self::Proline),
+            'Q' => Ok(Self::Glutamine),
+            'R' => Ok(Self::Arginine),
+            'S' => Ok(Self::Serine),
+            'T' => Ok(Self::Threonine),
+            'U' => Ok(Self::Selenocysteine),
+            'V' => Ok(Self::Valine),
+            'W' => Ok(Self::Tryptophan),
+            'Y' => Ok(Self::Tyrosine),
             _ => Err(()),
         }
     }
@@ -66,29 +68,29 @@ impl TryFrom<&u8> for AminoAcid {
     type Error = ();
     fn try_from(value: &u8) -> Result<Self, Self::Error> {
         match value {
-            b'A' => Ok(AminoAcid::Alanine),
-            b'C' => Ok(AminoAcid::Cysteine),
-            b'D' => Ok(AminoAcid::AsparticAcid),
-            b'E' => Ok(AminoAcid::GlutamicAcid),
-            b'F' => Ok(AminoAcid::Phenylalanine),
-            b'G' => Ok(AminoAcid::Glycine),
-            b'H' => Ok(AminoAcid::Histidine),
-            b'I' => Ok(AminoAcid::Isoleucine),
-            b'J' => Ok(AminoAcid::AmbiguousLeucine),
-            b'K' => Ok(AminoAcid::Lysine),
-            b'L' => Ok(AminoAcid::Leucine),
-            b'M' => Ok(AminoAcid::Methionine),
-            b'N' => Ok(AminoAcid::Asparagine),
-            b'O' => Ok(AminoAcid::Pyrrolysine),
-            b'P' => Ok(AminoAcid::Proline),
-            b'Q' => Ok(AminoAcid::Glutamine),
-            b'R' => Ok(AminoAcid::Arginine),
-            b'S' => Ok(AminoAcid::Serine),
-            b'T' => Ok(AminoAcid::Threonine),
-            b'U' => Ok(AminoAcid::Selenocysteine),
-            b'V' => Ok(AminoAcid::Valine),
-            b'W' => Ok(AminoAcid::Tryptophan),
-            b'Y' => Ok(AminoAcid::Tyrosine),
+            b'A' => Ok(Self::Alanine),
+            b'C' => Ok(Self::Cysteine),
+            b'D' => Ok(Self::AsparticAcid),
+            b'E' => Ok(Self::GlutamicAcid),
+            b'F' => Ok(Self::Phenylalanine),
+            b'G' => Ok(Self::Glycine),
+            b'H' => Ok(Self::Histidine),
+            b'I' => Ok(Self::Isoleucine),
+            b'J' => Ok(Self::AmbiguousLeucine),
+            b'K' => Ok(Self::Lysine),
+            b'L' => Ok(Self::Leucine),
+            b'M' => Ok(Self::Methionine),
+            b'N' => Ok(Self::Asparagine),
+            b'O' => Ok(Self::Pyrrolysine),
+            b'P' => Ok(Self::Proline),
+            b'Q' => Ok(Self::Glutamine),
+            b'R' => Ok(Self::Arginine),
+            b'S' => Ok(Self::Serine),
+            b'T' => Ok(Self::Threonine),
+            b'U' => Ok(Self::Selenocysteine),
+            b'V' => Ok(Self::Valine),
+            b'W' => Ok(Self::Tryptophan),
+            b'Y' => Ok(Self::Tyrosine),
             _ => Err(()),
         }
     }
@@ -97,23 +99,23 @@ impl TryFrom<&u8> for AminoAcid {
 impl HasMass for AminoAcid {
     fn mass<M: MassSystem>(&self) -> Mass {
         match self {
-            AminoAcid::Alanine => da(M::BACKBONE + M::CH3),
-            AminoAcid::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
-            AminoAcid::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::NH2 * 2.0),
-            AminoAcid::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
-            AminoAcid::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
-            AminoAcid::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
-            AminoAcid::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::OH + M::O),
-            AminoAcid::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
-            AminoAcid::Glycine => da(M::BACKBONE + M::H),
-            AminoAcid::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
-            AminoAcid::Isoleucine => da(M::BACKBONE + M::CH + M::CH3 + M::CH2 + M::CH3),
-            AminoAcid::Leucine => da(M::BACKBONE + M::CH2 + M::CH + M::CH3 + M::CH3),
-            AminoAcid::Lysine => da(M::BACKBONE + M::CH2 * 4.0 + M::NH2),
-            AminoAcid::Methionine => da(M::BACKBONE + M::CH2 * 2.0 + M::S + M::CH3),
-            AminoAcid::Phenylalanine => da(M::BACKBONE + M::CH2 + M::C + M::CH * 5.0),
-            AminoAcid::Proline => da(M::BACKBONE + M::CH2 * 3.0 - M::H),
-            AminoAcid::Pyrrolysine => da(M::BACKBONE
+            Self::Alanine => da(M::BACKBONE + M::CH3),
+            Self::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
+            Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::NH2 * 2.0),
+            Self::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
+            Self::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
+            Self::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
+            Self::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::OH + M::O),
+            Self::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
+            Self::Glycine => da(M::BACKBONE + M::H),
+            Self::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
+            Self::Isoleucine => da(M::BACKBONE + M::CH + M::CH3 + M::CH2 + M::CH3),
+            Self::Leucine => da(M::BACKBONE + M::CH2 + M::CH + M::CH3 + M::CH3),
+            Self::Lysine => da(M::BACKBONE + M::CH2 * 4.0 + M::NH2),
+            Self::Methionine => da(M::BACKBONE + M::CH2 * 2.0 + M::S + M::CH3),
+            Self::Phenylalanine => da(M::BACKBONE + M::CH2 + M::C + M::CH * 5.0),
+            Self::Proline => da(M::BACKBONE + M::CH2 * 3.0 - M::H),
+            Self::Pyrrolysine => da(M::BACKBONE
                 + M::CH2 * 4.0
                 + M::NH
                 + M::C
@@ -124,85 +126,85 @@ impl HasMass for AminoAcid {
                 + M::CH2
                 + M::CH
                 + M::CH3),
-            AminoAcid::Selenocysteine => da(M::BACKBONE + M::CH2 + M::Se),
-            AminoAcid::Serine => da(M::BACKBONE + M::CH2 + M::OH),
-            AminoAcid::Threonine => da(M::BACKBONE + M::CH + M::OH + M::CH3),
-            AminoAcid::Tryptophan => {
+            Self::Selenocysteine => da(M::BACKBONE + M::CH2 + M::Se),
+            Self::Serine => da(M::BACKBONE + M::CH2 + M::OH),
+            Self::Threonine => da(M::BACKBONE + M::CH + M::OH + M::CH3),
+            Self::Tryptophan => {
                 da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::C + M::NH + M::CH)
             }
-            AminoAcid::Tyrosine => da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::OH),
-            AminoAcid::Valine => da(M::BACKBONE + M::CH + M::CH3 * 2.0),
+            Self::Tyrosine => da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::OH),
+            Self::Valine => da(M::BACKBONE + M::CH + M::CH3 * 2.0),
         }
     }
 }
 
 #[allow(non_upper_case_globals)]
 impl AminoAcid {
-    pub const A: AminoAcid = AminoAcid::Alanine;
-    pub const C: AminoAcid = AminoAcid::Cysteine;
-    pub const D: AminoAcid = AminoAcid::AsparticAcid;
-    pub const E: AminoAcid = AminoAcid::GlutamicAcid;
-    pub const F: AminoAcid = AminoAcid::Phenylalanine;
-    pub const G: AminoAcid = AminoAcid::Glycine;
-    pub const H: AminoAcid = AminoAcid::Histidine;
-    pub const I: AminoAcid = AminoAcid::Isoleucine;
-    pub const J: AminoAcid = AminoAcid::AmbiguousLeucine;
-    pub const K: AminoAcid = AminoAcid::Lysine;
-    pub const L: AminoAcid = AminoAcid::Leucine;
-    pub const M: AminoAcid = AminoAcid::Methionine;
-    pub const N: AminoAcid = AminoAcid::Asparagine;
-    pub const O: AminoAcid = AminoAcid::Pyrrolysine;
-    pub const P: AminoAcid = AminoAcid::Proline;
-    pub const Q: AminoAcid = AminoAcid::Glutamine;
-    pub const R: AminoAcid = AminoAcid::Arginine;
-    pub const S: AminoAcid = AminoAcid::Serine;
-    pub const T: AminoAcid = AminoAcid::Threonine;
-    pub const U: AminoAcid = AminoAcid::Selenocysteine;
-    pub const V: AminoAcid = AminoAcid::Valine;
-    pub const W: AminoAcid = AminoAcid::Tryptophan;
-    pub const Ala: AminoAcid = AminoAcid::Alanine;
-    pub const Cys: AminoAcid = AminoAcid::Cysteine;
-    pub const Asp: AminoAcid = AminoAcid::AsparticAcid;
-    pub const Glu: AminoAcid = AminoAcid::GlutamicAcid;
-    pub const Phe: AminoAcid = AminoAcid::Phenylalanine;
-    pub const Gly: AminoAcid = AminoAcid::Glycine;
-    pub const His: AminoAcid = AminoAcid::Histidine;
-    pub const Ile: AminoAcid = AminoAcid::Isoleucine;
-    pub const Xle: AminoAcid = AminoAcid::AmbiguousLeucine;
-    pub const Lys: AminoAcid = AminoAcid::Lysine;
-    pub const Leu: AminoAcid = AminoAcid::Leucine;
-    pub const Met: AminoAcid = AminoAcid::Methionine;
-    pub const Asn: AminoAcid = AminoAcid::Asparagine;
-    pub const Pyl: AminoAcid = AminoAcid::Pyrrolysine;
-    pub const Pro: AminoAcid = AminoAcid::Proline;
-    pub const Gln: AminoAcid = AminoAcid::Glutamine;
-    pub const Arg: AminoAcid = AminoAcid::Arginine;
-    pub const Ser: AminoAcid = AminoAcid::Serine;
-    pub const Thr: AminoAcid = AminoAcid::Threonine;
-    pub const Sec: AminoAcid = AminoAcid::Selenocysteine;
-    pub const Val: AminoAcid = AminoAcid::Valine;
-    pub const Trp: AminoAcid = AminoAcid::Tryptophan;
+    pub const A: Self = Self::Alanine;
+    pub const C: Self = Self::Cysteine;
+    pub const D: Self = Self::AsparticAcid;
+    pub const E: Self = Self::GlutamicAcid;
+    pub const F: Self = Self::Phenylalanine;
+    pub const G: Self = Self::Glycine;
+    pub const H: Self = Self::Histidine;
+    pub const I: Self = Self::Isoleucine;
+    pub const J: Self = Self::AmbiguousLeucine;
+    pub const K: Self = Self::Lysine;
+    pub const L: Self = Self::Leucine;
+    pub const M: Self = Self::Methionine;
+    pub const N: Self = Self::Asparagine;
+    pub const O: Self = Self::Pyrrolysine;
+    pub const P: Self = Self::Proline;
+    pub const Q: Self = Self::Glutamine;
+    pub const R: Self = Self::Arginine;
+    pub const S: Self = Self::Serine;
+    pub const T: Self = Self::Threonine;
+    pub const U: Self = Self::Selenocysteine;
+    pub const V: Self = Self::Valine;
+    pub const W: Self = Self::Tryptophan;
+    pub const Ala: Self = Self::Alanine;
+    pub const Cys: Self = Self::Cysteine;
+    pub const Asp: Self = Self::AsparticAcid;
+    pub const Glu: Self = Self::GlutamicAcid;
+    pub const Phe: Self = Self::Phenylalanine;
+    pub const Gly: Self = Self::Glycine;
+    pub const His: Self = Self::Histidine;
+    pub const Ile: Self = Self::Isoleucine;
+    pub const Xle: Self = Self::AmbiguousLeucine;
+    pub const Lys: Self = Self::Lysine;
+    pub const Leu: Self = Self::Leucine;
+    pub const Met: Self = Self::Methionine;
+    pub const Asn: Self = Self::Asparagine;
+    pub const Pyl: Self = Self::Pyrrolysine;
+    pub const Pro: Self = Self::Proline;
+    pub const Gln: Self = Self::Glutamine;
+    pub const Arg: Self = Self::Arginine;
+    pub const Ser: Self = Self::Serine;
+    pub const Thr: Self = Self::Threonine;
+    pub const Sec: Self = Self::Selenocysteine;
+    pub const Val: Self = Self::Valine;
+    pub const Trp: Self = Self::Tryptophan;
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
         match self {
-            AminoAcid::Alanine => vec![],
-            AminoAcid::AmbiguousLeucine => vec![],
-            AminoAcid::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
-            AminoAcid::Asparagine => vec![da(M::C + M::O + M::NH2)],
-            AminoAcid::AsparticAcid => vec![da(M::C + M::O * 2.0)],
-            AminoAcid::Cysteine => vec![da(M::S + M::H)],
-            AminoAcid::GlutamicAcid => vec![da(M::CH2 + M::C + M::O * 2.0)],
-            AminoAcid::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
-            AminoAcid::Glycine => vec![],
-            AminoAcid::Histidine => vec![], // Aromatic
-            AminoAcid::Isoleucine => vec![da(M::CH3), da(M::CH2 + M::CH3)],
-            AminoAcid::Leucine => vec![da(M::CH + M::CH3 * 2.0)],
-            AminoAcid::Lysine => vec![da(M::CH2 * 3.0 + M::NH2)],
-            AminoAcid::Methionine => vec![da(M::CH2 + M::S + M::CH3)],
-            AminoAcid::Phenylalanine => vec![], // Aromatic
-            AminoAcid::Proline => vec![], // Interesting, TODO: see what other software packages think about this one
-            AminoAcid::Pyrrolysine => {
+            Self::Alanine => vec![],
+            Self::AmbiguousLeucine => vec![],
+            Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
+            Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
+            Self::AsparticAcid => vec![da(M::C + M::O * 2.0)],
+            Self::Cysteine => vec![da(M::S + M::H)],
+            Self::GlutamicAcid => vec![da(M::CH2 + M::C + M::O * 2.0)],
+            Self::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
+            Self::Glycine => vec![],
+            Self::Histidine => vec![], // Aromatic
+            Self::Isoleucine => vec![da(M::CH3), da(M::CH2 + M::CH3)],
+            Self::Leucine => vec![da(M::CH + M::CH3 * 2.0)],
+            Self::Lysine => vec![da(M::CH2 * 3.0 + M::NH2)],
+            Self::Methionine => vec![da(M::CH2 + M::S + M::CH3)],
+            Self::Phenylalanine => vec![], // Aromatic
+            Self::Proline => vec![], // Interesting, TODO: see what other software packages think about this one
+            Self::Pyrrolysine => {
                 vec![da(M::CH2 * 3.0
                     + M::NH
                     + M::C
@@ -214,12 +216,12 @@ impl AminoAcid {
                     + M::CH
                     + M::CH3)]
             } // Weird, TODO: figure out what to make of this
-            AminoAcid::Selenocysteine => vec![da(M::Se)],
-            AminoAcid::Serine => vec![da(M::OH)],
-            AminoAcid::Threonine => vec![da(M::OH), da(M::CH3)],
-            AminoAcid::Tryptophan => vec![],       // Aromatic
-            AminoAcid::Tyrosine => vec![],         // Aromatic
-            AminoAcid::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
+            Self::Selenocysteine => vec![da(M::Se)],
+            Self::Serine => vec![da(M::OH)],
+            Self::Threonine => vec![da(M::OH), da(M::CH3)],
+            Self::Tryptophan => vec![],       // Aromatic
+            Self::Tyrosine => vec![],         // Aromatic
+            Self::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
         }
     }
 
@@ -227,112 +229,117 @@ impl AminoAcid {
         &self,
         n_term: Mass,
         c_term: Mass,
-        charge: Charge,
+        max_charge: Charge,
         idx: usize,
-        ions: PossibleIons,
+        ions: &PossibleIons,
     ) -> Vec<Fragment> {
-        let mut output = Vec::new();
+        let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         if ions.a {
-            output.push(Fragment::new(
-                n_term + self.mass::<M>() + da(-M::CO + M::H * charge.value),
-                charge,
+            base_fragments.push(Fragment::new(
+                n_term + self.mass::<M>() + da(-M::CO),
+                Charge::zero(),
                 FragmentType::a(idx),
-            ))
+            ));
         }
         if ions.b {
-            output.push(Fragment::new(
-                n_term + self.mass::<M>() + da(M::H * charge.value),
-                charge,
+            base_fragments.push(Fragment::new(
+                n_term + self.mass::<M>(),
+                Charge::zero(),
                 FragmentType::b(idx),
-            ))
+            ));
         }
         if ions.c {
-            output.push(Fragment::new(
-                n_term + self.mass::<M>() + da(M::NH3 + M::H * charge.value),
-                charge,
+            base_fragments.push(Fragment::new(
+                n_term + self.mass::<M>() + da(M::NH3),
+                Charge::zero(),
                 FragmentType::c(idx),
-            ))
+            ));
         }
         if ions.d {
             for satellite in self.satellite_ion_masses::<M>() {
-                output.push(Fragment::new(
-                    n_term + self.mass::<M>() - satellite + da(-M::CO + M::H * charge.value),
-                    charge,
+                base_fragments.push(Fragment::new(
+                    n_term + self.mass::<M>() - satellite + da(-M::CO),
+                    Charge::zero(),
                     FragmentType::d(idx),
-                ))
+                ));
             }
         }
         if ions.v {
-            output.push(Fragment::new(
-                c_term + da(M::BACKBONE) + da(M::H * (charge.value + 1.0) + M::OH),
-                charge,
+            base_fragments.push(Fragment::new(
+                c_term + da(M::BACKBONE) + da(M::H + M::OH),
+                Charge::zero(),
                 FragmentType::v(idx),
-            ))
+            ));
         }
         if ions.w {
             for satellite in self.satellite_ion_masses::<M>() {
-                output.push(Fragment::new(
-                    c_term + self.mass::<M>() - satellite
-                        + da(-M::NH + M::O + M::H * (1.0 + charge.value)),
-                    charge,
+                base_fragments.push(Fragment::new(
+                    c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H),
+                    Charge::zero(),
                     FragmentType::w(idx),
-                ))
+                ));
             }
         }
         if ions.x {
-            output.push(Fragment::new(
-                c_term + self.mass::<M>() + da(M::CO + M::O + M::H * charge.value),
-                charge,
+            base_fragments.push(Fragment::new(
+                c_term + self.mass::<M>() + da(M::CO + M::O),
+                Charge::zero(),
                 FragmentType::x(idx),
-            ))
+            ));
         }
         if ions.y {
-            output.push(Fragment::new(
-                c_term + self.mass::<M>() + da(M::H * (charge.value + 1.0) + M::OH),
-                charge,
+            base_fragments.push(Fragment::new(
+                c_term + self.mass::<M>() + da(M::H + M::OH),
+                Charge::zero(),
                 FragmentType::y(idx),
-            ))
+            ));
         }
         if ions.z {
-            output.push(Fragment::new(
-                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * charge.value),
-                charge,
+            base_fragments.push(Fragment::new(
+                c_term + self.mass::<M>() + da(-M::NH + M::O),
+                Charge::zero(),
                 FragmentType::z(idx),
             ));
-            output.push(Fragment::new(
-                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H * (1.0 + charge.value) - M::e),
-                charge,
+            base_fragments.push(Fragment::new(
+                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H),
+                Charge::zero(),
                 FragmentType::z·(idx),
-            ))
+            ));
         }
-        output
+        let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);
+        for base in base_fragments {
+            for charge in 1..=(max_charge.value as u64) {
+                charged.push(base.with_charge::<M>(Charge::new::<e>(charge as f64)));
+            }
+        }
+        charged
     }
 
-    pub fn char(&self) -> char {
+    pub const fn char(&self) -> char {
         match self {
-            AminoAcid::Alanine => 'A',
-            AminoAcid::Cysteine => 'C',
-            AminoAcid::AsparticAcid => 'D',
-            AminoAcid::GlutamicAcid => 'E',
-            AminoAcid::Phenylalanine => 'F',
-            AminoAcid::Glycine => 'G',
-            AminoAcid::Histidine => 'H',
-            AminoAcid::Isoleucine => 'I',
-            AminoAcid::AmbiguousLeucine => 'J',
-            AminoAcid::Lysine => 'K',
-            AminoAcid::Leucine => 'L',
-            AminoAcid::Methionine => 'M',
-            AminoAcid::Asparagine => 'N',
-            AminoAcid::Pyrrolysine => 'O',
-            AminoAcid::Proline => 'P',
-            AminoAcid::Glutamine => 'Q',
-            AminoAcid::Arginine => 'R',
-            AminoAcid::Serine => 'S',
-            AminoAcid::Threonine => 'T',
-            AminoAcid::Selenocysteine => 'U',
-            AminoAcid::Valine => 'V',
-            AminoAcid::Tryptophan => 'W',
-            AminoAcid::Tyrosine => 'Y',
+            Self::Alanine => 'A',
+            Self::Cysteine => 'C',
+            Self::AsparticAcid => 'D',
+            Self::GlutamicAcid => 'E',
+            Self::Phenylalanine => 'F',
+            Self::Glycine => 'G',
+            Self::Histidine => 'H',
+            Self::Isoleucine => 'I',
+            Self::AmbiguousLeucine => 'J',
+            Self::Lysine => 'K',
+            Self::Leucine => 'L',
+            Self::Methionine => 'M',
+            Self::Asparagine => 'N',
+            Self::Pyrrolysine => 'O',
+            Self::Proline => 'P',
+            Self::Glutamine => 'Q',
+            Self::Arginine => 'R',
+            Self::Serine => 'S',
+            Self::Threonine => 'T',
+            Self::Selenocysteine => 'U',
+            Self::Valine => 'V',
+            Self::Tryptophan => 'W',
+            Self::Tyrosine => 'Y',
         }
     }
 }
