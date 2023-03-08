@@ -110,12 +110,42 @@ impl Model {
             ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
+
+    pub fn cid_hcd() -> Self {
+        Self {
+            a: Location::TakeN { skip: 1, take: 1 },
+            b: Location::SkipNC(1, 1),
+            c: Location::None,
+            d: Location::TakeN { skip: 1, take: 1 },
+            v: Location::None,
+            w: Location::None,
+            x: Location::None,
+            y: Location::SkipC(1),
+            z: Location::None,
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
+
+    pub fn etcid() -> Self {
+        Self {
+            a: Location::None,
+            b: Location::SkipNC(1, 1),
+            c: Location::SkipNC(1, 1),
+            d: Location::None,
+            v: Location::None,
+            w: Location::SkipN(1),
+            x: Location::None,
+            y: Location::SkipN(1),
+            z: Location::SkipN(1),
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
 }
 
 pub enum Location {
     SkipN(usize),
     SkipNC(usize, usize),
-    TakeN(usize),
+    TakeN { skip: usize, take: usize },
     SkipC(usize),
     TakeC(usize),
     All,
@@ -125,9 +155,9 @@ pub enum Location {
 impl Location {
     pub const fn possible(&self, index: usize, length: usize) -> bool {
         match self {
-            Self::SkipN(n) => index + 1 > *n,
-            Self::SkipNC(n, c) => index + 1 > *n && length - index > *c,
-            Self::TakeN(n) => index < *n,
+            Self::SkipN(n) => index >= *n,
+            Self::SkipNC(n, c) => index >= *n && length - index > *c,
+            Self::TakeN { skip, take } => index >= *skip && index < *skip + *take,
             Self::SkipC(n) => length - index > *n,
             Self::TakeC(n) => length - index <= *n,
             Self::All => true,

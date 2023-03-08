@@ -37,7 +37,7 @@ impl Debug for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} {}+{}",
+            "{:?} {} {:+}",
             self.ion,
             self.mz().value,
             self.charge.value
@@ -66,7 +66,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     a(Position),
@@ -97,6 +97,29 @@ impl FragmentType {
             | Self::z·(n) => Some(n),
             Self::precursor => None,
         }
+    }
+}
+
+impl Debug for FragmentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            self,
+            match self {
+                Self::a(n)
+                | Self::b(n)
+                | Self::c(n)
+                | Self::d(n)
+                | Self::v(n)
+                | Self::w(n)
+                | Self::x(n)
+                | Self::y(n)
+                | Self::z(n)
+                | Self::z·(n) => n.series_number.to_string(),
+                Self::precursor => String::new(),
+            }
+        )
     }
 }
 
