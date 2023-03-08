@@ -60,6 +60,19 @@ impl MassSystem for MonoIsotopic {
     const Se: f64 = 79.916521761;
 }
 
+pub struct Hecklib {}
+
+impl MassSystem for Hecklib {
+    const H: f64 = 1.00782503214;
+    const C: f64 = 12.0;
+    const N: f64 = 14.00307400524;
+    const O: f64 = 15.99491462210;
+    const F: f64 = 18.99840320500;
+    const P: f64 = 30.97376151200;
+    const S: f64 = 31.97207069000;
+    const Se: f64 = 79.9165218;
+}
+
 pub trait HasMass {
     fn mass<M: MassSystem>(&self) -> Mass;
 }

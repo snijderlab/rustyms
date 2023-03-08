@@ -2,8 +2,8 @@ use uom::num_traits::Zero;
 
 use crate::fragment::{Fragment, FragmentType};
 use crate::system::f64::*;
-use crate::MassSystem;
 use crate::{model::*, HasMass};
+use crate::{MassSystem, Position};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AminoAcid {
@@ -230,7 +230,8 @@ impl AminoAcid {
         n_term: Mass,
         c_term: Mass,
         max_charge: Charge,
-        idx: usize,
+        sequence_index: usize,
+        sequence_length: usize,
         ions: &PossibleIons,
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
@@ -238,21 +239,21 @@ impl AminoAcid {
             base_fragments.push(Fragment::new(
                 n_term + self.mass::<M>() + da(-M::CO),
                 Charge::zero(),
-                FragmentType::a(idx),
+                FragmentType::a(Position::n(sequence_index, sequence_length)),
             ));
         }
         if ions.b {
             base_fragments.push(Fragment::new(
                 n_term + self.mass::<M>(),
                 Charge::zero(),
-                FragmentType::b(idx),
+                FragmentType::b(Position::n(sequence_index, sequence_length)),
             ));
         }
         if ions.c {
             base_fragments.push(Fragment::new(
                 n_term + self.mass::<M>() + da(M::NH3),
                 Charge::zero(),
-                FragmentType::c(idx),
+                FragmentType::c(Position::n(sequence_index, sequence_length)),
             ));
         }
         if ions.d {
@@ -260,7 +261,7 @@ impl AminoAcid {
                 base_fragments.push(Fragment::new(
                     n_term + self.mass::<M>() - satellite + da(-M::CO),
                     Charge::zero(),
-                    FragmentType::d(idx),
+                    FragmentType::d(Position::n(sequence_index, sequence_length)),
                 ));
             }
         }
@@ -268,7 +269,7 @@ impl AminoAcid {
             base_fragments.push(Fragment::new(
                 c_term + da(M::BACKBONE) + da(M::H + M::OH),
                 Charge::zero(),
-                FragmentType::v(idx),
+                FragmentType::v(Position::n(sequence_index, sequence_length)),
             ));
         }
         if ions.w {
@@ -276,7 +277,7 @@ impl AminoAcid {
                 base_fragments.push(Fragment::new(
                     c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H),
                     Charge::zero(),
-                    FragmentType::w(idx),
+                    FragmentType::w(Position::c(sequence_index, sequence_length)),
                 ));
             }
         }
@@ -284,26 +285,26 @@ impl AminoAcid {
             base_fragments.push(Fragment::new(
                 c_term + self.mass::<M>() + da(M::CO + M::O),
                 Charge::zero(),
-                FragmentType::x(idx),
+                FragmentType::x(Position::c(sequence_index, sequence_length)),
             ));
         }
         if ions.y {
             base_fragments.push(Fragment::new(
                 c_term + self.mass::<M>() + da(M::H + M::OH),
                 Charge::zero(),
-                FragmentType::y(idx),
+                FragmentType::y(Position::c(sequence_index, sequence_length)),
             ));
         }
         if ions.z {
             base_fragments.push(Fragment::new(
                 c_term + self.mass::<M>() + da(-M::NH + M::O),
                 Charge::zero(),
-                FragmentType::z(idx),
+                FragmentType::z(Position::c(sequence_index, sequence_length)),
             ));
             base_fragments.push(Fragment::new(
                 c_term + self.mass::<M>() + da(-M::NH + M::O + M::H),
                 Charge::zero(),
-                FragmentType::z·(idx),
+                FragmentType::z·(Position::c(sequence_index, sequence_length)),
             ));
         }
         let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);

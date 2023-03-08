@@ -19,6 +19,7 @@ mod model;
 mod peptide;
 mod spectrum;
 mod system;
+pub mod thermo;
 
 pub use crate::mass::*;
 
@@ -62,6 +63,7 @@ pub fn generate_theoretical_fragments<M: MassSystem>(
             c_term,
             max_charge,
             index,
+            peptide.sequence.len(),
             &model.ions(index, peptide.sequence.len()),
         ));
     }

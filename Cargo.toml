@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 uom = "0.34"
+entab="0.3"

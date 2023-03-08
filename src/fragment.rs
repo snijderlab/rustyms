@@ -46,23 +46,44 @@ impl Debug for Fragment {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct Position {
+    pub sequence_index: usize,
+    pub series_number: usize,
+}
+
+impl Position {
+    pub const fn n(sequence_index: usize, _length: usize) -> Self {
+        Self {
+            sequence_index,
+            series_number: sequence_index + 1,
+        }
+    }
+    pub const fn c(sequence_index: usize, length: usize) -> Self {
+        Self {
+            sequence_index,
+            series_number: length - sequence_index,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
-    a(usize),
-    b(usize),
-    c(usize),
-    d(usize),
-    v(usize),
-    w(usize),
-    x(usize),
-    y(usize),
-    z(usize),
-    z·(usize),
+    a(Position),
+    b(Position),
+    c(Position),
+    d(Position),
+    v(Position),
+    w(Position),
+    x(Position),
+    y(Position),
+    z(Position),
+    z·(Position),
     precursor,
 }
 
 impl FragmentType {
-    pub const fn sequence_index(&self) -> Option<usize> {
+    pub const fn position(&self) -> Option<&Position> {
         match self {
             Self::a(n)
             | Self::b(n)
@@ -73,7 +94,7 @@ impl FragmentType {
             | Self::x(n)
             | Self::y(n)
             | Self::z(n)
-            | Self::z·(n) => Some(*n),
+            | Self::z·(n) => Some(n),
             Self::precursor => None,
         }
     }
