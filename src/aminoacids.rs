@@ -192,9 +192,9 @@ impl AminoAcid {
             Self::AmbiguousLeucine => vec![],
             Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
             Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
-            Self::AsparticAcid => vec![da(M::C + M::O * 2.0)],
+            Self::AsparticAcid => vec![da(M::C + M::OH + M::O)],
             Self::Cysteine => vec![da(M::S + M::H)],
-            Self::GlutamicAcid => vec![da(M::CH2 + M::C + M::O * 2.0)],
+            Self::GlutamicAcid => vec![da(M::CH2 + M::C + M::OH + M::O)],
             Self::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
             Self::Glycine => vec![],
             Self::Histidine => vec![], // Aromatic
@@ -225,6 +225,7 @@ impl AminoAcid {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn fragments<M: MassSystem>(
         &self,
         n_term: Mass,
@@ -235,77 +236,107 @@ impl AminoAcid {
         ions: &PossibleIons,
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
-        if ions.a {
-            base_fragments.push(Fragment::new(
-                n_term + self.mass::<M>() + da(-M::CO),
-                Charge::zero(),
-                FragmentType::a(Position::n(sequence_index, sequence_length)),
-            ));
-        }
-        if ions.b {
-            base_fragments.push(Fragment::new(
-                n_term + self.mass::<M>(),
-                Charge::zero(),
-                FragmentType::b(Position::n(sequence_index, sequence_length)),
-            ));
-        }
-        if ions.c {
-            base_fragments.push(Fragment::new(
-                n_term + self.mass::<M>() + da(M::NH3),
-                Charge::zero(),
-                FragmentType::c(Position::n(sequence_index, sequence_length)),
-            ));
-        }
-        if ions.d {
-            for satellite in self.satellite_ion_masses::<M>() {
-                base_fragments.push(Fragment::new(
-                    n_term + self.mass::<M>() - satellite + da(-M::CO),
+        if ions.a.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    n_term + self.mass::<M>() + da(-M::CO),
                     Charge::zero(),
-                    FragmentType::d(Position::n(sequence_index, sequence_length)),
-                ));
+                    FragmentType::a(Position::n(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.a.1),
+            );
+        }
+        if ions.b.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    n_term + self.mass::<M>(),
+                    Charge::zero(),
+                    FragmentType::b(Position::n(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.b.1),
+            );
+        }
+        if ions.c.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    n_term + self.mass::<M>() + da(M::NH3),
+                    Charge::zero(),
+                    FragmentType::c(Position::n(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.c.1),
+            );
+        }
+        if ions.d.0 {
+            for satellite in self.satellite_ion_masses::<M>() {
+                base_fragments.extend(
+                    Fragment::new(
+                        n_term + self.mass::<M>() - satellite + da(-M::CO),
+                        Charge::zero(),
+                        FragmentType::d(Position::n(sequence_index, sequence_length)),
+                    )
+                    .with_neutral_losses::<M>(ions.d.1),
+                );
             }
         }
-        if ions.v {
-            base_fragments.push(Fragment::new(
-                c_term + da(M::BACKBONE) + da(M::H + M::OH),
-                Charge::zero(),
-                FragmentType::v(Position::n(sequence_index, sequence_length)),
-            ));
-        }
-        if ions.w {
-            for satellite in self.satellite_ion_masses::<M>() {
-                base_fragments.push(Fragment::new(
-                    c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H),
+        if ions.v.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    c_term + da(M::BACKBONE) + da(M::H + M::OH),
                     Charge::zero(),
-                    FragmentType::w(Position::c(sequence_index, sequence_length)),
-                ));
+                    FragmentType::v(Position::n(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.v.1),
+            );
+        }
+        if ions.w.0 {
+            for satellite in self.satellite_ion_masses::<M>() {
+                base_fragments.extend(
+                    Fragment::new(
+                        c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H),
+                        Charge::zero(),
+                        FragmentType::w(Position::c(sequence_index, sequence_length)),
+                    )
+                    .with_neutral_losses::<M>(ions.w.1),
+                );
             }
         }
-        if ions.x {
-            base_fragments.push(Fragment::new(
-                c_term + self.mass::<M>() + da(M::CO + M::O),
-                Charge::zero(),
-                FragmentType::x(Position::c(sequence_index, sequence_length)),
-            ));
+        if ions.x.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    c_term + self.mass::<M>() + da(M::CO + M::O),
+                    Charge::zero(),
+                    FragmentType::x(Position::c(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.x.1),
+            );
         }
-        if ions.y {
-            base_fragments.push(Fragment::new(
-                c_term + self.mass::<M>() + da(M::H + M::OH),
-                Charge::zero(),
-                FragmentType::y(Position::c(sequence_index, sequence_length)),
-            ));
+        if ions.y.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    c_term + self.mass::<M>() + da(M::H + M::OH),
+                    Charge::zero(),
+                    FragmentType::y(Position::c(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.y.1),
+            );
         }
-        if ions.z {
-            base_fragments.push(Fragment::new(
-                c_term + self.mass::<M>() + da(-M::NH + M::O),
-                Charge::zero(),
-                FragmentType::z(Position::c(sequence_index, sequence_length)),
-            ));
-            base_fragments.push(Fragment::new(
-                c_term + self.mass::<M>() + da(-M::NH + M::O + M::H),
-                Charge::zero(),
-                FragmentType::z·(Position::c(sequence_index, sequence_length)),
-            ));
+        if ions.z.0 {
+            base_fragments.extend(
+                Fragment::new(
+                    c_term + self.mass::<M>() + da(-M::NH + M::O),
+                    Charge::zero(),
+                    FragmentType::z(Position::c(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.z.1),
+            );
+            base_fragments.extend(
+                Fragment::new(
+                    c_term + self.mass::<M>() + da(-M::NH + M::O + M::H),
+                    Charge::zero(),
+                    FragmentType::z·(Position::c(sequence_index, sequence_length)),
+                )
+                .with_neutral_losses::<M>(ions.z.1),
+            );
         }
         let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);
         for base in base_fragments {

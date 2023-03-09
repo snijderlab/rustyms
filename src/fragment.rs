@@ -1,12 +1,13 @@
 use std::fmt::{Debug, Display};
 
-use crate::{system::f64::*, MassSystem};
+use crate::{model::NeutralLoss, system::f64::*, HasMass, MassSystem, MonoIsotopic};
 
 #[derive(Clone)]
 pub struct Fragment {
     pub theoretical_mass: Mass,
     pub charge: Charge,
     pub ion: FragmentType,
+    pub neutral_loss: Option<NeutralLoss>,
 }
 
 impl Fragment {
@@ -20,6 +21,7 @@ impl Fragment {
             theoretical_mass,
             charge,
             ion,
+            neutral_loss: None,
         }
     }
 
@@ -29,7 +31,30 @@ impl Fragment {
             theoretical_mass: self.theoretical_mass + da(M::Proton * charge.value),
             charge,
             ion: self.ion,
+            neutral_loss: self.neutral_loss,
         }
+    }
+
+    #[must_use]
+    pub fn with_neutral_loss<M: MassSystem>(&self, neutral_loss: &NeutralLoss) -> Self {
+        Self {
+            theoretical_mass: self.theoretical_mass - neutral_loss.mass::<M>(),
+            charge: self.charge,
+            ion: self.ion,
+            neutral_loss: Some(*neutral_loss),
+        }
+    }
+
+    #[must_use]
+    pub fn with_neutral_losses<M: MassSystem>(&self, neutral_losses: &[NeutralLoss]) -> Vec<Self> {
+        let mut output = Vec::with_capacity(neutral_losses.len() + 1);
+        output.push(self.clone());
+        output.extend(
+            neutral_losses
+                .iter()
+                .map(|loss| self.with_neutral_loss::<M>(loss)),
+        );
+        output
     }
 }
 
@@ -37,10 +62,12 @@ impl Debug for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} {} {:+}",
+            "{:?} {} {:+}{}",
             self.ion,
             self.mz().value,
-            self.charge.value
+            self.charge.value,
+            self.neutral_loss
+                .map_or(String::new(), |loss| format!(" -{loss}"))
         )
     }
 }
@@ -143,4 +170,20 @@ impl Display for FragmentType {
             }
         )
     }
+}
+
+#[test]
+fn neutral_loss() {
+    let a = Fragment::new(
+        Mass::new::<dalton>(118.0),
+        Charge::new::<e>(1.0),
+        FragmentType::precursor,
+    );
+    let loss = a.with_neutral_losses::<MonoIsotopic>(&[NeutralLoss::Water]);
+    dbg!(&a, &loss);
+    assert_eq!(a.theoretical_mass, loss[0].theoretical_mass);
+    assert_eq!(
+        a.theoretical_mass,
+        loss[1].theoretical_mass + NeutralLoss::Water.mass::<MonoIsotopic>()
+    );
 }
