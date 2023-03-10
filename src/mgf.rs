@@ -11,8 +11,9 @@ use crate::{
     system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
 };
 
-pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, ()> {
-    let file = BufReader::new(File::open(path).map_err(|_| ())?);
+pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
+    let file =
+        BufReader::new(File::open(path).map_err(|err| format!("Could not open file: {err}"))?);
     let mut current = RawSpectrum {
         title: String::new(),
         num_scans: 0,
@@ -24,7 +25,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, ()> {
     let mut output = Vec::new();
     for (linenumber, line) in file.lines().enumerate() {
         let linenumber = linenumber + 1;
-        let line = line.map_err(|_| ())?;
+        let line = line.map_err(|_| "Error while reading line")?;
         match line.as_str() {
             "BEGIN IONS" | "" => (),
             "END IONS" => {
@@ -41,11 +42,28 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, ()> {
             t if t.contains('=') => {
                 let (key, value) = t.split_once('=').unwrap();
                 match key {
-                    "PEPMASS" => current.mass = Mass::new::<dalton>(value.parse().map_err(|_| ())?),
-                    "CHARGE" => current.charge = parse_charge(value)?,
-                    "RT" => current.rt = Time::new::<s>(value.parse().map_err(|_| ())?),
+                    "PEPMASS" => {
+                        current.mass = Mass::new::<dalton>(value.parse().map_err(|_| {
+                            format!("Not a number {key} for PEPMASS on {linenumber}")
+                        })?);
+                    }
+                    "CHARGE" => {
+                        current.charge = parse_charge(value).map_err(|_| {
+                            format!("Not a number {key} for CHARGE on {linenumber}")
+                        })?;
+                    }
+                    "RT" => {
+                        current.rt =
+                            Time::new::<s>(value.parse().map_err(|_| {
+                                format!("Not a number {key} for RT on {linenumber}")
+                            })?);
+                    }
                     "TITLE" => current.title = value.to_owned(),
-                    "NUM_SCANS" => current.num_scans = value.parse().map_err(|_| ())?,
+                    "NUM_SCANS" => {
+                        current.num_scans = value.parse().map_err(|_| {
+                            format!("Not a number {key} for NUM_SCANS on {linenumber}")
+                        })?;
+                    }
                     _ => (),
                 }
             }
@@ -57,12 +75,19 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, ()> {
                     charge: Charge::new::<e>(1.0),
                 };
                 if split.len() < 2 {
-                    return Err(());
+                    return Err(format!("Not enough columns on line {linenumber}"));
                 }
-                peak.mz = MassOverCharge::new::<mz>(split[0].parse().map_err(|_| ())?);
-                peak.intensity = split[1].parse().map_err(|_| ())?;
+                peak.mz =
+                    MassOverCharge::new::<mz>(split[0].parse().map_err(|_| {
+                        format!("Not a number {} for MZ on {linenumber}", split[0])
+                    })?);
+                peak.intensity = split[1].parse().map_err(|_| {
+                    format!("Not a number {} for INTENSITY on {linenumber}", split[1])
+                })?;
                 if split.len() >= 3 {
-                    peak.charge = parse_charge(split[2])?;
+                    peak.charge = parse_charge(split[2]).map_err(|_| {
+                        format!("Not a number {} for CHARGE on {linenumber}", split[2])
+                    })?;
                 }
                 current.spectrum.push(peak);
             }

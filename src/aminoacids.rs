@@ -188,22 +188,24 @@ impl AminoAcid {
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
         match self {
-            Self::Alanine => vec![],
-            Self::AmbiguousLeucine => vec![],
+            Self::Alanine
+            | Self::AmbiguousLeucine
+            | Self::Glycine
+            | Self::Histidine
+            | Self::Phenylalanine
+            | Self::Proline
+            | Self::Tryptophan
+            | Self::Tyrosine => vec![],
             Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
             Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
             Self::AsparticAcid => vec![da(M::C + M::OH + M::O)],
             Self::Cysteine => vec![da(M::S + M::H)],
             Self::GlutamicAcid => vec![da(M::CH2 + M::C + M::OH + M::O)],
             Self::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
-            Self::Glycine => vec![],
-            Self::Histidine => vec![], // Aromatic
             Self::Isoleucine => vec![da(M::CH3), da(M::CH2 + M::CH3)],
             Self::Leucine => vec![da(M::CH + M::CH3 * 2.0)],
             Self::Lysine => vec![da(M::CH2 * 3.0 + M::NH2)],
             Self::Methionine => vec![da(M::CH2 + M::S + M::CH3)],
-            Self::Phenylalanine => vec![], // Aromatic
-            Self::Proline => vec![], // Interesting, TODO: see what other software packages think about this one
             Self::Pyrrolysine => {
                 vec![da(M::CH2 * 3.0
                     + M::NH
@@ -219,8 +221,6 @@ impl AminoAcid {
             Self::Selenocysteine => vec![da(M::Se)],
             Self::Serine => vec![da(M::OH)],
             Self::Threonine => vec![da(M::OH), da(M::CH3)],
-            Self::Tryptophan => vec![],       // Aromatic
-            Self::Tyrosine => vec![],         // Aromatic
             Self::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
         }
     }
@@ -377,6 +377,7 @@ impl AminoAcid {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal, clippy::float_cmp)]
 mod tests {
     use super::*;
 

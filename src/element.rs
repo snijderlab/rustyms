@@ -61,15 +61,15 @@ impl Display for Element {
 }
 
 impl Element {
-    /// Create a Hill notation from this collections of elements: https://en.wikipedia.org/wiki/Chemical_formula#Hill_system
-    pub fn hill_notation(elements: &[(Element, isize)]) -> String {
+    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements
+    pub fn hill_notation(elements: &[(Self, isize)]) -> String {
         let mut sorted = elements
             .iter()
             .map(|(e, c)| (e.to_string(), c))
             .collect::<Vec<_>>();
         sorted.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        let mut output = String::new();
         if let Some(carbon) = sorted.iter().find(|e| e.0 == "C") {
-            let mut output = String::new();
             write!(output, "C{}", carbon.1).unwrap();
             if let Some(hydrogen) = sorted.iter().find(|e| e.0 == "H") {
                 write!(output, "H{}", hydrogen.1).unwrap();
@@ -77,13 +77,11 @@ impl Element {
             for element in sorted.iter().filter(|e| e.0 == "C" || e.0 == "H") {
                 write!(output, "{}{}", element.0, element.1).unwrap();
             }
-            output
         } else {
-            let mut output = String::new();
-            for element in sorted.iter() {
+            for element in &sorted {
                 write!(output, "{}{}", element.0, element.1).unwrap();
             }
-            output
         }
+        output
     }
 }

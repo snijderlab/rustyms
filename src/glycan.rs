@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::{da, HasMass, Mass, MassSystem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum MonoSaccharide {
     Hep,
     phosphate,
@@ -65,7 +66,6 @@ impl HasMass for MonoSaccharide {
             Self::phosphate => da(M::H + M::O * 3.0 + M::P),
             Self::a_Hex => da(M::C * 6.0 + M::H * 8.0 + M::O * 6.0),
             Self::Sug => da(M::C * 2.0 + M::H * 2.0 + M::O),
-            Self::d_Hex => da(M::C * 6.0 + M::H * 10.0 + M::O * 4.0),
             Self::HexN => da(M::C * 6.0 + M::H * 11.0 + M::N + M::O * 4.0),
             Self::Pen => da(M::C * 5.0 + M::H * 8.0 + M::O * 4.0),
             Self::Tet => da(M::C * 4.0 + M::H * 6.0 + M::O * 3.0),
@@ -84,7 +84,7 @@ impl HasMass for MonoSaccharide {
             Self::Tri => da(M::C * 3.0 + M::H * 4.0 + M::O * 2.0),
             Self::Oct => da(M::C * 8.0 + M::H * 14.0 + M::O * 7.0),
             Self::sulfate => da(M::O * 3.0 + M::S),
-            Self::Hex => da(M::C * 6.0 + M::H * 10.0 + M::O * 5.0),
+            Self::d_Hex | Self::Hex => da(M::C * 6.0 + M::H * 10.0 + M::O * 5.0),
         }
     }
 }

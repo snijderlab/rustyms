@@ -6,7 +6,8 @@
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     clippy::wildcard_imports,
-    clippy::module_name_repetitions
+    clippy::module_name_repetitions,
+    clippy::suboptimal_flops
 )]
 
 mod aminoacids;

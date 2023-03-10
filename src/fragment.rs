@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{model::NeutralLoss, system::f64::*, HasMass, MassSystem, MonoIsotopic};
+use crate::{model::NeutralLoss, system::f64::*, HasMass, MassSystem};
 
 #[derive(Clone)]
 pub struct Fragment {
@@ -172,18 +172,25 @@ impl Display for FragmentType {
     }
 }
 
-#[test]
-fn neutral_loss() {
-    let a = Fragment::new(
-        Mass::new::<dalton>(118.0),
-        Charge::new::<e>(1.0),
-        FragmentType::precursor,
-    );
-    let loss = a.with_neutral_losses::<MonoIsotopic>(&[NeutralLoss::Water]);
-    dbg!(&a, &loss);
-    assert_eq!(a.theoretical_mass, loss[0].theoretical_mass);
-    assert_eq!(
-        a.theoretical_mass,
-        loss[1].theoretical_mass + NeutralLoss::Water.mass::<MonoIsotopic>()
-    );
+#[cfg(test)]
+mod tests {
+    use crate::MonoIsotopic;
+
+    use super::*;
+
+    #[test]
+    fn neutral_loss() {
+        let a = Fragment::new(
+            Mass::new::<dalton>(118.0),
+            Charge::new::<e>(1.0),
+            FragmentType::precursor,
+        );
+        let loss = a.with_neutral_losses::<MonoIsotopic>(&[NeutralLoss::Water]);
+        dbg!(&a, &loss);
+        assert_eq!(a.theoretical_mass, loss[0].theoretical_mass);
+        assert_eq!(
+            a.theoretical_mass,
+            loss[1].theoretical_mass + NeutralLoss::Water.mass::<MonoIsotopic>()
+        );
+    }
 }
