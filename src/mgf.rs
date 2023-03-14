@@ -21,6 +21,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
         charge: Charge::zero(),
         mass: Mass::zero(),
         spectrum: Vec::new(),
+        intensity: None,
     };
     let mut output = Vec::new();
     for (linenumber, line) in file.lines().enumerate() {
@@ -37,16 +38,27 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
                     charge: Charge::zero(),
                     mass: Mass::zero(),
                     spectrum: Vec::new(),
+                    intensity: None,
                 }
             }
             t if t.contains('=') => {
                 let (key, value) = t.split_once('=').unwrap();
                 match key {
-                    "PEPMASS" => {
-                        current.mass = Mass::new::<dalton>(value.parse().map_err(|_| {
-                            format!("Not a number {key} for PEPMASS on {linenumber}")
-                        })?);
-                    }
+                    "PEPMASS" => match value.split_once(' ') {
+                        None => {
+                            current.mass = Mass::new::<dalton>(value.parse().map_err(|_| {
+                                format!("Not a number {key} for PEPMASS on {linenumber}")
+                            })?);
+                        }
+                        Some((mass, intensity)) => {
+                            current.mass = Mass::new::<dalton>(mass.parse().map_err(|_| {
+                                format!("Not a number {key} for PEPMASS mass on {linenumber}")
+                            })?);
+                            current.intensity = Some(intensity.parse().map_err(|_| {
+                                format!("Not a number {key} for PEPMASS intensity on {linenumber}")
+                            })?);
+                        }
+                    },
                     "CHARGE" => {
                         current.charge = parse_charge(value).map_err(|_| {
                             format!("Not a number {key} for CHARGE on {linenumber}")

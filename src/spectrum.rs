@@ -14,6 +14,7 @@ pub struct RawSpectrum {
     pub rt: Time,
     pub charge: Charge,
     pub mass: Mass,
+    pub intensity: Option<f64>,
     pub spectrum: Vec<RawPeak>,
 }
 
