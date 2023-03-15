@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use uom::num_traits::Zero;
+
 use crate::{
     fragment::Fragment,
     model::Model,
     peptide::Peptide,
-    system::{f64::*, mass_over_charge::mz},
+    system::{f64::*, mass::dalton, mass_over_charge::mz},
 };
 
 #[derive(Clone, Debug)]
@@ -95,18 +97,19 @@ fn cluster_matches(
     }
     dbg!(&output, &ambiguous, output.len(), ambiguous.len());
 
+    ambiguous.sort_unstable_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
+
     // Now find all possible combinations of the ambiguous matches and get the non expandable set with the lowest total ppm error
-    let sets = combinations(&ambiguous, &[], 0);
+    let mut sets = non_recursive_combinations(&ambiguous, model.ppm);
     let max_number_connections =
         (found_peak_indices.len() - output.len()).min(found_fragment_indices.len() - output.len());
+    for c in &mut sets {
+        c.0 += (max_number_connections - c.1.len()) as f64 * MassOverCharge::new::<mz>(20.0);
+    }
     let selected_set = sets.into_iter().fold(
-        (
-            MassOverCharge::new::<mz>(f64::INFINITY),
-            Vec::new(),
-            Vec::new(),
-        ),
+        (MassOverCharge::new::<mz>(f64::INFINITY), Vec::new()),
         |acc, item| {
-            if acc.0 > item.0 + (max_number_connections - acc.1.len()) as f64 * model.ppm {
+            if acc.0 > item.0 {
                 item
             } else {
                 acc
@@ -114,8 +117,8 @@ fn cluster_matches(
         },
     );
     dbg!(&selected_set);
-    output.extend(selected_set.1);
-    selected_peaks.extend(selected_set.2);
+    selected_peaks.extend(selected_set.1.iter().map(|c| c.0));
+    output.extend(selected_set.1.into_iter().map(|c| c.2));
     selected_peaks.sort_unstable();
     output.extend(spectrum.iter().enumerate().filter_map(|(i, p)| {
         if selected_peaks.binary_search(&i).is_err() {
@@ -127,37 +130,67 @@ fn cluster_matches(
     output
 }
 
-/// Recursively get all possible sets for the connection of a single extra time point
-fn combinations(
+/// Get all possible sets for the connection of a single extra time point
+pub fn non_recursive_combinations(
     connections: &[Connection],
-    selected: &[usize],
-    skip: usize,
-) -> Vec<(MassOverCharge, Vec<AnnotatedPeak>, Vec<usize>)> {
-    let mut output = Vec::new();
-    let mut found = false;
+    ppm: MassOverCharge,
+) -> Vec<(MassOverCharge, Vec<Connection>)> {
+    let mut options: Vec<(MassOverCharge, Vec<usize>, usize)> = connections
+        .iter()
+        .enumerate()
+        .map(|(i, c)| (c.3, vec![i], i))
+        .collect();
+    let mut finished = Vec::with_capacity(options.len());
 
-    let selected_indices0: Vec<usize> = selected.iter().map(|c| connections[*c].0).collect();
-    let selected_indices1: Vec<usize> = selected.iter().map(|c| connections[*c].1).collect();
-    for (extra_index, connection) in connections.iter().skip(skip).enumerate() {
-        if !selected_indices0.contains(&connection.0) && !selected_indices1.contains(&connection.1)
-        {
-            found = true;
-            let mut sel: Vec<_> = selected.into();
-            sel.push(skip + extra_index);
-            output.append(&mut combinations(connections, &sel, skip + extra_index + 1));
+    let mut next_options = Vec::with_capacity(options.len());
+    let mut quit_threshold = ppm;
+    loop {
+        let mut changed = false;
+        for option in &options {
+            let mut found = false;
+            let threshold_score =
+                quit_threshold.mul_add(Ratio::new::<r>(option.1.len() as f64 + 1.0), -option.0);
+            if threshold_score > MassOverCharge::zero() {
+                for (index, connection) in connections
+                    .iter()
+                    .enumerate()
+                    .skip(option.2)
+                    .filter(|(_, connection)| {
+                        connection.3 < threshold_score
+                            && option.1.iter().all(|c| {
+                                connections[*c].0 != connection.0
+                                    && connections[*c].1 != connection.1
+                            })
+                    })
+                    .take(1)
+                {
+                    let mut sel = option.1.clone();
+                    sel.push(index);
+                    next_options.push((option.0 + connection.3, sel, index + 1));
+                    found = true;
+                    changed = true;
+                }
+            }
+            if !found {
+                finished.push((option.0, option.1.clone()));
+            }
         }
+        options.clear();
+        options.append(&mut next_options);
+        if !changed {
+            break;
+        }
+        quit_threshold = quit_threshold.min(
+            options.iter().map(|o| o.0).sum::<MassOverCharge>()
+                + finished.iter().map(|o| o.0).sum::<MassOverCharge>()
+                    / Ratio::new::<r>((options.len() + finished.len()) as f64),
+        ) * 0.8;
     }
-    if !found {
-        output.push((
-            selected
-                .iter()
-                .map(|c| connections[*c].3)
-                .sum::<MassOverCharge>(),
-            selected.iter().map(|c| connections[*c].2.clone()).collect(),
-            selected.iter().map(|c| connections[*c].0).collect(),
-        ));
-    }
-    output
+
+    finished
+        .into_iter()
+        .map(|(a, b)| (a, b.into_iter().map(|c| connections[c].clone()).collect()))
+        .collect()
 }
 
 #[derive(Clone, Debug)]

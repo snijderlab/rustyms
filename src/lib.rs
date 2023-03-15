@@ -26,6 +26,7 @@ pub use crate::mass::*;
 
 pub use crate::fragment::*;
 pub use crate::glycan::*;
+pub use crate::model::*;
 pub use crate::peptide::*;
 pub use crate::spectrum::*;
 pub use crate::system::f64::*;
