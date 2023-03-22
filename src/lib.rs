@@ -12,6 +12,7 @@
 
 mod aminoacids;
 mod element;
+mod formula;
 mod fragment;
 mod glycan;
 mod mass;
