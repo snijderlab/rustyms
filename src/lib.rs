@@ -15,12 +15,11 @@ mod element;
 mod fragment;
 mod glycan;
 mod mass;
-pub mod mgf;
 mod model;
 mod peptide;
+pub mod rawfile;
 mod spectrum;
 mod system;
-pub mod thermo;
 
 pub use crate::mass::*;
 
@@ -96,7 +95,7 @@ mod test {
     #[test]
     fn simple_matching() {
         let model = Model::all();
-        let spectrum = mgf::open("data/example.mgf").unwrap();
+        let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
         let peptide = peptide::Peptide::pro_forma("WFWF").unwrap();
         let fragments = generate_theoretical_fragments::<AverageWeight>(
             &peptide,

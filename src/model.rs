@@ -48,7 +48,7 @@ impl<'a> PossibleIons<'a> {
 }
 
 impl Model {
-    pub fn ions<'a>(&'a self, index: usize, length: usize) -> PossibleIons<'a> {
+    pub fn ions(&self, index: usize, length: usize) -> PossibleIons {
         PossibleIons {
             a: (self.a.0.possible(index, length), self.a.1.as_slice()),
             b: (self.b.0.possible(index, length), self.b.1.as_slice()),
