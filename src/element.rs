@@ -84,4 +84,31 @@ impl Element {
         }
         output
     }
+
+    pub const fn isotopes(self) -> &'static [(f64, f64)] {
+        match self {
+            Self::H => ISOTOPES[1],
+            Self::C => ISOTOPES[6],
+            Self::N => ISOTOPES[7],
+            Self::O => ISOTOPES[8],
+            _ => ISOTOPES[0],
+        }
+    }
 }
+
+#[allow(clippy::unreadable_literal)]
+const ISOTOPES: &[&[(f64, f64)]] = &[
+    &[],
+    &[(1.007825035, 0.999855), (2.014101779, 0.000145)], //H
+    &[],                                                 // He
+    &[],                                                 // Li
+    &[],                                                 // Be
+    &[],                                                 // B
+    &[(12.0, 0.9894), (13.003354826, 0.0106)],           // C
+    &[(14.003074002, 0.996205), (15.000108965, 0.003795)], // N
+    &[
+        (15.994914630, 0.99757),
+        (16.999131220, 0.0003835),
+        (17.999160300, 0.0020465000),
+    ], // O
+];

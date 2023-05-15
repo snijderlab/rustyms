@@ -6,7 +6,7 @@ use crate::{
     fragment::Fragment,
     model::Model,
     peptide::Peptide,
-    system::{f64::*, mass::dalton, mass_over_charge::mz},
+    system::{f64::*, mass_over_charge::mz},
 };
 
 #[derive(Clone, Debug)]
