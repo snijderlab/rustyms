@@ -100,11 +100,11 @@ impl HasMass for Peptide {
         let mut mass = self
             .n_term
             .as_ref()
-            .map_or_else(Mass::zero, HasMass::mass::<M>)
+            .map_or_else(|| da(M::H), HasMass::mass::<M>)
             + self
                 .c_term
                 .as_ref()
-                .map_or_else(Mass::zero, HasMass::mass::<M>);
+                .map_or_else(|| da(M::OH), HasMass::mass::<M>);
         for position in &self.sequence {
             mass += position.0.mass::<M>()
                 + position
