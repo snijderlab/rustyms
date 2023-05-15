@@ -108,6 +108,22 @@ impl Model {
         }
     }
 
+    pub fn really_all() -> Self {
+        Self {
+            a: (Location::All, vec![NeutralLoss::Water]),
+            b: (Location::All, vec![NeutralLoss::Water]),
+            c: (Location::All, vec![NeutralLoss::Water]),
+            d: (Location::All, vec![NeutralLoss::Water]),
+            v: (Location::All, vec![NeutralLoss::Water]),
+            w: (Location::All, vec![NeutralLoss::Water]),
+            x: (Location::All, vec![NeutralLoss::Water]),
+            y: (Location::All, vec![NeutralLoss::Water]),
+            z: (Location::All, vec![NeutralLoss::Water]),
+            precursor: vec![NeutralLoss::Water],
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
+
     pub fn ethcd() -> Self {
         Self {
             a: (Location::None, Vec::new()),
