@@ -194,7 +194,7 @@ impl Model {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Location {
     SkipN(usize),
     SkipNC(usize, usize),
