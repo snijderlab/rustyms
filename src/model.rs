@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::Serialize;
+
 use crate::{
     da,
     system::{f64::MassOverCharge, mass_over_charge::mz},
@@ -192,6 +194,7 @@ impl Model {
     }
 }
 
+#[derive(Serialize)]
 pub enum Location {
     SkipN(usize),
     SkipNC(usize, usize),
@@ -215,7 +218,8 @@ impl Location {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
 pub enum NeutralLoss {
     Water,
     Ammonia,
