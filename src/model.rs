@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     da,
@@ -194,7 +194,7 @@ impl Model {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub enum Location {
     SkipN(usize),
     SkipNC(usize, usize),
@@ -219,7 +219,7 @@ impl Location {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NeutralLoss {
     Water,
     Ammonia,
