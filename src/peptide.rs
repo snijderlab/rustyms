@@ -163,7 +163,7 @@ impl TryFrom<&str> for Modification {
     ///     * Allow zero mass gap (X[+365])
     ///     * Do not crash on other input, provide shift as string with 0 mass?
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        dbg!(&value);
+        //dbg!(&value);
         match value.split_once(':') {
             Some(("Formula", tail)) => Ok(Self::Formula(parse_named_counter(
                 tail,

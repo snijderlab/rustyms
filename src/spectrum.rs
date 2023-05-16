@@ -95,7 +95,7 @@ fn cluster_matches(
             ambiguous.push(pair);
         }
     }
-    dbg!(&output, &ambiguous, output.len(), ambiguous.len());
+    //dbg!(&output, &ambiguous, output.len(), ambiguous.len());
 
     ambiguous.sort_unstable_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
@@ -116,7 +116,7 @@ fn cluster_matches(
             }
         },
     );
-    dbg!(&selected_set);
+    //dbg!(&selected_set);
     selected_peaks.extend(selected_set.1.iter().map(|c| c.0));
     output.extend(selected_set.1.into_iter().map(|c| c.2));
     selected_peaks.sort_unstable();

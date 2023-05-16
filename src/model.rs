@@ -174,6 +174,22 @@ impl Model {
             ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
+
+    pub fn etd() -> Self {
+        Self {
+            a: (Location::None, Vec::new()),
+            b: (Location::None, Vec::new()),
+            c: (Location::SkipNC(1, 1), Vec::new()),
+            d: (Location::None, Vec::new()),
+            v: (Location::None, Vec::new()),
+            w: (Location::None, Vec::new()),
+            x: (Location::None, Vec::new()),
+            y: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            z: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            precursor: vec![NeutralLoss::Water, NeutralLoss::Ammonia],
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
 }
 
 pub enum Location {
