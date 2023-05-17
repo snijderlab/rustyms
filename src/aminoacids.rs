@@ -101,7 +101,7 @@ impl HasMass for AminoAcid {
         match self {
             Self::Alanine => da(M::BACKBONE + M::CH3),
             Self::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
-            Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::NH2 * 2.0),
+            Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::C + M::NH2 * 2.0),
             Self::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
             Self::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
             Self::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
