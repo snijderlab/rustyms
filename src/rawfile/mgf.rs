@@ -18,7 +18,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
         title: String::new(),
         num_scans: 0,
         rt: Time::zero(),
-        charge: Charge::zero(),
+        charge: Charge::new::<e>(1.0),
         mass: Mass::zero(),
         spectrum: Vec::new(),
         intensity: None,
