@@ -8,6 +8,7 @@ use crate::{
     HasMass,
 };
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct Model {
     pub a: (Location, Vec<NeutralLoss>),
     pub b: (Location, Vec<NeutralLoss>),
