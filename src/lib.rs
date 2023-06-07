@@ -10,6 +10,7 @@
     clippy::suboptimal_flops
 )]
 
+pub mod align;
 mod aminoacids;
 mod element;
 mod formula;
