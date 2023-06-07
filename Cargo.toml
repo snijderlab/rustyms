@@ -2,6 +2,12 @@
 name = "rustyms"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Douwe Schulte <d.schulte@uu.nl>"]
+description = "A library to match spectra to peptides."
+repository = "https://github.com/snijderlab/rustyms"
+readme = "README.md"
+include = ["src/**/*", "LICENSE", "README.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
