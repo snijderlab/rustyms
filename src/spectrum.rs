@@ -212,7 +212,7 @@ pub struct RawPeak {
 
 impl RawPeak {
     pub fn ppm(&self, fragment: &Fragment) -> MassOverCharge {
-        (self.mz - fragment.mz()).abs() / fragment.mz() * MassOverCharge::new::<mz>(1e6)
+        MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()))
     }
 }
 

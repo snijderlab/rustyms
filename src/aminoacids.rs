@@ -7,7 +7,7 @@ use crate::{MassSystem, Position};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AminoAcid {
-    Alanine,
+    Alanine = 0,
     Arginine,
     Asparagine,
     AsparticAcid,

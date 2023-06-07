@@ -14,6 +14,10 @@ pub struct Peptide {
 }
 
 impl Peptide {
+    pub fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Only supports a subset of the specification, some functions are not possible to be represented.
     pub fn pro_forma(value: &str) -> Result<Self, String> {
