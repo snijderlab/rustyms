@@ -227,7 +227,7 @@ fn parse_named_counter<T: Copy>(
                     if num.is_empty() {
                         output.push((name.1, 1));
                     } else {
-                        output.push((name.1, dbg!(num).parse().unwrap()));
+                        output.push((name.1, num.parse().unwrap()));
                         index += num.len();
                     }
                     found = true;

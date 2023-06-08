@@ -21,8 +21,75 @@ pub struct Alignment {
 }
 
 impl Alignment {
-    fn short(&self) -> String {
+    pub fn short(&self) -> String {
         self.path.iter().map(Piece::short).collect()
+    }
+
+    pub fn ppm<M: MassSystem>(&self) -> f64 {
+        self.seq_a.mass::<M>().ppm(self.seq_b.mass::<M>())
+    }
+
+    pub fn mass_difference<M: MassSystem>(&self) -> crate::Mass {
+        self.seq_a.mass::<M>() - self.seq_b.mass::<M>()
+    }
+
+    /// Returns statistics for this match.
+    /// Returns (identical, gap, length).
+    /// Retrieve the identity (or gap) as percentage by calculating `identical as f64 / length as f64`.
+    pub fn stats(&self) -> (usize, usize, usize) {
+        let (identical, gap, _, _) =
+            self.path
+                .iter()
+                .fold((0, 0, self.start_a, self.start_b), |acc, p| {
+                    if p.step_a + p.step_b == 1 {
+                        (
+                            acc.0,
+                            acc.1 + 1,
+                            acc.2 + p.step_a as usize,
+                            acc.3 + p.step_b as usize,
+                        )
+                    } else if p.step_a == 1
+                        && p.step_b == 1
+                        && self.seq_a.sequence[acc.2] == self.seq_b.sequence[acc.3]
+                    {
+                        (
+                            acc.0 + 1,
+                            acc.1,
+                            acc.2 + p.step_a as usize,
+                            acc.3 + p.step_b as usize,
+                        )
+                    } else {
+                        (
+                            acc.0,
+                            acc.1,
+                            acc.2 + p.step_a as usize,
+                            acc.3 + p.step_b as usize,
+                        )
+                    }
+                });
+        (identical, gap, self.len_a().max(self.len_b()))
+    }
+
+    /// Generate a summary of this alignment for printing to the command line
+    pub fn summary(&self) -> String {
+        format!(
+            "score: {}\npath: {}\nstart: ({}, {})\naligned:\n{}",
+            self.score,
+            self.short(),
+            self.start_a,
+            self.start_b,
+            self.aligned()
+        )
+    }
+
+    /// The total number of residues matched on the first sequence
+    pub fn len_a(&self) -> usize {
+        self.path.iter().map(|p| p.step_a as usize).sum()
+    }
+
+    /// The total number of residues matched on the second sequence
+    pub fn len_b(&self) -> usize {
+        self.path.iter().map(|p| p.step_b as usize).sum()
     }
 
     fn aligned(&self) -> String {
@@ -113,28 +180,6 @@ impl Alignment {
         }
 
         format!("{str_a}\n{str_b}\n{str_blocks}\n{str_blocks_neg}")
-    }
-
-    /// Generate a summary of this alignment for printing to the command line
-    pub fn summary(&self) -> String {
-        format!(
-            "score: {}\npath: {}\nstart: ({}, {})\naligned:\n{}",
-            self.score,
-            self.short(),
-            self.start_a,
-            self.start_b,
-            self.aligned()
-        )
-    }
-
-    /// The total number of residues matched on the first sequence
-    pub fn len_a(&self) -> usize {
-        self.path.iter().map(|p| p.step_a as usize).sum()
-    }
-
-    /// The total number of residues matched on the second sequence
-    pub fn len_b(&self) -> usize {
-        self.path.iter().map(|p| p.step_b as usize).sum()
     }
 }
 
@@ -321,8 +366,6 @@ pub fn align<M: MassSystem>(
     }
     let mut path = Vec::new();
     let high_score = high.0;
-    //dbg!(&highest_score);
-    //dbg!(&matrix);
     while ty == Type::Global || !(high.1 == 0 && high.2 == 0) {
         let value = matrix[high.1][high.2].clone();
         if value.step_a == 0 && value.step_b == 0 {
@@ -335,7 +378,6 @@ pub fn align<M: MassSystem>(
         );
         path.push(value);
     }
-    //dbg!(&path);
     Alignment {
         score: high_score,
         path: path.into_iter().rev().collect(),
