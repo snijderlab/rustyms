@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use uom::num_traits::Zero;
-
 use crate::{
     aminoacids::AminoAcid, element::*, system::f64::*, HasMass, MassSystem, MonoSaccharide,
 };
@@ -119,22 +117,14 @@ impl Peptide {
 
 impl HasMass for Peptide {
     fn mass<M: MassSystem>(&self) -> Mass {
-        let mut mass = self
-            .n_term
+        self.n_term
             .as_ref()
             .map_or_else(|| da(M::H), HasMass::mass::<M>)
             + self
                 .c_term
                 .as_ref()
-                .map_or_else(|| da(M::OH), HasMass::mass::<M>);
-        for position in &self.sequence {
-            mass += position.0.mass::<M>()
-                + position
-                    .1
-                    .as_ref()
-                    .map_or_else(Mass::zero, HasMass::mass::<M>);
-        }
-        mass
+                .map_or_else(|| da(M::OH), HasMass::mass::<M>)
+            + self.sequence.mass::<M>()
     }
 }
 

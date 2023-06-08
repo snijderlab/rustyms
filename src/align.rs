@@ -1,4 +1,3 @@
-//use itertools::Itertools;
 use std::fmt::Write;
 
 use crate::{AminoAcid, HasMass, MassSystem, Modification, Peptide};
@@ -18,6 +17,8 @@ pub struct Alignment {
     pub seq_a: Peptide,
     /// The second sequence
     pub seq_b: Peptide,
+    /// The alignment type
+    pub ty: Type,
 }
 
 impl Alignment {
@@ -26,11 +27,22 @@ impl Alignment {
     }
 
     pub fn ppm<M: MassSystem>(&self) -> f64 {
-        self.seq_a.mass::<M>().ppm(self.seq_b.mass::<M>())
+        if self.ty == Type::Global {
+            self.seq_a.mass::<M>().ppm(self.seq_b.mass::<M>())
+        } else {
+            self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
+                .mass::<M>()
+                .ppm(self.seq_b.sequence[self.start_b..self.start_b + self.len_b()].mass::<M>())
+        }
     }
 
     pub fn mass_difference<M: MassSystem>(&self) -> crate::Mass {
-        self.seq_a.mass::<M>() - self.seq_b.mass::<M>()
+        if self.ty == Type::Global {
+            self.seq_a.mass::<M>() - self.seq_b.mass::<M>()
+        } else {
+            self.seq_a.sequence[self.start_a..self.start_a + self.len_a()].mass::<M>()
+                - self.seq_b.sequence[self.start_b..self.start_b + self.len_b()].mass::<M>()
+        }
     }
 
     /// Returns statistics for this match.
@@ -385,6 +397,7 @@ pub fn align<M: MassSystem>(
         start_b: high.2,
         seq_a,
         seq_b,
+        ty,
     }
 }
 

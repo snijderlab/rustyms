@@ -1,5 +1,4 @@
 use std::{
-    env,
     fs::File,
     io::{BufRead, BufReader},
     path::Path,
@@ -136,7 +135,7 @@ fn parse_charge(input: &str) -> Result<Charge, ()> {
 
 #[test]
 fn test_open() {
-    let spectra = open(env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
+    let spectra = open(std::env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
     assert_eq!(spectra.len(), 1);
     assert_eq!(spectra[0].spectrum.len(), 5);
 }
