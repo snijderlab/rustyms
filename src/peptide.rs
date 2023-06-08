@@ -8,6 +8,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Peptide {
+    pub labile: Vec<Modification>,
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
     pub sequence: Vec<(AminoAcid, Option<Modification>)>,
@@ -19,6 +20,7 @@ impl Peptide {
     pub fn pro_forma(value: &str) -> Result<Self, String> {
         assert!(value.is_ascii());
         let mut peptide = Self {
+            labile: Vec::new(),
             n_term: None,
             c_term: None,
             sequence: Vec::new(),
@@ -29,6 +31,22 @@ impl Peptide {
         let mut c_term = false;
 
         // N term modification
+        while chars[index] == '{' {
+            let mut end_index = 0;
+            for i in index..value.len() - 1 {
+                if chars[i] == '}' {
+                    end_index = i + 1;
+                    break;
+                }
+            }
+            if end_index == 0 {
+                return Err("No valid closing delimiter for labile modification".to_string());
+            }
+            peptide
+                .labile
+                .push((&value[index + 1..end_index - 1]).try_into()?);
+            index = end_index + 1;
+        }
         if chars[index] == '[' {
             let mut end_index = 0;
             for i in index..value.len() - 1 {
