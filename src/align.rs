@@ -22,10 +22,62 @@ pub struct Alignment {
 }
 
 impl Alignment {
+    /// Get a short representation of the alignment in CIGAR like format. It has one additional class `s[a,b]` denoting any special step with the given a and b step size.
     pub fn short(&self) -> String {
-        self.path.iter().map(Piece::short).collect()
+        #[derive(PartialEq, Eq)]
+        enum StepType {
+            Insertion,
+            Deletion,
+            Match,
+            Mismatch,
+            Special(u8, u8),
+        }
+        impl std::fmt::Display for StepType {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    f,
+                    "{}",
+                    match self {
+                        Self::Insertion => String::from("I"),
+                        Self::Deletion => String::from("D"),
+                        Self::Match => String::from("="),
+                        Self::Mismatch => String::from("X"),
+                        Self::Special(a, b) => format!("s[{a}, {b}]"),
+                    }
+                )
+            }
+        }
+        let (_, _, output, last) = self.path.iter().fold(
+            (self.start_a, self.start_b, String::new(), None),
+            |(a, b, output, last), step| {
+                let current_type = match (step.step_a, step.step_b) {
+                    (0, 1) => StepType::Insertion,
+                    (1, 0) => StepType::Deletion,
+                    (1, 1) if self.seq_a.sequence[a] == self.seq_b.sequence[b] => StepType::Match,
+                    (1, 1) => StepType::Mismatch,
+                    (a, b) => StepType::Special(a, b),
+                };
+                let (str, last) = match last {
+                    Some((t, n)) if t == current_type => (output, Some((t, n + 1))),
+                    Some((t, n)) => (format!("{output}{n}{t}"), Some((current_type, 1))),
+                    None => (output, Some((current_type, 1))),
+                };
+                (
+                    a + step.step_a as usize,
+                    b + step.step_b as usize,
+                    str,
+                    last,
+                )
+            },
+        );
+        if let Some((t, n)) = last {
+            format!("{output}{n}{t}")
+        } else {
+            output
+        }
     }
 
+    /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     pub fn ppm<M: MassSystem>(&self) -> f64 {
         if self.ty == Type::Global {
             self.seq_a.mass::<M>().ppm(self.seq_b.mass::<M>())
@@ -36,6 +88,7 @@ impl Alignment {
         }
     }
 
+    /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     pub fn mass_difference<M: MassSystem>(&self) -> crate::Mass {
         if self.ty == Type::Global {
             self.seq_a.mass::<M>() - self.seq_b.mass::<M>()
@@ -45,9 +98,8 @@ impl Alignment {
         }
     }
 
-    /// Returns statistics for this match.
-    /// Returns (identical, gap, length).
-    /// Retrieve the identity (or gap) as percentage by calculating `identical as f64 / length as f64`.
+    /// Returns statistics for this match. Returns `(identical, gap, length)`. Retrieve the identity (or gap) as percentage
+    /// by calculating `identical as f64 / length as f64`.
     pub fn stats(&self) -> (usize, usize, usize) {
         let (identical, gap, _, _) =
             self.path
@@ -125,8 +177,8 @@ impl Alignment {
             .map(|p| p.local_score)
             .min()
             .unwrap_or(i8::MIN + 1); // +1 to make it also valid as a positive number
-        let factor = blocks.len() as f64 / min.abs().max(max) as f64;
-        let index = |n| ((n as f64 * factor).floor() as usize).min(blocks.len() - 1);
+        let factor = blocks.len() as f64 / f64::from(min.abs().max(max));
+        let index = |n| ((f64::from(n) * factor).floor() as usize).min(blocks.len() - 1);
 
         for piece in &self.path {
             let l = std::cmp::max(piece.step_b, piece.step_a);
@@ -435,7 +487,7 @@ pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
 
 #[cfg(test)]
 mod tests {
-    use crate::align::{align, score, Type};
+    use crate::align::score;
     use crate::aminoacids::AminoAcid;
     use crate::MonoIsotopic;
 

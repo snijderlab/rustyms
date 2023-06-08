@@ -13,11 +13,15 @@ pub struct MolecularFormula {
 
 impl HasMass for MolecularFormula {
     fn mass<M: crate::MassSystem>(&self) -> Mass {
-        da(self.h as f64 * M::H
-            + self.c as f64 * M::C
-            + self.n as f64 * M::N
-            + self.o as f64 * M::O)
-            + self.rare.iter().map(|m| m.1 as f64 * m.0.mass::<M>()).sum()
+        da(f64::from(self.h) * M::H
+            + f64::from(self.c) * M::C
+            + f64::from(self.n) * M::N
+            + f64::from(self.o) * M::O)
+            + self
+                .rare
+                .iter()
+                .map(|m| f64::from(m.1) * m.0.mass::<M>())
+                .sum()
     }
 }
 
@@ -124,7 +128,9 @@ fn combined_pattern(isotopes: &[(Mass, f64, String)]) -> Vec<(Mass, f64, usize, 
 }
 
 fn binom(tries: u16, total: u16, p: f64) -> f64 {
-    Binomial::new(p, total as u64).unwrap().pmf(tries as u64)
+    Binomial::new(p, u64::from(total))
+        .unwrap()
+        .pmf(u64::from(tries))
     //memoized_f64_factorial(total, cache)
     //    / (memoized_f64_factorial(tries, cache) * memoized_f64_factorial(total - tries, cache))
     //    * p.powi(tries as i32)
@@ -156,24 +162,12 @@ const ISOTOPES: &[&[(f64, f64)]] = &[
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::AverageWeight;
     use std::{
         fs::File,
         io::{BufWriter, Write},
     };
-
-    use crate::AverageWeight;
-
-    use super::*;
-
-    //#[test]
-    //fn factorial() {
-    //    for n in 1..35 {
-    //        dbg!(n);
-    //        let fact_actual = dbg!(u128::from(n).factorial() as f64);
-    //        let fact_own = dbg!(stupid_f64_factorial(n));
-    //        assert!((fact_actual - fact_own).abs() / fact_actual < 1e-5);
-    //    }
-    //}
 
     #[test]
     fn simple_isotope_pattern() {

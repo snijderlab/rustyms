@@ -1,3 +1,5 @@
+#![warn(dead_code)]
+
 use std::fmt::Display;
 
 use crate::{
@@ -13,12 +15,23 @@ pub struct Peptide {
 }
 
 impl Peptide {
+    /// Get the number of amino acids making up this peptide
     pub fn len(&self) -> usize {
         self.sequence.len()
+    }
+    /// Check if there are any amino acids in this peptide
+    pub fn is_empty(&self) -> bool {
+        self.sequence.is_empty()
     }
 
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Only supports a subset of the specification, some functions are not possible to be represented.
+    ///
+    /// # Panics
+    /// * When the input is not ascii text
+    ///
+    /// # Errors
+    /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     pub fn pro_forma(value: &str) -> Result<Self, String> {
         assert!(value.is_ascii());
         let mut peptide = Self {
@@ -28,16 +41,16 @@ impl Peptide {
             sequence: Vec::new(),
         };
         let mut last_aa = None;
-        let chars: Vec<char> = value.chars().collect();
+        let chars: &[u8] = value.as_bytes();
         let mut index = 0;
         let mut c_term = false;
 
         // N term modification
-        while chars[index] == '{' {
+        while chars[index] == b'{' {
             let mut end_index = 0;
-            for i in index..value.len() - 1 {
-                if chars[i] == '}' {
-                    end_index = i + 1;
+            for (i, ch) in chars[index..].iter().enumerate() {
+                if *ch == b'}' {
+                    end_index = index + i + 1;
                     break;
                 }
             }
@@ -49,10 +62,10 @@ impl Peptide {
                 .push((&value[index + 1..end_index - 1]).try_into()?);
             index = end_index + 1;
         }
-        if chars[index] == '[' {
+        if chars[index] == b'[' {
             let mut end_index = 0;
             for i in index..value.len() - 1 {
-                if chars[i] == ']' && chars[i + 1] == '-' {
+                if chars[i] == b']' && chars[i + 1] == b'-' {
                     end_index = i + 1;
                     break;
                 }
@@ -65,12 +78,12 @@ impl Peptide {
         }
 
         while index < value.len() {
-            match chars[index] {
-                '[' => {
+            match value.as_bytes()[index] {
+                b'[' => {
                     let mut end_index = 0;
-                    for i in index..value.len() {
-                        if chars[i] == ']' {
-                            end_index = i;
+                    for (i, ch) in chars[index..].iter().enumerate() {
+                        if *ch == b']' {
+                            end_index = index + i;
                             break;
                         }
                     }
@@ -92,7 +105,7 @@ impl Peptide {
                     last_aa = None;
                     index = end_index + 1;
                 }
-                '-' => {
+                b'-' => {
                     c_term = true;
                     index += 1;
                 }
@@ -100,17 +113,14 @@ impl Peptide {
                     if let Some(aa) = last_aa {
                         peptide.sequence.push((aa, None));
                     }
-                    //dbg!(&ch);
                     last_aa = Some(ch.try_into().map_err(|_| "Invalid Amino Acid code")?);
                     index += 1;
                 }
             }
         }
-        //dbg!(&value, &peptide, &last_aa);
         if let Some(aa) = last_aa {
             peptide.sequence.push((aa, None));
         }
-        //dbg!(&peptide);
         Ok(peptide)
     }
 }

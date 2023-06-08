@@ -40,6 +40,10 @@ pub use uom::num_traits::Zero;
 #[macro_use]
 extern crate uom;
 
+/// Generate the theoretical fragments for the given peptide, with the given maximal charge of the fragments, and the given model.
+///
+/// # Panics
+/// If `max_charge` outside the range `1..=u64::MAX`.
 pub fn generate_theoretical_fragments<M: MassSystem>(
     peptide: &Peptide,
     max_charge: Charge,

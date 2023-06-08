@@ -5,6 +5,7 @@ use crate::system::f64::*;
 use crate::{model::*, HasMass};
 use crate::{MassSystem, Position};
 
+/// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AminoAcid {
     Alanine = 0,
@@ -30,6 +31,7 @@ pub enum AminoAcid {
     Valine,
     Selenocysteine,
     Pyrrolysine,
+    Unknown,
 }
 
 impl TryFrom<char> for AminoAcid {
@@ -58,15 +60,16 @@ impl TryFrom<char> for AminoAcid {
             'U' => Ok(Self::Selenocysteine),
             'V' => Ok(Self::Valine),
             'W' => Ok(Self::Tryptophan),
+            'X' => Ok(Self::Unknown),
             'Y' => Ok(Self::Tyrosine),
             _ => Err(()),
         }
     }
 }
 
-impl TryFrom<&u8> for AminoAcid {
+impl TryFrom<u8> for AminoAcid {
     type Error = ();
-    fn try_from(value: &u8) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             b'A' => Ok(Self::Alanine),
             b'C' => Ok(Self::Cysteine),
@@ -90,6 +93,7 @@ impl TryFrom<&u8> for AminoAcid {
             b'U' => Ok(Self::Selenocysteine),
             b'V' => Ok(Self::Valine),
             b'W' => Ok(Self::Tryptophan),
+            b'X' => Ok(Self::Unknown),
             b'Y' => Ok(Self::Tyrosine),
             _ => Err(()),
         }
@@ -134,6 +138,7 @@ impl HasMass for AminoAcid {
             }
             Self::Tyrosine => da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::OH),
             Self::Valine => da(M::BACKBONE + M::CH + M::CH3 * 2.0),
+            Self::Unknown => Mass::zero(),
         }
     }
 }
@@ -162,6 +167,8 @@ impl AminoAcid {
     pub const U: Self = Self::Selenocysteine;
     pub const V: Self = Self::Valine;
     pub const W: Self = Self::Tryptophan;
+    pub const X: Self = Self::Unknown;
+    pub const Y: Self = Self::Tyrosine;
     pub const Ala: Self = Self::Alanine;
     pub const Cys: Self = Self::Cysteine;
     pub const Asp: Self = Self::AsparticAcid;
@@ -184,6 +191,7 @@ impl AminoAcid {
     pub const Sec: Self = Self::Selenocysteine;
     pub const Val: Self = Self::Valine;
     pub const Trp: Self = Self::Tryptophan;
+    pub const Tyr: Self = Self::Tyrosine;
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
@@ -195,7 +203,8 @@ impl AminoAcid {
             | Self::Phenylalanine
             | Self::Proline
             | Self::Tryptophan
-            | Self::Tyrosine => vec![],
+            | Self::Tyrosine
+            | Self::Unknown => vec![],
             Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
             Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
             Self::AsparticAcid => vec![da(M::C + M::OH + M::O)],
@@ -221,7 +230,7 @@ impl AminoAcid {
             Self::Selenocysteine => vec![da(M::Se)],
             Self::Serine => vec![da(M::OH)],
             Self::Threonine => vec![da(M::OH), da(M::CH3)],
-            Self::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass TODO: check if the loss of both is an option
+            Self::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass
         }
     }
 
@@ -371,6 +380,7 @@ impl AminoAcid {
             Self::Selenocysteine => 'U',
             Self::Valine => 'V',
             Self::Tryptophan => 'W',
+            Self::Unknown => 'X',
             Self::Tyrosine => 'Y',
         }
     }

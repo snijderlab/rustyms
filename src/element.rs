@@ -15,6 +15,42 @@ pub enum Element {
     Se,
 }
 
+impl TryFrom<&str> for Element {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "H" => Ok(Self::H),
+            "C" => Ok(Self::C),
+            "N" => Ok(Self::N),
+            "O" => Ok(Self::O),
+            "F" => Ok(Self::F),
+            "P" => Ok(Self::P),
+            "Se" => Ok(Self::Se),
+            "S" => Ok(Self::S),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Display for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::H => "H",
+                Self::C => "C",
+                Self::N => "N",
+                Self::O => "O",
+                Self::F => "F",
+                Self::P => "P",
+                Self::S => "S",
+                Self::Se => "Se",
+            }
+        )
+    }
+}
+
 pub const ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
     ("H", Element::H),
     ("C", Element::C),
@@ -38,25 +74,6 @@ impl HasMass for Element {
             Self::S => da(M::S),
             Self::Se => da(M::Se),
         }
-    }
-}
-
-impl Display for Element {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::H => "H",
-                Self::C => "C",
-                Self::N => "N",
-                Self::O => "O",
-                Self::F => "F",
-                Self::P => "P",
-                Self::S => "S",
-                Self::Se => "Se",
-            }
-        )
     }
 }
 

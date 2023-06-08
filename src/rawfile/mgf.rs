@@ -11,18 +11,19 @@ use crate::{
     system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
 };
 
+/// Open a MGF file and return the contained spectra.
+///
+/// # Errors
+/// It returns an error when:
+/// * The file could not be opened
+/// * Any line in the file could not be read
+/// * When any expected number in the file is not a number
+/// * When there is only one column (separated by space or tab) on a data row
+#[allow(clippy::missing_panics_doc)]
 pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
     let file =
         BufReader::new(File::open(path).map_err(|err| format!("Could not open file: {err}"))?);
-    let mut current = RawSpectrum {
-        title: String::new(),
-        num_scans: 0,
-        rt: Time::zero(),
-        charge: Charge::new::<e>(1.0),
-        mass: Mass::zero(),
-        spectrum: Vec::new(),
-        intensity: None,
-    };
+    let mut current = RawSpectrum::default();
     let mut output = Vec::new();
     for (linenumber, line) in file.lines().enumerate() {
         let linenumber = linenumber + 1;
@@ -31,17 +32,10 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
             "BEGIN IONS" | "" => (),
             "END IONS" => {
                 output.push(current);
-                current = RawSpectrum {
-                    title: String::new(),
-                    num_scans: 0,
-                    rt: Time::zero(),
-                    charge: Charge::zero(),
-                    mass: Mass::zero(),
-                    spectrum: Vec::new(),
-                    intensity: None,
-                }
+                current = RawSpectrum::default();
             }
             t if t.contains('=') => {
+                // THe previous line made sure it will always contain an equals sign
                 let (key, value) = t.split_once('=').unwrap();
                 match key {
                     "PEPMASS" => match value.split_once(' ') {
