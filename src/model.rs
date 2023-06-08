@@ -1,11 +1,14 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     da,
     system::{f64::MassOverCharge, mass_over_charge::mz},
     HasMass,
 };
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct Model {
     pub a: (Location, Vec<NeutralLoss>),
     pub b: (Location, Vec<NeutralLoss>),
@@ -108,6 +111,22 @@ impl Model {
         }
     }
 
+    pub fn really_all() -> Self {
+        Self {
+            a: (Location::All, vec![NeutralLoss::Water]),
+            b: (Location::All, vec![NeutralLoss::Water]),
+            c: (Location::All, vec![NeutralLoss::Water]),
+            d: (Location::All, vec![NeutralLoss::Water]),
+            v: (Location::All, vec![NeutralLoss::Water]),
+            w: (Location::All, vec![NeutralLoss::Water]),
+            x: (Location::All, vec![NeutralLoss::Water]),
+            y: (Location::All, vec![NeutralLoss::Water]),
+            z: (Location::All, vec![NeutralLoss::Water]),
+            precursor: vec![NeutralLoss::Water],
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
+
     pub fn ethcd() -> Self {
         Self {
             a: (Location::None, Vec::new()),
@@ -158,8 +177,25 @@ impl Model {
             ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
+
+    pub fn etd() -> Self {
+        Self {
+            a: (Location::None, Vec::new()),
+            b: (Location::None, Vec::new()),
+            c: (Location::SkipNC(1, 1), Vec::new()),
+            d: (Location::None, Vec::new()),
+            v: (Location::None, Vec::new()),
+            w: (Location::None, Vec::new()),
+            x: (Location::None, Vec::new()),
+            y: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            z: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            precursor: vec![NeutralLoss::Water, NeutralLoss::Ammonia],
+            ppm: MassOverCharge::new::<mz>(20.0),
+        }
+    }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Location {
     SkipN(usize),
     SkipNC(usize, usize),
@@ -183,7 +219,8 @@ impl Location {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NeutralLoss {
     Water,
     Ammonia,

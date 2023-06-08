@@ -18,7 +18,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
         title: String::new(),
         num_scans: 0,
         rt: Time::zero(),
-        charge: Charge::zero(),
+        charge: Charge::new::<e>(1.0),
         mass: Mass::zero(),
         spectrum: Vec::new(),
         intensity: None,
@@ -70,6 +70,12 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
                                 format!("Not a number {key} for RT on {linenumber}")
                             })?);
                     }
+                    "RTINSECONDS" => {
+                        current.rt =
+                            Time::new::<s>(value.parse().map_err(|_| {
+                                format!("Not a number {key} for RT on {linenumber}")
+                            })?);
+                    }
                     "TITLE" => current.title = value.to_owned(),
                     "NUM_SCANS" => {
                         current.num_scans = value.parse().map_err(|_| {
@@ -79,8 +85,12 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
                     _ => (),
                 }
             }
-            t if t.contains(' ') => {
-                let split = t.split(' ').collect::<Vec<_>>();
+            t if t.contains(' ') || t.contains('\t') => {
+                let split = if t.contains(' ') {
+                    t.split(' ').collect::<Vec<_>>()
+                } else {
+                    t.split('\t').collect::<Vec<_>>()
+                };
                 let mut peak = RawPeak {
                     mz: MassOverCharge::zero(),
                     intensity: 0.0,
@@ -128,4 +138,12 @@ fn test_open() {
     let spectra = open("data/example.mgf").unwrap();
     assert_eq!(spectra.len(), 1);
     assert_eq!(spectra[0].spectrum.len(), 5);
+}
+
+#[test]
+fn test_top_down() {
+    let spectra = open("data/20201023_L1_VQ1_Tamar002_SA_CI49_T3_S_IgA_prep1_rep1_ETD16_TCEP_strict_LC_combined_extended.mgf").unwrap();
+    assert_eq!(spectra.len(), 1);
+    dbg!(spectra);
+    todo!();
 }

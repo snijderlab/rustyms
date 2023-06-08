@@ -15,6 +15,10 @@ pub struct Peptide {
 }
 
 impl Peptide {
+    pub fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Only supports a subset of the specification, some functions are not possible to be represented.
     pub fn pro_forma(value: &str) -> Result<Self, String> {
@@ -118,11 +122,11 @@ impl HasMass for Peptide {
         let mut mass = self
             .n_term
             .as_ref()
-            .map_or_else(Mass::zero, HasMass::mass::<M>)
+            .map_or_else(|| da(M::H), HasMass::mass::<M>)
             + self
                 .c_term
                 .as_ref()
-                .map_or_else(Mass::zero, HasMass::mass::<M>);
+                .map_or_else(|| da(M::OH), HasMass::mass::<M>);
         for position in &self.sequence {
             mass += position.0.mass::<M>()
                 + position
@@ -181,7 +185,7 @@ impl TryFrom<&str> for Modification {
     ///     * Allow zero mass gap (X[+365])
     ///     * Do not crash on other input, provide shift as string with 0 mass?
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        dbg!(&value);
+        //dbg!(&value);
         match value.split_once(':') {
             Some(("Formula", tail)) => Ok(Self::Formula(parse_named_counter(
                 tail,

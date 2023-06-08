@@ -82,3 +82,13 @@ impl<T: HasMass> HasMass for Option<T> {
         self.as_ref().map_or_else(Mass::zero, HasMass::mass::<M>)
     }
 }
+impl<T: HasMass, U: HasMass> HasMass for (T, U) {
+    fn mass<M: MassSystem>(&self) -> Mass {
+        self.0.mass::<M>() + self.1.mass::<M>()
+    }
+}
+impl<T: HasMass> HasMass for [T] {
+    fn mass<M: MassSystem>(&self) -> Mass {
+        self.iter().fold(Mass::zero(), |acc, i| acc + i.mass::<M>())
+    }
+}

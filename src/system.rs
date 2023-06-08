@@ -3,6 +3,8 @@
 //pub use mass_over_charge::*;
 use uom::*;
 
+use crate::{Mass, MassOverCharge};
+
 #[macro_use]
 pub mod mass {
     use uom::*;
@@ -99,5 +101,16 @@ pub mod f64 {
 
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)
+    }
+}
+
+impl MassOverCharge {
+    pub fn ppm(self, b: Self) -> f64 {
+        ((self - b).abs() / self).value * 1e6
+    }
+}
+impl Mass {
+    pub fn ppm(self, b: Self) -> f64 {
+        ((self - b).abs() / self).value * 1e6
     }
 }

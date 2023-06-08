@@ -6,7 +6,7 @@ use crate::{
     fragment::Fragment,
     model::Model,
     peptide::Peptide,
-    system::{f64::*, mass::dalton, mass_over_charge::mz},
+    system::{f64::*, mass_over_charge::mz},
 };
 
 #[derive(Clone, Debug)]
@@ -95,12 +95,11 @@ fn cluster_matches(
             ambiguous.push(pair);
         }
     }
-    dbg!(&output, &ambiguous, output.len(), ambiguous.len());
 
     ambiguous.sort_unstable_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
     // Now find all possible combinations of the ambiguous matches and get the non expandable set with the lowest total ppm error
-    let mut sets = non_recursive_combinations(&ambiguous, model.ppm);
+    let mut sets = non_recursive_combinations(&ambiguous, model.ppm * peptide_length as f64);
     let max_number_connections =
         (found_peak_indices.len() - output.len()).min(found_fragment_indices.len() - output.len());
     for c in &mut sets {
@@ -116,7 +115,7 @@ fn cluster_matches(
             }
         },
     );
-    dbg!(&selected_set);
+    //dbg!(&selected_set);
     selected_peaks.extend(selected_set.1.iter().map(|c| c.0));
     output.extend(selected_set.1.into_iter().map(|c| c.2));
     selected_peaks.sort_unstable();
@@ -184,7 +183,7 @@ pub fn non_recursive_combinations(
             options.iter().map(|o| o.0).sum::<MassOverCharge>()
                 + finished.iter().map(|o| o.0).sum::<MassOverCharge>()
                     / Ratio::new::<r>((options.len() + finished.len()) as f64),
-        ) * 0.8;
+        );
     }
 
     finished
@@ -213,7 +212,7 @@ pub struct RawPeak {
 
 impl RawPeak {
     pub fn ppm(&self, fragment: &Fragment) -> MassOverCharge {
-        (self.mz - fragment.mz()).abs() / fragment.mz() * MassOverCharge::new::<mz>(1e6)
+        MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()))
     }
 }
 
