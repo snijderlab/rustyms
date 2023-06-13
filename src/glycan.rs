@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{da, HasMass, Mass, MassSystem};
+use crate::{da, AverageWeight, HasMass, Mass, MassSystem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
@@ -155,4 +155,16 @@ impl Display for MonoSaccharide {
             }
         )
     }
+}
+
+#[test]
+fn mass_glycan() {
+    assert_eq!(
+        1445.0,
+        (MonoSaccharide::Hex.mass::<AverageWeight>() * 3.0
+            + MonoSaccharide::HexNAc.mass::<AverageWeight>() * 4.0
+            + MonoSaccharide::Fuc.mass::<AverageWeight>())
+        .value
+        .round()
+    );
 }

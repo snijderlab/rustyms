@@ -389,7 +389,7 @@ impl AminoAcid {
 #[cfg(test)]
 #[allow(clippy::unreadable_literal, clippy::float_cmp)]
 mod tests {
-    use crate::MonoIsotopic;
+    use crate::{AverageWeight, MonoIsotopic};
 
     use super::*;
 
@@ -414,31 +414,44 @@ mod tests {
     #[test]
     fn masses() {
         let known = &[
-            ('A', 71.03711),
-            ('R', 156.10111),
-            ('N', 114.04293),
-            ('D', 115.02694),
-            ('C', 103.00919),
-            ('E', 129.04259),
-            ('Q', 128.05858),
-            ('G', 57.02146),
-            ('H', 137.05891),
-            ('I', 113.08406),
-            ('L', 113.08406),
-            ('K', 128.09496),
-            ('M', 131.04049),
-            ('F', 147.06841),
-            ('P', 97.05276),
-            ('S', 87.03203),
-            ('T', 101.04768),
-            ('W', 186.07931),
-            ('Y', 163.06333),
-            ('V', 99.06841),
+            ('A', 71.03711, 71.08),
+            ('R', 156.10111, 156.2),
+            ('N', 114.04293, 114.1),
+            ('D', 115.02694, 115.1),
+            ('C', 103.00919, 103.1),
+            ('E', 129.04259, 129.1),
+            ('Q', 128.05858, 128.1),
+            ('G', 57.02146, 57.05),
+            ('H', 137.05891, 137.1),
+            ('I', 113.08406, 113.2),
+            ('L', 113.08406, 113.2),
+            ('K', 128.09496, 128.2),
+            ('M', 131.04049, 131.2),
+            ('F', 147.06841, 147.2),
+            ('P', 97.05276, 97.12),
+            ('S', 87.03203, 87.08),
+            ('T', 101.04768, 101.1),
+            ('W', 186.07931, 186.2),
+            ('Y', 163.06333, 163.2),
+            ('V', 99.06841, 99.13),
         ];
 
-        for (aa, mass) in known {
+        for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
-            assert!((aa.mass::<MonoIsotopic>().value - *mass).abs() < 0.00001);
+            let (mono, weight) = (
+                aa.mass::<MonoIsotopic>().value,
+                aa.mass::<AverageWeight>().value,
+            );
+            println!(
+                "{}: {} {} {} {}",
+                aa.char(),
+                mono,
+                mono_mass,
+                weight,
+                average_weight
+            );
+            assert!((mono - *mono_mass).abs() < 0.00001);
+            assert!((weight - *average_weight).abs() < 0.1);
         }
     }
 }
