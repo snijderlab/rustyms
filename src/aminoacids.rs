@@ -6,6 +6,7 @@ use crate::{model::*, HasMass};
 use crate::{MassSystem, Position};
 
 /// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
+/// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AminoAcid {
     Alanine = 0,
@@ -32,37 +33,18 @@ pub enum AminoAcid {
     Selenocysteine,
     Pyrrolysine,
     Unknown,
+    AmbiguousAsparagine,
+    AmbiguousGlutamine,
 }
 
 impl TryFrom<char> for AminoAcid {
     type Error = ();
     fn try_from(value: char) -> Result<Self, Self::Error> {
-        match value {
-            'A' => Ok(Self::Alanine),
-            'C' => Ok(Self::Cysteine),
-            'D' => Ok(Self::AsparticAcid),
-            'E' => Ok(Self::GlutamicAcid),
-            'F' => Ok(Self::Phenylalanine),
-            'G' => Ok(Self::Glycine),
-            'H' => Ok(Self::Histidine),
-            'I' => Ok(Self::Isoleucine),
-            'J' => Ok(Self::AmbiguousLeucine),
-            'K' => Ok(Self::Lysine),
-            'L' => Ok(Self::Leucine),
-            'M' => Ok(Self::Methionine),
-            'N' => Ok(Self::Asparagine),
-            'O' => Ok(Self::Pyrrolysine),
-            'P' => Ok(Self::Proline),
-            'Q' => Ok(Self::Glutamine),
-            'R' => Ok(Self::Arginine),
-            'S' => Ok(Self::Serine),
-            'T' => Ok(Self::Threonine),
-            'U' => Ok(Self::Selenocysteine),
-            'V' => Ok(Self::Valine),
-            'W' => Ok(Self::Tryptophan),
-            'X' => Ok(Self::Unknown),
-            'Y' => Ok(Self::Tyrosine),
-            _ => Err(()),
+        if value.is_ascii() {
+        let num = value as u8;
+        num.try_into()
+        } else {
+            Err(())
         }
     }
 }
@@ -72,6 +54,7 @@ impl TryFrom<u8> for AminoAcid {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             b'A' => Ok(Self::Alanine),
+            b'B' => Ok(Self::AmbiguousAsparagine),
             b'C' => Ok(Self::Cysteine),
             b'D' => Ok(Self::AsparticAcid),
             b'E' => Ok(Self::GlutamicAcid),
@@ -95,6 +78,7 @@ impl TryFrom<u8> for AminoAcid {
             b'W' => Ok(Self::Tryptophan),
             b'X' => Ok(Self::Unknown),
             b'Y' => Ok(Self::Tyrosine),
+            b'Z' => Ok(Self::AmbiguousGlutamine),
             _ => Err(()),
         }
     }
@@ -106,11 +90,13 @@ impl HasMass for AminoAcid {
             Self::Alanine => da(M::BACKBONE + M::CH3),
             Self::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
             Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::C + M::NH + M::NH2), // One of the H's counts as the charge carrier and is added later
+            Self::AmbiguousAsparagine => panic!("Mass of Asx/B ambiguous asparagine is not defined."),
             Self::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
             Self::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
             Self::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
             Self::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::OH + M::O),
             Self::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
+            Self::AmbiguousGlutamine => panic!("Mass of Glx/Z ambiguous glutamine is not defined."),
             Self::Glycine => da(M::BACKBONE + M::H),
             Self::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
             Self::Isoleucine => da(M::BACKBONE + M::CH + M::CH3 + M::CH2 + M::CH3),
@@ -146,6 +132,7 @@ impl HasMass for AminoAcid {
 #[allow(non_upper_case_globals)]
 impl AminoAcid {
     pub const A: Self = Self::Alanine;
+    pub const B: Self = Self::AmbiguousLeucine;
     pub const C: Self = Self::Cysteine;
     pub const D: Self = Self::AsparticAcid;
     pub const E: Self = Self::GlutamicAcid;
@@ -169,9 +156,12 @@ impl AminoAcid {
     pub const W: Self = Self::Tryptophan;
     pub const X: Self = Self::Unknown;
     pub const Y: Self = Self::Tyrosine;
+    pub const Z: Self = Self::AmbiguousGlutamine;
     pub const Ala: Self = Self::Alanine;
     pub const Cys: Self = Self::Cysteine;
+    pub const Asn: Self = Self::Asparagine;
     pub const Asp: Self = Self::AsparticAcid;
+    pub const Asx: Self = Self::AmbiguousAsparagine;
     pub const Glu: Self = Self::GlutamicAcid;
     pub const Phe: Self = Self::Phenylalanine;
     pub const Gly: Self = Self::Glycine;
@@ -181,10 +171,10 @@ impl AminoAcid {
     pub const Lys: Self = Self::Lysine;
     pub const Leu: Self = Self::Leucine;
     pub const Met: Self = Self::Methionine;
-    pub const Asn: Self = Self::Asparagine;
     pub const Pyl: Self = Self::Pyrrolysine;
     pub const Pro: Self = Self::Proline;
     pub const Gln: Self = Self::Glutamine;
+    pub const Glx: Self = Self::AmbiguousGlutamine;
     pub const Arg: Self = Self::Arginine;
     pub const Ser: Self = Self::Serine;
     pub const Thr: Self = Self::Threonine;
@@ -192,6 +182,7 @@ impl AminoAcid {
     pub const Val: Self = Self::Valine;
     pub const Trp: Self = Self::Tryptophan;
     pub const Tyr: Self = Self::Tyrosine;
+    pub const Xaa: Self = Self::Unknown;
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
@@ -204,6 +195,8 @@ impl AminoAcid {
             | Self::Proline
             | Self::Tryptophan
             | Self::Tyrosine
+            | Self::AmbiguousAsparagine
+            | Self::AmbiguousGlutamine
             | Self::Unknown => vec![],
             Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
             Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
@@ -359,6 +352,7 @@ impl AminoAcid {
     pub const fn char(&self) -> char {
         match self {
             Self::Alanine => 'A',
+            Self::AmbiguousAsparagine => 'B',
             Self::Cysteine => 'C',
             Self::AsparticAcid => 'D',
             Self::GlutamicAcid => 'E',
@@ -382,6 +376,7 @@ impl AminoAcid {
             Self::Tryptophan => 'W',
             Self::Unknown => 'X',
             Self::Tyrosine => 'Y',
+            Self::AmbiguousGlutamine => 'Z',
         }
     }
 }
@@ -453,5 +448,13 @@ mod tests {
             assert!((mono - *mono_mass).abs() < 0.00001);
             assert!((weight - *average_weight).abs() < 0.1);
         }
+    }
+    
+    #[test]
+    fn read_aa() {
+        assert_eq!(AminoAcid::try_from('B').unwrap(), AminoAcid::AmbiguousAsparagine);
+        assert_eq!(AminoAcid::try_from(b'B').unwrap(), AminoAcid::AmbiguousAsparagine);
+        assert_eq!(AminoAcid::try_from('c'), Err(()));
+        assert_eq!(AminoAcid::try_from('🦀'), Err(()));
     }
 }
