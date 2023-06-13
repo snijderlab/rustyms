@@ -3,7 +3,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 ```
 <full_definition> = (<full_sequence>)++
 <full_sequence> = <sequence>(//<sequence>)?(\\\\<sequence>)?
-<sequence> = <global>*<labile>*<unknown_position_modification>*<n-term>?<aa_sequence><c-term>?(/<charge>[(<charge><atom>(+|-)),*])?
+<sequence> = <global>*<labile>*<unknown_position_modification>*<n-term>?<aa_sequence><c-term>?(/<charge>([(<charge><atom>(+|-)),*])?)?
 <aa_sequence> = (<aa_sequence_inner>|<range>)*
 <range> = \(<aa_sequence_inner>\)<modification>
 <aa_sequence_inner> = (<aa_sequence_inner_inner>)+|\(\?<aa_sequence_inner_inner>\)
@@ -36,8 +36,11 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 <aminoacid> =human= any IUPAC amino acid character or any UniProt ambiguous/unusual
 <info> =human= any piece of text, with the exclusion of unpaired brackets
 ```
-missing:
-proper order for global/labile/unknown_position?
+
+# Open questions
+- proper order for global/labile/unknown_position/additional peptides for MS?
+- what is the mass for B/Z?
+- what defines valid ionic species for ion charge?
 
 # Levels of support
 
@@ -48,7 +51,7 @@ Represents the lowest level of compliance, this level involves providing support
 -[x] Protein modifications using delta masses (without prefixes)
 -[x] N-terminal, C-terminal and labile modifications.
 -[ ] Ambiguity in the modification position, including support for localisation scores.
--[ ] Ambiguity in the amino acid sequence. ??
+-[ ] Ambiguity in the amino acid sequence.
 -[ ] INFO tag.
 2) Additional Separate Support (Technical name: level 2-ProForma compliant)
 These features are independent from each other:
