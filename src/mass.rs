@@ -40,11 +40,11 @@ impl MassSystem for AverageWeight {
     const H: f64 = 1.007975;
     const C: f64 = 12.0106;
     const N: f64 = 14.006855;
-    const O: f64 = 15.9994;
-    const F: f64 = 18.9984031625;
-    const P: f64 = 30.9737619985;
+    const O: f64 = 15.99940;
+    const F: f64 = 18.998403162;
+    const P: f64 = 30.973761998;
     const S: f64 = 32.0675;
-    const Se: f64 = 78.9718;
+    const Se: f64 = 78.971;
 }
 
 pub struct MonoIsotopic {}
