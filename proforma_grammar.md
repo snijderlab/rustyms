@@ -51,15 +51,15 @@ Represents the lowest level of compliance, this level involves providing support
 -[x] Protein modifications using delta masses (without prefixes)
 -[x] N-terminal, C-terminal and labile modifications.
 -[ ] Ambiguity in the modification position, including support for localisation scores.
--[ ] Ambiguity in the amino acid sequence.
--[ ] INFO tag.
+-[ ] Ambiguity in the amino acid sequence. `(?DQ)N`
+-[x] INFO tag.
 2) Additional Separate Support (Technical name: level 2-ProForma compliant)
 These features are independent from each other:
 -[x] Unusual amino acids (O and U).
 -[x] Ambiguous amino acids (e.g. X, B, Z). This would include support for sequence tags of known mass (using the character X).
 -[ ] Protein modifications using delta masses (using prefixes for the different CVs/ontologies).
 -[ ] Use of prefixes for Unimod (U:) and PSI-MOD (M:) names.
--[ ] Support for the joint representation of experimental data and its interpretation.
+-[x] Support for the joint representation of experimental data and its interpretation. (see 4.9)
 3) Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
 -[ ] Additional CV/ontologies for protein modifications: RESID (the prefix R MUST be used for RESID CV/ontology term names)
 -[x] Chemical formulas (this feature occurs in two places in this list).

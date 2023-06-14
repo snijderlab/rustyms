@@ -2,6 +2,8 @@
 
 use std::fmt::Display;
 
+use uom::num_traits::Zero;
+
 use crate::{
     aminoacids::AminoAcid, element::*, system::f64::*, HasMass, MassSystem, MonoSaccharide,
 };
@@ -27,13 +29,9 @@ impl Peptide {
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Only supports a subset of the specification, some functions are not possible to be represented.
     ///
-    /// # Panics
-    /// * When the input is not ascii text
-    ///
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     pub fn pro_forma(value: &str) -> Result<Self, String> {
-        assert!(value.is_ascii());
         let mut peptide = Self {
             labile: Vec::new(),
             n_term: None,
@@ -178,30 +176,58 @@ impl HasMass for Modification {
     }
 }
 
-impl TryFrom<&str> for Modification {
-    type Error = String;
-    /// TODO: support more parts of the Pro Forma spec:
-    ///     * Think about a way to enforce knowledge about the monoisotopic nature of the modifications in normal mass shifts
-    ///     * Allow zero mass gap (X[+365])
-    ///     * Do not crash on other input, provide shift as string with 0 mass?
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        //dbg!(&value);
-        match value.split_once(':') {
-            Some(("Formula", tail)) => Ok(Self::Formula(parse_named_counter(
+fn parse_single_modification(part: &str) -> Result<Option<Modification>, String> {
+    let parsed = part
+        .split_once(':')
+        .map(|v| (v.0.to_ascii_lowercase(), v.1));
+    if let Some((head, tail)) = parsed {
+        match (head.as_str(), tail) {
+            ("formula", tail) => Ok(Some(Modification::Formula(parse_named_counter(
                 tail,
                 ELEMENT_PARSE_LIST,
                 true,
-            )?)),
-            Some(("Glycan", tail)) => Ok(Self::Glycan(parse_named_counter(
+            )?))),
+            ("glycan", tail) => Ok(Some(Modification::Glycan(parse_named_counter(
                 tail,
                 crate::GLYCAN_PARSE_LIST,
                 false,
-            )?)),
-            Some((head, _tail)) => Err(format!("Does not support these types yet: {head}")),
-            None => Ok(Self::Mass(Mass::new::<dalton>(
-                value.parse::<f64>().map_err(|_| "Invalid mass shift")?,
-            ))),
+            )?))),
+            ("info", _) => Ok(None),
+            ("obs", tail) => Ok(Some(Modification::Mass(Mass::new::<dalton>(
+                tail.parse::<f64>().map_err(|_| "Invalid mass shift")?,
+            )))),
+            (head, _tail) => Err(format!("Does not support these types yet: {head}")),
         }
+    } else {
+        Ok(Some(Modification::Mass(Mass::new::<dalton>(
+            part.parse::<f64>().map_err(|_| "Invalid mass shift")?,
+        ))))
+    }
+}
+
+impl TryFrom<&str> for Modification {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        // Because multiple modifications could be chained with the pipe operator
+        // the parsing iterates over all links until it finds one it understands
+        // it then returns that one. If no 'understandable' links are found it
+        // returns the last link, if this is an info it returns a mass shift of 0,
+        // but if any of the links returned an error it returns the last error.
+        let mut last_result = Ok(None);
+        let mut last_error = None;
+        for part in value.split('|') {
+            last_result = parse_single_modification(part);
+            if let Ok(Some(m)) = last_result {
+                return Ok(m);
+            }
+            if let Err(er) = &last_result {
+                last_error = Some(er.clone());
+            }
+        }
+        last_error.map_or_else(
+            || last_result.map(|m| m.unwrap_or_else(|| Self::Mass(Mass::zero()))),
+            Err,
+        )
     }
 }
 
@@ -304,6 +330,21 @@ mod tests {
     fn parse_formula() {
         let peptide = Peptide::pro_forma("A[Formula:C6H10O5]").unwrap();
         let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
+        assert_eq!(peptide.sequence.len(), 1);
+        assert_eq!(glycan.sequence.len(), 1);
+        assert_eq!(
+            glycan.mass::<MonoIsotopic>(),
+            peptide.mass::<MonoIsotopic>()
+        );
+    }
+
+    #[test]
+    fn parse_hard_tags() {
+        let peptide = Peptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]").unwrap();
+        let glycan = Peptide::pro_forma(
+            "A[info:you can define a tag multiple times|Glycan:Hex|Formula:C6H10O5]",
+        )
+        .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(
