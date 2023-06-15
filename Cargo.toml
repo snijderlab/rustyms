@@ -16,3 +16,6 @@ uom = "0.34"
 entab="0.3"
 statrs = "0.16"
 serde = { version = "1.0", features = ["derive"] }
+
+[build-dependencies]
+quick-xml = "0.29"

@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::{AminoAcid, HasMass, MassSystem, Modification, Peptide};
+use crate::{modification::Modification, AminoAcid, HasMass, MassSystem, Peptide};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]

@@ -18,6 +18,8 @@ mod fragment;
 mod glycan;
 mod mass;
 mod model;
+mod modification;
+mod ontologies;
 mod peptide;
 pub mod rawfile;
 mod spectrum;
