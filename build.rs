@@ -34,7 +34,8 @@ fn main() {
         ),
     )
     .unwrap();
-    //println!("cargo:rerun-if-changed=databases/unimod.xml"); TODO: remove for everyone else
+    println!("cargo:rerun-if-changed=databases/unimod.xml");
+    println!("cargo:rerun-if-changed=build.rs");
 }
 
 fn parse_unimod(debug: bool) -> Vec<Modification> {
@@ -109,7 +110,7 @@ fn parse_unimod(debug: bool) -> Vec<Modification> {
                 }
                 _ => (),
             },
-            Ok(Event::Text(e)) => (), //print(format!("{:?}", e), debug),
+            Ok(Event::Text(_e)) => (), //print(format!("{:?}", e), debug),
 
             // There are several other `Event`s we do not consider here
             _ => (),
@@ -193,7 +194,7 @@ impl Modification {
 
     fn to_code(&self) -> String {
         format!(
-            "/// {} [code name: {}] [ex_code_name: {}]\nModification::Formula(vec![{}])",
+            "// {} [code name: {}] [ex_code_name: {}]\nModification::Predefined(&[{}], &[])",
             self.full_name,
             self.code_name,
             self.ex_code_name,

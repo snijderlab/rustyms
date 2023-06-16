@@ -15,17 +15,21 @@ pub enum Modification {
     #[allow(non_snake_case)]
     Formula(Vec<(Element, isize)>),
     Glycan(Vec<(MonoSaccharide, isize)>),
+    Predefined(
+        &'static [(Element, isize)],
+        &'static [(MonoSaccharide, isize)],
+    ),
 }
 
 impl HasMass for Modification {
     fn mass<M: MassSystem>(&self) -> Mass {
         match self {
             Self::Mass(m) => *m,
-            Self::Formula(elements) => elements.iter().map(|m| m.1 as f64 * m.0.mass::<M>()).sum(),
-            Self::Glycan(monosaccharides) => monosaccharides
-                .iter()
-                .map(|m| m.1 as f64 * m.0.mass::<M>())
-                .sum(),
+            Self::Formula(elements) => elements.mass::<M>(),
+            Self::Glycan(monosaccharides) => monosaccharides.mass::<M>(),
+            Self::Predefined(elements, monosaccharides) => {
+                elements.mass::<M>() + monosaccharides.mass::<M>()
+            }
         }
     }
 }
@@ -134,6 +138,15 @@ impl Display for Modification {
             Self::Glycan(monosaccharides) => write!(
                 f,
                 "Glycan:{}",
+                monosaccharides
+                    .iter()
+                    .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
+            )
+            .unwrap(),
+            Self::Predefined(elements, monosaccharides) => write!(
+                f,
+                "Predefined:{};{}",
+                Element::hill_notation(elements),
                 monosaccharides
                     .iter()
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))

@@ -4,7 +4,9 @@
 
 use uom::num_traits::Zero;
 
+use crate::system::ratio::r;
 use crate::Mass;
+use crate::Ratio;
 
 pub trait MassSystem {
     const H: f64;
@@ -85,6 +87,11 @@ impl<T: HasMass> HasMass for Option<T> {
 impl<T: HasMass, U: HasMass> HasMass for (T, U) {
     fn mass<M: MassSystem>(&self) -> Mass {
         self.0.mass::<M>() + self.1.mass::<M>()
+    }
+}
+impl<T: HasMass> HasMass for (T, isize) {
+    fn mass<M: MassSystem>(&self) -> Mass {
+        self.0.mass::<M>() * Ratio::new::<r>(self.1 as f64)
     }
 }
 impl<T: HasMass> HasMass for [T] {

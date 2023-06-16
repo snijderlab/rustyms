@@ -21,6 +21,22 @@ pub struct RawSpectrum {
 }
 
 impl RawSpectrum {
+    /// Filter the spectrum to retain all with an intensity above `filter_threshold` times the maximal intensity.
+    ///
+    /// # Panics
+    /// It panics if any peaks has an intensity that is NaN.
+    pub fn noise_filter(&mut self, filter_threshold: f64) {
+        let max = self
+            .spectrum
+            .iter()
+            .map(|p| p.intensity)
+            .reduce(f64::max)
+            .unwrap();
+        self.spectrum
+            .retain(|p| p.intensity >= max * filter_threshold);
+        self.spectrum.shrink_to_fit();
+    }
+
     pub fn annotate(
         &self,
         peptide: Peptide,
