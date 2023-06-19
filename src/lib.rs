@@ -22,6 +22,7 @@ mod modification;
 mod ontologies;
 mod peptide;
 pub mod rawfile;
+mod result_extension;
 mod spectrum;
 mod system;
 

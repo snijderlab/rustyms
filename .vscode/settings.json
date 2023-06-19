@@ -4,5 +4,6 @@
         "Hecklib",
         "monoisotopic",
         "unimod"
-    ]
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

@@ -6,6 +6,7 @@ use crate::{
     dalton,
     element::{Element, ELEMENT_PARSE_LIST},
     ontologies::UNIMOD_ONTOLOGY,
+    result_extension::*,
     HasMass, Mass, MassSystem, MonoSaccharide,
 };
 
@@ -182,18 +183,5 @@ impl Display for Modification {
             .unwrap(),
         }
         Ok(())
-    }
-}
-
-trait ResultExtensions<T, E> {
-    fn flat_err(self) -> Result<T, E>;
-}
-
-impl<T, E> ResultExtensions<T, E> for Result<T, Result<T, E>> {
-    fn flat_err(self) -> Result<T, E> {
-        match self {
-            Ok(o) => Ok(o),
-            Err(r) => r,
-        }
     }
 }
