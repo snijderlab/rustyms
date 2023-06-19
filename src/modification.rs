@@ -5,6 +5,7 @@ use uom::num_traits::Zero;
 use crate::{
     dalton,
     element::{Element, ELEMENT_PARSE_LIST},
+    ontologies::UNIMOD_ONTOLOGY,
     HasMass, Mass, MassSystem, MonoSaccharide,
 };
 
@@ -40,6 +41,11 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
         .map(|v| (v.0.to_ascii_lowercase(), v.1));
     if let Some((head, tail)) = parsed {
         match (head.as_str(), tail) {
+            ("u", tail) => find_in_ontology(tail, UNIMOD_ONTOLOGY)
+                .map_err(|_| numerical_mod(tail))
+                .flat_err()
+                .map(Some)
+                .map_err(|_| format!("Not a valid unimod modification: {tail}")),
             ("formula", tail) => Ok(Some(Modification::Formula(parse_named_counter(
                 tail,
                 ELEMENT_PARSE_LIST,
@@ -51,16 +57,38 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
                 false,
             )?))),
             ("info", _) => Ok(None),
-            ("obs", tail) => Ok(Some(Modification::Mass(Mass::new::<dalton>(
-                tail.parse::<f64>().map_err(|_| "Invalid mass shift")?,
-            )))),
-            (head, _tail) => Err(format!("Does not support these types yet: {head}")),
+            ("obs", tail) => numerical_mod(tail).map(Some),
+            (head, _tail) => find_in_ontology(part, UNIMOD_ONTOLOGY)
+                .map(Some)
+                .map_err(|_| format!("Does not support these types yet: {head}")),
         }
     } else {
-        Ok(Some(Modification::Mass(Mass::new::<dalton>(
-            part.parse::<f64>().map_err(|_| "Invalid mass shift")?,
-        ))))
+        find_in_ontology(part, UNIMOD_ONTOLOGY)
+            .map_err(|_| numerical_mod(part))
+            .flat_err()
+            .map(Some)
+            .map_err(|_| format!("Not a valid number or unimod modification: {part}"))
     }
+}
+
+fn find_in_ontology(
+    code: &str,
+    ontology: &[(&str, &str, Modification)],
+) -> Result<Modification, ()> {
+    let code = code.to_ascii_lowercase();
+    for option in ontology {
+        if option.0 == code || option.1 == code {
+            return Ok(option.2.clone());
+        }
+    }
+    Err(())
+}
+
+fn numerical_mod(text: &str) -> Result<Modification, String> {
+    text.parse().map_or_else(
+        |_| Err("Invalid number".to_string()),
+        |n| Ok(Modification::Mass(Mass::new::<dalton>(n))),
+    )
 }
 
 impl TryFrom<&str> for Modification {
@@ -154,5 +182,18 @@ impl Display for Modification {
             .unwrap(),
         }
         Ok(())
+    }
+}
+
+trait ResultExtensions<T, E> {
+    fn flat_err(self) -> Result<T, E>;
+}
+
+impl<T, E> ResultExtensions<T, E> for Result<T, Result<T, E>> {
+    fn flat_err(self) -> Result<T, E> {
+        match self {
+            Ok(o) => Ok(o),
+            Err(r) => r,
+        }
     }
 }

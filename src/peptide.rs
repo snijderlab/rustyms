@@ -214,4 +214,12 @@ mod tests {
             peptide.mass::<MonoIsotopic>()
         );
     }
+
+    #[test]
+    fn parse_unimod() {
+        let peptide = dbg!(Peptide::pro_forma(
+            "A[Cation:Na]A[U:Gln->pyro-Glu]A[pyro_Glu]"
+        ));
+        assert!(peptide.is_ok());
+    }
 }

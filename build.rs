@@ -1,7 +1,7 @@
-use std::env;
 use std::fmt::Display;
 use std::fs;
 use std::path::Path;
+use std::{default, env};
 
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -26,7 +26,7 @@ fn main() {
     fs::write(
         dest_path,
         format!(
-            "pub const UNIMOD_ONTOLOGY: &[Modification] = &[
+            "pub const UNIMOD_ONTOLOGY: &[(&str, &str, Modification)] = &[
                 {}
                 ];",
             mods.iter()
@@ -84,6 +84,13 @@ fn parse_unimod(debug: bool) -> Vec<Modification> {
                                 b"ex_code_name" => {
                                     modification.with_ex_code_name(attribute.value.as_ref())
                                 }
+                                b"record_id" => {
+                                    modification.id =
+                                        String::from_utf8(attribute.value.as_ref().to_vec())
+                                            .expect("Record_id not valid utf8")
+                                            .parse()
+                                            .expect("Record_id not valid number");
+                                }
                                 b"composition" => {
                                     if modification.with_formula(attribute.value.as_ref()).is_err()
                                     {
@@ -106,6 +113,71 @@ fn parse_unimod(debug: bool) -> Vec<Modification> {
                     }
                     if !skip {
                         mods.push(modification);
+                    }
+                }
+                b"specificity_row" => {
+                    let mut place = String::new();
+                    let mut position = Position::Undefined;
+                    let mut mod_key = None;
+                    for attr in e.attributes() {
+                        match attr {
+                            Err(e) => {
+                                panic!("Error at position {}: {:?}", reader.buffer_position(), e)
+                            }
+                            Ok(attribute) => match attribute.key.into_inner() {
+                                b"one_letter" => {
+                                    place = String::from_utf8(attribute.value.as_ref().to_vec())
+                                        .expect("Invalid utf8");
+                                }
+                                b"position_key" => {
+                                    assert!(attribute.value.as_ref().len() == 1);
+                                    position = attribute.value.as_ref()[0]
+                                        .try_into()
+                                        .expect("Invalid position for placement rule");
+                                }
+                                b"mod_key" => {
+                                    mod_key = Some(
+                                        String::from_utf8(attribute.value.as_ref().to_vec())
+                                            .expect("Record_id not valid utf8")
+                                            .parse()
+                                            .expect("Record_id not valid number"),
+                                    );
+                                }
+                                _ => (),
+                            },
+                        }
+                    }
+                    #[allow(clippy::option_map_unit_fn)]
+                    if let Some(mod_key) = mod_key {
+                        let rule = match (place.as_str(), position) {
+                            (aa, position) if aa.len() == 1 => {
+                                PlacementRule::AminoAcid(aa.chars().next().unwrap(), position)
+                            }
+                            ("C-term", position)
+                                if position == Position::AnyCTerm
+                                    || position == Position::ProteinCTerm =>
+                            {
+                                PlacementRule::Terminal(position)
+                            }
+                            ("C-term", Position::Anywhere) => {
+                                PlacementRule::Terminal(Position::AnyCTerm)
+                            }
+                            ("N-term", position)
+                                if position == Position::AnyNTerm
+                                    || position == Position::ProteinNTerm =>
+                            {
+                                PlacementRule::Terminal(position)
+                            }
+                            ("N-term", Position::Anywhere) => {
+                                PlacementRule::Terminal(Position::AnyNTerm)
+                            }
+                            (place, position) => {
+                                panic!("Invalid placement rule: {place} {position:?} mod_key {mod_key}")
+                            }
+                        };
+                        mods.iter_mut()
+                            .find(|m| m.id == mod_key)
+                            .map(|m| m.rules.push(rule));
                     }
                 }
                 _ => (),
@@ -133,6 +205,8 @@ struct Modification {
     code_name: String,
     ex_code_name: String,
     full_name: String,
+    id: usize,
+    rules: Vec<PlacementRule>,
 }
 
 impl Modification {
@@ -194,15 +268,61 @@ impl Modification {
 
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] [ex_code_name: {}]\nModification::Predefined(&[{}], &[])",
+            "// {} [code name: {}] [ex_code_name: {}] rules: {}\n(\"{}\", \"{}\", Modification::Predefined(&[{}], &[]))",
             self.full_name,
             self.code_name,
             self.ex_code_name,
+            self.rules.iter().fold(String::new(), |acc, r| format!("{acc}{r},")),
+            self.code_name.to_ascii_lowercase(),
+            self.ex_code_name.to_ascii_lowercase(),
             self.formula.iter().fold(String::new(), |acc, e| format!(
                 "{}({}, {}),",
                 acc, e.0, e.1
             ))
         )
+    }
+}
+
+#[derive(Debug)]
+enum PlacementRule {
+    AminoAcid(char, Position),
+    Terminal(Position),
+}
+
+impl Display for PlacementRule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AminoAcid(aminoacid, position) => {
+                write!(f, "({}, {:?})", aminoacid, position)
+            }
+            Self::Terminal(t) => write!(f, "{:?}", t),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+enum Position {
+    #[default]
+    Undefined = 1,
+    Anywhere,
+    AnyNTerm,
+    AnyCTerm,
+    ProteinNTerm,
+    ProteinCTerm,
+}
+
+impl TryInto<Position> for u8 {
+    type Error = String;
+    fn try_into(self) -> Result<Position, Self::Error> {
+        match self {
+            b'1' => Ok(Position::Undefined),
+            b'2' => Ok(Position::Anywhere),
+            b'3' => Ok(Position::AnyNTerm),
+            b'4' => Ok(Position::AnyCTerm),
+            b'5' => Ok(Position::ProteinNTerm),
+            b'6' => Ok(Position::ProteinCTerm),
+            n => Err(format!("Outside range: {n}")),
+        }
     }
 }
 

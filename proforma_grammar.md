@@ -48,6 +48,9 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 Represents the lowest level of compliance, this level involves providing support for:
 - [x] Amino acid sequences
 - [ ] Protein modifications using two of the supported CVs/ontologies: Unimod and PSI-MOD.
+    - [x] Prepare Unimod and parse modifications
+    - [ ] Prepare PSI-MOD and parse modifications
+    - [ ] Enforce placement rules
 - [x] Protein modifications using delta masses (without prefixes)
 - [x] N-terminal, C-terminal and labile modifications.
 - [ ] Ambiguity in the modification position, including support for localisation scores.
