@@ -16,13 +16,13 @@ mod element;
 mod formula;
 mod fragment;
 mod glycan;
+mod helper_functions;
 mod mass;
 mod model;
 mod modification;
 mod ontologies;
 mod peptide;
 pub mod rawfile;
-mod result_extension;
 mod spectrum;
 mod system;
 

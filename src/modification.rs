@@ -5,8 +5,8 @@ use uom::num_traits::Zero;
 use crate::{
     dalton,
     element::{Element, ELEMENT_PARSE_LIST},
+    helper_functions::*,
     ontologies::UNIMOD_ONTOLOGY,
-    result_extension::*,
     HasMass, Mass, MassSystem, MonoSaccharide,
 };
 
@@ -74,12 +74,12 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
 
 fn find_in_ontology(
     code: &str,
-    ontology: &[(&str, &str, Modification)],
+    ontology: &[(usize, &str, &str, Modification)],
 ) -> Result<Modification, ()> {
     let code = code.to_ascii_lowercase();
     for option in ontology {
-        if option.0 == code || option.1 == code {
-            return Ok(option.2.clone());
+        if option.1 == code || option.2 == code {
+            return Ok(option.3.clone());
         }
     }
     Err(())
@@ -116,43 +116,6 @@ impl TryFrom<&str> for Modification {
             Err,
         )
     }
-}
-
-fn parse_named_counter<T: Copy>(
-    value: &str,
-    names: &[(&str, T)],
-    allow_negative: bool,
-) -> Result<Vec<(T, isize)>, String> {
-    let mut index = 0;
-    let mut output = Vec::new();
-    while index < value.len() {
-        if value[index..].starts_with(' ') {
-            index += 1;
-        } else {
-            let mut found = false;
-            for name in names {
-                if value[index..].starts_with(name.0) {
-                    index += name.0.len();
-                    let num = &value[index..]
-                        .chars()
-                        .take_while(|c| c.is_ascii_digit() || (allow_negative && *c == '-'))
-                        .collect::<String>();
-                    if num.is_empty() {
-                        output.push((name.1, 1));
-                    } else {
-                        output.push((name.1, num.parse().unwrap()));
-                        index += num.len();
-                    }
-                    found = true;
-                    break; // Names loop
-                }
-            }
-            if !found {
-                return Err(format!("Name not recognised {}", &value[index..]));
-            }
-        }
-    }
-    Ok(output)
 }
 
 impl Display for Modification {
