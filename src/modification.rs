@@ -6,7 +6,7 @@ use crate::{
     dalton,
     element::{Element, ELEMENT_PARSE_LIST},
     helper_functions::*,
-    ontologies::UNIMOD_ONTOLOGY,
+    ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     HasMass, Mass, MassSystem, MonoSaccharide,
 };
 
@@ -42,11 +42,28 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
         .map(|v| (v.0.to_ascii_lowercase(), v.1));
     if let Some((head, tail)) = parsed {
         match (head.as_str(), tail) {
+            ("unimod", tail) => {
+                let id = tail.parse::<usize>().map_err(|e| e.to_string())?;
+                find_id_in_ontology(id, UNIMOD_ONTOLOGY)
+                    .map(Some)
+                    .map_err(|_| format!("{tail} is not a valid Unimod accession number"))
+            }
+            ("mod", tail) => {
+                let id = tail.parse::<usize>().map_err(|e| e.to_string())?;
+                find_id_in_ontology(id, PSI_MOD_ONTOLOGY)
+                    .map(Some)
+                    .map_err(|_| format!("{tail} is not a valid PSI-MOD accession number"))
+            }
             ("u", tail) => find_in_ontology(tail, UNIMOD_ONTOLOGY)
                 .map_err(|_| numerical_mod(tail))
                 .flat_err()
                 .map(Some)
-                .map_err(|_| format!("Not a valid unimod modification: {tail}")),
+                .map_err(|_| format!("Not a valid Unimod modification: {tail}")),
+            ("m", tail) => find_in_ontology(tail, PSI_MOD_ONTOLOGY)
+                .map_err(|_| numerical_mod(tail))
+                .flat_err()
+                .map(Some)
+                .map_err(|_| format!("Not a valid PSI-MOD modification: {tail}")),
             ("formula", tail) => Ok(Some(Modification::Formula(parse_named_counter(
                 tail,
                 ELEMENT_PARSE_LIST,
@@ -65,10 +82,12 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
         }
     } else {
         find_in_ontology(part, UNIMOD_ONTOLOGY)
+            .map_err(|_| find_in_ontology(part, PSI_MOD_ONTOLOGY))
+            .flat_err()
             .map_err(|_| numerical_mod(part))
             .flat_err()
             .map(Some)
-            .map_err(|_| format!("Not a valid number or unimod modification: {part}"))
+            .map_err(|_| format!("Not a valid delta mass, Unimod, or PSI-MOD modification: {part}"))
     }
 }
 
@@ -79,6 +98,18 @@ fn find_in_ontology(
     let code = code.to_ascii_lowercase();
     for option in ontology {
         if option.1 == code || option.2 == code {
+            return Ok(option.3.clone());
+        }
+    }
+    Err(())
+}
+
+fn find_id_in_ontology(
+    id: usize,
+    ontology: &[(usize, &str, &str, Modification)],
+) -> Result<Modification, ()> {
+    for option in ontology {
+        if option.0 == id {
             return Ok(option.3.clone());
         }
     }

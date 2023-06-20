@@ -408,11 +408,11 @@ impl OntologyModification {
             self.id,
             self.code_name.to_ascii_lowercase(),
             self.ex_code_name.to_ascii_lowercase(),
-            self.elements.iter().fold(String::new(), |acc, e| format!(
+            self.elements.iter().filter(|e| e.1 != 0).fold(String::new(), |acc, e| format!(
                 "{}(Element::{}, {}),",
                 acc, e.0, e.1
             )),
-            self.monosaccharides.iter().fold(String::new(), |acc, e| format!(
+            self.monosaccharides.iter().filter(|e| e.1 != 0).fold(String::new(), |acc, e| format!(
                 "{}(MonoSaccharide::{}, {}),",
                 acc, e.0.to_string().replace('-', "_"), e.1
             ))
@@ -477,7 +477,7 @@ struct OboObject {
 
 impl OboOntology {
     fn from_file(path: &str) -> Result<OboOntology, String> {
-        let mut reader = BufReader::new(File::open(path).map_err(|e| e.to_string())?);
+        let reader = BufReader::new(File::open(path).map_err(|e| e.to_string())?);
         let mut obo = OboOntology::default();
         let mut recent_obj = None;
 
