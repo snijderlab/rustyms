@@ -28,6 +28,7 @@ pub enum MonoSaccharide {
 }
 
 /// All monosaccharides ordered to be able to parse glycans by matching them from the top
+#[allow(dead_code)]
 pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
     ("phosphate", MonoSaccharide::phosphate),
     ("sulfate", MonoSaccharide::sulfate),

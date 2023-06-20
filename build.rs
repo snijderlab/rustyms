@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::iter;
 use std::path::Path;
 
 #[path = "./src/shared/element.rs"]
@@ -20,20 +21,19 @@ use crate::element::*;
 use crate::glycan::*;
 use crate::helper_functions::*;
 
-use quick_xml::events::Event;
-use quick_xml::reader::Reader;
+use regex::Regex;
 
 fn main() {
     let debug = env::var("DEBUG_BUILD").map(|v| v == "1").unwrap_or(false);
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
-    print(out_dir.as_os_str().to_str().unwrap(), debug);
     build_unimod_ontology(&out_dir, debug);
     build_psi_mod_ontology(&out_dir, debug);
 
-    println!("cargo:rerun-if-changed=databases/unimod.xml");
+    println!("cargo:rerun-if-changed=databases/unimod.obo");
     println!("cargo:rerun-if-changed=databases/PSI-MOD-newstyle.obo");
     println!("cargo:rerun-if-changed=build.rs");
+    print(out_dir.as_os_str().to_str().unwrap(), debug);
 }
 
 fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
@@ -42,7 +42,7 @@ fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
     fs::write(
         dest_path,
         format!(
-            "pub const UNIMOD_ONTOLOGY: &[(usize, &str, &str, Modification)] = &[
+            "pub const UNIMOD_ONTOLOGY: &[(usize, &str, Modification)] = &[
                 {}
                 ];",
             mods.iter()
@@ -53,155 +53,75 @@ fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
 }
 
 fn parse_unimod(debug: bool) -> Vec<OntologyModification> {
-    let mut reader =
-        Reader::from_file("databases/unimod.xml").expect("Unimod definition file not present");
-    let mut buf = Vec::new();
+    let obo = OboOntology::from_file("databases/unimod.obo").expect("Not a valid obo file");
     let mut mods = Vec::new();
-    reader.trim_text(true);
 
-    // The `Reader` does not implement `Iterator` because it outputs borrowed data (`Cow`s)
-    loop {
-        // empty
-        // alt_names_row -> empty
-        // amino_acids_row -> ignore contains all amino acids
-        // brick2element -> ignore contains all elements
-        // brick contains simple chemicals
-        // classifications
-        // elements_row
-        // fragment_comp_row
-        // fragments_row
-        // mod2brick_row
-
-        // start+stop
-        // modifications_row
-        match reader.read_event_into(&mut buf) {
-            Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
-            // exits the loop when reaching end of file
-            Ok(Event::Eof) => break,
-
-            Ok(Event::Start(e)) => match e.name().as_ref() {
-                b"modifications_row" => {
-                    let mut modification = OntologyModification::default();
-                    let mut skip = false;
-                    for attr in e.attributes() {
-                        match attr {
-                            Err(e) => {
-                                panic!("Error at position {}: {:?}", reader.buffer_position(), e)
-                            }
-                            Ok(attribute) => match attribute.key.into_inner() {
-                                b"full_name" => {
-                                    modification.with_full_name(attribute.value.as_ref())
-                                }
-                                b"code_name" => {
-                                    modification.with_code_name(attribute.value.as_ref())
-                                }
-                                b"ex_code_name" => {
-                                    modification.with_ex_code_name(attribute.value.as_ref())
-                                }
-                                b"record_id" => {
-                                    modification.id =
-                                        String::from_utf8(attribute.value.as_ref().to_vec())
-                                            .expect("Record_id not valid utf8")
-                                            .parse()
-                                            .expect("Record_id not valid number");
-                                }
-                                b"composition" => {
-                                    if modification.with_formula(attribute.value.as_ref()).is_err()
-                                    {
-                                        skip = true;
-                                        print(
-                                            format!(
-                                                "Could not parse: {}",
-                                                String::from_utf8(
-                                                    attribute.value.as_ref().to_vec()
-                                                )
-                                                .unwrap(),
-                                            ),
-                                            debug,
-                                        );
-                                    }
-                                }
-                                _ => (),
-                            },
-                        }
-                    }
-                    if !skip {
-                        mods.push(modification);
-                    }
-                }
-                b"specificity_row" => {
-                    let mut place = String::new();
-                    let mut position = Position::Undefined;
-                    let mut mod_key = None;
-                    for attr in e.attributes() {
-                        match attr {
-                            Err(e) => {
-                                panic!("Error at position {}: {:?}", reader.buffer_position(), e)
-                            }
-                            Ok(attribute) => match attribute.key.into_inner() {
-                                b"one_letter" => {
-                                    place = String::from_utf8(attribute.value.as_ref().to_vec())
-                                        .expect("Invalid utf8");
-                                }
-                                b"position_key" => {
-                                    assert!(attribute.value.as_ref().len() == 1);
-                                    position = attribute.value.as_ref()[0]
-                                        .try_into()
-                                        .expect("Invalid position for placement rule");
-                                }
-                                b"mod_key" => {
-                                    mod_key = Some(
-                                        String::from_utf8(attribute.value.as_ref().to_vec())
-                                            .expect("Record_id not valid utf8")
-                                            .parse()
-                                            .expect("Record_id not valid number"),
-                                    );
-                                }
-                                _ => (),
-                            },
-                        }
-                    }
-                    #[allow(clippy::option_map_unit_fn)]
-                    if let Some(mod_key) = mod_key {
-                        let rule = match (place.as_str(), position) {
-                            (aa, position) if aa.len() == 1 => {
-                                PlacementRule::AminoAcid(aa.chars().next().unwrap(), position)
-                            }
-                            ("C-term", position)
-                                if position == Position::AnyCTerm
-                                    || position == Position::ProteinCTerm =>
-                            {
-                                PlacementRule::Terminal(position)
-                            }
-                            ("C-term", Position::Anywhere) => {
-                                PlacementRule::Terminal(Position::AnyCTerm)
-                            }
-                            ("N-term", position)
-                                if position == Position::AnyNTerm
-                                    || position == Position::ProteinNTerm =>
-                            {
-                                PlacementRule::Terminal(position)
-                            }
-                            ("N-term", Position::Anywhere) => {
-                                PlacementRule::Terminal(Position::AnyNTerm)
-                            }
-                            (place, position) => {
-                                panic!("Invalid placement rule: {place} {position:?} mod_key {mod_key}")
-                            }
-                        };
-                        mods.iter_mut()
-                            .find(|m| m.id == mod_key)
-                            .map(|m| m.rules.push(rule));
-                    }
-                }
-                _ => (),
-            },
-            Ok(Event::Text(_e)) => (), //print(format!("{:?}", e), debug),
-
-            // There are several other `Event`s we do not consider here
-            _ => (),
+    for obj in obo.objects {
+        if obj.name != "Term" {
+            continue;
         }
-        // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
+        let mut take = false;
+        let mut modification = OntologyModification {
+            id: obj.lines["id"][0]
+                .split_once(':')
+                .expect("Incorrect psi mod id, should contain a colon")
+                .1
+                .parse()
+                .expect("Incorrect psi mod id, should be numerical"),
+            code_name: obj.lines["name"][0].to_string(),
+            ..Default::default()
+        };
+        if let Some(xref) = obj.lines.get("xref") {
+            let re_position = Regex::new("spec_(\\d+)_position \"(.+)\"").unwrap();
+            let re_site = Regex::new("spec_(\\d+)_site \"(.+)\"").unwrap();
+            let mut rules = Vec::new();
+            for line in xref {
+                if line.starts_with("delta_composition") {
+                    modification
+                        .with_unimod_composition(&line[19..line.len() - 1])
+                        .expect("Invalid Unimod composition");
+                    take = true;
+                } else if let Some(groups) = re_position.captures(line) {
+                    let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
+                    let position = groups.get(2).unwrap().as_str().to_string();
+                    if rules.len() <= index {
+                        rules.extend(
+                            iter::repeat((String::new(), String::new()))
+                                .take(index + 1 - rules.len()),
+                        );
+                    }
+                    rules[index].1 = position;
+                } else if let Some(groups) = re_site.captures(line) {
+                    let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
+                    let site = groups.get(2).unwrap().as_str().to_string();
+                    if rules.len() <= index {
+                        rules.extend(
+                            iter::repeat((String::new(), String::new()))
+                                .take(index + 1 - rules.len()),
+                        );
+                    }
+                    rules[index].0 = site;
+                } else {
+                    continue;
+                }
+            }
+            modification.rules = rules
+                .into_iter()
+                .filter_map(|rule| match (rule.0.as_str(), rule.1.as_str()) {
+                    ("C-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
+                    ("N-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
+                    (aa, pos) if aa.len() == 1 => Some(PlacementRule::AminoAcid(
+                        aa.chars().next().unwrap(),
+                        pos.try_into().unwrap(),
+                    )),
+                    ("", "") => None,
+                    (_, _) => panic!("Invalid rule definition: {rule:?}"),
+                })
+                .collect();
+        }
+        if take {
+            mods.push(modification);
+        }
     }
 
     mods
@@ -249,7 +169,7 @@ fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     fs::write(
         dest_path,
         format!(
-            "pub const PSI_MOD_ONTOLOGY: &[(usize, &str, &str, Modification)] = &[
+            "pub const PSI_MOD_ONTOLOGY: &[(usize, &str, Modification)] = &[
                 {}
                 ];",
             mods.iter()
@@ -259,7 +179,6 @@ fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     .unwrap();
 }
 
-// TODO: get the name/code out instead of the number, parse the number, provide a way for the user to select modifications based on number (also for unimod) (described in 4.2.2)
 fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
     let obo =
         OboOntology::from_file("databases/PSI-MOD-newstyle.obo").expect("Not a valid obo file");
@@ -284,7 +203,7 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
-                    match parse_named_counter(&line[13..line.len() - 12], &ELEMENT_PARSE_LIST, true)
+                    match parse_named_counter(&line[13..line.len() - 12], ELEMENT_PARSE_LIST, true)
                     {
                         Ok(o) => {
                             modification.elements = o;
@@ -293,7 +212,7 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
                         Err(_e) => {
                             print(
                                 format!(
-                                    "Could not match {obj:?} Formula: \"{}\"",
+                                    "PSI-MOD: could not match formula: \"{}\"",
                                     &line[13..line.len() - 12]
                                 ),
                                 debug,
@@ -301,6 +220,7 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
                         }
                     }
                 } else if line.starts_with("Origin") {
+                    // TODO: parse the rules
                 }
             }
         }
@@ -323,7 +243,6 @@ struct OntologyModification {
     elements: Vec<(Element, isize)>,
     monosaccharides: Vec<(MonoSaccharide, isize)>,
     code_name: String,
-    ex_code_name: String,
     full_name: String,
     id: usize,
     rules: Vec<PlacementRule>,
@@ -331,12 +250,12 @@ struct OntologyModification {
 
 impl OntologyModification {
     #[deny(clippy::unwrap_used)]
-    fn with_formula(&mut self, composition: &[u8]) -> Result<(), ()> {
+    fn with_unimod_composition(&mut self, composition: &str) -> Result<(), ()> {
         let mut last_name = String::new();
         let mut last_number = String::new();
         let mut minus = 1;
-        for c in composition.iter() {
-            match *c {
+        for c in composition.bytes() {
+            match c {
                 b'-' => minus = -1,
                 b'(' => (),
                 b')' => {
@@ -366,7 +285,7 @@ impl OntologyModification {
                 }
                 n if n.is_ascii_digit() => last_number.push(n as char),
                 n if n.is_ascii_alphabetic() => last_name.push(n as char),
-                _ => panic!("Weird formula composition"),
+                _ => panic!("Weird formula composition: {composition}"),
             }
         }
         if !last_name.is_empty() {
@@ -380,42 +299,32 @@ impl OntologyModification {
         Ok(())
     }
 
-    fn with_code_name(&mut self, name: &[u8]) {
-        self.code_name = String::from_utf8(name.to_vec())
-            .unwrap()
-            .replace("&gt;", ">")
-    }
-
-    fn with_ex_code_name(&mut self, name: &[u8]) {
-        self.ex_code_name = String::from_utf8(name.to_vec())
-            .unwrap()
-            .replace("&gt;", ">")
-    }
-
-    fn with_full_name(&mut self, name: &[u8]) {
-        self.full_name = String::from_utf8(name.to_vec())
-            .unwrap()
-            .replace("&gt;", ">")
-    }
-
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] [ex_code_name: {}] rules: {}\n({}, \"{}\", \"{}\", Modification::Predefined(&[{}], &[{}]))",
+            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}]))",
             self.full_name,
             self.code_name,
-            self.ex_code_name,
-            self.rules.iter().fold(String::new(), |acc, r| format!("{acc}{r},")),
+            self.rules
+                .iter()
+                .fold(String::new(), |acc, r| format!("{acc}{r},")),
             self.id,
             self.code_name.to_ascii_lowercase(),
-            self.ex_code_name.to_ascii_lowercase(),
-            self.elements.iter().filter(|e| e.1 != 0).fold(String::new(), |acc, e| format!(
-                "{}(Element::{}, {}),",
-                acc, e.0, e.1
-            )),
-            self.monosaccharides.iter().filter(|e| e.1 != 0).fold(String::new(), |acc, e| format!(
-                "{}(MonoSaccharide::{}, {}),",
-                acc, e.0.to_string().replace('-', "_"), e.1
-            ))
+            self.elements
+                .iter()
+                .filter(|e| e.1 != 0)
+                .fold(String::new(), |acc, e| format!(
+                    "{}(Element::{}, {}),",
+                    acc, e.0, e.1
+                )),
+            self.monosaccharides
+                .iter()
+                .filter(|e| e.1 != 0)
+                .fold(String::new(), |acc, e| format!(
+                    "{}(MonoSaccharide::{}, {}),",
+                    acc,
+                    e.0.to_string().replace('-', "_"),
+                    e.1
+                ))
         )
     }
 }
@@ -459,6 +368,21 @@ impl TryInto<Position> for u8 {
             b'5' => Ok(Position::ProteinNTerm),
             b'6' => Ok(Position::ProteinCTerm),
             n => Err(format!("Outside range: {n}")),
+        }
+    }
+}
+
+impl TryInto<Position> for &str {
+    type Error = String;
+    fn try_into(self) -> Result<Position, Self::Error> {
+        match self {
+            "" => Ok(Position::Undefined),
+            "Anywhere" => Ok(Position::Anywhere),
+            "Any N-term" => Ok(Position::AnyNTerm),
+            "Any C-term" => Ok(Position::AnyCTerm),
+            "Protein N-term" => Ok(Position::ProteinNTerm),
+            "Protein C-term" => Ok(Position::ProteinCTerm),
+            n => Err(format!("Not valid position: {n}")),
         }
     }
 }

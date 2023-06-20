@@ -46,33 +46,40 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 
 1) Base Level Support (Technical name: Base-ProForma Compliant)
 Represents the lowest level of compliance, this level involves providing support for:
-- [x] Amino acid sequences
-- [ ] Protein modifications using two of the supported CVs/ontologies: Unimod and PSI-MOD.
-    - [x] Prepare Unimod and parse modifications
+- [x] 4.1 Amino acid sequences
+- [ ] 4.2.1/4.2.2 Protein modifications using two of the supported CVs/ontologies: Unimod and PSI-MOD.
+    - [ ] Prepare Unimod and parse modifications 
     - [x] Prepare PSI-MOD and parse modifications
-    - [ ] Enforce placement rules
-- [x] Protein modifications using delta masses (without prefixes)
-- [x] N-terminal, C-terminal and labile modifications.
-- [ ] Ambiguity in the modification position, including support for localisation scores.
-- [ ] Ambiguity in the amino acid sequence. `(?DQ)N`
-- [x] INFO tag.
+- [x] 4.2.6 Protein modifications using delta masses (without prefixes)
+- [x] 4.3 N-terminal, C-terminal and labile modifications.
+- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. `[Phospho]^2?` | `[Phospho#g1]` | `(AAA)[Phospho]` 
+- [ ] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
+- [x] 4.8 INFO tag.
 2) Additional Separate Support (Technical name: level 2-ProForma compliant)
 These features are independent from each other:
-- [x] Unusual amino acids (O and U).
-- [x] Ambiguous amino acids (e.g. X, B, Z). This would include support for sequence tags of known mass (using the character X).
-- [x] Protein modifications using delta masses (using prefixes for the different CVs/ontologies).
-- [x] Use of prefixes for Unimod (U:) and PSI-MOD (M:) names.
-- [x] Support for the joint representation of experimental data and its interpretation. (see 4.9)
+- [x] 4.1 Unusual amino acids (O and U).
+- [x] 4.1 Ambiguous amino acids (e.g. X, B, Z). This would include support for sequence tags of known mass (using the character X).
+- [x] 4.2.6 Protein modifications using delta masses (using prefixes for the different CVs/ontologies).
+- [x] 4.2.1 Use of prefixes for Unimod (U:) and PSI-MOD (M:) names.
+- [x] 4.9 Support for the joint representation of experimental data and its interpretation. (see 4.9)
 3) Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
-- [ ] Additional CV/ontologies for protein modifications: RESID (the prefix R MUST be used for RESID CV/ontology term names)
-- [x] Chemical formulas (this feature occurs in two places in this list).
-4) Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking
-compliant)
-- [ ] Cross-linked peptides (using the XL-MOD CV/ontology, the prefix X MUST be used for XL-MOD CV/ontology term names).
+- [ ] 4.2.1 Additional CV/ontologies for protein modifications: RESID (the prefix R MUST be used for RESID CV/ontology term names)
+- [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
+4) Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
+- [ ] 4.2.1/4.2.3 Cross-linked peptides (using the XL-MOD CV/ontology, the prefix X MUST be used for XL-MOD CV/ontology term names).
 5) Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
-- [ ] Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
-- [x] Glycan composition.
-- [x] Chemical formulas (this feature occurs in two places in this list).
+- [ ] 4.2.5 Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
+- [x] 4.2.9 Glycan composition.
+- [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 6) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
-- [ ] Charge and chimeric spectra are special cases (see Appendix II).
-- [ ] Global modifications (e.g., every C is C13).
+- [ ] 7 Charge and chimeric spectra are special cases (see Appendix II).
+- [ ] 4.6 Global modifications (e.g., every C is C13). 4.6
+
+# Other stuff to implement still
+- [ ] 4.5 Handle multiple modifications on a single position (or amino acid group)
+- [x] 4.2.1.1 Use the Unimod obo file instead of xml 
+- [ ] 4.2.4 Branched peptides, similar to cross linking
+- [x] 4.2.7 Gap of known mass
+- [ ] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
+- [ ] Enforce ontology modification placement rules
+- [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications

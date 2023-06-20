@@ -28,7 +28,7 @@ pub fn parse_named_counter<T: Copy>(
                     index += name.0.len();
                     let num = &value[index..]
                         .chars()
-                        .skip_while(|c| c.is_ascii_whitespace())
+                        .skip_while(char::is_ascii_whitespace)
                         .take_while(|c| c.is_ascii_digit() || (allow_negative && *c == '-'))
                         .collect::<String>()
                         .trim()
@@ -38,9 +38,9 @@ pub fn parse_named_counter<T: Copy>(
                     } else {
                         output.push((name.1, num.parse().unwrap()));
                         index += num.len()
-                            + &value[index..]
+                            + value[index..]
                                 .chars()
-                                .take_while(|c| c.is_ascii_whitespace())
+                                .take_while(char::is_ascii_whitespace)
                                 .count();
                     }
                     found = true;

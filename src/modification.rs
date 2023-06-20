@@ -54,12 +54,12 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
                     .map(Some)
                     .map_err(|_| format!("{tail} is not a valid PSI-MOD accession number"))
             }
-            ("u", tail) => find_in_ontology(tail, UNIMOD_ONTOLOGY)
+            ("u", tail) => find_name_in_ontology(tail, UNIMOD_ONTOLOGY)
                 .map_err(|_| numerical_mod(tail))
                 .flat_err()
                 .map(Some)
                 .map_err(|_| format!("Not a valid Unimod modification: {tail}")),
-            ("m", tail) => find_in_ontology(tail, PSI_MOD_ONTOLOGY)
+            ("m", tail) => find_name_in_ontology(tail, PSI_MOD_ONTOLOGY)
                 .map_err(|_| numerical_mod(tail))
                 .flat_err()
                 .map(Some)
@@ -76,13 +76,13 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
             )?))),
             ("info", _) => Ok(None),
             ("obs", tail) => numerical_mod(tail).map(Some),
-            (head, _tail) => find_in_ontology(part, UNIMOD_ONTOLOGY)
+            (head, _tail) => find_name_in_ontology(part, UNIMOD_ONTOLOGY)
                 .map(Some)
                 .map_err(|_| format!("Does not support these types yet: {head}")),
         }
     } else {
-        find_in_ontology(part, UNIMOD_ONTOLOGY)
-            .map_err(|_| find_in_ontology(part, PSI_MOD_ONTOLOGY))
+        find_name_in_ontology(part, UNIMOD_ONTOLOGY)
+            .map_err(|_| find_name_in_ontology(part, PSI_MOD_ONTOLOGY))
             .flat_err()
             .map_err(|_| numerical_mod(part))
             .flat_err()
@@ -91,14 +91,14 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
     }
 }
 
-fn find_in_ontology(
+fn find_name_in_ontology(
     code: &str,
-    ontology: &[(usize, &str, &str, Modification)],
+    ontology: &[(usize, &str, Modification)],
 ) -> Result<Modification, ()> {
     let code = code.to_ascii_lowercase();
     for option in ontology {
-        if option.1 == code || option.2 == code {
-            return Ok(option.3.clone());
+        if option.1 == code {
+            return Ok(option.2.clone());
         }
     }
     Err(())
@@ -106,11 +106,11 @@ fn find_in_ontology(
 
 fn find_id_in_ontology(
     id: usize,
-    ontology: &[(usize, &str, &str, Modification)],
+    ontology: &[(usize, &str, Modification)],
 ) -> Result<Modification, ()> {
     for option in ontology {
         if option.0 == id {
-            return Ok(option.3.clone());
+            return Ok(option.2.clone());
         }
     }
     Err(())
