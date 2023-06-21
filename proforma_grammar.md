@@ -53,6 +53,7 @@ Represents the lowest level of compliance, this level involves providing support
 - [x] 4.2.6 Protein modifications using delta masses (without prefixes)
 - [x] 4.3 N-terminal, C-terminal and labile modifications.
 - [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. `[Phospho]^2?` | `[Phospho#g1]` | `(AAA)[Phospho]` note also handle multiple modifications on a group
+    - Implementation note: translate all notations to save all possible ambiguous modifications on each specific Amino Acid location, using the rules from the modifications to generate the least number of possible positions. Using these generate all possible N-term/C-term base masses when calculating ion masses. Additionally find a way to nicely store the path taken for each base mass and show this to the user. Maybe having something like `base + 12[Phospho] + 15[Phospho]`.
 - [x] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
 - [x] 4.8 INFO tag.
 2) Additional Separate Support (Technical name: level 2-ProForma compliant)
