@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use uom::num_traits::Zero;
 
@@ -36,11 +36,48 @@ impl HasMass for Modification {
     }
 }
 
-fn parse_single_modification(part: &str) -> Result<Option<Modification>, String> {
+impl Modification {
+    /// Try to parse the modification. Any ambiguous modification will be number
+    /// according to the lookup (which may be added to if necessary). The result
+    /// is the modification, with, if applicable, its determined ambiguous group.
+    pub fn try_from(
+        value: &str,
+        lookup: &mut HashMap<String, Modification>,
+    ) -> Result<(Self, Option<usize>), String> {
+        // Because multiple modifications could be chained with the pipe operator
+        // the parsing iterates over all links until it finds one it understands
+        // it then returns that one. If no 'understandable' links are found it
+        // returns the last link, if this is an info it returns a mass shift of 0,
+        // but if any of the links returned an error it returns the last error.
+        let mut last_result = Ok(None);
+        let mut last_error = None;
+        for part in value.split('|') {
+            last_result = parse_single_modification(part, lookup);
+            if let Ok(Some(m)) = last_result {
+                return Ok(m);
+            }
+            if let Err(er) = &last_result {
+                last_error = Some(er.clone());
+            }
+        }
+        last_error.map_or_else(
+            || last_result.map(|m| m.unwrap_or_else(|| (Self::Mass(Mass::zero()), None))),
+            Err,
+        )
+    }
+}
+
+fn parse_single_modification(
+    part: &str,
+    lookup: &mut HashMap<String, Modification>,
+) -> Result<Option<(Modification, bool)>, String> {
+    let (part, group) = part
+        .split_once('#')
+        .map_or((part, None), |a| (a.0, Some(a.1)));
     let parsed = part
         .split_once(':')
         .map(|v| (v.0.to_ascii_lowercase(), v.1));
-    if let Some((head, tail)) = parsed {
+    let modification = if let Some((head, tail)) = parsed {
         match (head.as_str(), tail) {
             ("unimod", tail) => {
                 let id = tail.parse::<usize>().map_err(|e| e.to_string())?;
@@ -88,7 +125,19 @@ fn parse_single_modification(part: &str) -> Result<Option<Modification>, String>
             .flat_err()
             .map(Some)
             .map_err(|_| format!("Not a valid delta mass, Unimod, or PSI-MOD modification: {part}"))
-    }
+    };
+    modification.map(|o| {
+        o.map(|m| {
+            if let Some(g) = group {
+                if lookup.contains_key(g) {
+                    return Err("A ");
+                }
+                (lookup.entry(g.to_string()).or_insert(m).clone(), true)
+            } else {
+                (m, false)
+            }
+        })
+    })
 }
 
 fn find_name_in_ontology(
@@ -121,32 +170,6 @@ fn numerical_mod(text: &str) -> Result<Modification, String> {
         |_| Err("Invalid number".to_string()),
         |n| Ok(Modification::Mass(Mass::new::<dalton>(n))),
     )
-}
-
-impl TryFrom<&str> for Modification {
-    type Error = String;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        // Because multiple modifications could be chained with the pipe operator
-        // the parsing iterates over all links until it finds one it understands
-        // it then returns that one. If no 'understandable' links are found it
-        // returns the last link, if this is an info it returns a mass shift of 0,
-        // but if any of the links returned an error it returns the last error.
-        let mut last_result = Ok(None);
-        let mut last_error = None;
-        for part in value.split('|') {
-            last_result = parse_single_modification(part);
-            if let Ok(Some(m)) = last_result {
-                return Ok(m);
-            }
-            if let Err(er) = &last_result {
-                last_error = Some(er.clone());
-            }
-        }
-        last_error.map_or_else(
-            || last_result.map(|m| m.unwrap_or_else(|| Self::Mass(Mass::zero()))),
-            Err,
-        )
-    }
 }
 
 impl Display for Modification {

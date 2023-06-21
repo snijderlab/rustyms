@@ -11,6 +11,15 @@ impl<T, E> ResultExtensions<T, E> for Result<T, Result<T, E>> {
     }
 }
 
+impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
+    fn flat_err(self) -> Result<T, E> {
+        match self {
+            Ok(o) => o,
+            Err(r) => Err(r),
+        }
+    }
+}
+
 pub fn parse_named_counter<T: Copy>(
     value: &str,
     names: &[(&str, T)],

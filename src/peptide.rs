@@ -3,7 +3,8 @@
 use std::fmt::Display;
 
 use crate::{
-    aminoacids::AminoAcid, modification::Modification, system::f64::*, HasMass, MassSystem,
+    aminoacids::AminoAcid, helper_functions::ResultExtensions, modification::Modification,
+    system::f64::*, HasMass, MassSystem,
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -41,6 +42,7 @@ impl Peptide {
         let mut index = 0;
         let mut c_term = false;
         let mut ambiguous_aa = false;
+        let mut ambiguous_lookup = Vec::new();
 
         // Labile modification(s)
         while chars[index] == b'{' {
@@ -53,9 +55,17 @@ impl Peptide {
                     .ok_or(format!(
                         "No valid closing delimiter for labile modification [index: {index}]"
                     ))?;
-            peptide
-                .labile
-                .push(value[index + 1..end_index - 1].try_into()?);
+            peptide.labile.push(
+                Modification::try_from(&value[index + 1..end_index - 1], &mut ambiguous_lookup)
+                    .map(|m| {
+                        if m.1.is_some() {
+                            Err("A labile modification cannot be ambiguous".to_string())
+                        } else {
+                            Ok(m.0)
+                        }
+                    })
+                    .flat_err()?,
+            );
             index = end_index;
         }
         // N term modification
@@ -72,7 +82,17 @@ impl Peptide {
                     "No valid closing delimiter for N term modification [index: {index}]"
                 ));
             }
-            peptide.n_term = Some(value[index + 1..end_index - 1].try_into()?);
+            peptide.n_term = Some(
+                Modification::try_from(&value[index + 1..end_index - 1], &mut ambiguous_lookup)
+                    .map(|m| {
+                        if m.1.is_some() {
+                            Err("A terminal modification cannot be ambiguous".to_string())
+                        } else {
+                            Ok(m.0)
+                        }
+                    })
+                    .flat_err()?,
+            );
             index = end_index + 1;
         }
 
@@ -100,19 +120,25 @@ impl Peptide {
                             "No valid closing delimiter aminoacid modification [index: {index}]"
                         ));
                     }
-                    let modification = Modification::try_from(&value[index + 1..end_index])?;
+                    let modification = Modification::try_from(
+                        &value[index + 1..end_index],
+                        &mut ambiguous_lookup,
+                    )?;
                     if c_term {
-                        peptide.c_term = Some(modification);
+                        peptide.c_term = Some(if modification.1.is_some() {
+                            Err("A terminal modification cannot be ambiguous".to_string())
+                        } else {
+                            Ok(modification.0)
+                        }?);
                         if end_index != value.len() - 1 {
                             return Err(
-                                format!("There cannot be any characters after the C terminal modification [index: {index}]"
-                                    ),
+                                format!("There cannot be any characters after the C terminal modification [index: {index}]"),
                             );
                         }
                         break;
                     }
                     match peptide.sequence.last_mut() {
-                        Some(aa) => aa.modifications.push(modification),
+                        Some(aa) => aa.add_modification(modification),
                         None => {
                             return Err(
                                 format!("A modification cannot be placed before any amino acid [index: {index}]")
@@ -211,6 +237,14 @@ impl SequenceElement {
         }
         Ok(extra_placed)
     }
+
+    fn add_modification(&mut self, modification: (Modification, Option<usize>)) {
+        if let Some(id) = modification.1 {
+            self.possible_modifications.push((modification.0, id, None));
+        } else {
+            self.modifications.push(modification.0);
+        }
+    }
 }
 
 impl HasMass for SequenceElement {
@@ -262,6 +296,16 @@ mod tests {
         assert_eq!(without.sequence.len(), 1);
         assert_eq!(with.mass::<MonoIsotopic>(), without.mass::<MonoIsotopic>());
         assert_eq!(with.labile[0].to_string(), "Formula:C6H10O5".to_string());
+    }
+
+    #[test]
+    fn parse_ambiguous() {
+        let with = Peptide::pro_forma("A[Phospho#g0]A[#g0]").unwrap();
+        let without = Peptide::pro_forma("AA").unwrap();
+        assert_eq!(with.sequence.len(), 2);
+        assert_eq!(without.sequence.len(), 2);
+        assert_eq!(with.sequence[0].possible_modifications.len(), 1);
+        assert_eq!(with.sequence[1].possible_modifications.len(), 1);
     }
 
     #[test]
