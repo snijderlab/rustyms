@@ -22,18 +22,15 @@ impl HasMass for Element {
 impl Element {
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements
     pub fn hill_notation(elements: &[(Self, isize)]) -> String {
-        let mut sorted = elements
-            .iter()
-            .map(|(e, c)| (e.to_string(), c))
-            .collect::<Vec<_>>();
-        sorted.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        let mut sorted = elements.iter().map(|(e, c)| (e, c)).collect::<Vec<_>>();
+        sorted.sort_unstable_by(|a, b| a.0.cmp(b.0));
         let mut output = String::new();
-        if let Some(carbon) = sorted.iter().find(|e| e.0 == "C") {
+        if let Some(carbon) = sorted.iter().find(|e| *e.0 == Self::C) {
             write!(output, "C{}", carbon.1).unwrap();
-            if let Some(hydrogen) = sorted.iter().find(|e| e.0 == "H") {
+            if let Some(hydrogen) = sorted.iter().find(|e| *e.0 == Self::H) {
                 write!(output, "H{}", hydrogen.1).unwrap();
             }
-            for element in sorted.iter().filter(|e| e.0 == "C" || e.0 == "H") {
+            for element in sorted.iter().filter(|e| *e.0 != Self::H && *e.0 != Self::C) {
                 write!(output, "{}{}", element.0, element.1).unwrap();
             }
         } else {
@@ -71,3 +68,16 @@ const ISOTOPES: &[&[(f64, f64)]] = &[
         (17.999160300, 0.0020465000),
     ], // O
 ];
+
+#[cfg(test)]
+mod test {
+    use crate::element::Element;
+
+    #[test]
+    fn hill_notation() {
+        assert_eq!(
+            Element::hill_notation(&[(Element::C, 6), (Element::O, 5), (Element::H, 10)]),
+            "C6H10O5".to_string()
+        );
+    }
+}

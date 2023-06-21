@@ -23,6 +23,7 @@ pub trait MassSystem {
     const Proton: f64 = Self::H - Self::e;
     const CO: f64 = Self::C + Self::O;
     const OH: f64 = Self::O + Self::H;
+    const H2O: f64 = Self::O + Self::H * 2.0;
     const NH: f64 = Self::N + Self::H;
     const NH2: f64 = Self::N + Self::H * 2.0;
     const NH3: f64 = Self::N + Self::H * 3.0;
