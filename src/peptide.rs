@@ -11,7 +11,7 @@ pub struct Peptide {
     pub labile: Vec<Modification>,
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
-    pub sequence: Vec<(AminoAcid, Option<Modification>)>,
+    pub sequence: Vec<(AminoAcid, Vec<Modification>, bool)>,
 }
 
 impl Peptide {
@@ -36,10 +36,10 @@ impl Peptide {
             c_term: None,
             sequence: Vec::new(),
         };
-        let mut last_aa = None;
         let chars: &[u8] = value.as_bytes();
         let mut index = 0;
         let mut c_term = false;
+        let mut ambiguous_aa = false;
 
         // N term modification
         while chars[index] == b'{' {
@@ -73,8 +73,16 @@ impl Peptide {
             index = end_index + 1;
         }
 
-        while index < value.len() {
-            match value.as_bytes()[index] {
+        while index < chars.len() {
+            match chars[index] {
+                b'(' if chars[index + 1] == b'?' => {
+                    ambiguous_aa = true;
+                    index += 2;
+                }
+                b')' if ambiguous_aa => {
+                    ambiguous_aa = false;
+                    index += 1;
+                }
                 b'[' => {
                     let mut end_index = 0;
                     for (i, ch) in chars[index..].iter().enumerate() {
@@ -86,19 +94,25 @@ impl Peptide {
                     if end_index == 0 {
                         return Err("No valid closing delimiter aminoacid modification".to_string());
                     }
-                    let modification = Some((&value[index + 1..end_index]).try_into()?);
+                    let modification = Modification::try_from(&value[index + 1..end_index])?;
                     if c_term {
-                        peptide.c_term = modification;
+                        peptide.c_term = Some(modification);
                         if end_index != value.len() - 1 {
                             return Err(
                                 "There cannot be any characters after the C terminal modification"
                                     .to_string(),
                             );
                         }
-                        break; // Allow the last aa to be placed
+                        break;
                     }
-                    peptide.sequence.push((last_aa.unwrap(), modification));
-                    last_aa = None;
+                    match peptide.sequence.last_mut() {
+                        Some(aa) => aa.1.push(modification),
+                        None => {
+                            return Err(
+                                "A modification cannot be placed before any amino acid".to_string()
+                            )
+                        }
+                    }
                     index = end_index + 1;
                 }
                 b'-' => {
@@ -106,16 +120,14 @@ impl Peptide {
                     index += 1;
                 }
                 ch => {
-                    if let Some(aa) = last_aa {
-                        peptide.sequence.push((aa, None));
-                    }
-                    last_aa = Some(ch.try_into().map_err(|_| "Invalid Amino Acid code")?);
+                    peptide.sequence.push((
+                        ch.try_into().map_err(|_| "Invalid Amino Acid code")?,
+                        Vec::new(),
+                        ambiguous_aa,
+                    ));
                     index += 1;
                 }
             }
-        }
-        if let Some(aa) = last_aa {
-            peptide.sequence.push((aa, None));
         }
         Ok(peptide)
     }
@@ -141,7 +153,7 @@ impl Display for Peptide {
         }
         for position in &self.sequence {
             write!(f, "{}", position.0.char())?;
-            if let Some(m) = &position.1 {
+            for m in &position.1 {
                 write!(f, "[{m}]")?;
             }
         }

@@ -454,8 +454,8 @@ pub fn align<M: MassSystem>(
 }
 
 fn score_pair<M: MassSystem>(
-    a: &(AminoAcid, Option<Modification>),
-    b: &(AminoAcid, Option<Modification>),
+    a: &(AminoAcid, Vec<Modification>, bool),
+    b: &(AminoAcid, Vec<Modification>, bool),
     alphabet: &[&[i8]],
     score: isize,
 ) -> Piece {
@@ -465,8 +465,8 @@ fn score_pair<M: MassSystem>(
 }
 
 fn score<M: MassSystem>(
-    a: &[(AminoAcid, Option<Modification>)],
-    b: &[(AminoAcid, Option<Modification>)],
+    a: &[(AminoAcid, Vec<Modification>, bool)],
+    b: &[(AminoAcid, Vec<Modification>, bool)],
     score: isize,
 ) -> Option<Piece> {
     let ppm = a.mass::<M>().ppm(b.mass::<M>());
@@ -494,8 +494,11 @@ mod tests {
     #[test]
     fn pair() {
         let pair = dbg!(score::<MonoIsotopic>(
-            &[(AminoAcid::N, None)],
-            &[(AminoAcid::G, None), (AminoAcid::G, None)],
+            &[(AminoAcid::N, Vec::new(), false)],
+            &[
+                (AminoAcid::G, Vec::new(), false),
+                (AminoAcid::G, Vec::new(), false)
+            ],
             0
         ));
         assert!(pair.is_some());

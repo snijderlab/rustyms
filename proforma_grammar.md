@@ -47,13 +47,13 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 1) Base Level Support (Technical name: Base-ProForma Compliant)
 Represents the lowest level of compliance, this level involves providing support for:
 - [x] 4.1 Amino acid sequences
-- [ ] 4.2.1/4.2.2 Protein modifications using two of the supported CVs/ontologies: Unimod and PSI-MOD.
-    - [ ] Prepare Unimod and parse modifications 
+- [x] 4.2.1/4.2.2 Protein modifications using two of the supported CVs/ontologies: Unimod and PSI-MOD.
+    - [x] Prepare Unimod and parse modifications 
     - [x] Prepare PSI-MOD and parse modifications
 - [x] 4.2.6 Protein modifications using delta masses (without prefixes)
 - [x] 4.3 N-terminal, C-terminal and labile modifications.
-- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. `[Phospho]^2?` | `[Phospho#g1]` | `(AAA)[Phospho]` 
-- [ ] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
+- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. `[Phospho]^2?` | `[Phospho#g1]` | `(AAA)[Phospho]` note also handle multiple modifications on a group
+- [x] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
 - [x] 4.8 INFO tag.
 2) Additional Separate Support (Technical name: level 2-ProForma compliant)
 These features are independent from each other:
@@ -76,10 +76,19 @@ These features are independent from each other:
 - [ ] 4.6 Global modifications (e.g., every C is C13). 4.6
 
 # Other stuff to implement still
-- [ ] 4.5 Handle multiple modifications on a single position (or amino acid group)
+- [x] 4.5 Handle multiple modifications on a single position (or amino acid group)
 - [x] 4.2.1.1 Use the Unimod obo file instead of xml 
 - [ ] 4.2.4 Branched peptides, similar to cross linking
 - [x] 4.2.7 Gap of known mass
 - [ ] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [ ] Enforce ontology modification placement rules
 - [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+
+# Sources for the downloaded files
+- PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
+- Unimod: http://www.unimod.org/obo/unimod.obo
+- RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (RESIDUES.XML)
+- XL-MOD: https://raw.githubusercontent.com/HUPO-
+PSI/mzIdentML/master/cv/XLMOD.obo
+- GNO: https://www.ebi.ac.uk/ols/ontologies/gno
+- Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv
