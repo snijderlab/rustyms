@@ -59,16 +59,13 @@ pub fn generate_theoretical_fragments<M: MassSystem>(
         let n_term = peptide.n_term.mass::<M>()
             + peptide.sequence[0..index]
                 .iter()
-                .fold(Mass::zero(), |acc, aa| {
-                    acc + aa.0.mass::<M>() + aa.1.mass::<M>()
-                });
+                .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
         let c_term = peptide.c_term.mass::<M>()
             + peptide.sequence[index + 1..peptide.sequence.len()]
                 .iter()
-                .fold(Mass::zero(), |acc, aa| {
-                    acc + aa.0.mass::<M>() + aa.1.mass::<M>()
-                });
-        output.append(&mut peptide.sequence[index].0.fragments::<M>(
+                .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
+        output.append(&mut peptide.sequence[index].aminoacid.fragments::<M>(
+            // TODO: does this take the mods on the current position into account, also take possible mods into account
             n_term,
             c_term,
             max_charge,

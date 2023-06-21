@@ -6,12 +6,12 @@ use crate::{
     aminoacids::AminoAcid, modification::Modification, system::f64::*, HasMass, MassSystem,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Peptide {
     pub labile: Vec<Modification>,
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
-    pub sequence: Vec<(AminoAcid, Vec<Modification>, bool)>,
+    pub sequence: Vec<SequenceElement>,
 }
 
 impl Peptide {
@@ -29,6 +29,7 @@ impl Peptide {
     ///
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
+    #[allow(clippy::too_many_lines)]
     pub fn pro_forma(value: &str) -> Result<Self, String> {
         let mut peptide = Self {
             labile: Vec::new(),
@@ -41,7 +42,7 @@ impl Peptide {
         let mut c_term = false;
         let mut ambiguous_aa = false;
 
-        // N term modification
+        // Labile modification
         while chars[index] == b'{' {
             let mut end_index = 0;
             for (i, ch) in chars[index..].iter().enumerate() {
@@ -51,13 +52,16 @@ impl Peptide {
                 }
             }
             if end_index == 0 {
-                return Err("No valid closing delimiter for labile modification".to_string());
+                return Err(format!(
+                    "No valid closing delimiter for labile modification [index: {index}]"
+                ));
             }
             peptide
                 .labile
                 .push((&value[index + 1..end_index - 1]).try_into()?);
             index = end_index + 1;
         }
+        // N term modification
         if chars[index] == b'[' {
             let mut end_index = 0;
             for i in index..value.len() - 1 {
@@ -67,12 +71,15 @@ impl Peptide {
                 }
             }
             if end_index == 0 {
-                return Err("No valid closing delimiter for N term modification".to_string());
+                return Err(format!(
+                    "No valid closing delimiter for N term modification [index: {index}]"
+                ));
             }
             peptide.n_term = Some((&value[index + 1..end_index - 1]).try_into()?);
             index = end_index + 1;
         }
 
+        // Rest of the sequence
         while index < chars.len() {
             match chars[index] {
                 b'(' if chars[index + 1] == b'?' => {
@@ -92,24 +99,26 @@ impl Peptide {
                         }
                     }
                     if end_index == 0 {
-                        return Err("No valid closing delimiter aminoacid modification".to_string());
+                        return Err(format!(
+                            "No valid closing delimiter aminoacid modification [index: {index}]"
+                        ));
                     }
                     let modification = Modification::try_from(&value[index + 1..end_index])?;
                     if c_term {
                         peptide.c_term = Some(modification);
                         if end_index != value.len() - 1 {
                             return Err(
-                                "There cannot be any characters after the C terminal modification"
-                                    .to_string(),
+                                format!("There cannot be any characters after the C terminal modification [index: {index}]"
+                                    ),
                             );
                         }
                         break;
                     }
                     match peptide.sequence.last_mut() {
-                        Some(aa) => aa.1.push(modification),
+                        Some(aa) => aa.modifications.push(modification),
                         None => {
                             return Err(
-                                "A modification cannot be placed before any amino acid".to_string()
+                                format!("A modification cannot be placed before any amino acid [index: {index}]")
                             )
                         }
                     }
@@ -120,9 +129,8 @@ impl Peptide {
                     index += 1;
                 }
                 ch => {
-                    peptide.sequence.push((
+                    peptide.sequence.push(SequenceElement::new(
                         ch.try_into().map_err(|_| "Invalid Amino Acid code")?,
-                        Vec::new(),
                         ambiguous_aa,
                     ));
                     index += 1;
@@ -148,19 +156,75 @@ impl HasMass for Peptide {
 
 impl Display for Peptide {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut placed = Vec::new();
         if let Some(m) = &self.n_term {
             write!(f, "[{m}]-")?;
         }
         for position in &self.sequence {
-            write!(f, "{}", position.0.char())?;
-            for m in &position.1 {
-                write!(f, "[{m}]")?;
-            }
+            placed.extend(position.display(f, &placed)?);
         }
         if let Some(m) = &self.c_term {
             write!(f, "-[{m}]")?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SequenceElement {
+    pub aminoacid: AminoAcid,
+    pub modifications: Vec<Modification>,
+    pub possible_modifications: Vec<(Modification, usize, Option<f64>)>,
+    pub ambiguous: bool,
+}
+
+impl SequenceElement {
+    pub const fn new(aminoacid: AminoAcid, ambiguous: bool) -> Self {
+        Self {
+            aminoacid,
+            modifications: Vec::new(),
+            possible_modifications: Vec::new(),
+            ambiguous,
+        }
+    }
+
+    fn display(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        placed: &[usize],
+    ) -> Result<Vec<usize>, std::fmt::Error> {
+        let mut extra_placed = Vec::new();
+        write!(f, "{}", self.aminoacid.char())?;
+        for m in &self.modifications {
+            write!(f, "[{m}]")?;
+        }
+        for m in &self.possible_modifications {
+            write!(
+                f,
+                "[{}#a{}{}]",
+                if placed.contains(&m.1) {
+                    String::new()
+                } else {
+                    extra_placed.push(m.1);
+                    m.0.to_string()
+                },
+                m.1,
+                m.2.map(|v| format!("({v})")).unwrap_or_default()
+            )?;
+        }
+        Ok(extra_placed)
+    }
+}
+
+impl HasMass for SequenceElement {
+    fn mass<M: MassSystem>(&self) -> Mass {
+        self.aminoacid.mass::<M>()
+            + self.modifications.mass::<M>()
+            + self
+                .possible_modifications
+                .iter()
+                .map(|p| p.0.mass::<M>())
+                .sum() // TODO: How to represent multiple possible masses
     }
 }
 

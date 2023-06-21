@@ -89,11 +89,6 @@ impl<T: HasMass, U: HasMass> HasMass for (T, U) {
         self.0.mass::<M>() + self.1.mass::<M>()
     }
 }
-impl<T: HasMass, U: HasMass> HasMass for (T, U, bool) {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.0.mass::<M>() + self.1.mass::<M>()
-    }
-}
 impl<T: HasMass> HasMass for (T, isize) {
     fn mass<M: MassSystem>(&self) -> Mass {
         self.0.mass::<M>() * Ratio::new::<r>(self.1 as f64)

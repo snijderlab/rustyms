@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::{modification::Modification, AminoAcid, HasMass, MassSystem, Peptide};
+use crate::{modification::Modification, AminoAcid, HasMass, MassSystem, Peptide, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -190,7 +190,7 @@ impl Alignment {
                     "{:·<width$}",
                     self.seq_a.sequence[loc_a..loc_a + piece.step_a as usize]
                         .iter()
-                        .map(|a| a.0.char())
+                        .map(|a| a.aminoacid.char())
                         .collect::<String>(),
                     width = l as usize
                 )
@@ -204,7 +204,7 @@ impl Alignment {
                     "{:·<width$}",
                     self.seq_b.sequence[loc_b..loc_b + piece.step_b as usize]
                         .iter()
-                        .map(|a| a.0.char())
+                        .map(|a| a.aminoacid.char())
                         .collect::<String>(),
                     width = l as usize
                 )
@@ -454,19 +454,20 @@ pub fn align<M: MassSystem>(
 }
 
 fn score_pair<M: MassSystem>(
-    a: &(AminoAcid, Vec<Modification>, bool),
-    b: &(AminoAcid, Vec<Modification>, bool),
+    a: &SequenceElement,
+    b: &SequenceElement,
     alphabet: &[&[i8]],
     score: isize,
 ) -> Piece {
     let ppm = a.mass::<M>().ppm(b.mass::<M>());
-    let local = alphabet[a.0 as usize][b.0 as usize] + 20 - ppm.round().clamp(0.0, 20.0) as i8;
+    let local = alphabet[a.aminoacid as usize][b.aminoacid as usize] + 20
+        - ppm.round().clamp(0.0, 20.0) as i8;
     Piece::new(score + local as isize, local, 1, 1)
 }
 
 fn score<M: MassSystem>(
-    a: &[(AminoAcid, Vec<Modification>, bool)],
-    b: &[(AminoAcid, Vec<Modification>, bool)],
+    a: &[SequenceElement],
+    b: &[SequenceElement],
     score: isize,
 ) -> Option<Piece> {
     let ppm = a.mass::<M>().ppm(b.mass::<M>());
@@ -489,15 +490,15 @@ pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
 mod tests {
     use crate::align::score;
     use crate::aminoacids::AminoAcid;
-    use crate::MonoIsotopic;
+    use crate::{MonoIsotopic, SequenceElement};
 
     #[test]
     fn pair() {
         let pair = dbg!(score::<MonoIsotopic>(
-            &[(AminoAcid::N, Vec::new(), false)],
+            &[SequenceElement::new(AminoAcid::N, false)],
             &[
-                (AminoAcid::G, Vec::new(), false),
-                (AminoAcid::G, Vec::new(), false)
+                SequenceElement::new(AminoAcid::G, false),
+                SequenceElement::new(AminoAcid::G, false)
             ],
             0
         ));
