@@ -7,7 +7,8 @@
     clippy::cast_sign_loss,
     clippy::wildcard_imports,
     clippy::module_name_repetitions,
-    clippy::suboptimal_flops
+    clippy::suboptimal_flops,
+    clippy::too_many_lines
 )]
 
 pub mod align;

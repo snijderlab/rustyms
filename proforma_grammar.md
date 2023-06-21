@@ -52,7 +52,10 @@ Represents the lowest level of compliance, this level involves providing support
     - [x] Prepare PSI-MOD and parse modifications
 - [x] 4.2.6 Protein modifications using delta masses (without prefixes)
 - [x] 4.3 N-terminal, C-terminal and labile modifications.
-- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. `[Phospho]^2?` | `[Phospho#g1]` | `(AAA)[Phospho]` note also handle multiple modifications on a group
+- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. 
+    - [ ] Global: `[Phospho]^2?`
+    - [x] Local/named: `[Phospho#g1(0.01)]` 
+    - [ ] Stretch: `(AAA)[Phospho]` (note: also handle multiple modifications on a group + scores)
     - Implementation note: translate all notations to save all possible ambiguous modifications on each specific Amino Acid location, using the rules from the modifications to generate the least number of possible positions. Using these generate all possible N-term/C-term base masses when calculating ion masses. Additionally find a way to nicely store the path taken for each base mass and show this to the user. Maybe having something like `base + 12[Phospho] + 15[Phospho]`.
 - [x] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
 - [x] 4.8 INFO tag.
@@ -84,6 +87,7 @@ These features are independent from each other:
 - [ ] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [ ] Enforce ontology modification placement rules
 - [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+- [ ] Keep track of the original mod definition to show it nicer to the user?
 
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV

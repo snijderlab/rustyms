@@ -3,8 +3,11 @@
 use std::fmt::Display;
 
 use crate::{
-    aminoacids::AminoAcid, helper_functions::ResultExtensions, modification::Modification,
-    system::f64::*, HasMass, MassSystem,
+    aminoacids::AminoAcid,
+    helper_functions::ResultExtensions,
+    modification::{Modification, ReturnModification},
+    system::f64::*,
+    HasMass, MassSystem,
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -43,6 +46,7 @@ impl Peptide {
         let mut c_term = false;
         let mut ambiguous_aa = false;
         let mut ambiguous_lookup = Vec::new();
+        let mut ambiguous_found_positions = Vec::new();
 
         // Labile modification(s)
         while chars[index] == b'{' {
@@ -58,10 +62,10 @@ impl Peptide {
             peptide.labile.push(
                 Modification::try_from(&value[index + 1..end_index - 1], &mut ambiguous_lookup)
                     .map(|m| {
-                        if m.1.is_some() {
-                            Err("A labile modification cannot be ambiguous".to_string())
+                        if let ReturnModification::Defined(m) = m {
+                            Ok(m)
                         } else {
-                            Ok(m.0)
+                            Err("A labile modification cannot be ambiguous".to_string())
                         }
                     })
                     .flat_err()?,
@@ -85,10 +89,10 @@ impl Peptide {
             peptide.n_term = Some(
                 Modification::try_from(&value[index + 1..end_index - 1], &mut ambiguous_lookup)
                     .map(|m| {
-                        if m.1.is_some() {
-                            Err("A terminal modification cannot be ambiguous".to_string())
+                        if let ReturnModification::Defined(m) = m {
+                            Ok(m)
                         } else {
-                            Ok(m.0)
+                            Err("A labile modification cannot be ambiguous".to_string())
                         }
                     })
                     .flat_err()?,
@@ -125,11 +129,12 @@ impl Peptide {
                         &mut ambiguous_lookup,
                     )?;
                     if c_term {
-                        peptide.c_term = Some(if modification.1.is_some() {
-                            Err("A terminal modification cannot be ambiguous".to_string())
-                        } else {
-                            Ok(modification.0)
-                        }?);
+                        peptide.c_term =
+                            Some(if let ReturnModification::Defined(m) = modification {
+                                Ok(m)
+                            } else {
+                                Err("A labile modification cannot be ambiguous".to_string())
+                            }?);
                         if end_index != value.len() - 1 {
                             return Err(
                                 format!("There cannot be any characters after the C terminal modification [index: {index}]"),
@@ -138,7 +143,15 @@ impl Peptide {
                         break;
                     }
                     match peptide.sequence.last_mut() {
-                        Some(aa) => aa.add_modification(modification),
+                        Some(aa) => match modification {
+                            ReturnModification::Defined(m) => aa.modifications.push(m),
+                            ReturnModification::Preferred(id, localisation_score) =>
+                            ambiguous_found_positions.push(
+                                (peptide.sequence.len() -1, true, id, localisation_score)),
+                            ReturnModification::Referenced(id, localisation_score) =>
+                            ambiguous_found_positions.push(
+                                (peptide.sequence.len() -1, false, id, localisation_score)),
+                        },
                         None => {
                             return Err(
                                 format!("A modification cannot be placed before any amino acid [index: {index}]")
@@ -160,6 +173,18 @@ impl Peptide {
                 }
             }
         }
+        // Fill in ambiguous positions
+        for (index, preferred, id, localisation_score) in ambiguous_found_positions {
+            peptide.sequence[index].possible_modifications.push(
+                AmbiguousModification {
+                    id,
+                    modification: ambiguous_lookup[id].1.as_ref().cloned().ok_or(format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0.as_ref().map_or(id.to_string(), ToString::to_string)))?,
+                    localisation_score,
+                    group: ambiguous_lookup[id].0.as_ref().map(|n| (n.to_string(), preferred)) });
+        }
+
+        // Check all placement rules
+
         Ok(peptide)
     }
 }
@@ -197,8 +222,17 @@ impl Display for Peptide {
 pub struct SequenceElement {
     pub aminoacid: AminoAcid,
     pub modifications: Vec<Modification>,
-    pub possible_modifications: Vec<(Modification, usize, Option<f64>)>,
+    pub possible_modifications: Vec<AmbiguousModification>,
     pub ambiguous: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AmbiguousModification {
+    pub id: usize,
+    pub modification: Modification,
+    pub localisation_score: Option<f64>,
+    /// If this is a named group contain the name and track if this is the preferred location or not
+    pub group: Option<(String, bool)>,
 }
 
 impl SequenceElement {
@@ -224,26 +258,29 @@ impl SequenceElement {
         for m in &self.possible_modifications {
             write!(
                 f,
-                "[{}#a{}{}]",
-                if placed.contains(&m.1) {
-                    String::new()
-                } else {
-                    extra_placed.push(m.1);
-                    m.0.to_string()
-                },
-                m.1,
-                m.2.map(|v| format!("({v})")).unwrap_or_default()
+                "[{}#{}{}]",
+                m.group.as_ref().map_or(
+                    if placed.contains(&m.id) {
+                        String::new()
+                    } else {
+                        extra_placed.push(m.id);
+                        m.modification.to_string()
+                    },
+                    |group| if group.1 {
+                        m.modification.to_string()
+                    } else {
+                        String::new()
+                    }
+                ),
+                m.group
+                    .as_ref()
+                    .map_or(m.id.to_string(), |g| g.0.to_string()),
+                m.localisation_score
+                    .map(|v| format!("({v})"))
+                    .unwrap_or_default()
             )?;
         }
         Ok(extra_placed)
-    }
-
-    fn add_modification(&mut self, modification: (Modification, Option<usize>)) {
-        if let Some(id) = modification.1 {
-            self.possible_modifications.push((modification.0, id, None));
-        } else {
-            self.modifications.push(modification.0);
-        }
     }
 }
 
@@ -254,7 +291,7 @@ impl HasMass for SequenceElement {
             + self
                 .possible_modifications
                 .iter()
-                .map(|p| p.0.mass::<M>())
+                .map(|p| p.modification.mass::<M>())
                 .sum() // TODO: How to represent multiple possible masses
     }
 }
@@ -306,6 +343,17 @@ mod tests {
         assert_eq!(without.sequence.len(), 2);
         assert_eq!(with.sequence[0].possible_modifications.len(), 1);
         assert_eq!(with.sequence[1].possible_modifications.len(), 1);
+        assert!(Peptide::pro_forma("A[#g0]A[#g0]").is_err());
+        assert!(Peptide::pro_forma("A[Phospho#g0]A[Phospho#g0]").is_err());
+        assert!(Peptide::pro_forma("A[Phospho#g0]A[#g0(0.o1)]").is_err());
+        assert_eq!(
+            Peptide::pro_forma("A[+12#g0]A[#g0]").unwrap().to_string(),
+            "A[+12#g0]A[#g0]".to_string()
+        );
+        assert_eq!(
+            Peptide::pro_forma("A[#g0]A[+12#g0]").unwrap().to_string(),
+            "A[#g0]A[+12#g0]".to_string()
+        );
     }
 
     #[test]

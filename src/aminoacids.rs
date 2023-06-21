@@ -41,8 +41,8 @@ impl TryFrom<char> for AminoAcid {
     type Error = ();
     fn try_from(value: char) -> Result<Self, Self::Error> {
         if value.is_ascii() {
-        let num = value as u8;
-        num.try_into()
+            let num = value as u8;
+            num.try_into()
         } else {
             Err(())
         }
@@ -90,7 +90,9 @@ impl HasMass for AminoAcid {
             Self::Alanine => da(M::BACKBONE + M::CH3),
             Self::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
             Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::C + M::NH + M::NH2), // One of the H's counts as the charge carrier and is added later
-            Self::AmbiguousAsparagine => panic!("Mass of Asx/B ambiguous asparagine is not defined."),
+            Self::AmbiguousAsparagine => {
+                panic!("Mass of Asx/B ambiguous asparagine is not defined.")
+            }
             Self::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
             Self::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
             Self::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
@@ -449,11 +451,17 @@ mod tests {
             assert!((weight - *average_weight).abs() < 0.1);
         }
     }
-    
+
     #[test]
     fn read_aa() {
-        assert_eq!(AminoAcid::try_from('B').unwrap(), AminoAcid::AmbiguousAsparagine);
-        assert_eq!(AminoAcid::try_from(b'B').unwrap(), AminoAcid::AmbiguousAsparagine);
+        assert_eq!(
+            AminoAcid::try_from('B').unwrap(),
+            AminoAcid::AmbiguousAsparagine
+        );
+        assert_eq!(
+            AminoAcid::try_from(b'B').unwrap(),
+            AminoAcid::AmbiguousAsparagine
+        );
         assert_eq!(AminoAcid::try_from('c'), Err(()));
         assert_eq!(AminoAcid::try_from('🦀'), Err(()));
     }
