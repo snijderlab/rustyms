@@ -2,6 +2,8 @@
 
 use std::fmt::Display;
 
+use itertools::Itertools;
+
 use crate::{
     aminoacids::AminoAcid,
     helper_functions::ResultExtensions,
@@ -16,6 +18,7 @@ pub struct Peptide {
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
     pub sequence: Vec<SequenceElement>,
+    total_ambiguous_modifications: usize,
 }
 
 impl Peptide {
@@ -35,16 +38,12 @@ impl Peptide {
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(value: &str) -> Result<Self, String> {
-        let mut peptide = Self {
-            labile: Vec::new(),
-            n_term: None,
-            c_term: None,
-            sequence: Vec::new(),
-        };
+        let mut peptide = Self::default();
         let chars: &[u8] = value.as_bytes();
         let mut index = 0;
         let mut c_term = false;
-        let mut ambiguous_aa = false;
+        let mut ambiguous_aa_counter = 0;
+        let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
         let mut ambiguous_found_positions = Vec::new();
 
@@ -103,12 +102,13 @@ impl Peptide {
         // Rest of the sequence
         while index < chars.len() {
             match chars[index] {
-                b'(' if chars[index + 1] == b'?' => {
-                    ambiguous_aa = true;
+                b'(' if chars[index + 1] == b'?' && ambiguous_aa.is_none() => {
+                    ambiguous_aa = Some(ambiguous_aa_counter);
+                    ambiguous_aa_counter += 1;
                     index += 2;
                 }
-                b')' if ambiguous_aa => {
-                    ambiguous_aa = false;
+                b')' if ambiguous_aa.is_some() => {
+                    ambiguous_aa = None;
                     index += 1;
                 }
                 b'[' => {
@@ -182,23 +182,48 @@ impl Peptide {
                     localisation_score,
                     group: ambiguous_lookup[id].0.as_ref().map(|n| (n.to_string(), preferred)) });
         }
+        peptide.total_ambiguous_modifications = ambiguous_lookup.len();
 
         // Check all placement rules
 
         Ok(peptide)
     }
-}
 
-impl HasMass for Peptide {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.n_term
-            .as_ref()
-            .map_or_else(|| da(M::H), HasMass::mass::<M>)
-            + self
-                .c_term
+    pub fn mass<M: MassSystem>(&self) -> Option<Vec<Mass>> {
+        let mut masses = vec![(
+            self.n_term
                 .as_ref()
-                .map_or_else(|| da(M::OH), HasMass::mass::<M>)
-            + self.sequence.mass::<M>()
+                .map_or_else(|| da(M::H), HasMass::mass::<M>)
+                + self
+                    .c_term
+                    .as_ref()
+                    .map_or_else(|| da(M::OH), HasMass::mass::<M>),
+            vec![false; self.total_ambiguous_modifications],
+        )];
+
+        for pos in self.sequence {
+            let mut new_masses = Vec::new();
+            for (mass, placed) in masses {
+                new_masses.extend(
+                    pos.mass::<M>(&placed)?
+                        .into_iter()
+                        .map(|(m, p)| (m + mass, p)),
+                )
+            }
+            masses = new_masses;
+        }
+
+        // Make sure all generated masses contain all possible modifications
+        // It would be more efficient to force every possible modification to be placed
+        // on its last location if it is not yet placed, but for this more data needs
+        // to be tracked throughout. For now his works, but it can explode runtime if
+        // there is a large number of ambiguous modifications.
+        Some(
+            masses
+                .into_iter()
+                .filter_map(|(m, p)| p.iter().all(|p| *p).then(|| m))
+                .collect(),
+        )
     }
 }
 
@@ -208,8 +233,13 @@ impl Display for Peptide {
         if let Some(m) = &self.n_term {
             write!(f, "[{m}]-")?;
         }
+        let mut last_ambiguous = None;
         for position in &self.sequence {
-            placed.extend(position.display(f, &placed)?);
+            placed.extend(position.display(f, &placed, last_ambiguous)?);
+            last_ambiguous = position.ambiguous;
+        }
+        if last_ambiguous.is_some() {
+            write!(f, ")")?;
         }
         if let Some(m) = &self.c_term {
             write!(f, "-[{m}]")?;
@@ -223,7 +253,7 @@ pub struct SequenceElement {
     pub aminoacid: AminoAcid,
     pub modifications: Vec<Modification>,
     pub possible_modifications: Vec<AmbiguousModification>,
-    pub ambiguous: bool,
+    pub ambiguous: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -236,7 +266,7 @@ pub struct AmbiguousModification {
 }
 
 impl SequenceElement {
-    pub const fn new(aminoacid: AminoAcid, ambiguous: bool) -> Self {
+    pub const fn new(aminoacid: AminoAcid, ambiguous: Option<usize>) -> Self {
         Self {
             aminoacid,
             modifications: Vec::new(),
@@ -249,8 +279,15 @@ impl SequenceElement {
         &self,
         f: &mut std::fmt::Formatter<'_>,
         placed: &[usize],
+        last_ambiguous: Option<usize>,
     ) -> Result<Vec<usize>, std::fmt::Error> {
         let mut extra_placed = Vec::new();
+        if last_ambiguous.is_some() && last_ambiguous != self.ambiguous {
+            write!(f, ")")?;
+        }
+        if self.ambiguous.is_some() && last_ambiguous != self.ambiguous {
+            write!(f, "(?")?;
+        }
         write!(f, "{}", self.aminoacid.char())?;
         for m in &self.modifications {
             write!(f, "[{m}]")?;
@@ -282,23 +319,40 @@ impl SequenceElement {
         }
         Ok(extra_placed)
     }
-}
 
-impl HasMass for SequenceElement {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.aminoacid.mass::<M>()
-            + self.modifications.mass::<M>()
-            + self
-                .possible_modifications
-                .iter()
-                .map(|p| p.modification.mass::<M>())
-                .sum() // TODO: How to represent multiple possible masses
+    fn mass<M: MassSystem>(&self, placed: &[bool]) -> Option<Vec<(Mass, Vec<bool>)>> {
+        if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
+            None
+        } else {
+            Some(
+                self.possible_modifications
+                    .iter()
+                    .filter(|m| !placed[m.id])
+                    .powerset()
+                    .map(|possible_modifications| {
+                        let mut new_placed = placed.to_vec();
+                        for m in possible_modifications {
+                            new_placed[m.id] = true;
+                        }
+                        (
+                            self.aminoacid.mass::<M>()
+                                + self.modifications.mass::<M>()
+                                + possible_modifications
+                                    .iter()
+                                    .map(|p| p.modification.mass::<M>())
+                                    .sum(),
+                            new_placed,
+                        )
+                    })
+                    .collect(),
+            )
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{HasMass, MonoIsotopic};
+    use crate::MonoIsotopic;
 
     use super::Peptide;
 
@@ -336,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_ambiguous() {
+    fn parse_ambiguous_modification() {
         let with = Peptide::pro_forma("A[Phospho#g0]A[#g0]").unwrap();
         let without = Peptide::pro_forma("AA").unwrap();
         assert_eq!(with.sequence.len(), 2);
@@ -354,6 +408,18 @@ mod tests {
             Peptide::pro_forma("A[#g0]A[+12#g0]").unwrap().to_string(),
             "A[#g0]A[+12#g0]".to_string()
         );
+    }
+
+    #[test]
+    fn parse_ambiguous_aminoacid() {
+        let with = Peptide::pro_forma("(?AA)C(?A)(?A)").unwrap();
+        let without = Peptide::pro_forma("AACAA").unwrap();
+        assert_eq!(with.sequence.len(), 5);
+        assert_eq!(without.sequence.len(), 5);
+        assert!(with.sequence[0].ambiguous.is_some());
+        assert!(with.sequence[1].ambiguous.is_some());
+        assert_eq!(with.mass::<MonoIsotopic>(), without.mass::<MonoIsotopic>());
+        assert_eq!(with.to_string(), "(?AA)C(?A)(?A)".to_string());
     }
 
     #[test]

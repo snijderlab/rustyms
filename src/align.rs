@@ -495,10 +495,10 @@ mod tests {
     #[test]
     fn pair() {
         let pair = dbg!(score::<MonoIsotopic>(
-            &[SequenceElement::new(AminoAcid::N, false)],
+            &[SequenceElement::new(AminoAcid::N, None)],
             &[
-                SequenceElement::new(AminoAcid::G, false),
-                SequenceElement::new(AminoAcid::G, false)
+                SequenceElement::new(AminoAcid::G, None),
+                SequenceElement::new(AminoAcid::G, None)
             ],
             0
         ));

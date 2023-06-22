@@ -82,13 +82,13 @@ These features are independent from each other:
 # Other stuff to implement still
 - [x] 4.5 Handle multiple modifications on a single position (or amino acid group)
 - [x] 4.2.1.1 Use the Unimod obo file instead of xml 
-- [ ] 4.2.4 Branched peptides, similar to cross linking
+- [x] Keep track of the original mod definition to show it nicer to the user?
 - [x] 4.2.7 Gap of known mass
+- [x] Show ambiguous amino acids back to the user
+- [ ] 4.2.4 Branched peptides, similar to cross linking
 - [ ] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [ ] Enforce ontology modification placement rules
 - [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
-- [ ] Keep track of the original mod definition to show it nicer to the user?
-
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
 - Unimod: http://www.unimod.org/obo/unimod.obo
