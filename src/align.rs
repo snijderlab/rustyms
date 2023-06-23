@@ -1,6 +1,8 @@
 use std::fmt::Write;
 
-use crate::{HasMass, MassSystem, Peptide, SequenceElement};
+use uom::num_traits::Zero;
+
+use crate::{Mass, MassSystem, Peptide, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -78,23 +80,40 @@ impl Alignment {
     }
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn ppm<M: MassSystem>(&self) -> f64 {
-        if self.ty == Type::Global {
-            self.seq_a.mass::<M>().ppm(self.seq_b.mass::<M>())
-        } else {
-            self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
-                .mass::<M>()
-                .ppm(self.seq_b.sequence[self.start_b..self.start_b + self.len_b()].mass::<M>())
-        }
+    pub fn ppm<M: MassSystem>(&self) -> Option<f64> {
+        Some(self.mass_a::<M>()?.ppm(self.mass_b::<M>()?))
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn mass_difference<M: MassSystem>(&self) -> crate::Mass {
+    pub fn mass_difference<M: MassSystem>(&self) -> Option<crate::Mass> {
+        Some(self.mass_a::<M>()? - self.mass_b::<M>()?)
+    }
+
+    fn mass_a<M: MassSystem>(&self) -> Option<Mass> {
         if self.ty == Type::Global {
-            self.seq_a.mass::<M>() - self.seq_b.mass::<M>()
+            self.seq_a.mass::<M>()
         } else {
-            self.seq_a.sequence[self.start_a..self.start_a + self.len_a()].mass::<M>()
-                - self.seq_b.sequence[self.start_b..self.start_b + self.len_b()].mass::<M>()
+            let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
+            self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
+                .iter()
+                .fold(Some(Mass::zero()), |acc, s| {
+                    s.mass_greedy::<M>(&mut placed_a)
+                        .and_then(|m| acc.map(|a| a + m))
+                })
+        }
+    }
+
+    fn mass_b<M: MassSystem>(&self) -> Option<Mass> {
+        if self.ty == Type::Global {
+            self.seq_b.mass::<M>()
+        } else {
+            let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
+            self.seq_a.sequence[self.start_b..self.start_b + self.len_b()]
+                .iter()
+                .fold(Some(Mass::zero()), |acc, s| {
+                    s.mass_greedy::<M>(&mut placed_b)
+                        .and_then(|m| acc.map(|a| a + m))
+                })
         }
     }
 
@@ -156,6 +175,7 @@ impl Alignment {
         self.path.iter().map(|p| p.step_b as usize).sum()
     }
 
+    // TODO: find a more graceful way of handling B/Z amino acids
     fn aligned(&self) -> String {
         let blocks: Vec<char> = " ▁▂▃▄▅▆▇█".chars().collect();
         let blocks_neg: Vec<char> = "▔▔▔▔▀▀▀▀█".chars().collect();
@@ -459,7 +479,7 @@ fn score_pair<M: MassSystem>(
     alphabet: &[&[i8]],
     score: isize,
 ) -> Piece {
-    let ppm = a.mass::<M>().ppm(b.mass::<M>());
+    let ppm = a.mass_all::<M>().unwrap().ppm(b.mass_all::<M>().unwrap());
     let local = alphabet[a.aminoacid as usize][b.aminoacid as usize] + 20
         - ppm.round().clamp(0.0, 20.0) as i8;
     Piece::new(score + local as isize, local, 1, 1)
@@ -470,7 +490,11 @@ fn score<M: MassSystem>(
     b: &[SequenceElement],
     score: isize,
 ) -> Option<Piece> {
-    let ppm = a.mass::<M>().ppm(b.mass::<M>());
+    let ppm = a
+        .iter()
+        .map(|s| s.mass_all::<M>().unwrap())
+        .sum::<Mass>()
+        .ppm(b.iter().map(|s| s.mass_all::<M>().unwrap()).sum::<Mass>());
     if ppm > 20.0 {
         None
     } else {

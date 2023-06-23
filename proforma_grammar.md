@@ -85,8 +85,8 @@ These features are independent from each other:
 - [x] Keep track of the original mod definition to show it nicer to the user?
 - [x] 4.2.7 Gap of known mass
 - [x] Show ambiguous amino acids back to the user
+- [x] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [ ] Enforce ontology modification placement rules
 - [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
 # Sources for the downloaded files

@@ -1,11 +1,9 @@
 #![warn(dead_code)]
 
-use std::{
-    fmt::Display,
-    ops::{Range, RangeBounds},
-};
+use std::{fmt::Display, ops::RangeBounds};
 
 use itertools::Itertools;
+use uom::num_traits::Zero;
 
 use crate::{
     aminoacids::AminoAcid,
@@ -21,10 +19,9 @@ pub struct Peptide {
     pub n_term: Option<Modification>,
     pub c_term: Option<Modification>,
     pub sequence: Vec<SequenceElement>,
-    total_ambiguous_modifications: usize,
     /// For each ambiguous modification list all possible positions it can be placed on.
     /// Index by the ambiguous modification id.
-    ambiguous_modifications: Vec<Vec<usize>>,
+    pub ambiguous_modifications: Vec<Vec<usize>>,
 }
 
 impl Peptide {
@@ -35,6 +32,18 @@ impl Peptide {
     /// Check if there are any amino acids in this peptide
     pub fn is_empty(&self) -> bool {
         self.sequence.is_empty()
+    }
+
+    pub fn n_term<M: MassSystem>(&self) -> Mass {
+        self.n_term
+            .as_ref()
+            .map_or_else(|| da(M::H), HasMass::mass::<M>)
+    }
+
+    pub fn c_term<M: MassSystem>(&self) -> Mass {
+        self.c_term
+            .as_ref()
+            .map_or_else(|| da(M::OH), HasMass::mass::<M>)
     }
 
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
@@ -180,7 +189,8 @@ impl Peptide {
             }
         }
         // Fill in ambiguous positions
-        for (index, preferred, id, localisation_score) in ambiguous_found_positions {
+        for (index, preferred, id, localisation_score) in ambiguous_found_positions.iter().copied()
+        {
             peptide.sequence[index].possible_modifications.push(
                 AmbiguousModification {
                     id,
@@ -190,10 +200,11 @@ impl Peptide {
         }
         peptide.ambiguous_modifications = ambiguous_found_positions
             .iter()
+            .copied()
             .group_by(|p| p.2)
             .into_iter()
-            .sorted_by(|(key1, _), (key2, _)| key1.cmp(&key2))
-            .map(|(key, group)| group.into_iter().map(|p| p.0).collect())
+            .sorted_by(|(key1, _), (key2, _)| key1.cmp(key2))
+            .map(|(_, group)| group.into_iter().map(|p| p.0).collect())
             .collect();
 
         // Check all placement rules
@@ -211,7 +222,7 @@ impl Peptide {
                         possibilities
                             .iter()
                             .filter(|pos| aa_range.contains(pos))
-                            .map(|pos| {
+                            .map(move |pos| {
                                 let mut new = path.clone();
                                 new.push((id, *pos));
                                 new
@@ -222,32 +233,14 @@ impl Peptide {
         )
     }
 
-    pub fn mass<M: MassSystem>(&self) -> Option<Vec<Mass>> {
-        let base_mass = self
-            .n_term
-            .as_ref()
-            .map_or_else(|| da(M::H), HasMass::mass::<M>)
-            + self
-                .c_term
-                .as_ref()
-                .map_or_else(|| da(M::OH), HasMass::mass::<M>);
-        let patterns = self.ambiguous_patterns(..);
-        let mut masses = patterns
-            .iter()
-            .map(|_| base_mass.clone())
-            .collect::<Vec<_>>();
-
-        for (mut mass, pattern) in masses.iter_mut().zip(patterns) {
-            for (index, pos) in self.sequence.iter().enumerate() {
-                *mass += pos.mass::<M>(
-                    &pattern
-                        .iter()
-                        .filter_map(|(id, pos)| (index == *pos).then(|| *id))
-                        .collect::<Vec<_>>(),
-                )?;
-            }
+    pub fn mass<M: MassSystem>(&self) -> Option<Mass> {
+        let mut mass = self.n_term::<M>() + self.c_term::<M>();
+        let mut placed = vec![false; self.ambiguous_modifications.len()];
+        for (_, pos) in self.sequence.iter().enumerate() {
+            mass += pos.mass_greedy::<M>(&mut placed)?;
         }
-        Some(masses)
+
+        Some(mass)
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -258,35 +251,74 @@ impl Peptide {
         &self,
         max_charge: Charge,
         model: &Model,
-    ) -> Vec<Fragment> {
+    ) -> Option<Vec<Fragment>> {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            let n_term = self.n_term.mass::<M>()
-                + self.sequence[0..index]
-                    .iter()
-                    .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
-            let c_term = self.c_term.mass::<M>()
-                + self.sequence[index + 1..self.sequence.len()]
-                    .iter()
-                    .fold(Mass::zero(), |acc, aa| acc + aa.mass::<M>());
-            output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
-                // TODO: does this take the mods on the current position into account, also take possible mods into account
-                n_term,
-                c_term,
-                max_charge,
-                index,
-                self.sequence.len(),
-                &model.ions(index, self.sequence.len()),
-            ));
+            let n_term_patterns = self.ambiguous_patterns(0..index);
+            let n_term = n_term_patterns
+                .into_iter()
+                .map(|pattern| {
+                    self.sequence[0..index]
+                        .iter()
+                        .enumerate()
+                        .fold(Some(Mass::zero()), |acc, (index, aa)| {
+                            aa.mass::<M>(
+                                &pattern
+                                    .iter()
+                                    .copied()
+                                    .filter_map(|(id, pos)| (pos == index).then_some(id))
+                                    .collect_vec(),
+                            )
+                            .and_then(|m| acc.map(|a| a + m))
+                        })
+                        .map(|m| self.n_term::<M>() + m)
+                })
+                .collect::<Option<Vec<Mass>>>()?;
+            let c_term_patterns = self.ambiguous_patterns(index + 1..self.sequence.len());
+            let c_term = c_term_patterns
+                .into_iter()
+                .map(|pattern| {
+                    self.sequence[index + 1..self.sequence.len()]
+                        .iter()
+                        .enumerate()
+                        .fold(Some(Mass::zero()), |acc, (index, aa)| {
+                            aa.mass::<M>(
+                                &pattern
+                                    .iter()
+                                    .copied()
+                                    .filter_map(|(id, pos)| (pos == index).then_some(id))
+                                    .collect_vec(),
+                            )
+                            .and_then(|m| acc.map(|a| a + m))
+                        })
+                        .map(|m| self.c_term::<M>() + m)
+                })
+                .collect::<Option<Vec<Mass>>>()?;
+            for (n, c) in n_term
+                .iter()
+                .map(|n| (*n, c_term[0]))
+                .chain(c_term.iter().skip(1).map(|c| (n_term[0], *c)))
+            {
+                output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
+                    // TODO: does this take the mods on the current position into account?
+                    n,
+                    c,
+                    max_charge,
+                    index,
+                    self.sequence.len(),
+                    &model.ions(index, self.sequence.len()),
+                ));
+            }
         }
+        // Generate precursor peak
         output.push(Fragment::new(
-            self.mass::<M>(),
+            self.mass::<M>()?,
             max_charge,
             FragmentType::precursor,
         ));
-        output
+        Some(output)
     }
 }
 
@@ -383,7 +415,7 @@ impl SequenceElement {
         Ok(extra_placed)
     }
 
-    fn mass<M: MassSystem>(&self, selected_ambiguous: &[usize]) -> Option<Mass> {
+    pub fn mass<M: MassSystem>(&self, selected_ambiguous: &[usize]) -> Option<Mass> {
         if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
             None
         } else {
@@ -398,6 +430,45 @@ impl SequenceElement {
                                 .contains(&m.id)
                                 .then(|| m.modification.mass::<M>())
                         })
+                        .sum(),
+            )
+        }
+    }
+
+    /// Get the mass of this sequence position while placing each possible modification on the very first place (and updating that fact in `placed`)
+    pub fn mass_greedy<M: MassSystem>(&self, placed: &mut [bool]) -> Option<Mass> {
+        if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
+            None
+        } else {
+            Some(
+                self.aminoacid.mass::<M>()
+                    + self.modifications.mass::<M>()
+                    + self
+                        .possible_modifications
+                        .iter()
+                        .filter_map(|m| {
+                            (!placed[m.id]).then(|| {
+                                placed[m.id] = true;
+                                m.modification.mass::<M>()
+                            })
+                        })
+                        .sum(),
+            )
+        }
+    }
+
+    /// Get the mass of this sequence position with all possible modifications
+    pub fn mass_all<M: MassSystem>(&self) -> Option<Mass> {
+        if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
+            None
+        } else {
+            Some(
+                self.aminoacid.mass::<M>()
+                    + self.modifications.mass::<M>()
+                    + self
+                        .possible_modifications
+                        .iter()
+                        .map(|m| m.modification.mass::<M>())
                         .sum(),
             )
         }
