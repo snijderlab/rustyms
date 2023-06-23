@@ -1,7 +1,12 @@
 # Match those fragments!
 
-A work in progress peptide fragmentation matching library for rust. For now only supports mgf raw files and pro forma sequences.
+A work in progress peptide fragmentation matching library for rust.
 
-## Future ideas
- - [ ] Add peaks merging, merge low intensity peaks into high intensity peaks within a small ppm tolerance (look at hecklib for inspiration)
- - [ ] Median correction, determine the median ppm error and shift the whole spectrum with this amount, followed by a new round of matching
+## Features
+ - Read pro forma sequences (very close to 'level 2-ProForma compliant', with the intention to fully support the whole spec)
+ - Generate theoretical fragments with control over the fragmentation model from any supported pro forma peptide
+ - Generate fragments from satellite ions (w, d, and v)
+ - Read mgf files
+ - Match spectra to the generated fragments
+ - Extensive use of `uom` for compile time unit checking
+ - Align peptides based on mass (algorithm will be reworked in the near future) (see `Stitch` for more information, but the algorithm has changed)

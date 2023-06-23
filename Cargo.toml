@@ -1,6 +1,6 @@
 [package]
 name = "rustyms"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 authors = ["Douwe Schulte <d.schulte@uu.nl>"]
@@ -15,11 +15,10 @@ include = ["src/**/*", "LICENSE", "README.md"]
 
 [dependencies]
 uom = "0.34"
-entab="0.3"
 statrs = "0.16"
 serde = { version = "1.0", features = ["derive"] }
 regex = "1.8"
-itertools = "0.10"
+itertools = "0.11"
 
 [build-dependencies]
 regex = "1.8"
