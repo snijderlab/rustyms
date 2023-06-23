@@ -9,7 +9,7 @@ categories = ["science"]
 keywords = ["spectrum matching", "mass spectrometry", "ms", "peptide fragmentation", "pro forma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
-include = ["src/**/*", "LICENSE", "README.md"]
+include = ["src/**/*", "databases/**/*", "LICENSE", "README.md", "build.rs"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
