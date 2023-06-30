@@ -8,6 +8,7 @@ pub struct Fragment {
     pub charge: Charge,
     pub ion: FragmentType,
     pub neutral_loss: Option<NeutralLoss>,
+    pub label: String,
 }
 
 impl Fragment {
@@ -16,11 +17,12 @@ impl Fragment {
     }
 
     #[must_use]
-    pub fn new(theoretical_mass: Mass, charge: Charge, ion: FragmentType) -> Self {
+    pub fn new(theoretical_mass: Mass, charge: Charge, ion: FragmentType, label: String) -> Self {
         Self {
             theoretical_mass,
             charge,
             ion,
+            label,
             neutral_loss: None,
         }
     }
@@ -30,8 +32,7 @@ impl Fragment {
         Self {
             theoretical_mass: self.theoretical_mass + da(M::Proton * charge.value),
             charge,
-            ion: self.ion,
-            neutral_loss: self.neutral_loss,
+            ..self.clone()
         }
     }
 
@@ -39,9 +40,8 @@ impl Fragment {
     pub fn with_neutral_loss<M: MassSystem>(&self, neutral_loss: &NeutralLoss) -> Self {
         Self {
             theoretical_mass: self.theoretical_mass - neutral_loss.mass::<M>(),
-            charge: self.charge,
-            ion: self.ion,
             neutral_loss: Some(*neutral_loss),
+            ..self.clone()
         }
     }
 
@@ -161,6 +161,7 @@ mod tests {
             Mass::new::<dalton>(118.0),
             Charge::new::<e>(1.0),
             FragmentType::precursor,
+            String::new(),
         );
         let loss = a.with_neutral_losses::<MonoIsotopic>(&[NeutralLoss::Water]);
         dbg!(&a, &loss);

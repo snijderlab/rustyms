@@ -7,7 +7,8 @@
             intensity: 13627.935546875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3823.666343255853),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::w(
@@ -30,7 +31,8 @@
             intensity: 4272.1743164063,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3777.6244784452056),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::x(
@@ -54,7 +56,8 @@
             intensity: 3023.1926269531,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3493.536766850234),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::w(
@@ -77,7 +80,8 @@
             intensity: 5263.1943359375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3533.5549423383704),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::x(
@@ -101,7 +105,8 @@
             intensity: 14758.7177734375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3508.560241945928),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -124,7 +129,8 @@
             intensity: 2916.8381347656,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3509.5675183979165),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::z·(
@@ -147,7 +153,8 @@
             intensity: 3067.9916992188,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3490.5496772628717),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -171,7 +178,8 @@
             intensity: 8775.7685546875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3307.472161465804),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::z·(
@@ -194,7 +202,8 @@
             intensity: 5864.5849609375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(790.4061513939058),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -217,7 +226,8 @@
             intensity: 6669.3017578125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3165.3727817807126),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::v(
@@ -240,7 +250,8 @@
             intensity: 2108.1584472656,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3193.3802724595184),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::z(
@@ -263,7 +274,8 @@
             intensity: 5325.984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3175.3702563563716),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -287,7 +299,8 @@
             intensity: 19393.607421875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2947.259797940372),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::x(
@@ -310,7 +323,8 @@
             intensity: 1296.0609130859,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2949.27435084435),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::x(
@@ -333,7 +347,8 @@
             intensity: 16424.083984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2929.249233257316),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::x(
@@ -357,7 +372,8 @@
             intensity: 4272.1743164063,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2833.203745862509),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::x(
@@ -381,7 +397,8 @@
             intensity: 6181.783203125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2789.190655755112),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::z(
@@ -405,7 +422,8 @@
             intensity: 12997.427734375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1228.569187714697),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::b(
@@ -429,7 +447,8 @@
             intensity: 22592.9765625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1229.5764641666858),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -453,7 +472,8 @@
             intensity: 5864.5849609375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1185.5860863482567),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::d(
@@ -477,7 +497,8 @@
             intensity: 3023.23828125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2746.171717460249),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::x(
@@ -501,7 +522,8 @@
             intensity: 3427.083984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2722.184293519795),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -524,7 +546,8 @@
             intensity: 12457.2529296875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2704.173728836739),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -548,7 +571,8 @@
             intensity: 7501.9243164063,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2705.1810052887276),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::z·(
@@ -572,7 +596,8 @@
             intensity: 2350.5693359375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1317.6157690209347),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::b(
@@ -596,7 +621,8 @@
             intensity: 3238.134765625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2545.121119648276),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::y(
@@ -620,7 +646,8 @@
             intensity: 1503.6958007813,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2549.1275131672637),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::z·(
@@ -643,7 +670,8 @@
             intensity: 11529.005859375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2428.054168534265),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z(
@@ -667,7 +695,8 @@
             intensity: 1647.0072021484,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2392.0541685342655),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::y(
@@ -690,7 +719,8 @@
             intensity: 6669.3017578125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2374.0436038512094),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::y(
@@ -714,7 +744,8 @@
             intensity: 2916.8381347656,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1754.8021838127256),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::a(
@@ -738,7 +769,8 @@
             intensity: 2350.5693359375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1756.8167367167036),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::a(
@@ -762,7 +794,8 @@
             intensity: 14566.5224609375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1782.7970984319857),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -786,7 +819,8 @@
             intensity: 3923.5085449219,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2152.9567171555977),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::v(
@@ -809,7 +843,8 @@
             intensity: 1296.0609130859,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2211.9642909044687),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z(
@@ -832,7 +867,8 @@
             intensity: 13627.935546875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1911.8396915173016),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -856,7 +892,8 @@
             intensity: 6323.2021484375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1946.8768053003016),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::c(
@@ -879,7 +916,8 @@
             intensity: 27824.314453125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2042.9343201747456),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -902,7 +940,8 @@
             intensity: 1503.6958007813,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1911.8373365478824),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::v(
@@ -925,7 +964,8 @@
             intensity: 3053.9853515625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2157.9845240651425),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::b(
@@ -948,7 +988,8 @@
             intensity: 5829.173828125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1776.7734939701797),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::w(
@@ -972,7 +1013,8 @@
             intensity: 3332.9514160156,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2181.0010570619393),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::d(
@@ -996,7 +1038,8 @@
             intensity: 5263.1943359375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1766.752758525644),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::x(
@@ -1019,7 +1062,8 @@
             intensity: 14758.7177734375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2339.082775306745),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -1043,7 +1087,8 @@
             intensity: 2108.1584472656,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1596.6710402808376),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::v(
@@ -1066,7 +1111,8 @@
             intensity: 1647.0072021484,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1594.6679662765878),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::w(
@@ -1089,7 +1135,8 @@
             intensity: 8775.7685546875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1653.7414655679197),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::y(
@@ -1112,7 +1159,8 @@
             intensity: 11529.005859375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1618.70435178492),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::z(
@@ -1136,7 +1184,8 @@
             intensity: 3311.6081542969,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1638.7300179518627),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z·(
@@ -1159,7 +1208,8 @@
             intensity: 12997.427734375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2457.157002872745),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::c(
@@ -1183,7 +1233,8 @@
             intensity: 22592.9765625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2459.171555776723),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::c(
@@ -1207,7 +1258,8 @@
             intensity: 3792.5515136719,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1506.6275642625208),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::z(
@@ -1231,7 +1283,8 @@
             intensity: 3238.134765625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2545.1730468581172),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -1254,7 +1307,8 @@
             intensity: 14566.5224609375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2674.2389008123105),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::c(
@@ -1278,7 +1332,8 @@
             intensity: 7501.9243164063,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1352.5776947252157),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::y(
@@ -1301,7 +1356,8 @@
             intensity: 6181.783203125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2789.2425829649533),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -1324,7 +1380,8 @@
             intensity: 3067.9916992188,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1163.5145208536967),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::v(
@@ -1347,7 +1404,8 @@
             intensity: 3053.9853515625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2877.305148688079),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::c(
@@ -1371,7 +1429,8 @@
             intensity: 3923.5085449219,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1076.4824924514367),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::v(
@@ -1394,7 +1453,8 @@
             intensity: 5325.984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1058.4719277683807),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::v(
@@ -1418,7 +1478,8 @@
             intensity: 2210.212890625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1136.5019760778218),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::x(
@@ -1441,7 +1502,8 @@
             intensity: 3332.9514160156,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1090.474333066447),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::z(
@@ -1464,7 +1526,8 @@
             intensity: 3311.6081542969,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1092.4894345503337),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::z·(
@@ -1487,7 +1550,8 @@
             intensity: 6323.2021484375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2920.3240869829424),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::a(
@@ -1510,7 +1574,8 @@
             intensity: 19393.607421875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2947.311725150213),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -1533,7 +1598,8 @@
             intensity: 1296.0609130859,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2949.326278054191),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::b(
@@ -1556,7 +1622,8 @@
             intensity: 16424.083984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(2929.301160467157),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::b(
@@ -1580,7 +1647,8 @@
             intensity: 3792.5515136719,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(1004.4495811161758),
                     charge: Charge::new::<e>(2.0),
                     ion: FragmentType::z(
@@ -1603,7 +1671,8 @@
             intensity: 27824.314453125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3064.4139646127383),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::c(
@@ -1626,7 +1695,8 @@
             intensity: 5829.173828125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(888.366400074789),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::v(
@@ -1650,7 +1720,8 @@
             intensity: 12194.744140625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(933.413015913085),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::z·(
@@ -1673,7 +1744,8 @@
             intensity: 3023.23828125,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(915.402451230029),
                     charge: Charge::new::<e>(1.0),
                     ion: FragmentType::z·(
@@ -1697,7 +1769,8 @@
             intensity: 2210.212890625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(852.377878974517),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::y(
@@ -1720,7 +1793,8 @@
             intensity: 3023.1926269531,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3493.5498066289824),
                     charge: Charge::new::<e>(3.0),
                     ion: FragmentType::c(
@@ -1743,7 +1817,8 @@
             intensity: 12457.2529296875,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3605.588647764027),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::b(
@@ -1766,7 +1841,8 @@
             intensity: 12194.744140625,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3733.647225266231),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::c(
@@ -1790,7 +1866,8 @@
             intensity: 3427.083984375,
             charge: Charge::new::<e>(1.0),
             annotation: Some(
-                Fragment {
+                Fragment{
+label: String::new(),
                     theoretical_mass: Mass::new::<dalton>(3629.6124572128133),
                     charge: Charge::new::<e>(4.0),
                     ion: FragmentType::d(

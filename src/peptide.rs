@@ -258,12 +258,35 @@ impl Peptide {
     ) -> Option<Vec<Fragment>> {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
+        let make_ambiguous_position_label = |pattern: Vec<(usize, usize)>,
+                                             possible_modifications: &[AmbiguousModification]|
+         -> String {
+            pattern.iter().fold(String::new(), |acc, (id, pos)| {
+                format!(
+                    "{acc}{}{}@{}",
+                    if acc.is_empty() { "" } else { "," },
+                    possible_modifications
+                        .iter()
+                        .find(|am| am.id == *id)
+                        .map_or(String::new(), |v| v
+                            .group
+                            .as_ref()
+                            .map_or(id.to_string(), |g| g.0.clone())),
+                    pos + 1
+                )
+            })
+        };
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
             let n_term_patterns = self.ambiguous_patterns(0..=index);
             let n_term = n_term_patterns
                 .into_iter()
                 .map(|pattern| {
+                    let ambiguous_local = pattern
+                        .iter()
+                        .filter_map(|(id, pos)| (*pos == index).then_some(id))
+                        .collect::<Vec<_>>();
+                    dbg!(index, &ambiguous_local);
                     self.sequence[0..index]
                         .iter()
                         .enumerate()
@@ -277,13 +300,38 @@ impl Peptide {
                             )
                             .and_then(|m| acc.map(|a| a + m))
                         })
-                        .map(|m| self.n_term::<M>() + m)
+                        .map(|m| {
+                            self.n_term::<M>()
+                                + m
+                                + self.sequence[index]
+                                    .possible_modifications
+                                    .iter()
+                                    .filter_map(|am| {
+                                        ambiguous_local
+                                            .contains(&&am.id)
+                                            .then(|| am.modification.mass::<M>())
+                                    })
+                                    .sum()
+                        })
+                        .map(|m| {
+                            (
+                                m,
+                                make_ambiguous_position_label(
+                                    pattern,
+                                    &self.sequence[index].possible_modifications,
+                                ),
+                            )
+                        })
                 })
-                .collect::<Option<Vec<Mass>>>()?;
+                .collect::<Option<Vec<(Mass, String)>>>()?;
             let c_term_patterns = self.ambiguous_patterns(index..self.sequence.len());
             let c_term = c_term_patterns
                 .into_iter()
                 .map(|pattern| {
+                    let ambiguous_local = pattern
+                        .iter()
+                        .filter_map(|(id, pos)| (*pos == index).then_some(id))
+                        .collect::<Vec<_>>();
                     self.sequence[index + 1..self.sequence.len()]
                         .iter()
                         .enumerate()
@@ -297,31 +345,57 @@ impl Peptide {
                             )
                             .and_then(|m| acc.map(|a| a + m))
                         })
-                        .map(|m| self.c_term::<M>() + m)
+                        .map(|m| {
+                            self.c_term::<M>()
+                                + m
+                                + self.sequence[index]
+                                    .possible_modifications
+                                    .iter()
+                                    .filter_map(|am| {
+                                        ambiguous_local
+                                            .contains(&&am.id)
+                                            .then(|| am.modification.mass::<M>())
+                                    })
+                                    .sum()
+                        })
+                        .map(|m| {
+                            (
+                                m,
+                                make_ambiguous_position_label(
+                                    pattern,
+                                    &self.sequence[index].possible_modifications,
+                                ),
+                            )
+                        })
                 })
-                .collect::<Option<Vec<Mass>>>()?;
+                .collect::<Option<Vec<(Mass, String)>>>()?;
 
             let options = n_term
                 .iter()
                 .map(|n| {
                     (
-                        *n,
-                        c_term.get(0).copied().unwrap_or_else(|| self.c_term::<M>()),
+                        n.clone(),
+                        c_term.get(0).map_or_else(
+                            || (self.c_term::<M>(), String::new()),
+                            std::clone::Clone::clone,
+                        ),
                     )
                 })
                 .chain(c_term.iter().skip(1).map(|c| {
                     (
-                        n_term.get(0).copied().unwrap_or_else(|| self.n_term::<M>()),
-                        *c,
+                        n_term.get(0).map_or_else(
+                            || (self.n_term::<M>(), String::new()),
+                            std::clone::Clone::clone,
+                        ),
+                        c.clone(),
                     )
                 }))
-                .collect::<Vec<_>>();
+                .collect::<Vec<((Mass, String), (Mass, String))>>();
 
-            for (n, c) in options {
+            for (n_term, c_term) in options {
                 output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
-                    // TODO: does this take the possible mods on the current position into account?
-                    n,
-                    c,
+                    n_term,
+                    c_term,
                     self.sequence[index].modifications.mass::<M>(),
                     max_charge,
                     index,
@@ -332,8 +406,13 @@ impl Peptide {
         }
         // Generate precursor peak
         output.push(
-            Fragment::new(self.mass::<M>()?, Charge::zero(), FragmentType::precursor)
-                .with_charge::<M>(max_charge),
+            Fragment::new(
+                self.mass::<M>()?,
+                Charge::zero(),
+                FragmentType::precursor,
+                String::new(),
+            )
+            .with_charge::<M>(max_charge),
         );
         Some(output)
     }

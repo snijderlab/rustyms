@@ -91,14 +91,14 @@ fn with_modifications() {
 
 #[test]
 fn with_possible_modifications() {
-    // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: -17.02655@[ 15.99491@
+    // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: 15.99491@1 and separately 15.99491@2
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (148.042671, "M1-b1"),
         (150.058326, "M1-y1"),
         (132.047761, "M2-b1"),
-        (166.053236, "M2-y2"),
-        (297.09372, "precursor"),
+        (166.053236, "M2-y1"),
+        (297.093720, "precursor"),
     ];
     let model = Model {
         a: (Location::None, vec![]),
