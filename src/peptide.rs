@@ -35,15 +35,19 @@ impl Peptide {
     }
 
     pub fn n_term<M: MassSystem>(&self) -> Mass {
-        self.n_term
-            .as_ref()
-            .map_or_else(|| da(M::H), HasMass::mass::<M>)
+        da(M::H)
+            + self
+                .n_term
+                .as_ref()
+                .map_or_else(Mass::zero, HasMass::mass::<M>)
     }
 
     pub fn c_term<M: MassSystem>(&self) -> Mass {
-        self.c_term
-            .as_ref()
-            .map_or_else(|| da(M::OH), HasMass::mass::<M>)
+        da(M::OH)
+            + self
+                .c_term
+                .as_ref()
+                .map_or_else(Mass::zero, HasMass::mass::<M>)
     }
 
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
@@ -256,7 +260,7 @@ impl Peptide {
         assert!(max_charge.value <= u64::MAX as f64);
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            let n_term_patterns = self.ambiguous_patterns(0..index);
+            let n_term_patterns = self.ambiguous_patterns(0..=index);
             let n_term = n_term_patterns
                 .into_iter()
                 .map(|pattern| {
@@ -276,7 +280,7 @@ impl Peptide {
                         .map(|m| self.n_term::<M>() + m)
                 })
                 .collect::<Option<Vec<Mass>>>()?;
-            let c_term_patterns = self.ambiguous_patterns(index + 1..self.sequence.len());
+            let c_term_patterns = self.ambiguous_patterns(index..self.sequence.len());
             let c_term = c_term_patterns
                 .into_iter()
                 .map(|pattern| {
@@ -296,15 +300,29 @@ impl Peptide {
                         .map(|m| self.c_term::<M>() + m)
                 })
                 .collect::<Option<Vec<Mass>>>()?;
-            for (n, c) in n_term
+
+            let options = n_term
                 .iter()
-                .map(|n| (*n, c_term[0]))
-                .chain(c_term.iter().skip(1).map(|c| (n_term[0], *c)))
-            {
+                .map(|n| {
+                    (
+                        *n,
+                        c_term.get(0).copied().unwrap_or_else(|| self.c_term::<M>()),
+                    )
+                })
+                .chain(c_term.iter().skip(1).map(|c| {
+                    (
+                        n_term.get(0).copied().unwrap_or_else(|| self.n_term::<M>()),
+                        *c,
+                    )
+                }))
+                .collect::<Vec<_>>();
+
+            for (n, c) in options {
                 output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
-                    // TODO: does this take the mods on the current position into account?
+                    // TODO: does this take the possible mods on the current position into account?
                     n,
                     c,
+                    self.sequence[index].modifications.mass::<M>(),
                     max_charge,
                     index,
                     self.sequence.len(),
@@ -313,11 +331,10 @@ impl Peptide {
             }
         }
         // Generate precursor peak
-        output.push(Fragment::new(
-            self.mass::<M>()?,
-            max_charge,
-            FragmentType::precursor,
-        ));
+        output.push(
+            Fragment::new(self.mass::<M>()?, Charge::zero(), FragmentType::precursor)
+                .with_charge::<M>(max_charge),
+        );
         Some(output)
     }
 }

@@ -11,6 +11,9 @@
     clippy::too_many_lines
 )]
 
+#[cfg(test)]
+mod fragmentation_tests;
+
 pub mod align;
 mod aminoacids;
 mod element;

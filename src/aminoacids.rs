@@ -234,6 +234,7 @@ impl AminoAcid {
         &self,
         n_term: Mass,
         c_term: Mass,
+        modifications: Mass,
         max_charge: Charge,
         sequence_index: usize,
         sequence_length: usize,
@@ -243,7 +244,7 @@ impl AminoAcid {
         if ions.a.0 {
             base_fragments.extend(
                 Fragment::new(
-                    n_term + self.mass::<M>() + da(-M::CO),
+                    modifications + n_term + self.mass::<M>() - da(M::CO) - da(M::H),
                     Charge::zero(),
                     FragmentType::a(Position::n(sequence_index, sequence_length)),
                 )
@@ -253,7 +254,7 @@ impl AminoAcid {
         if ions.b.0 {
             base_fragments.extend(
                 Fragment::new(
-                    n_term + self.mass::<M>(),
+                    modifications + n_term + self.mass::<M>() - da(M::H),
                     Charge::zero(),
                     FragmentType::b(Position::n(sequence_index, sequence_length)),
                 )
@@ -263,7 +264,7 @@ impl AminoAcid {
         if ions.c.0 {
             base_fragments.extend(
                 Fragment::new(
-                    n_term + self.mass::<M>() + da(M::NH3),
+                    modifications + n_term + self.mass::<M>() + da(M::NH2),
                     Charge::zero(),
                     FragmentType::c(Position::n(sequence_index, sequence_length)),
                 )
@@ -274,7 +275,10 @@ impl AminoAcid {
             for satellite in self.satellite_ion_masses::<M>() {
                 base_fragments.extend(
                     Fragment::new(
-                        n_term + self.mass::<M>() - satellite + da(-M::CO),
+                        modifications + n_term + self.mass::<M>()
+                            - satellite
+                            - da(M::CO)
+                            - da(M::H),
                         Charge::zero(),
                         FragmentType::d(Position::n(sequence_index, sequence_length)),
                     )
@@ -285,7 +289,7 @@ impl AminoAcid {
         if ions.v.0 {
             base_fragments.extend(
                 Fragment::new(
-                    c_term + da(M::BACKBONE) + da(M::H + M::OH),
+                    modifications + c_term + da(M::BACKBONE) + da(M::H),
                     Charge::zero(),
                     FragmentType::v(Position::n(sequence_index, sequence_length)),
                 )
@@ -296,7 +300,7 @@ impl AminoAcid {
             for satellite in self.satellite_ion_masses::<M>() {
                 base_fragments.extend(
                     Fragment::new(
-                        c_term + self.mass::<M>() - satellite + da(-M::NH + M::O + M::H),
+                        modifications + c_term + self.mass::<M>() - satellite + da(-M::NH2),
                         Charge::zero(),
                         FragmentType::w(Position::c(sequence_index, sequence_length)),
                     )
@@ -307,7 +311,7 @@ impl AminoAcid {
         if ions.x.0 {
             base_fragments.extend(
                 Fragment::new(
-                    c_term + self.mass::<M>() + da(M::CO + M::O),
+                    modifications + c_term + self.mass::<M>() + da(M::CO - M::H),
                     Charge::zero(),
                     FragmentType::x(Position::c(sequence_index, sequence_length)),
                 )
@@ -317,7 +321,7 @@ impl AminoAcid {
         if ions.y.0 {
             base_fragments.extend(
                 Fragment::new(
-                    c_term + self.mass::<M>() + da(M::H + M::OH),
+                    modifications + c_term + self.mass::<M>() + da(M::H),
                     Charge::zero(),
                     FragmentType::y(Position::c(sequence_index, sequence_length)),
                 )
@@ -327,7 +331,7 @@ impl AminoAcid {
         if ions.z.0 {
             base_fragments.extend(
                 Fragment::new(
-                    c_term + self.mass::<M>() + da(-M::NH + M::O),
+                    modifications + c_term + self.mass::<M>() + da(-M::NH2),
                     Charge::zero(),
                     FragmentType::z(Position::c(sequence_index, sequence_length)),
                 )
@@ -335,7 +339,7 @@ impl AminoAcid {
             );
             base_fragments.extend(
                 Fragment::new(
-                    c_term + self.mass::<M>() + da(-M::NH + M::O + M::H),
+                    modifications + c_term + self.mass::<M>() + da(-M::NH2 + M::H),
                     Charge::zero(),
                     FragmentType::z·(Position::c(sequence_index, sequence_length)),
                 )
