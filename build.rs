@@ -29,9 +29,11 @@ fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     build_unimod_ontology(&out_dir, debug);
     build_psi_mod_ontology(&out_dir, debug);
+    build_atomic_masses(&out_dir, debug).unwrap();
 
     println!("cargo:rerun-if-changed=databases/unimod.obo");
     println!("cargo:rerun-if-changed=databases/PSI-MOD-newstyle.obo");
+    println!("cargo:rerun-if-changed=databases/IUPAC-atomic-masses.csv");
     println!("cargo:rerun-if-changed=build.rs");
     print(out_dir.as_os_str().to_str().unwrap(), debug);
 }
@@ -441,4 +443,45 @@ impl OboObject {
             ..Self::default()
         }
     }
+}
+
+fn build_atomic_masses(out_dir: &OsString, debug: bool) -> Result<(), String> {
+    let reader =
+        BufReader::new(File::open("databases/IUPAC-atomic-masses.csv").map_err(|e| e.to_string())?);
+    let mut isotopes = Vec::new();
+    // TODO: write output, read isotopic abundances, average weights, and determine normal monoisotopic mass
+    // https://www.degruyter.com/document/doi/10.1515/pac-2019-0603/html#j_pac-2019-0603_tab_001
+
+    for line in reader.lines() {
+        let line = line.map_err(|e| e.to_string())?.trim_end().to_string();
+        if line.is_empty() {
+            continue;
+        };
+        let mut split = line.splitn(4, ',');
+        let (nuclide, mass, _uncertainty, year) = (
+            split.next().unwrap(),
+            split.next().unwrap(),
+            split.next().unwrap(),
+            split.next().unwrap(),
+        );
+        if nuclide.starts_with("AME")
+            || nuclide.is_empty()
+            || nuclide == "nuclide"
+            || !year.ends_with("2020</a>")
+        {
+            continue;
+        }
+        let isotope = nuclide
+            .trim_end_matches(|c: char| c.is_alphabetic())
+            .parse::<usize>()
+            .map_err(|e| e.to_string())?;
+        let element = Element::try_from(nuclide.trim_start_matches(|c: char| c.is_ascii_digit()))
+            .map_err(|_| {
+            format!("Not a valid isotope+element, could not recognise element: {nuclide}")
+        })?;
+        let mass = mass.parse::<f64>().map_err(|e| e.to_string())?;
+        isotopes.push((element, isotope, mass))
+    }
+
+    Ok(())
 }
