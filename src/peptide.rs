@@ -216,11 +216,20 @@ impl Peptide {
         Ok(peptide)
     }
 
-    /// Generate all possible patterns for the ambiguous positions (ambiguous id, aa position)
-    fn ambiguous_patterns(&self, aa_range: impl RangeBounds<usize>) -> Vec<Vec<(usize, usize)>> {
-        self.ambiguous_modifications.iter().enumerate().fold(
-            vec![Vec::new()],
-            |acc, (id, possibilities)| {
+    /// Generate all possible patterns for the ambiguous positions (Mass, String:Label)
+    /// It always contains at least one pattern (being (base mass, ""))
+    fn ambiguous_patterns<M: MassSystem>(
+        &self,
+        aa_range: impl RangeBounds<usize>,
+        aa: &[SequenceElement],
+        index: usize,
+        base: Mass,
+    ) -> Option<Vec<(Mass, String)>> {
+        let result = self
+            .ambiguous_modifications
+            .iter()
+            .enumerate()
+            .fold(vec![Vec::new()], |acc, (id, possibilities)| {
                 acc.into_iter()
                     .flat_map(|path| {
                         possibilities
@@ -233,8 +242,64 @@ impl Peptide {
                             })
                     })
                     .collect()
-            },
-        )
+            })
+            .into_iter()
+            .map(|pattern| {
+                let ambiguous_local = pattern
+                    .iter()
+                    .filter_map(|(id, pos)| (*pos == index).then_some(id))
+                    .collect::<Vec<_>>();
+                aa.iter()
+                    .enumerate()
+                    .fold(Some(Mass::zero()), |acc, (index, aa)| {
+                        aa.mass::<M>(
+                            &pattern
+                                .iter()
+                                .copied()
+                                .filter_map(|(id, pos)| (pos == index).then_some(id))
+                                .collect_vec(),
+                        )
+                        .and_then(|m| acc.map(|a| a + m))
+                    })
+                    .map(|m| {
+                        base + m
+                            + self.sequence[index]
+                                .possible_modifications
+                                .iter()
+                                .filter_map(|am| {
+                                    ambiguous_local
+                                        .contains(&&am.id)
+                                        .then(|| am.modification.mass::<M>())
+                                })
+                                .sum()
+                    })
+                    .map(|m| {
+                        (
+                            m,
+                            pattern.iter().fold(String::new(), |acc, (id, pos)| {
+                                format!(
+                                    "{acc}{}{}@{}",
+                                    if acc.is_empty() { "" } else { "," },
+                                    &self.sequence[index]
+                                        .possible_modifications
+                                        .iter()
+                                        .find(|am| am.id == *id)
+                                        .map_or(String::new(), |v| v
+                                            .group
+                                            .as_ref()
+                                            .map_or(id.to_string(), |g| g.0.clone())),
+                                    pos + 1
+                                )
+                            }),
+                        )
+                    })
+            })
+            .collect::<Option<Vec<(Mass, String)>>>()?;
+        if result.is_empty() {
+            Some(vec![(base, String::new())])
+        } else {
+            Some(result)
+        }
     }
 
     pub fn mass<M: MassSystem>(&self) -> Option<Mass> {
@@ -258,139 +323,34 @@ impl Peptide {
     ) -> Option<Vec<Fragment>> {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
-        let make_ambiguous_position_label = |pattern: Vec<(usize, usize)>,
-                                             possible_modifications: &[AmbiguousModification]|
-         -> String {
-            pattern.iter().fold(String::new(), |acc, (id, pos)| {
-                format!(
-                    "{acc}{}{}@{}",
-                    if acc.is_empty() { "" } else { "," },
-                    possible_modifications
-                        .iter()
-                        .find(|am| am.id == *id)
-                        .map_or(String::new(), |v| v
-                            .group
-                            .as_ref()
-                            .map_or(id.to_string(), |g| g.0.clone())),
-                    pos + 1
-                )
-            })
-        };
+
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            let n_term_patterns = self.ambiguous_patterns(0..=index);
-            let n_term = n_term_patterns
-                .into_iter()
-                .map(|pattern| {
-                    let ambiguous_local = pattern
-                        .iter()
-                        .filter_map(|(id, pos)| (*pos == index).then_some(id))
-                        .collect::<Vec<_>>();
-                    dbg!(index, &ambiguous_local);
-                    self.sequence[0..index]
-                        .iter()
-                        .enumerate()
-                        .fold(Some(Mass::zero()), |acc, (index, aa)| {
-                            aa.mass::<M>(
-                                &pattern
-                                    .iter()
-                                    .copied()
-                                    .filter_map(|(id, pos)| (pos == index).then_some(id))
-                                    .collect_vec(),
-                            )
-                            .and_then(|m| acc.map(|a| a + m))
-                        })
-                        .map(|m| {
-                            self.n_term::<M>()
-                                + m
-                                + self.sequence[index]
-                                    .possible_modifications
-                                    .iter()
-                                    .filter_map(|am| {
-                                        ambiguous_local
-                                            .contains(&&am.id)
-                                            .then(|| am.modification.mass::<M>())
-                                    })
-                                    .sum()
-                        })
-                        .map(|m| {
-                            (
-                                m,
-                                make_ambiguous_position_label(
-                                    pattern,
-                                    &self.sequence[index].possible_modifications,
-                                ),
-                            )
-                        })
-                })
-                .collect::<Option<Vec<(Mass, String)>>>()?;
-            let c_term_patterns = self.ambiguous_patterns(index..self.sequence.len());
-            let c_term = c_term_patterns
-                .into_iter()
-                .map(|pattern| {
-                    let ambiguous_local = pattern
-                        .iter()
-                        .filter_map(|(id, pos)| (*pos == index).then_some(id))
-                        .collect::<Vec<_>>();
-                    self.sequence[index + 1..self.sequence.len()]
-                        .iter()
-                        .enumerate()
-                        .fold(Some(Mass::zero()), |acc, (index, aa)| {
-                            aa.mass::<M>(
-                                &pattern
-                                    .iter()
-                                    .copied()
-                                    .filter_map(|(id, pos)| (pos == index).then_some(id))
-                                    .collect_vec(),
-                            )
-                            .and_then(|m| acc.map(|a| a + m))
-                        })
-                        .map(|m| {
-                            self.c_term::<M>()
-                                + m
-                                + self.sequence[index]
-                                    .possible_modifications
-                                    .iter()
-                                    .filter_map(|am| {
-                                        ambiguous_local
-                                            .contains(&&am.id)
-                                            .then(|| am.modification.mass::<M>())
-                                    })
-                                    .sum()
-                        })
-                        .map(|m| {
-                            (
-                                m,
-                                make_ambiguous_position_label(
-                                    pattern,
-                                    &self.sequence[index].possible_modifications,
-                                ),
-                            )
-                        })
-                })
-                .collect::<Option<Vec<(Mass, String)>>>()?;
+            let n_term = self.ambiguous_patterns::<M>(
+                0..=index,
+                &self.sequence[0..index],
+                index,
+                self.n_term::<M>(),
+            )?;
+
+            let c_term = self.ambiguous_patterns::<M>(
+                index..self.sequence.len(),
+                &self.sequence[index + 1..self.sequence.len()],
+                index,
+                self.c_term::<M>(),
+            )?;
 
             let options = n_term
                 .iter()
-                .map(|n| {
-                    (
-                        n.clone(),
-                        c_term.get(0).map_or_else(
-                            || (self.c_term::<M>(), String::new()),
-                            std::clone::Clone::clone,
-                        ),
-                    )
-                })
-                .chain(c_term.iter().skip(1).map(|c| {
-                    (
-                        n_term.get(0).map_or_else(
-                            || (self.n_term::<M>(), String::new()),
-                            std::clone::Clone::clone,
-                        ),
-                        c.clone(),
-                    )
-                }))
+                .map(|n| (n.clone(), c_term[0].clone()))
+                .chain(
+                    c_term
+                        .iter()
+                        .skip(1)
+                        .map(|c| (n_term[0].clone(), c.clone())),
+                )
                 .collect::<Vec<((Mass, String), (Mass, String))>>();
+            dbg!(index, &n_term, &c_term, &options);
 
             for (n_term, c_term) in options {
                 output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
