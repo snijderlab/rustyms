@@ -38,6 +38,7 @@ fn triple_a() {
         theoretical_fragments,
         &Peptide::pro_forma("AAA").unwrap(),
         &model,
+        1.0,
     );
 }
 
@@ -86,6 +87,7 @@ fn with_modifications() {
         theoretical_fragments,
         &Peptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]").unwrap(),
         &model,
+        1.0,
     );
 }
 
@@ -117,6 +119,45 @@ fn with_possible_modifications() {
         theoretical_fragments,
         &Peptide::pro_forma("M[Oxidation#a1]M[#a1]").unwrap(),
         &model,
+        1.0,
+    );
+}
+
+#[test]
+fn higher_charges() {
+    // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
+    #[allow(clippy::unreadable_literal)]
+    let theoretical_fragments = &[
+        (9.615716, "a1+5"),
+        (30.217553, "a2+5"),
+        (11.767826, "a1+4"),
+        (37.520122, "a2+4"),
+        (15.354676, "a1+3"),
+        (49.691071, "a2+3"),
+        (22.528376, "a1+2"),
+        (74.032968, "a2+2"),
+        (44.049476, "a1+1"),
+        (147.058660, "a2+1"),
+        (62.424038, "precursor"),
+    ];
+    let model = Model {
+        a: (Location::SkipC(1), vec![]),
+        b: (Location::None, vec![]),
+        c: (Location::None, vec![]),
+        d: (Location::None, vec![]),
+        v: (Location::None, vec![]),
+        w: (Location::None, vec![]),
+        x: (Location::None, vec![]),
+        y: (Location::None, vec![]),
+        z: (Location::None, vec![]),
+        precursor: vec![],
+        ppm: MassOverCharge::new::<mz>(20.0),
+    };
+    test(
+        theoretical_fragments,
+        &Peptide::pro_forma("ACD").unwrap(),
+        &model,
+        5.0,
     );
 }
 
@@ -277,14 +318,14 @@ fn all_aminoacids() {
         theoretical_fragments,
         &Peptide::pro_forma("ARNDCQEGHILKMFPSTWYV").unwrap(),
         &model,
+        1.0,
     );
 }
 
-fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model) {
+fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model, charge: f64) {
     let mut calculated_fragments = peptide
-        .generate_theoretical_fragments::<MonoIsotopic>(Charge::new::<e>(1.0), model)
+        .generate_theoretical_fragments::<MonoIsotopic>(Charge::new::<e>(charge), model)
         .unwrap();
-    dbg!(&calculated_fragments);
     let mut combined = Vec::new();
     let mut found = Vec::new();
     let mut this_found;
@@ -292,8 +333,8 @@ fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model)
         this_found = false;
         for fragment in 0..calculated_fragments.len() {
             if calculated_fragments[fragment]
-                .theoretical_mass
-                .ppm(da(goal.0))
+                .mz()
+                .ppm(MassOverCharge::new::<mz>(goal.0))
                 < 20.0
             {
                 combined.push((goal.0, goal.1, calculated_fragments.remove(fragment)));
@@ -303,7 +344,6 @@ fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model)
         }
         found.push(this_found);
     }
-    dbg!(&combined);
 
     for left in &calculated_fragments {
         println!("Excess fragments: {left}");

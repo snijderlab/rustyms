@@ -350,7 +350,7 @@ impl Peptide {
                         .map(|c| (n_term[0].clone(), c.clone())),
                 )
                 .collect::<Vec<((Mass, String), (Mass, String))>>();
-            dbg!(index, &n_term, &c_term, &options);
+            //dbg!(index, &n_term, &c_term, &options);
 
             for (n_term, c_term) in options {
                 output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
