@@ -26,6 +26,7 @@ mod model;
 mod modification;
 mod ontologies;
 mod peptide;
+mod placement_rules;
 pub mod rawfile;
 mod spectrum;
 mod system;

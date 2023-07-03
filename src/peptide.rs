@@ -29,6 +29,7 @@ impl Peptide {
     pub fn len(&self) -> usize {
         self.sequence.len()
     }
+
     /// Check if there are any amino acids in this peptide
     pub fn is_empty(&self) -> bool {
         self.sequence.is_empty()
@@ -212,8 +213,16 @@ impl Peptide {
             .collect();
 
         // Check all placement rules
+        peptide.enforce_modification_rules()?;
 
         Ok(peptide)
+    }
+
+    fn enforce_modification_rules(&self) -> Result<(), String> {
+        for (index, element) in self.sequence.iter().enumerate() {
+            element.enforce_modification_rules(index, self.sequence.len())?;
+        }
+        Ok(())
     }
 
     /// Generate all possible patterns for the ambiguous positions (Mass, String:Label)
@@ -528,6 +537,25 @@ impl SequenceElement {
                         .sum(),
             )
         }
+    }
+
+    /// Enforce the placement rules of predefined modifications.
+    fn enforce_modification_rules(&self, index: usize, length: usize) -> Result<(), String> {
+        for modification in &self.modifications {
+            if let Modification::Predefined(_, _, rules, _, _) = modification {
+                if !rules.is_empty()
+                    && !rules
+                        .iter()
+                        .any(|rule| rule.is_possible(self.aminoacid, index, length))
+                {
+                    return Err(format!(
+                        "Modification {modification} is not allowed on aminoacid {} index {index}",
+                        self.aminoacid.char()
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 }
 

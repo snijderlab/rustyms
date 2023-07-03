@@ -71,6 +71,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
+            context: "Unimod".to_string(),
             ..Default::default()
         };
         if let Some(xref) = obj.lines.get("xref") {
@@ -199,6 +200,7 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
+            context: "PSI-MOD".to_string(),
             ..Default::default()
         };
 
@@ -246,6 +248,7 @@ struct OntologyModification {
     monosaccharides: Vec<(MonoSaccharide, isize)>,
     code_name: String,
     full_name: String,
+    context: String,
     id: usize,
     rules: Vec<PlacementRule>,
 }
@@ -303,7 +306,7 @@ impl OntologyModification {
 
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}]))",
+            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}], &[{}], \"{}\", \"{}\"))",
             self.full_name,
             self.code_name,
             self.rules
@@ -326,7 +329,16 @@ impl OntologyModification {
                     acc,
                     e.0.to_string().replace('-', "_"),
                     e.1
-                ))
+                )),
+            self.rules
+                .iter()
+                .fold(String::new(), |acc, e| format!(
+                    "{}PlacementRule::{},",
+                    acc,
+                    e
+                )),
+                self.context,
+                self.code_name,
         )
     }
 }
@@ -341,9 +353,13 @@ impl Display for PlacementRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AminoAcid(aminoacid, position) => {
-                write!(f, "({}, {:?})", aminoacid, position)
+                write!(
+                    f,
+                    "AminoAcid(AminoAcid::{}, Position::{:?})",
+                    aminoacid, position
+                )
             }
-            Self::Terminal(t) => write!(f, "{:?}", t),
+            Self::Terminal(t) => write!(f, "Terminal(Position::{:?})", t),
         }
     }
 }
@@ -445,7 +461,7 @@ impl OboObject {
     }
 }
 
-fn build_atomic_masses(out_dir: &OsString, debug: bool) -> Result<(), String> {
+fn build_atomic_masses(_out_dir: &OsString, _debug: bool) -> Result<(), String> {
     let reader =
         BufReader::new(File::open("databases/IUPAC-atomic-masses.csv").map_err(|e| e.to_string())?);
     let mut isotopes = Vec::new();

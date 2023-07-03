@@ -86,9 +86,10 @@ These features are independent from each other:
 - [x] 4.2.7 Gap of known mass
 - [x] Show ambiguous amino acids back to the user
 - [x] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
+- [x] Enforce ontology modification placement rules
 - [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Enforce ontology modification placement rules
 - [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
 - Unimod: http://www.unimod.org/obo/unimod.obo
@@ -97,3 +98,13 @@ These features are independent from each other:
 PSI/mzIdentML/master/cv/XLMOD.obo
 - GNO: https://www.ebi.ac.uk/ols/ontologies/gno
 - Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv
+
+# Ontologies
+
+| Name | Modifications | Numbered | Rules |
+| --- | --- | --- | --- |
+| Unimod | Yes | Yes | Yes |
+| PSI-MOD | Yes | Partial (missing isotopic mods) | - |
+| RESID | - | - | - |
+| XL-MOD | - | - | - |
+| GNO | - | - | - |

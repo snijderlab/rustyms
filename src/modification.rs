@@ -8,6 +8,7 @@ use crate::{
     element::{Element, ELEMENT_PARSE_LIST},
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
+    placement_rules::PlacementRule,
     HasMass, Mass, MassSystem, MonoSaccharide,
 };
 
@@ -21,6 +22,9 @@ pub enum Modification {
     Predefined(
         &'static [(Element, isize)],
         &'static [(MonoSaccharide, isize)],
+        &'static [PlacementRule],
+        &'static str, // Context
+        &'static str, // Name
     ),
 }
 
@@ -30,7 +34,7 @@ impl HasMass for Modification {
             Self::Mass(m) => *m,
             Self::Formula(elements) => elements.mass::<M>(),
             Self::Glycan(monosaccharides) => monosaccharides.mass::<M>(),
-            Self::Predefined(elements, monosaccharides) => {
+            Self::Predefined(elements, monosaccharides, _, _, _) => {
                 elements.mass::<M>() + monosaccharides.mass::<M>()
             }
         }
@@ -255,15 +259,7 @@ impl Display for Modification {
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
             )
             .unwrap(),
-            Self::Predefined(elements, monosaccharides) => write!(
-                f,
-                "Predefined:{};{}",
-                Element::hill_notation(elements),
-                monosaccharides
-                    .iter()
-                    .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
-            )
-            .unwrap(),
+            Self::Predefined(_, _, _, context, name) => write!(f, "{context}:{name}",).unwrap(),
         }
         Ok(())
     }
