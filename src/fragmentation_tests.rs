@@ -334,6 +334,7 @@ fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model,
         for fragment in 0..calculated_fragments.len() {
             if calculated_fragments[fragment]
                 .mz()
+                .unwrap()
                 .ppm(MassOverCharge::new::<mz>(goal.0))
                 < 20.0
             {

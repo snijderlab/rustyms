@@ -1,9 +1,10 @@
 use uom::num_traits::Zero;
 
+use crate::formula::{Chemical, MolecularFormula};
 use crate::fragment::{Fragment, FragmentType};
+use crate::model::*;
 use crate::system::f64::*;
-use crate::{model::*, HasMass};
-use crate::{MassSystem, Position};
+use crate::Position;
 
 /// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
 /// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
@@ -84,49 +85,39 @@ impl TryFrom<u8> for AminoAcid {
     }
 }
 
-impl HasMass for AminoAcid {
-    fn mass<M: MassSystem>(&self) -> Mass {
+impl Chemical for AminoAcid {
+    fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Alanine => da(M::BACKBONE + M::CH3),
-            Self::AmbiguousLeucine => da(M::BACKBONE + M::C * 4.0 + M::H * 9.0),
-            Self::Arginine => da(M::BACKBONE + M::CH2 * 3.0 + M::NH + M::C + M::NH + M::NH2), // One of the H's counts as the charge carrier and is added later
+            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1),
+            Self::AmbiguousLeucine => molecular_formula!(H 11 C 6 O 1 N 1),
+            Self::Arginine => molecular_formula!(H 12 C 4 O 1 N 4), // One of the H's counts as the charge carrier and is added later
             Self::AmbiguousAsparagine => {
-                panic!("Mass of Asx/B ambiguous asparagine is not defined.")
+                panic!("Molecular formula of Asx/B ambiguous asparagine is not defined.")
             }
-            Self::Asparagine => da(M::BACKBONE + M::CH2 + M::C + M::O + M::NH2),
-            Self::AsparticAcid => da(M::BACKBONE + M::CH2 + M::C + M::OH + M::O),
-            Self::Cysteine => da(M::BACKBONE + M::CH2 + M::S + M::H),
-            Self::GlutamicAcid => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::OH + M::O),
-            Self::Glutamine => da(M::BACKBONE + M::CH2 * 2.0 + M::C + M::O + M::NH2),
-            Self::AmbiguousGlutamine => panic!("Mass of Glx/Z ambiguous glutamine is not defined."),
-            Self::Glycine => da(M::BACKBONE + M::H),
-            Self::Histidine => da(M::BACKBONE + M::CH2 + M::C + M::N + M::CH + M::NH + M::CH),
-            Self::Isoleucine => da(M::BACKBONE + M::CH + M::CH3 + M::CH2 + M::CH3),
-            Self::Leucine => da(M::BACKBONE + M::CH2 + M::CH + M::CH3 + M::CH3),
-            Self::Lysine => da(M::BACKBONE + M::CH2 * 4.0 + M::NH2),
-            Self::Methionine => da(M::BACKBONE + M::CH2 * 2.0 + M::S + M::CH3),
-            Self::Phenylalanine => da(M::BACKBONE + M::CH2 + M::C + M::CH * 5.0),
-            Self::Proline => da(M::BACKBONE + M::CH2 * 3.0 - M::H),
-            Self::Pyrrolysine => da(M::BACKBONE
-                + M::CH2 * 4.0
-                + M::NH
-                + M::C
-                + M::O
-                + M::CH
-                + M::N
-                + M::CH
-                + M::CH2
-                + M::CH
-                + M::CH3),
-            Self::Selenocysteine => da(M::BACKBONE + M::CH2 + M::Se),
-            Self::Serine => da(M::BACKBONE + M::CH2 + M::OH),
-            Self::Threonine => da(M::BACKBONE + M::CH + M::OH + M::CH3),
-            Self::Tryptophan => {
-                da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::C + M::NH + M::CH)
+            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2),
+            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1),
+            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1),
+            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1),
+            Self::Glutamine => molecular_formula!(H 6 C 5 O 2 N 2),
+            Self::AmbiguousGlutamine => {
+                panic!("Molecular formula of Glx/Z ambiguous glutamine is not defined.")
             }
-            Self::Tyrosine => da(M::BACKBONE + M::CH2 + M::C * 2.0 + M::CH * 4.0 + M::OH),
-            Self::Valine => da(M::BACKBONE + M::CH + M::CH3 * 2.0),
-            Self::Unknown => Mass::zero(),
+            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1),
+            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3),
+            Self::Isoleucine => molecular_formula!(H 11 C 6 O 1 N 1),
+            Self::Leucine => molecular_formula!(H 11 C 6 O 1 N 1),
+            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2),
+            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1),
+            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1),
+            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1),
+            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3),
+            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1),
+            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1),
+            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1),
+            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2),
+            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1),
+            Self::Valine => molecular_formula!(H 9 C 6 O 1 N 1),
+            Self::Unknown => molecular_formula!(),
         }
     }
 }
@@ -187,7 +178,7 @@ impl AminoAcid {
     pub const Xaa: Self = Self::Unknown;
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
-    pub fn satellite_ion_masses<M: MassSystem>(&self) -> Vec<Mass> {
+    pub fn satellite_ion_fragments(&self) -> Vec<MolecularFormula> {
         match self {
             Self::Alanine
             | Self::AmbiguousLeucine
@@ -200,41 +191,32 @@ impl AminoAcid {
             | Self::AmbiguousAsparagine
             | Self::AmbiguousGlutamine
             | Self::Unknown => vec![],
-            Self::Arginine => vec![da(M::CH2 * 2.0 + M::NH + M::NH2 * 2.0)],
-            Self::Asparagine => vec![da(M::C + M::O + M::NH2)],
-            Self::AsparticAcid => vec![da(M::C + M::OH + M::O)],
-            Self::Cysteine => vec![da(M::S + M::H)],
-            Self::GlutamicAcid => vec![da(M::CH2 + M::C + M::OH + M::O)],
-            Self::Glutamine => vec![da(M::CH2 + M::C + M::O + M::NH2)],
-            Self::Isoleucine => vec![da(M::CH3), da(M::CH2 + M::CH3)],
-            Self::Leucine => vec![da(M::CH + M::CH3 * 2.0)],
-            Self::Lysine => vec![da(M::CH2 * 3.0 + M::NH2)],
-            Self::Methionine => vec![da(M::CH2 + M::S + M::CH3)],
+            Self::Arginine => vec![molecular_formula!(H 9 C 2 N 2)],
+            Self::Asparagine => vec![molecular_formula!(H 2 C 1 N 1 O 1)],
+            Self::AsparticAcid => vec![molecular_formula!(H 1 C 1 O 2)],
+            Self::Cysteine => vec![molecular_formula!(H 1 S 1)],
+            Self::GlutamicAcid => vec![molecular_formula!(H 3 C 2 O 2)],
+            Self::Glutamine => vec![molecular_formula!(H 4 C 2 N 1 O 1)],
+            Self::Isoleucine => vec![molecular_formula!(H 3 C 1), molecular_formula!(H 5 C 2)],
+            Self::Leucine => vec![molecular_formula!(H 7 C 3)],
+            Self::Lysine => vec![molecular_formula!(H 8 C 3 N)],
+            Self::Methionine => vec![molecular_formula!(H 5 C 2 S 1)],
             Self::Pyrrolysine => {
-                vec![da(M::CH2 * 3.0
-                    + M::NH
-                    + M::C
-                    + M::O
-                    + M::CH
-                    + M::N
-                    + M::CH
-                    + M::CH2
-                    + M::CH
-                    + M::CH3)]
+                vec![molecular_formula!(H 15 C 9 N 2 O 1)]
             } // Weird, TODO: figure out what to make of this
-            Self::Selenocysteine => vec![da(M::Se)],
-            Self::Serine => vec![da(M::OH)],
-            Self::Threonine => vec![da(M::OH), da(M::CH3)],
-            Self::Valine => vec![da(M::CH3)], // Technically two options, but both have the same mass
+            Self::Selenocysteine => vec![molecular_formula!(Se 1)],
+            Self::Serine => vec![molecular_formula!(H 1 O 1)],
+            Self::Threonine => vec![molecular_formula!(H 1 O 1), molecular_formula!(H 3 C 1)],
+            Self::Valine => vec![molecular_formula!(H 3 C 1)], // Technically two options, but both have the same mass
         }
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn fragments<M: MassSystem>(
+    pub fn fragments(
         &self,
-        n_term: (Mass, String),
-        c_term: (Mass, String),
-        modifications: Mass,
+        n_term: (MolecularFormula, String),
+        c_term: (MolecularFormula, String),
+        modifications: MolecularFormula,
         max_charge: Charge,
         sequence_index: usize,
         sequence_length: usize,
@@ -244,122 +226,124 @@ impl AminoAcid {
         if ions.a.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.mass::<M>() - da(M::CO) - da(M::H),
+                    modifications + n_term.0 + self.formula() - molecular_formula!(H 1 C 1 O 1),
                     Charge::zero(),
                     FragmentType::a(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.a.1),
+                .with_neutral_losses(ions.a.1),
             );
         }
         if ions.b.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.mass::<M>() - da(M::H),
+                    modifications + n_term.0 + self.formula() - molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::b(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.b.1),
+                .with_neutral_losses(ions.b.1),
             );
         }
         if ions.c.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.mass::<M>() + da(M::NH2),
+                    modifications + n_term.0 + self.formula() + molecular_formula!(H 2 N 1),
                     Charge::zero(),
                     FragmentType::c(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.c.1),
+                .with_neutral_losses(ions.c.1),
             );
         }
         if ions.d.0 {
-            for satellite in self.satellite_ion_masses::<M>() {
+            for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(
                     Fragment::new(
-                        modifications + n_term.0 + self.mass::<M>()
+                        modifications + n_term.0 + self.formula()
                             - satellite
-                            - da(M::CO)
-                            - da(M::H),
+                            - molecular_formula!(H 1 C 1 O 1),
                         Charge::zero(),
                         FragmentType::d(Position::n(sequence_index, sequence_length)),
                         n_term.1.clone(),
                     )
-                    .with_neutral_losses::<M>(ions.d.1),
+                    .with_neutral_losses(ions.d.1),
                 );
             }
         }
         if ions.v.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + da(M::BACKBONE) + da(M::H),
+                    modifications + c_term.0 + molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
                     Charge::zero(),
                     FragmentType::v(Position::n(sequence_index, sequence_length)),
                     c_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.v.1),
+                .with_neutral_losses(ions.v.1),
             );
         }
         if ions.w.0 {
-            for satellite in self.satellite_ion_masses::<M>() {
+            for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(
                     Fragment::new(
-                        modifications + c_term.0 + self.mass::<M>() - satellite + da(-M::NH2),
+                        modifications + c_term.0 + self.formula()
+                            - satellite
+                            - molecular_formula!(H 2 N 1),
                         Charge::zero(),
                         FragmentType::w(Position::c(sequence_index, sequence_length)),
                         c_term.1.clone(),
                     )
-                    .with_neutral_losses::<M>(ions.w.1),
+                    .with_neutral_losses(ions.w.1),
                 );
             }
         }
         if ions.x.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.mass::<M>() + da(M::CO - M::H),
+                    modifications + c_term.0 + self.formula() + molecular_formula!(C 1 O 1)
+                        - molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::x(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.x.1),
+                .with_neutral_losses(ions.x.1),
             );
         }
         if ions.y.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.mass::<M>() + da(M::H),
+                    modifications + c_term.0 + self.formula() + molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::y(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.y.1),
+                .with_neutral_losses(ions.y.1),
             );
         }
         if ions.z.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.mass::<M>() + da(-M::NH2),
+                    modifications + c_term.0 + self.formula() - molecular_formula!(H 2 N 1),
                     Charge::zero(),
                     FragmentType::z(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.z.1),
+                .with_neutral_losses(ions.z.1),
             );
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.mass::<M>() + da(-M::NH2 + M::H),
+                    modifications + c_term.0 + self.formula() - molecular_formula!(H 1 N 1),
                     Charge::zero(),
                     FragmentType::z·(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
                 )
-                .with_neutral_losses::<M>(ions.z.1),
+                .with_neutral_losses(ions.z.1),
             );
         }
         let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);
         for base in base_fragments {
             for charge in 1..=(max_charge.value as u64) {
-                charged.push(base.with_charge::<M>(Charge::new::<e>(charge as f64)));
+                charged.push(base.with_charge(Charge::new::<e>(charge as f64)));
             }
         }
         charged
@@ -400,14 +384,12 @@ impl AminoAcid {
 #[cfg(test)]
 #[allow(clippy::unreadable_literal, clippy::float_cmp)]
 mod tests {
-    use crate::{AverageWeight, MonoIsotopic};
-
     use super::*;
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.mass::<crate::AverageWeight>();
-        let mass_ala = AminoAcid::Ala.mass::<crate::MonoIsotopic>();
+        let weight_ala = AminoAcid::A.formula().average_weight().unwrap();
+        let mass_ala = AminoAcid::Ala.formula().monoisotopic_mass().unwrap();
         assert_ne!(weight_ala, mass_ala);
         assert_eq!(weight_ala.value, 71.07793);
         assert_eq!(mass_ala.value, 71.037113783);
@@ -415,8 +397,8 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.mass::<crate::AverageWeight>();
-        let mass_lys = AminoAcid::Lys.mass::<crate::MonoIsotopic>();
+        let weight_lys = AminoAcid::K.formula().average_weight().unwrap();
+        let mass_lys = AminoAcid::Lys.formula().monoisotopic_mass().unwrap();
         assert_ne!(weight_lys, mass_lys);
         assert_eq!(weight_lys.value, 128.17240999999999);
         assert_eq!(mass_lys.value, 128.094963010536);
@@ -450,8 +432,8 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.mass::<MonoIsotopic>().value,
-                aa.mass::<AverageWeight>().value,
+                aa.formula().monoisotopic_mass().unwrap().value,
+                aa.formula().average_weight().unwrap().value,
             );
             println!(
                 "{}: {} {} {} {}",

@@ -1,33 +1,33 @@
-use crate::{da, HasMass, Mass, MassSystem};
+use crate::{Chemical, MolecularFormula};
 
 include!("shared/glycan.rs");
 
-impl HasMass for MonoSaccharide {
-    fn mass<M: MassSystem>(&self) -> Mass {
+impl Chemical for MonoSaccharide {
+    fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Hep => da(M::C * 7.0 + M::H * 12.0 + M::O * 6.0),
-            Self::phosphate => da(M::H + M::O * 3.0 + M::P),
-            Self::a_Hex => da(M::C * 6.0 + M::H * 8.0 + M::O * 6.0),
-            Self::Sug => da(M::C * 2.0 + M::H * 2.0 + M::O),
-            Self::HexN => da(M::C * 6.0 + M::H * 11.0 + M::N + M::O * 4.0),
-            Self::Pen => da(M::C * 5.0 + M::H * 8.0 + M::O * 4.0),
-            Self::Tet => da(M::C * 4.0 + M::H * 6.0 + M::O * 3.0),
-            Self::HexS => da(M::C * 6.0 + M::H * 10.0 + M::O * 8.0 + M::S),
-            Self::HexP => da(M::C * 6.0 + M::H * 11.0 + M::O * 8.0 + M::P),
-            Self::Neu5Ac => da(M::C * 11.0 + M::H * 17.0 + M::N + M::O * 8.0),
-            Self::Non => da(M::C * 9.0 + M::H * 16.0 + M::O * 8.0),
-            Self::HexNAcS => da(M::C * 8.0 + M::H * 13.0 + M::N + M::O * 8.0 + M::S),
-            Self::Dec => da(M::C * 10.0 + M::H * 18.0 + M::O * 9.0),
-            Self::en_a_Hex => da(M::C * 6.0 + M::H * 6.0 + M::O * 5.0),
-            Self::Neu5Gc => da(M::C * 11.0 + M::H * 17.0 + M::N + M::O * 9.0),
-            Self::Neu => da(M::C * 9.0 + M::H * 15.0 + M::N + M::O * 7.0),
-            Self::HexNAc => da(M::C * 8.0 + M::H * 13.0 + M::N + M::O * 5.0),
-            Self::Fuc => da(M::C * 6.0 + M::H * 10.0 + M::O * 4.0),
-            Self::HexNS => da(M::C * 6.0 + M::H * 11.0 + M::N + M::O * 7.0 + M::S),
-            Self::Tri => da(M::C * 3.0 + M::H * 4.0 + M::O * 2.0),
-            Self::Oct => da(M::C * 8.0 + M::H * 14.0 + M::O * 7.0),
-            Self::sulfate => da(M::O * 3.0 + M::S),
-            Self::d_Hex | Self::Hex => da(M::C * 6.0 + M::H * 10.0 + M::O * 5.0),
+            Self::Hep => molecular_formula!(H 12 C 7 O 6),
+            Self::phosphate => molecular_formula!(H 1 O 3 P 1),
+            Self::a_Hex => molecular_formula!(H 8 C 6 O 6),
+            Self::Sug => molecular_formula!(H 2 C 2 O 1),
+            Self::HexN => molecular_formula!(H 11 C 6 N 1 O 4),
+            Self::Pen => molecular_formula!(H 8 C 5 O 4),
+            Self::Tet => molecular_formula!(H 6 C 4 O 3),
+            Self::HexS => molecular_formula!(H 10 C 6 O 8 S 1),
+            Self::HexP => molecular_formula!(H 11 C 6 O 8 P 1),
+            Self::Neu5Ac => molecular_formula!(H 17 C 11 N 1 O 8),
+            Self::Non => molecular_formula!(H 16 C 9 O 8),
+            Self::HexNAcS => molecular_formula!(H 13 C 8 N 1 O 8 S 1),
+            Self::Dec => molecular_formula!(H 18 C 10 O 9),
+            Self::en_a_Hex => molecular_formula!(H 6 C 6 O 5),
+            Self::Neu5Gc => molecular_formula!(H 17 C 11 N 1 O 9),
+            Self::Neu => molecular_formula!(H 15 C 9 N 1 O 7),
+            Self::HexNAc => molecular_formula!(H 13 C 8 N 1 O 5),
+            Self::Fuc => molecular_formula!(H 10 C 6 O 4),
+            Self::HexNS => molecular_formula!(H 11 C 6 N 1 O 7 S 1),
+            Self::Tri => molecular_formula!(H 4 C 3 O 2),
+            Self::Oct => molecular_formula!(H 14 C 8 O 7),
+            Self::sulfate => molecular_formula!(O 3 S 1),
+            Self::d_Hex | Self::Hex => molecular_formula!(H 10 C 6 O 5),
         }
     }
 }
@@ -35,16 +35,15 @@ impl HasMass for MonoSaccharide {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::mass::AverageWeight;
 
     #[test]
     #[allow(clippy::float_cmp)] // Already handled in a way clippy does not recognise
     fn mass_glycan() {
         assert_eq!(
             1445.0,
-            (MonoSaccharide::Hex.mass::<AverageWeight>() * 3.0
-                + MonoSaccharide::HexNAc.mass::<AverageWeight>() * 4.0
-                + MonoSaccharide::Fuc.mass::<AverageWeight>())
+            (MonoSaccharide::Hex.formula().average_weight().unwrap() * 3.0
+                + MonoSaccharide::HexNAc.formula().average_weight().unwrap() * 4.0
+                + MonoSaccharide::Fuc.formula().average_weight().unwrap())
             .value
             .round()
         );

@@ -2,11 +2,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(clippy::unreadable_literal)]
 
-use uom::num_traits::Zero;
-
-use crate::system::ratio::r;
 use crate::Mass;
-use crate::Ratio;
 
 pub trait MassSystem {
     const H: f64;
@@ -77,31 +73,32 @@ impl MassSystem for Hecklib {
 }
 
 pub trait HasMass {
-    fn mass<M: MassSystem>(&self) -> Mass;
+    fn mass<M: MassSystem>(&self) -> Option<Mass>;
 }
 
-impl<T: HasMass> HasMass for Option<T> {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.as_ref().map_or_else(Mass::zero, HasMass::mass::<M>)
-    }
-}
-impl<T: HasMass, U: HasMass> HasMass for (T, U) {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.0.mass::<M>() + self.1.mass::<M>()
-    }
-}
-impl<T: HasMass> HasMass for (T, isize) {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.0.mass::<M>() * Ratio::new::<r>(self.1 as f64)
-    }
-}
-impl<T: HasMass> HasMass for [T] {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.iter().fold(Mass::zero(), |acc, i| acc + i.mass::<M>())
-    }
-}
-impl<T: HasMass> HasMass for Vec<T> {
-    fn mass<M: MassSystem>(&self) -> Mass {
-        self.iter().fold(Mass::zero(), |acc, i| acc + i.mass::<M>())
-    }
-}
+// impl<T: HasMass> HasMass for Option<T> {
+//     fn mass<M: MassSystem>(&self) -> Option<Mass> {
+//         self.as_ref()
+//             .map_or_else(|| Some(Mass::zero()), HasMass::mass::<M>)
+//     }
+// }
+// impl<T: HasMass, U: HasMass> HasMass for (T, U) {
+//     fn mass<M: MassSystem>(&self) -> Option<Mass> {
+//         self.0.mass::<M>() + self.1.mass::<M>()
+//     }
+// }
+// impl<T: HasMass> HasMass for (T, isize) {
+//     fn mass<M: MassSystem>(&self) -> Option<Mass> {
+//         self.0.mass::<M>() * Ratio::new::<r>(self.1 as f64)
+//     }
+// }
+// impl<T: HasMass> HasMass for [T] {
+//     fn mass<M: MassSystem>(&self) -> Option<Mass> {
+//         self.iter().fold(Mass::zero(), |acc, i| acc + i.mass::<M>())
+//     }
+// }
+// impl<T: HasMass> HasMass for Vec<T> {
+//     fn mass<M: MassSystem>(&self) -> Option<Mass> {
+//         self.iter().fold(Mass::zero(), |acc, i| acc + i.mass::<M>())
+//     }
+// }

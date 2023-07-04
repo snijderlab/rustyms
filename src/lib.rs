@@ -13,14 +13,16 @@
 
 #[cfg(test)]
 mod fragmentation_tests;
+#[macro_use]
+mod formula;
 
 pub mod align;
 mod aminoacids;
 mod element;
-mod formula;
 mod fragment;
 mod glycan;
 mod helper_functions;
+mod isotopes;
 mod mass;
 mod model;
 mod modification;
@@ -33,6 +35,7 @@ mod system;
 
 pub use crate::mass::*;
 
+pub use crate::formula::*;
 pub use crate::fragment::*;
 pub use crate::glycan::*;
 pub use crate::model::*;

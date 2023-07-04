@@ -11,6 +11,8 @@ use std::path::Path;
 
 #[path = "./src/shared/element.rs"]
 mod element;
+#[path = "./src/shared/formula.rs"]
+mod formula;
 #[path = "./src/shared/glycan.rs"]
 mod glycan;
 
@@ -18,6 +20,7 @@ mod glycan;
 mod helper_functions;
 
 use crate::element::*;
+use crate::formula::*;
 use crate::glycan::*;
 use crate::helper_functions::*;
 
@@ -34,6 +37,8 @@ fn main() {
     println!("cargo:rerun-if-changed=databases/unimod.obo");
     println!("cargo:rerun-if-changed=databases/PSI-MOD-newstyle.obo");
     println!("cargo:rerun-if-changed=databases/IUPAC-atomic-masses.csv");
+    println!("cargo:rerun-if-changed=databases/CIAAW-atomic-weights.csv");
+    println!("cargo:rerun-if-changed=databases/CIAAW-isotopic-abundances.csv");
     println!("cargo:rerun-if-changed=build.rs");
     print(out_dir.as_os_str().to_str().unwrap(), debug);
 }
@@ -132,28 +137,31 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
 
 enum Brick {
     Element(Element),
-    Formula(Vec<(Element, isize)>),
+    Formula(MolecularFormula),
     MonoSaccharide(MonoSaccharide),
 }
 
 fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
     match name.to_lowercase().as_str() {
-        "ac" => Ok(Brick::Formula(vec![
-            (Element::O, 1),
-            (Element::C, 2),
-            (Element::H, 2),
-        ])), // TODO: check formula
-        "me" => Ok(Brick::Formula(vec![(Element::C, 1), (Element::H, 2)])),
-        "kdn" => Ok(Brick::Formula(vec![
-            (Element::C, 9),
-            (Element::H, 14),
-            (Element::O, 8),
-        ])),
-        "kdo" => Ok(Brick::Formula(vec![
-            (Element::C, 8),
-            (Element::H, 12),
-            (Element::O, 7),
-        ])),
+        "ac" => Ok(Brick::Formula(MolecularFormula::new(&[
+            (Element::O, 0, 1),
+            (Element::C, 0, 2),
+            (Element::H, 0, 2),
+        ]))), // TODO: check formula
+        "me" => Ok(Brick::Formula(MolecularFormula::new(&[
+            (Element::C, 0, 1),
+            (Element::H, 0, 2),
+        ]))),
+        "kdn" => Ok(Brick::Formula(MolecularFormula::new(&[
+            (Element::C, 0, 9),
+            (Element::H, 0, 14),
+            (Element::O, 0, 8),
+        ]))),
+        "kdo" => Ok(Brick::Formula(MolecularFormula::new(&[
+            (Element::C, 0, 8),
+            (Element::H, 0, 12),
+            (Element::O, 0, 7),
+        ]))),
         _ => {
             if let Ok(el) = Element::try_from(name) {
                 Ok(Brick::Element(el))
@@ -210,7 +218,11 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
                     match parse_named_counter(&line[13..line.len() - 12], ELEMENT_PARSE_LIST, true)
                     {
                         Ok(o) => {
-                            modification.elements = o;
+                            modification.elements = MolecularFormula::new(
+                                &o.into_iter()
+                                    .map(|(e, n)| (e, 0_u16, n as i16))
+                                    .collect::<Vec<_>>(),
+                            );
                             take = true;
                         }
                         Err(_e) => {
@@ -244,8 +256,8 @@ fn print(text: impl AsRef<str>, debug: bool) {
 
 #[derive(Debug, Default)]
 struct OntologyModification {
-    elements: Vec<(Element, isize)>,
-    monosaccharides: Vec<(MonoSaccharide, isize)>,
+    elements: MolecularFormula,
+    monosaccharides: Vec<(MonoSaccharide, i16)>,
     code_name: String,
     full_name: String,
     context: String,
@@ -264,12 +276,10 @@ impl OntologyModification {
                 b'-' => minus = -1,
                 b'(' => (),
                 b')' => {
-                    let num = last_number.parse::<isize>().map_err(|_| ())? * minus;
+                    let num = last_number.parse::<i16>().map_err(|_| ())? * minus;
                     match parse_unimod_composition_brick(last_name.as_str()) {
-                        Ok(Brick::Formula(f)) => self
-                            .elements
-                            .extend(f.into_iter().map(|pair| (pair.0, pair.1 * num))),
-                        Ok(Brick::Element(e)) => self.elements.push((e, num)),
+                        Ok(Brick::Formula(f)) => self.elements += &(f * num),
+                        Ok(Brick::Element(e)) => self.elements.add((e, 0, num)),
                         Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, num)),
                         Err(()) => return Err(()),
                     }
@@ -280,8 +290,8 @@ impl OntologyModification {
                 b' ' => {
                     if !last_name.is_empty() {
                         match parse_unimod_composition_brick(last_name.as_str()) {
-                            Ok(Brick::Formula(f)) => self.elements.extend(f),
-                            Ok(Brick::Element(e)) => self.elements.push((e, 1)),
+                            Ok(Brick::Formula(f)) => self.elements += &f,
+                            Ok(Brick::Element(e)) => self.elements.add((e, 0, 1)),
                             Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                             Err(()) => return Err(()),
                         }
@@ -295,8 +305,8 @@ impl OntologyModification {
         }
         if !last_name.is_empty() {
             match parse_unimod_composition_brick(last_name.as_str()) {
-                Ok(Brick::Formula(f)) => self.elements.extend(f),
-                Ok(Brick::Element(e)) => self.elements.push((e, 1)),
+                Ok(Brick::Formula(f)) => self.elements += &f,
+                Ok(Brick::Element(e)) => self.elements.add((e, 0, 1)),
                 Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                 Err(()) => return Err(()),
             }
@@ -306,7 +316,7 @@ impl OntologyModification {
 
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}], &[{}], \"{}\", \"{}\"))",
+            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&{:?}, &[{}], \"{}\", \"{}\"))",
             self.full_name,
             self.code_name,
             self.rules
@@ -314,22 +324,7 @@ impl OntologyModification {
                 .fold(String::new(), |acc, r| format!("{acc}{r},")),
             self.id,
             self.code_name.to_ascii_lowercase(),
-            self.elements
-                .iter()
-                .filter(|e| e.1 != 0)
-                .fold(String::new(), |acc, e| format!(
-                    "{}(Element::{}, {}),",
-                    acc, e.0, e.1
-                )),
-            self.monosaccharides
-                .iter()
-                .filter(|e| e.1 != 0)
-                .fold(String::new(), |acc, e| format!(
-                    "{}(MonoSaccharide::{}, {}),",
-                    acc,
-                    e.0.to_string().replace('-', "_"),
-                    e.1
-                )),
+            self.monosaccharides.iter().fold(self.elements.clone(), |acc, m| acc + m.0.formula() * m.1),
             self.rules
                 .iter()
                 .fold(String::new(), |acc, e| format!(
@@ -461,25 +456,43 @@ impl OboObject {
     }
 }
 
-fn build_atomic_masses(_out_dir: &OsString, _debug: bool) -> Result<(), String> {
-    let reader =
-        BufReader::new(File::open("databases/IUPAC-atomic-masses.csv").map_err(|e| e.to_string())?);
-    let mut isotopes = Vec::new();
-    // TODO: write output, read isotopic abundances, average weights, and determine normal monoisotopic mass
-    // https://www.degruyter.com/document/doi/10.1515/pac-2019-0603/html#j_pac-2019-0603_tab_001
-
+fn parse_csv(path: &str) -> Result<Vec<Vec<String>>, String> {
+    let reader = BufReader::new(File::open(path).map_err(|e| e.to_string())?);
+    let mut table = Vec::new();
     for line in reader.lines() {
         let line = line.map_err(|e| e.to_string())?.trim_end().to_string();
         if line.is_empty() {
             continue;
-        };
-        let mut split = line.splitn(4, ',');
-        let (nuclide, mass, _uncertainty, year) = (
-            split.next().unwrap(),
-            split.next().unwrap(),
-            split.next().unwrap(),
-            split.next().unwrap(),
-        );
+        }
+        let mut enclosed = None;
+        let mut row = Vec::new();
+        let mut cell = String::new();
+        for ch in line.chars() {
+            match (ch, enclosed) {
+                ('\"', None) | ('\'', None) => enclosed = Some(ch),
+                (c, Some(e)) if c == e => enclosed = None,
+                (',', None) => {
+                    row.push(cell.trim().to_string());
+                    cell.clear();
+                }
+                _ => cell.push(ch),
+            }
+        }
+        row.push(cell.trim().to_string());
+        table.push(row);
+    }
+    Ok(table)
+}
+
+fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), String> {
+    let mut atomic_weights = vec![None; 118];
+    let mut isotopic_abundances = vec![Vec::new(); 118];
+    let mut atomic_masses = vec![Vec::new(); 118];
+    // TODO: write output, read isotopic abundances, average weights, and determine normal monoisotopic mass
+
+    let table = parse_csv("databases/IUPAC-atomic-masses.csv")?;
+    for line in table {
+        let (nuclide, mass, _uncertainty, year) = (&line[0], &line[1], &line[2], &line[3]);
         if nuclide.starts_with("AME")
             || nuclide.is_empty()
             || nuclide == "nuclide"
@@ -496,8 +509,122 @@ fn build_atomic_masses(_out_dir: &OsString, _debug: bool) -> Result<(), String> 
             format!("Not a valid isotope+element, could not recognise element: {nuclide}")
         })?;
         let mass = mass.parse::<f64>().map_err(|e| e.to_string())?;
-        isotopes.push((element, isotope, mass))
+        atomic_masses[element as usize - 1].push((isotope, mass))
     }
 
+    let mut last_element = 0;
+    let table = parse_csv("databases/CIAAW-isotopic-abundances.csv")?;
+    for line in table {
+        let (element, _element, _name, isotope, abundance, _note) =
+            (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5]);
+        let mut abundance = abundance.to_owned();
+        abundance.retain(|c| !c.is_whitespace()); // Remove any whitespace, including any sneaking non breaking spaces
+        if element == "Z" || isotope.starts_with("[") || abundance == "-" {
+            continue;
+        }
+
+        let element = if element.is_empty() {
+            last_element
+        } else {
+            last_element = element
+                .parse::<usize>()
+                .map_err(|_| format!("Not a valid number for element Z: {element}"))?;
+            last_element
+        };
+
+        let isotope = isotope.parse::<usize>().unwrap();
+
+        isotopic_abundances[element - 1].push((isotope, get_ciaaw_number(&abundance)?))
+    }
+
+    let table = parse_csv("databases/CIAAW-atomic-weights.csv")?;
+    for line in table {
+        let (element, weight) = (&line[0], &line[3]);
+        let mut weight = weight.to_owned();
+        weight.retain(|c| !c.is_whitespace()); // Remove any whitespace, including any sneaking non breaking spaces
+        if element == "Z" || weight == "—" {
+            continue;
+        }
+        let element = element
+            .parse::<usize>()
+            .map_err(|_| format!("Not valid element number (not a number): {element}"))?;
+        atomic_weights[element - 1] = Some(get_ciaaw_number(&weight)?);
+    }
+
+    // Monoisotopic, average weight, isotopes: (num, mass, abundance)
+    let combined_data = isotopic_abundances
+        .into_iter()
+        .zip(atomic_masses)
+        .zip(atomic_weights)
+        .map(|((isotopic_abundance, isotopic_mass), atomic_weight)| {
+            let isotopes = isotopic_mass
+                .iter()
+                .map(|(i, m)| {
+                    (
+                        *i,
+                        *m,
+                        isotopic_abundance
+                            .iter()
+                            .find(|(ai, _)| ai == i)
+                            .map(|(_, a)| *a)
+                            .unwrap_or(0.0),
+                    )
+                })
+                .collect::<Vec<_>>();
+            (
+                isotopes
+                    .iter()
+                    .fold(
+                        (None, 0.0),
+                        |acc, (_, m, a)| if *a > acc.1 { (Some(*m), *a) } else { acc },
+                    )
+                    .0,
+                atomic_weight,
+                isotopes,
+            )
+        });
+
+    let dest_path = Path::new(&out_dir).join("elements.rs");
+    fs::write(
+        dest_path,
+        format!(
+            "pub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &[
+                {}
+                ];",
+            combined_data.fold(String::new(), |acc, element| format!(
+                "{}\n({:?}, {:?}, &[{}]),",
+                acc,
+                element.0,
+                element.1,
+                element.2.iter().fold(String::new(), |acc, i| format!(
+                    "{}({},{:.1},{:.1}),",
+                    acc, i.0, i.1, i.2
+                ))
+            ))
+        ),
+    )
+    .unwrap();
+
     Ok(())
+}
+
+fn get_ciaaw_number(text: &str) -> Result<f64, String> {
+    let parse = |t: &str| {
+        t.parse::<f64>()
+            .map_err(|_| format!("Not a valid number: {t}"))
+    };
+    if text.starts_with('[') {
+        let (low, high) = text[1..text.len() - 1]
+            .split_once(',')
+            .ok_or(format!("Not a valid range: {text}"))?;
+        Ok((parse(low)? + parse(high)?) / 2.0)
+    } else if text.ends_with(')') {
+        Ok(parse(
+            text.split_once('(')
+                .ok_or(format!("Not valid error indication: {text}"))?
+                .0,
+        )?)
+    } else {
+        Ok(parse(text)?)
+    }
 }

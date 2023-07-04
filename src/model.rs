@@ -3,9 +3,9 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    da,
+    element::Element,
+    formula::{Chemical, MolecularFormula},
     system::{f64::MassOverCharge, mass_over_charge::mz},
-    HasMass,
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -227,12 +227,12 @@ pub enum NeutralLoss {
     CarbonMonoxide,
 }
 
-impl HasMass for NeutralLoss {
-    fn mass<M: crate::MassSystem>(&self) -> crate::Mass {
+impl Chemical for NeutralLoss {
+    fn formula(&self) -> crate::formula::MolecularFormula {
         match self {
-            Self::Water => da(M::OH + M::H),
-            Self::Ammonia => da(M::NH3),
-            Self::CarbonMonoxide => da(M::CO),
+            Self::Water => molecular_formula!(O 1 H 2),
+            Self::Ammonia => molecular_formula!(N 1 H 3),
+            Self::CarbonMonoxide => molecular_formula!(C 1 O 1),
         }
     }
 }

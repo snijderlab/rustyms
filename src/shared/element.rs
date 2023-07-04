@@ -236,6 +236,10 @@ pub enum Element {
     Ts,
     /// Element Oganesson (Og) atomic number: 118
     Og,
+    /// Not necessarily an element but handy to have: Proton
+    // Proton,
+    /// Not necessarily an element but handy to have: electron
+    Electron,
 }
 
 impl TryFrom<&str> for Element {
@@ -491,6 +495,8 @@ impl std::fmt::Display for Element {
                 Self::Lv => "Lv",
                 Self::Ts => "Ts",
                 Self::Og => "Og",
+                // Self::Proton => "Proton",
+                Self::Electron => "e",
             }
         )
     }

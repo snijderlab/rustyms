@@ -9,7 +9,7 @@ use crate::{
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
-    HasMass, Mass, MassSystem, MonoSaccharide,
+    Chemical, Mass, MolecularFormula, MonoSaccharide,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -17,26 +17,27 @@ pub enum Modification {
     /// Monoisotopic mass shift
     Mass(Mass),
     #[allow(non_snake_case)]
-    Formula(Vec<(Element, isize)>),
+    Formula(MolecularFormula),
     Glycan(Vec<(MonoSaccharide, isize)>),
     Predefined(
-        &'static [(Element, isize)],
-        &'static [(MonoSaccharide, isize)],
+        &'static MolecularFormula,
         &'static [PlacementRule],
         &'static str, // Context
         &'static str, // Name
     ),
 }
 
-impl HasMass for Modification {
-    fn mass<M: MassSystem>(&self) -> Mass {
+impl Chemical for Modification {
+    fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Mass(m) => *m,
-            Self::Formula(elements) => elements.mass::<M>(),
-            Self::Glycan(monosaccharides) => monosaccharides.mass::<M>(),
-            Self::Predefined(elements, monosaccharides, _, _, _) => {
-                elements.mass::<M>() + monosaccharides.mass::<M>()
-            }
+            Self::Mass(m) => *m, // TODO: how to handle single monoisotopic shifts
+            Self::Formula(elements) => elements.clone(),
+            Self::Glycan(monosaccharides) => monosaccharides
+                .iter()
+                .fold(MolecularFormula::default(), |acc, i| {
+                    acc + i.0.formula() * i.1
+                }),
+            Self::Predefined(formula, _, _, _) => formula.clone(),
         }
     }
 }
