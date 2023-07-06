@@ -1,4 +1,4 @@
-use crate::{dalton, element::Element, r, Mass, MolecularFormula, Ratio};
+use crate::{da, dalton, element::Element, r, Mass, MolecularFormula, Ratio};
 use statrs::distribution::{Binomial, Discrete};
 use std::collections::HashMap;
 
@@ -16,7 +16,7 @@ impl MolecularFormula {
         let c = Element::C.isotopes();
         let n = Element::N.isotopes();
         let o = Element::O.isotopes();
-        let additional_mass: Mass = self
+        let additional_mass: MolecularFormula = self
             .elements()
             .iter()
             .filter(|i| {
@@ -27,9 +27,10 @@ impl MolecularFormula {
                         && i.0 != Element::O)
             })
             .fold(Some(MolecularFormula::default()), |acc, s| {
-                s.0.mass(s.1)
-                    .zip(acc)
-                    .map(|(m, a)| a + m * Ratio::new::<r>(f64::from(s.2)))
+                acc.map(|mut a| {
+                    a.add(*s);
+                    a
+                })
             })?;
         let mut isotopes = Vec::new();
         let present_h = self
@@ -84,19 +85,19 @@ impl MolecularFormula {
                                 continue;
                             }
                             // Do the calc
-                            let mass = Mass::new::<dalton>(
-                                f64::from(present_h - num_h) * h[0].1
-                                    + f64::from(num_h) * h[1].1
-                                    + f64::from(present_c - num_c) * c[0].1
-                                    + f64::from(num_c) * c[1].1
-                                    + f64::from(present_n - num_n) * n[0].1
-                                    + f64::from(num_n) * n[1].1
-                                    + f64::from(present_o - num_o_1 - num_o_2) * o[0].1
-                                    + f64::from(num_o_1) * o[1].1
-                                    + f64::from(num_o_2) * o[2].1,
-                            );
+                            let formula = MolecularFormula::new(&[
+                                (Element::H, 1, present_h - num_h),
+                                (Element::H, 2, num_h),
+                                (Element::C, 12, present_c - num_c),
+                                (Element::C, 13, num_c),
+                                (Element::N, 14, present_n - num_n),
+                                (Element::N, 15, num_n),
+                                (Element::O, 16, present_o - num_o_1 - num_o_2),
+                                (Element::O, 17, num_o_1),
+                                (Element::O, 18, num_o_2),
+                            ]);
                             isotopes.push((
-                                mass + additional_mass,
+                                formula + additional_mass,
                                 chance,
                                 format!("[2H{num_h}][13C{num_c}][15N{num_n}][17O{num_o_1}][18O{num_o_2}]"),
                             ));
@@ -112,34 +113,30 @@ impl MolecularFormula {
 
 fn combined_pattern(
     isotopes: &[(MolecularFormula, f64, String)],
-) -> Vec<(MolecularFormula, f64, usize, String)> {
-    let mut combined: Vec<(MolecularFormula, f64, usize, String)> = Vec::new();
+) -> Vec<(Mass, f64, usize, String)> {
+    let mut combined: Vec<(Mass, f64, usize, String)> = Vec::new();
 
     for isotope in isotopes {
+        let isotope_mass = isotope.0.monoisotopic_mass().unwrap().value.round();
         if let Some(entry) = combined
             .iter_mut()
-            .find(|i| (i.0.value - isotope.0.value.round()).abs() < f64::EPSILON)
+            .find(|i| (i.0.value - isotope_mass).abs() < f64::EPSILON)
         {
             entry.1 += isotope.1;
             entry.2 += 1;
             entry.3 += &format!(",{}", isotope.2);
         } else {
-            combined.push((
-                Mass::new::<dalton>(isotope.0.value.round()),
-                isotope.1,
-                1,
-                isotope.2.clone(),
-            ));
+            combined.push((da(isotope_mass), isotope.1, 1, isotope.2.clone()));
         }
     }
     combined.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     combined
 }
 
-fn binom(tries: u16, total: u16, p: f64) -> f64 {
-    Binomial::new(p, u64::from(total))
+fn binom(tries: i16, total: i16, p: f64) -> f64 {
+    Binomial::new(p, u64::from(total as u16))
         .unwrap()
-        .pmf(u64::from(tries))
+        .pmf(u64::from(tries as u16))
     //memoized_f64_factorial(total, cache)
     //    / (memoized_f64_factorial(tries, cache) * memoized_f64_factorial(total - tries, cache))
     //    * p.powi(tries as i32)
@@ -218,7 +215,7 @@ mod tests {
         let mut writer = BufWriter::new(file_handler);
         writeln!(writer, "Name\tMass\tProbability").unwrap();
         for isotope in &isotopes {
-            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0.value, isotope.1).unwrap();
+            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
         }
         let combined = combined_pattern(&isotopes);
         save_combinations(&combined, "target/spike_combined_all.tsv");
@@ -275,7 +272,7 @@ mod tests {
         let mut writer = BufWriter::new(file_handler);
         writeln!(writer, "Name\tMass\tProbability").unwrap();
         for isotope in &isotopes {
-            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0.value, isotope.1).unwrap();
+            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
         }
         let combined = combined_pattern(&isotopes);
         save_combinations(&combined, "target/herceptin_combined_all.tsv");

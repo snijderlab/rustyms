@@ -30,14 +30,14 @@ pub enum Modification {
 impl Chemical for Modification {
     fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Mass(m) => *m, // TODO: how to handle single monoisotopic shifts
+            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value), // TODO: how to handle single monoisotopic shifts
             Self::Formula(elements) => elements.clone(),
             Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula() * i.1 as i16
                 }),
-            Self::Predefined(formula, _, _, _) => formula.clone(),
+            Self::Predefined(formula, _, _, _) => (*formula).clone(),
         }
     }
 }

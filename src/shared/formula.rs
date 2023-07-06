@@ -1,8 +1,9 @@
 use crate::Element;
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MolecularFormula {
     // Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     elements: Vec<(crate::Element, u16, i16)>,
+    additional_mass: f64,
 }
 
 pub trait Chemical {
@@ -21,7 +22,17 @@ impl MolecularFormula {
                 a.0.cmp(&b.0)
             }
         });
-        MolecularFormula { elements }
+        MolecularFormula {
+            elements,
+            additional_mass: 0.0,
+        }
+    }
+
+    pub fn with_additional_mass(additional_mass: f64) -> Self {
+        MolecularFormula {
+            elements: Vec::new(),
+            additional_mass,
+        }
     }
 
     pub fn add(&mut self, element: (crate::Element, u16, i16)) {
@@ -57,6 +68,7 @@ impl std::ops::Add<&MolecularFormula> for &MolecularFormula {
         let mut result = (*self).clone();
         let mut index_result = 0;
         let mut index_rhs = 0;
+        result.additional_mass += rhs.additional_mass;
         while index_rhs < rhs.elements.len() {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_result < result.elements.len() {
@@ -92,6 +104,7 @@ impl std::ops::Sub<&MolecularFormula> for &MolecularFormula {
         let mut result = (*self).clone();
         let mut index_result = 0;
         let mut index_rhs = 0;
+        result.additional_mass -= rhs.additional_mass;
         while index_rhs < rhs.elements.len() {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_result < result.elements.len() {
@@ -124,6 +137,7 @@ impl std::ops::Sub<MolecularFormula> for MolecularFormula {
 impl std::ops::Mul<i16> for MolecularFormula {
     type Output = MolecularFormula;
     fn mul(mut self, rhs: i16) -> Self::Output {
+        self.additional_mass *= rhs as f64;
         self.elements.iter_mut().for_each(|part| part.2 *= rhs);
         self
     }
@@ -133,6 +147,7 @@ impl std::ops::AddAssign<&MolecularFormula> for MolecularFormula {
     fn add_assign(&mut self, rhs: &MolecularFormula) {
         let mut index_self = 0;
         let mut index_rhs = 0;
+        self.additional_mass += rhs.additional_mass;
         while index_rhs < rhs.elements.len() {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_self < self.elements.len() {
