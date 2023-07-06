@@ -1,3 +1,4 @@
+use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 pub trait ResultExtensions<T, E> {
     fn flat_err(self) -> Result<T, E>;
 }
@@ -62,4 +63,91 @@ pub fn parse_named_counter<T: Copy>(
         }
     }
     Ok(output)
+}
+
+// PSI-MOD: (12)C -5 (13)C 5 H 0 N 0 O 0 S 0
+pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, String> {
+    let mut index = 0;
+    let mut isotope = 0;
+    let mut element = None;
+    let bytes = value.as_bytes();
+    let mut result = MolecularFormula::default();
+    while index < value.len() {
+        match bytes[index] {
+            b'(' if isotope == 0 => {
+                let len = bytes
+                    .iter()
+                    .skip(index)
+                    .position(|c| *c == b')')
+                    .ok_or(format!(
+                        "No closing round bracket for round bracket at index: {index}"
+                    ))?;
+                isotope = value[index + 1..index + len]
+                    .parse::<u16>()
+                    .map_err(|e| e.to_string())?;
+                index += len;
+            }
+            b'-' | b'0'..=b'9' if element.is_some() => {
+                let (num, len) = std::str::from_utf8(
+                    &bytes
+                        .iter()
+                        .skip(index)
+                        .take_while(|c| c.is_ascii_digit() || **c == b'-')
+                        .copied()
+                        .collect::<Vec<_>>(),
+                )
+                .map(|v| (v.parse::<i16>().map_err(|e| e.to_string()), v.len()))
+                .map_err(|e| e.to_string())?;
+                let num = num?;
+                if num != 0 {
+                    result.add((element.unwrap(), isotope, num));
+                }
+                element = None;
+                isotope = 0;
+                index += len;
+            }
+            b' ' => index += 1,
+            _ => {
+                let mut found = false;
+                for possible in ELEMENT_PARSE_LIST {
+                    if value[index..].starts_with(possible.0) {
+                        element = Some(possible.1);
+                        index += possible.0.len();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return Err(format!(
+                        "Could not parse PSI-MOD elemental formula, broke down at index: {index}"
+                    ));
+                }
+            }
+        }
+    }
+    if isotope != 0 || element.is_some() {
+        Err("Last element missed a count".to_string())
+    } else {
+        Ok(result)
+    }
+}
+
+// ProForma: [13C2][12C-2]H2N
+pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula, String> {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Element;
+    use crate::MolecularFormula;
+
+    #[test]
+    fn simple_formulae() {
+        assert_eq!(
+            parse_molecular_formula_psi_mod("(12)C -5 (13)C 5 H 0 N 0 O 0 S 0").unwrap(),
+            molecular_formula!((12)C -5 (13)C 5 H 0 N 0 O 0 S 0)
+        )
+    }
 }

@@ -217,14 +217,9 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
-                    match parse_named_counter(&line[13..line.len() - 12], ELEMENT_PARSE_LIST, true)
-                    {
+                    match parse_molecular_formula_psi_mod(&line[13..line.len() - 12]) {
                         Ok(o) => {
-                            modification.elements = MolecularFormula::new(
-                                &o.into_iter()
-                                    .map(|(e, n)| (e, 0_u16, n as i16))
-                                    .collect::<Vec<_>>(),
-                            );
+                            modification.elements = o;
                             take = true;
                         }
                         Err(_e) => {

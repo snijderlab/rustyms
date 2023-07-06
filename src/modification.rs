@@ -131,11 +131,9 @@ fn parse_single_modification(
                     .flat_err()
                     .map(Some)
                     .map_err(|_| format!("Not a valid PSI-MOD modification: {tail}")),
-                ("formula", tail) => Ok(Some(Modification::Formula(parse_named_counter(
-                    tail,
-                    ELEMENT_PARSE_LIST,
-                    true,
-                )?))),
+                ("formula", tail) => Ok(Some(Modification::Formula(
+                    parse_molecular_formula_pro_forma(tail)?,
+                ))),
                 ("glycan", tail) => Ok(Some(Modification::Glycan(parse_named_counter(
                     tail,
                     crate::GLYCAN_PARSE_LIST,
