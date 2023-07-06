@@ -1,4 +1,5 @@
 use crate::Element;
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MolecularFormula {
     // Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
@@ -14,6 +15,7 @@ impl MolecularFormula {
     /// Create a new molecular formula, the elements will be sorted on element/isotope but not deduplicated.
     pub fn new(elements: &[(crate::Element, u16, i16)]) -> Self {
         let mut elements = elements.to_vec();
+        elements.retain(|e| e.2 != 0);
         elements.sort_by(|a, b| {
             if a.0 == b.0 {
                 // If the elements are the same sort on the isotope number
@@ -22,14 +24,14 @@ impl MolecularFormula {
                 a.0.cmp(&b.0)
             }
         });
-        MolecularFormula {
+        Self {
             elements,
             additional_mass: 0.0,
         }
     }
 
-    pub fn with_additional_mass(additional_mass: f64) -> Self {
-        MolecularFormula {
+    pub const fn with_additional_mass(additional_mass: f64) -> Self {
+        Self {
             elements: Vec::new(),
             additional_mass,
         }
@@ -42,7 +44,7 @@ impl MolecularFormula {
         while !done {
             let base = self.elements.get(index).copied();
             if let Some((re, ri, _)) = base {
-                if e < re || (e == re && i < ri) {
+                if e > re || (e == re && i > ri) {
                     index += 1;
                 } else if e == re && i == ri {
                     self.elements[index].2 += n;
@@ -53,6 +55,7 @@ impl MolecularFormula {
                 }
             } else {
                 self.elements.push((e, i, n));
+                done = true;
             }
         }
     }
@@ -69,11 +72,12 @@ impl std::ops::Add<&MolecularFormula> for &MolecularFormula {
         let mut index_result = 0;
         let mut index_rhs = 0;
         result.additional_mass += rhs.additional_mass;
+
         while index_rhs < rhs.elements.len() {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_result < result.elements.len() {
                 let (re, ri, _) = result.elements[index_result];
-                if e < re || (e == re && i < ri) {
+                if e > re || (e == re && i > ri) {
                     index_result += 1;
                 } else if e == re && i == ri {
                     result.elements[index_result].2 += n;
@@ -91,9 +95,9 @@ impl std::ops::Add<&MolecularFormula> for &MolecularFormula {
     }
 }
 
-impl std::ops::Add<MolecularFormula> for MolecularFormula {
-    type Output = MolecularFormula;
-    fn add(self, rhs: MolecularFormula) -> Self::Output {
+impl std::ops::Add<Self> for MolecularFormula {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
         &self + &rhs
     }
 }
@@ -109,7 +113,7 @@ impl std::ops::Sub<&MolecularFormula> for &MolecularFormula {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_result < result.elements.len() {
                 let (re, ri, _) = result.elements[index_result];
-                if e < re || (e == re && i < ri) {
+                if e > re || (e == re && i > ri) {
                     index_result += 1;
                 } else if e == re && i == ri {
                     result.elements[index_result].2 -= n;
@@ -119,7 +123,7 @@ impl std::ops::Sub<&MolecularFormula> for &MolecularFormula {
                     index_rhs += 1;
                 }
             } else {
-                result.elements.push((e, i, n));
+                result.elements.push((e, i, -n));
                 index_rhs += 1;
             }
         }
@@ -127,24 +131,24 @@ impl std::ops::Sub<&MolecularFormula> for &MolecularFormula {
     }
 }
 
-impl std::ops::Sub<MolecularFormula> for MolecularFormula {
-    type Output = MolecularFormula;
-    fn sub(self, rhs: MolecularFormula) -> Self::Output {
+impl std::ops::Sub<Self> for MolecularFormula {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
         &self - &rhs
     }
 }
 
 impl std::ops::Mul<i16> for MolecularFormula {
-    type Output = MolecularFormula;
+    type Output = Self;
     fn mul(mut self, rhs: i16) -> Self::Output {
-        self.additional_mass *= rhs as f64;
+        self.additional_mass *= f64::from(rhs);
         self.elements.iter_mut().for_each(|part| part.2 *= rhs);
         self
     }
 }
 
-impl std::ops::AddAssign<&MolecularFormula> for MolecularFormula {
-    fn add_assign(&mut self, rhs: &MolecularFormula) {
+impl std::ops::AddAssign<&Self> for MolecularFormula {
+    fn add_assign(&mut self, rhs: &Self) {
         let mut index_self = 0;
         let mut index_rhs = 0;
         self.additional_mass += rhs.additional_mass;
@@ -152,7 +156,7 @@ impl std::ops::AddAssign<&MolecularFormula> for MolecularFormula {
             let (e, i, n) = rhs.elements[index_rhs];
             if index_self < self.elements.len() {
                 let (re, ri, _) = self.elements[index_self];
-                if e < re || (e == re && i < ri) {
+                if e > re || (e == re && i > ri) {
                     index_self += 1;
                 } else if e == re && i == ri {
                     self.elements[index_self].2 += n;
@@ -169,15 +173,15 @@ impl std::ops::AddAssign<&MolecularFormula> for MolecularFormula {
     }
 }
 
-impl std::ops::AddAssign<MolecularFormula> for MolecularFormula {
-    fn add_assign(&mut self, rhs: MolecularFormula) {
+impl std::ops::AddAssign<Self> for MolecularFormula {
+    fn add_assign(&mut self, rhs: Self) {
         *self += &rhs;
     }
 }
 
-impl std::iter::Sum<MolecularFormula> for MolecularFormula {
-    fn sum<I: Iterator<Item = MolecularFormula>>(iter: I) -> Self {
-        let mut res = MolecularFormula::default();
+impl std::iter::Sum<Self> for MolecularFormula {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        let mut res = Self::default();
         iter.for_each(|v| res += v);
         res
     }

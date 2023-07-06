@@ -5,11 +5,10 @@ use uom::num_traits::Zero;
 
 use crate::{
     dalton,
-    element::{Element, ELEMENT_PARSE_LIST},
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
-    Chemical, Mass, MolecularFormula, MonoSaccharide,
+    Chemical, Element, Mass, MolecularFormula, MonoSaccharide,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +19,7 @@ pub enum Modification {
     Formula(MolecularFormula),
     Glycan(Vec<(MonoSaccharide, isize)>),
     Predefined(
-        &'static MolecularFormula,
+        &'static [(Element, u16, i16)],
         &'static [PlacementRule],
         &'static str, // Context
         &'static str, // Name
@@ -37,7 +36,7 @@ impl Chemical for Modification {
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula() * i.1 as i16
                 }),
-            Self::Predefined(formula, _, _, _) => (*formula).clone(),
+            Self::Predefined(formula, _, _, _) => MolecularFormula::new(formula),
         }
     }
 }

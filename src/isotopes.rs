@@ -1,4 +1,4 @@
-use crate::{da, dalton, element::Element, r, Mass, MolecularFormula, Ratio};
+use crate::{da, element::Element, Mass, MolecularFormula};
 use statrs::distribution::{Binomial, Discrete};
 use std::collections::HashMap;
 
@@ -11,12 +11,12 @@ impl MolecularFormula {
         use_c: bool,
         use_n: bool,
         use_o: bool,
-    ) -> Option<Vec<(MolecularFormula, f64, String)>> {
+    ) -> Option<Vec<(Self, f64, String)>> {
         let h = Element::H.isotopes();
         let c = Element::C.isotopes();
         let n = Element::N.isotopes();
         let o = Element::O.isotopes();
-        let additional_mass: MolecularFormula = self
+        let additional_mass: Self = self
             .elements()
             .iter()
             .filter(|i| {
@@ -26,7 +26,7 @@ impl MolecularFormula {
                         && i.0 != Element::N
                         && i.0 != Element::O)
             })
-            .fold(Some(MolecularFormula::default()), |acc, s| {
+            .fold(Some(Self::default()), |acc, s| {
                 acc.map(|mut a| {
                     a.add(*s);
                     a
@@ -85,7 +85,7 @@ impl MolecularFormula {
                                 continue;
                             }
                             // Do the calc
-                            let formula = MolecularFormula::new(&[
+                            let formula = Self::new(&[
                                 (Element::H, 1, present_h - num_h),
                                 (Element::H, 2, num_h),
                                 (Element::C, 12, present_c - num_c),
@@ -97,7 +97,7 @@ impl MolecularFormula {
                                 (Element::O, 18, num_o_2),
                             ]);
                             isotopes.push((
-                                formula + additional_mass,
+                                &formula + &additional_mass,
                                 chance,
                                 format!("[2H{num_h}][13C{num_c}][15N{num_n}][17O{num_o_1}][18O{num_o_2}]"),
                             ));

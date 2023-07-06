@@ -1,8 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{
-    model::NeutralLoss, system::f64::*, Chemical, Element, HasMass, MassSystem, MolecularFormula,
-};
+use crate::{model::NeutralLoss, system::f64::*, Chemical, Element, MolecularFormula};
 
 #[derive(Debug, Clone)]
 pub struct Fragment {
@@ -38,7 +36,7 @@ impl Fragment {
     pub fn with_charge(&self, charge: Charge) -> Self {
         let c = charge.value as i16;
         Self {
-            theoretical_mass: self.theoretical_mass + molecular_formula!(H c)
+            theoretical_mass: &self.theoretical_mass + &molecular_formula!(H c)
                 - molecular_formula!(Electron c),
             charge,
             ..self.clone()
@@ -48,7 +46,7 @@ impl Fragment {
     #[must_use]
     pub fn with_neutral_loss(&self, neutral_loss: &NeutralLoss) -> Self {
         Self {
-            theoretical_mass: self.theoretical_mass - neutral_loss.formula(),
+            theoretical_mass: &self.theoretical_mass - &neutral_loss.formula(),
             neutral_loss: Some(*neutral_loss),
             ..self.clone()
         }
@@ -179,7 +177,7 @@ mod tests {
         assert_eq!(a.theoretical_mass, loss[0].theoretical_mass);
         assert_eq!(
             a.theoretical_mass,
-            loss[1].theoretical_mass + NeutralLoss::Water.formula()
+            &loss[1].theoretical_mass + &NeutralLoss::Water.formula()
         );
     }
 }

@@ -90,8 +90,7 @@ impl Chemical for AminoAcid {
     fn formula(&self) -> MolecularFormula {
         match self {
             Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1),
-            Self::AmbiguousLeucine => molecular_formula!(H 11 C 6 O 1 N 1),
-            Self::Arginine => molecular_formula!(H 12 C 4 O 1 N 4), // One of the H's counts as the charge carrier and is added later
+            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4), // One of the H's counts as the charge carrier and is added later
             Self::AmbiguousAsparagine => {
                 panic!("Molecular formula of Asx/B ambiguous asparagine is not defined.")
             }
@@ -99,14 +98,15 @@ impl Chemical for AminoAcid {
             Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1),
             Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1),
             Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1),
-            Self::Glutamine => molecular_formula!(H 6 C 5 O 2 N 2),
+            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2),
             Self::AmbiguousGlutamine => {
                 panic!("Molecular formula of Glx/Z ambiguous glutamine is not defined.")
             }
             Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1),
             Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3),
-            Self::Isoleucine => molecular_formula!(H 11 C 6 O 1 N 1),
-            Self::Leucine => molecular_formula!(H 11 C 6 O 1 N 1),
+            Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
+                molecular_formula!(H 11 C 6 O 1 N 1)
+            }
             Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2),
             Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1),
             Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1),
@@ -117,7 +117,7 @@ impl Chemical for AminoAcid {
             Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1),
             Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2),
             Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1),
-            Self::Valine => molecular_formula!(H 9 C 6 O 1 N 1),
+            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1),
             Self::Unknown => molecular_formula!(),
         }
     }
@@ -227,7 +227,7 @@ impl AminoAcid {
         if ions.a.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.formula() - molecular_formula!(H 1 C 1 O 1),
+                    &modifications + &n_term.0 + self.formula() - molecular_formula!(H 1 C 1 O 1),
                     Charge::zero(),
                     FragmentType::a(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
@@ -238,7 +238,7 @@ impl AminoAcid {
         if ions.b.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.formula() - molecular_formula!(H 1),
+                    &modifications + &n_term.0 + self.formula() - molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::b(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
@@ -249,7 +249,7 @@ impl AminoAcid {
         if ions.c.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + n_term.0 + self.formula() + molecular_formula!(H 2 N 1),
+                    &modifications + &n_term.0 + self.formula() + molecular_formula!(H 2 N 1),
                     Charge::zero(),
                     FragmentType::c(Position::n(sequence_index, sequence_length)),
                     n_term.1.clone(),
@@ -261,7 +261,7 @@ impl AminoAcid {
             for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(
                     Fragment::new(
-                        modifications + n_term.0 + self.formula()
+                        &modifications + &n_term.0 + self.formula()
                             - satellite
                             - molecular_formula!(H 1 C 1 O 1),
                         Charge::zero(),
@@ -275,7 +275,7 @@ impl AminoAcid {
         if ions.v.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
+                    &modifications + &c_term.0 + molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
                     Charge::zero(),
                     FragmentType::v(Position::n(sequence_index, sequence_length)),
                     c_term.1.clone(),
@@ -287,7 +287,7 @@ impl AminoAcid {
             for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(
                     Fragment::new(
-                        modifications + c_term.0 + self.formula()
+                        &modifications + &c_term.0 + self.formula()
                             - satellite
                             - molecular_formula!(H 2 N 1),
                         Charge::zero(),
@@ -301,7 +301,7 @@ impl AminoAcid {
         if ions.x.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.formula() + molecular_formula!(C 1 O 1)
+                    &modifications + &c_term.0 + self.formula() + molecular_formula!(C 1 O 1)
                         - molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::x(Position::c(sequence_index, sequence_length)),
@@ -313,7 +313,7 @@ impl AminoAcid {
         if ions.y.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.formula() + molecular_formula!(H 1),
+                    &modifications + &c_term.0 + self.formula() + molecular_formula!(H 1),
                     Charge::zero(),
                     FragmentType::y(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
@@ -324,7 +324,7 @@ impl AminoAcid {
         if ions.z.0 {
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.formula() - molecular_formula!(H 2 N 1),
+                    &modifications + &c_term.0 + self.formula() - molecular_formula!(H 2 N 1),
                     Charge::zero(),
                     FragmentType::z(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
@@ -333,7 +333,7 @@ impl AminoAcid {
             );
             base_fragments.extend(
                 Fragment::new(
-                    modifications + c_term.0 + self.formula() - molecular_formula!(H 1 N 1),
+                    &modifications + &c_term.0 + self.formula() - molecular_formula!(H 1 N 1),
                     Charge::zero(),
                     FragmentType::z·(Position::c(sequence_index, sequence_length)),
                     c_term.1.clone(),
@@ -392,8 +392,8 @@ mod tests {
         let weight_ala = AminoAcid::A.formula().average_weight().unwrap();
         let mass_ala = AminoAcid::Ala.formula().monoisotopic_mass().unwrap();
         assert_ne!(weight_ala, mass_ala);
-        assert_eq!(weight_ala.value, 71.07793);
-        assert_eq!(mass_ala.value, 71.037113783);
+        assert!((weight_ala.value - 71.07793).abs() < 1e-5);
+        assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
     }
 
     #[test]
@@ -401,8 +401,8 @@ mod tests {
         let weight_lys = AminoAcid::K.formula().average_weight().unwrap();
         let mass_lys = AminoAcid::Lys.formula().monoisotopic_mass().unwrap();
         assert_ne!(weight_lys, mass_lys);
-        assert_eq!(weight_lys.value, 128.17240999999999);
-        assert_eq!(mass_lys.value, 128.094963010536);
+        assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
+        assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
     }
 
     #[test]
@@ -444,8 +444,8 @@ mod tests {
                 weight,
                 average_weight
             );
-            assert!((mono - *mono_mass).abs() < 0.00001);
-            assert!((weight - *average_weight).abs() < 0.1);
+            assert!((mono - *mono_mass).abs() < 1e-5);
+            assert!((weight - *average_weight).abs() < 1e-1);
         }
     }
 

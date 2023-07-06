@@ -23,7 +23,6 @@ mod fragment;
 mod glycan;
 mod helper_functions;
 mod isotopes;
-mod mass;
 mod model;
 mod modification;
 mod ontologies;
@@ -32,8 +31,6 @@ mod placement_rules;
 pub mod rawfile;
 mod spectrum;
 mod system;
-
-pub use crate::mass::*;
 
 pub use crate::element::*;
 pub use crate::formula::*;

@@ -313,7 +313,7 @@ impl OntologyModification {
 
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&MolecularFormula::new(&[{}]), &[{}], \"{}\", \"{}\"))",
+            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}], \"{}\", \"{}\"))",
             self.full_name,
             self.code_name,
             self.rules

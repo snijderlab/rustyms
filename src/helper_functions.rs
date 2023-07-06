@@ -85,7 +85,7 @@ pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, 
                 isotope = value[index + 1..index + len]
                     .parse::<u16>()
                     .map_err(|e| e.to_string())?;
-                index += len;
+                index += len + 1;
             }
             b'-' | b'0'..=b'9' if element.is_some() => {
                 let (num, len) = std::str::from_utf8(

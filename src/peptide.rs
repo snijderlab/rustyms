@@ -2,6 +2,7 @@
 
 use std::{fmt::Display, ops::RangeBounds};
 
+use crate::{Element, MolecularFormula};
 use itertools::Itertools;
 use uom::num_traits::Zero;
 
@@ -10,7 +11,7 @@ use crate::{
     helper_functions::ResultExtensions,
     modification::{Modification, ReturnModification},
     system::f64::*,
-    Chemical, Fragment, FragmentType, Model, MolecularFormula,
+    Chemical, Fragment, FragmentType, Model,
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -36,7 +37,7 @@ impl Peptide {
     }
 
     pub fn n_term(&self) -> MolecularFormula {
-        if let Some(m) = self.n_term {
+        if let Some(m) = &self.n_term {
             molecular_formula!(H 1) + m.formula()
         } else {
             molecular_formula!(H 1)
@@ -44,7 +45,7 @@ impl Peptide {
     }
 
     pub fn c_term(&self) -> MolecularFormula {
-        if let Some(m) = self.c_term {
+        if let Some(m) = &self.c_term {
             molecular_formula!(H 1 O 1) + m.formula()
         } else {
             molecular_formula!(H 1 O 1)
@@ -271,7 +272,8 @@ impl Peptide {
                         .and_then(|m| acc.map(|a| a + m))
                     })
                     .map(|m| {
-                        base + m
+                        &base
+                            + &m
                             + self.sequence[index]
                                 .possible_modifications
                                 .iter()
@@ -365,7 +367,7 @@ impl Peptide {
                         self.sequence[index]
                             .modifications
                             .iter()
-                            .map(|v| v.formula())
+                            .map(Chemical::formula)
                             .sum(),
                         max_charge,
                         index,
@@ -488,7 +490,7 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(|m| m.formula()).sum()
+                    + self.modifications.iter().map(Chemical::formula).sum()
                     + self
                         .possible_modifications
                         .iter()
@@ -509,7 +511,7 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(|m| m.formula()).sum()
+                    + self.modifications.iter().map(Chemical::formula).sum()
                     + self
                         .possible_modifications
                         .iter()
@@ -531,7 +533,7 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(|m| m.formula()).sum()
+                    + self.modifications.iter().map(Chemical::formula).sum()
                     + self
                         .possible_modifications
                         .iter()
@@ -563,8 +565,6 @@ impl SequenceElement {
 
 #[cfg(test)]
 mod tests {
-    use crate::MonoIsotopic;
-
     use super::Peptide;
 
     #[test]
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn parse_unimod() {
-        let peptide = dbg!(Peptide::pro_forma("A[Cation:Na]A[U:Gln->pyro-Glu]A"));
+        let peptide = dbg!(Peptide::pro_forma("Q[U:Gln->pyro-Glu]E[Cation:Na]AA"));
         assert!(peptide.is_ok());
     }
 }

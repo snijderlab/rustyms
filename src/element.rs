@@ -1,5 +1,4 @@
-use crate::{da, HasMass, Mass, MassSystem};
-use std::fmt::Write;
+use crate::{da, Mass};
 
 include!("shared/element.rs");
 
@@ -10,8 +9,8 @@ impl Element {
     }
 
     pub fn mass(&self, isotope: u16) -> Option<Mass> {
-        if *self == Element::Electron {
-            return Some(da(5.48579909065e-4));
+        if *self == Self::Electron {
+            return Some(da(5.485_799_090_65e-4));
         }
         Some(da(if isotope == 0 {
             crate::element::ELEMENTAL_DATA[*self as usize - 1].0?
@@ -19,14 +18,14 @@ impl Element {
             crate::element::ELEMENTAL_DATA[*self as usize - 1]
                 .2
                 .iter()
-                .find(|(ii, m, _)| *ii == isotope)
+                .find(|(ii, _, _)| *ii == isotope)
                 .map(|(_, m, _)| *m)?
         }))
     }
 
     pub fn average_weight(&self, isotope: u16) -> Option<Mass> {
-        if *self == Element::Electron {
-            return Some(da(5.48579909065e-4));
+        if *self == Self::Electron {
+            return Some(da(5.485_799_090_65e-4));
         }
         Some(da(if isotope == 0 {
             crate::element::ELEMENTAL_DATA[*self as usize - 1].1?
@@ -34,7 +33,7 @@ impl Element {
             crate::element::ELEMENTAL_DATA[*self as usize - 1]
                 .2
                 .iter()
-                .find(|(ii, m, _)| *ii == isotope)
+                .find(|(ii, _, _)| *ii == isotope)
                 .map(|(_, m, _)| *m)?
         }))
     }
@@ -44,7 +43,7 @@ include!(concat!(env!("OUT_DIR"), "/elements.rs"));
 
 #[cfg(test)]
 mod test {
-    use crate::element::Element;
+    use crate::{Element, MolecularFormula};
 
     #[test]
     fn hill_notation() {

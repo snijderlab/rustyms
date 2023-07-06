@@ -1,8 +1,6 @@
 use std::fmt::Write;
 
-use uom::num_traits::Zero;
-
-use crate::{Mass, MassSystem, MolecularFormula, Peptide, SequenceElement};
+use crate::{MolecularFormula, Peptide, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -347,12 +345,7 @@ pub enum Scoring {
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
-pub fn align<M: MassSystem>(
-    seq_a: Peptide,
-    seq_b: Peptide,
-    alphabet: &[&[i8]],
-    ty: Type,
-) -> Alignment {
+pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Alignment {
     const STEPS: usize = 3;
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
@@ -408,14 +401,14 @@ pub fn align<M: MassSystem>(
                             len_b as u8,
                         ))
                     } else if len_a == 1 && len_b == 1 {
-                        Some(score_pair::<M>(
+                        Some(score_pair(
                             &seq_a.sequence[index_a - 1],
                             &seq_b.sequence[index_b - 1],
                             alphabet,
                             base_score,
                         ))
                     } else {
-                        score::<M>(
+                        score(
                             &seq_a.sequence[index_a - len_a..index_a],
                             &seq_b.sequence[index_b - len_b..index_b],
                             base_score,
@@ -477,12 +470,7 @@ pub fn align<M: MassSystem>(
     }
 }
 
-fn score_pair<M: MassSystem>(
-    a: &SequenceElement,
-    b: &SequenceElement,
-    alphabet: &[&[i8]],
-    score: isize,
-) -> Piece {
+fn score_pair(a: &SequenceElement, b: &SequenceElement, alphabet: &[&[i8]], score: isize) -> Piece {
     let ppm = a
         .formula_all()
         .unwrap()
@@ -494,11 +482,7 @@ fn score_pair<M: MassSystem>(
     Piece::new(score + local as isize, local, 1, 1)
 }
 
-fn score<M: MassSystem>(
-    a: &[SequenceElement],
-    b: &[SequenceElement],
-    score: isize,
-) -> Option<Piece> {
+fn score(a: &[SequenceElement], b: &[SequenceElement], score: isize) -> Option<Piece> {
     let ppm = a
         .iter()
         .map(|s| s.formula_all().unwrap())
@@ -531,11 +515,11 @@ pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
 mod tests {
     use crate::align::score;
     use crate::aminoacids::AminoAcid;
-    use crate::{MonoIsotopic, SequenceElement};
+    use crate::SequenceElement;
 
     #[test]
     fn pair() {
-        let pair = dbg!(score::<MonoIsotopic>(
+        let pair = dbg!(score(
             &[SequenceElement::new(AminoAcid::N, None)],
             &[
                 SequenceElement::new(AminoAcid::G, None),
