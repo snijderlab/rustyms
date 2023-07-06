@@ -11,7 +11,7 @@ impl MolecularFormula {
         use_c: bool,
         use_n: bool,
         use_o: bool,
-    ) -> Option<Vec<(Mass, f64, String)>> {
+    ) -> Option<Vec<(MolecularFormula, f64, String)>> {
         let h = Element::H.isotopes();
         let c = Element::C.isotopes();
         let n = Element::N.isotopes();
@@ -26,7 +26,7 @@ impl MolecularFormula {
                         && i.0 != Element::N
                         && i.0 != Element::O)
             })
-            .fold(Some(Mass::zero()), |acc, s| {
+            .fold(Some(MolecularFormula::default()), |acc, s| {
                 s.0.mass(s.1)
                     .zip(acc)
                     .map(|(m, a)| a + m * Ratio::new::<r>(f64::from(s.2)))
@@ -110,8 +110,10 @@ impl MolecularFormula {
     }
 }
 
-fn combined_pattern(isotopes: &[(Mass, f64, String)]) -> Vec<(Mass, f64, usize, String)> {
-    let mut combined: Vec<(Mass, f64, usize, String)> = Vec::new();
+fn combined_pattern(
+    isotopes: &[(MolecularFormula, f64, String)],
+) -> Vec<(MolecularFormula, f64, usize, String)> {
+    let mut combined: Vec<(MolecularFormula, f64, usize, String)> = Vec::new();
 
     for isotope in isotopes {
         if let Some(entry) = combined

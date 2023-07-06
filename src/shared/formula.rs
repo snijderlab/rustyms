@@ -1,5 +1,4 @@
 use crate::Element;
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MolecularFormula {
     // Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
@@ -45,6 +44,10 @@ impl MolecularFormula {
                 self.elements.push((e, i, n));
             }
         }
+    }
+
+    pub fn elements(&self) -> &[(Element, u16, i16)] {
+        &self.elements
     }
 }
 
@@ -154,6 +157,14 @@ impl std::ops::AddAssign<&MolecularFormula> for MolecularFormula {
 impl std::ops::AddAssign<MolecularFormula> for MolecularFormula {
     fn add_assign(&mut self, rhs: MolecularFormula) {
         *self += &rhs;
+    }
+}
+
+impl std::iter::Sum<MolecularFormula> for MolecularFormula {
+    fn sum<I: Iterator<Item = MolecularFormula>>(iter: I) -> Self {
+        let mut res = MolecularFormula::default();
+        iter.for_each(|v| res += v);
+        res
     }
 }
 

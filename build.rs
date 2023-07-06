@@ -318,7 +318,7 @@ impl OntologyModification {
 
     fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&{:?}, &[{}], \"{}\", \"{}\"))",
+            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&MolecularFormula::new(&[{}]), &[{}], \"{}\", \"{}\"))",
             self.full_name,
             self.code_name,
             self.rules
@@ -326,7 +326,10 @@ impl OntologyModification {
                 .fold(String::new(), |acc, r| format!("{acc}{r},")),
             self.id,
             self.code_name.to_ascii_lowercase(),
-            self.monosaccharides.iter().fold(self.elements.clone(), |acc, m| acc + m.0.formula() * m.1),
+            self.monosaccharides.iter().fold(self.elements.clone(), |acc, m| acc + m.0.formula() * m.1).elements().iter()
+            .fold(String::new(), |acc, (e, i, n)| format!(
+                "{acc}(Element::{e},{i},{n}),",
+            )),
             self.rules
                 .iter()
                 .fold(String::new(), |acc, e| format!(

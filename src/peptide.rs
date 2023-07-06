@@ -10,7 +10,7 @@ use crate::{
     helper_functions::ResultExtensions,
     modification::{Modification, ReturnModification},
     system::f64::*,
-    Fragment, FragmentType, HasMass, MassSystem, Model,
+    Chemical, Fragment, FragmentType, Model, MolecularFormula,
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -35,20 +35,20 @@ impl Peptide {
         self.sequence.is_empty()
     }
 
-    pub fn n_term<M: MassSystem>(&self) -> Mass {
-        da(M::H)
-            + self
-                .n_term
-                .as_ref()
-                .map_or_else(Mass::zero, HasMass::mass::<M>)
+    pub fn n_term(&self) -> MolecularFormula {
+        if let Some(m) = self.n_term {
+            molecular_formula!(H 1) + m.formula()
+        } else {
+            molecular_formula!(H 1)
+        }
     }
 
-    pub fn c_term<M: MassSystem>(&self) -> Mass {
-        da(M::OH)
-            + self
-                .c_term
-                .as_ref()
-                .map_or_else(Mass::zero, HasMass::mass::<M>)
+    pub fn c_term(&self) -> MolecularFormula {
+        if let Some(m) = self.c_term {
+            molecular_formula!(H 1 O 1) + m.formula()
+        } else {
+            molecular_formula!(H 1 O 1)
+        }
     }
 
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
@@ -227,13 +227,13 @@ impl Peptide {
 
     /// Generate all possible patterns for the ambiguous positions (Mass, String:Label)
     /// It always contains at least one pattern (being (base mass, ""))
-    fn ambiguous_patterns<M: MassSystem>(
+    fn ambiguous_patterns(
         &self,
         aa_range: impl RangeBounds<usize>,
         aa: &[SequenceElement],
         index: usize,
-        base: Mass,
-    ) -> Option<Vec<(Mass, String)>> {
+        base: MolecularFormula,
+    ) -> Option<Vec<(MolecularFormula, String)>> {
         let result = self
             .ambiguous_modifications
             .iter()
@@ -260,8 +260,8 @@ impl Peptide {
                     .collect::<Vec<_>>();
                 aa.iter()
                     .enumerate()
-                    .fold(Some(Mass::zero()), |acc, (index, aa)| {
-                        aa.mass::<M>(
+                    .fold(Some(MolecularFormula::default()), |acc, (index, aa)| {
+                        aa.formula(
                             &pattern
                                 .iter()
                                 .copied()
@@ -278,7 +278,7 @@ impl Peptide {
                                 .filter_map(|am| {
                                     ambiguous_local
                                         .contains(&&am.id)
-                                        .then(|| am.modification.mass::<M>())
+                                        .then(|| am.modification.formula())
                                 })
                                 .sum()
                     })
@@ -303,7 +303,7 @@ impl Peptide {
                         )
                     })
             })
-            .collect::<Option<Vec<(Mass, String)>>>()?;
+            .collect::<Option<Vec<(MolecularFormula, String)>>>()?;
         if result.is_empty() {
             Some(vec![(base, String::new())])
         } else {
@@ -311,21 +311,21 @@ impl Peptide {
         }
     }
 
-    pub fn mass<M: MassSystem>(&self) -> Option<Mass> {
-        let mut mass = self.n_term::<M>() + self.c_term::<M>();
+    pub fn formula(&self) -> Option<MolecularFormula> {
+        let mut formula = self.n_term() + self.c_term();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for (_, pos) in self.sequence.iter().enumerate() {
-            mass += pos.mass_greedy::<M>(&mut placed)?;
+            formula += pos.formula_greedy(&mut placed)?;
         }
 
-        Some(mass)
+        Some(formula)
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
     ///
     /// # Panics
     /// If `max_charge` outside the range `1..=u64::MAX`.
-    pub fn generate_theoretical_fragments<M: MassSystem>(
+    pub fn generate_theoretical_fragments(
         &self,
         max_charge: Charge,
         model: &Model,
@@ -335,18 +335,14 @@ impl Peptide {
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            let n_term = self.ambiguous_patterns::<M>(
-                0..=index,
-                &self.sequence[0..index],
-                index,
-                self.n_term::<M>(),
-            )?;
+            let n_term =
+                self.ambiguous_patterns(0..=index, &self.sequence[0..index], index, self.n_term())?;
 
-            let c_term = self.ambiguous_patterns::<M>(
+            let c_term = self.ambiguous_patterns(
                 index..self.sequence.len(),
                 &self.sequence[index + 1..self.sequence.len()],
                 index,
-                self.c_term::<M>(),
+                self.c_term(),
             )?;
 
             let options = n_term
@@ -358,30 +354,36 @@ impl Peptide {
                         .skip(1)
                         .map(|c| (n_term[0].clone(), c.clone())),
                 )
-                .collect::<Vec<((Mass, String), (Mass, String))>>();
+                .collect::<Vec<((MolecularFormula, String), (MolecularFormula, String))>>();
             //dbg!(index, &n_term, &c_term, &options);
 
             for (n_term, c_term) in options {
-                output.append(&mut self.sequence[index].aminoacid.fragments::<M>(
-                    n_term,
-                    c_term,
-                    self.sequence[index].modifications.mass::<M>(),
-                    max_charge,
-                    index,
-                    self.sequence.len(),
-                    &model.ions(index, self.sequence.len()),
-                ));
+                output.append(
+                    &mut self.sequence[index].aminoacid.fragments(
+                        n_term,
+                        c_term,
+                        self.sequence[index]
+                            .modifications
+                            .iter()
+                            .map(|v| v.formula())
+                            .sum(),
+                        max_charge,
+                        index,
+                        self.sequence.len(),
+                        &model.ions(index, self.sequence.len()),
+                    ),
+                );
             }
         }
         // Generate precursor peak
         output.push(
             Fragment::new(
-                self.mass::<M>()?,
+                self.formula()?,
                 Charge::zero(),
                 FragmentType::precursor,
                 String::new(),
             )
-            .with_charge::<M>(max_charge),
+            .with_charge(max_charge),
         );
         Some(output)
     }
@@ -480,20 +482,20 @@ impl SequenceElement {
         Ok(extra_placed)
     }
 
-    pub fn mass<M: MassSystem>(&self, selected_ambiguous: &[usize]) -> Option<Mass> {
+    pub fn formula(&self, selected_ambiguous: &[usize]) -> Option<MolecularFormula> {
         if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
             None
         } else {
             Some(
-                self.aminoacid.mass::<M>()
-                    + self.modifications.mass::<M>()
+                self.aminoacid.formula()
+                    + self.modifications.iter().map(|m| m.formula()).sum()
                     + self
                         .possible_modifications
                         .iter()
                         .filter_map(|m| {
                             selected_ambiguous
                                 .contains(&m.id)
-                                .then(|| m.modification.mass::<M>())
+                                .then(|| m.modification.formula())
                         })
                         .sum(),
             )
@@ -501,20 +503,20 @@ impl SequenceElement {
     }
 
     /// Get the mass of this sequence position while placing each possible modification on the very first place (and updating that fact in `placed`)
-    pub fn mass_greedy<M: MassSystem>(&self, placed: &mut [bool]) -> Option<Mass> {
+    pub fn formula_greedy(&self, placed: &mut [bool]) -> Option<MolecularFormula> {
         if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
             None
         } else {
             Some(
-                self.aminoacid.mass::<M>()
-                    + self.modifications.mass::<M>()
+                self.aminoacid.formula()
+                    + self.modifications.iter().map(|m| m.formula()).sum()
                     + self
                         .possible_modifications
                         .iter()
                         .filter_map(|m| {
                             (!placed[m.id]).then(|| {
                                 placed[m.id] = true;
-                                m.modification.mass::<M>()
+                                m.modification.formula()
                             })
                         })
                         .sum(),
@@ -523,17 +525,17 @@ impl SequenceElement {
     }
 
     /// Get the mass of this sequence position with all possible modifications
-    pub fn mass_all<M: MassSystem>(&self) -> Option<Mass> {
+    pub fn formula_all(&self) -> Option<MolecularFormula> {
         if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
             None
         } else {
             Some(
-                self.aminoacid.mass::<M>()
-                    + self.modifications.mass::<M>()
+                self.aminoacid.formula()
+                    + self.modifications.iter().map(|m| m.formula()).sum()
                     + self
                         .possible_modifications
                         .iter()
-                        .map(|m| m.modification.mass::<M>())
+                        .map(|m| m.modification.formula())
                         .sum(),
             )
         }
@@ -542,7 +544,7 @@ impl SequenceElement {
     /// Enforce the placement rules of predefined modifications.
     fn enforce_modification_rules(&self, index: usize, length: usize) -> Result<(), String> {
         for modification in &self.modifications {
-            if let Modification::Predefined(_, _, rules, _, _) = modification {
+            if let Modification::Predefined(_, rules, _, _) = modification {
                 if !rules.is_empty()
                     && !rules
                         .iter()
@@ -582,10 +584,7 @@ mod tests {
         let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(
-            glycan.mass::<MonoIsotopic>(),
-            peptide.mass::<MonoIsotopic>()
-        );
+        assert_eq!(glycan.formula(), peptide.formula());
     }
 
     #[test]
@@ -594,7 +593,7 @@ mod tests {
         let without = Peptide::pro_forma("A").unwrap();
         assert_eq!(with.sequence.len(), 1);
         assert_eq!(without.sequence.len(), 1);
-        assert_eq!(with.mass::<MonoIsotopic>(), without.mass::<MonoIsotopic>());
+        assert_eq!(with.formula(), without.formula());
         assert_eq!(with.labile[0].to_string(), "Formula:C6H10O5".to_string());
     }
 
@@ -627,7 +626,7 @@ mod tests {
         assert_eq!(without.sequence.len(), 5);
         assert!(with.sequence[0].ambiguous.is_some());
         assert!(with.sequence[1].ambiguous.is_some());
-        assert_eq!(with.mass::<MonoIsotopic>(), without.mass::<MonoIsotopic>());
+        assert_eq!(with.formula(), without.formula());
         assert_eq!(with.to_string(), "(?AA)C(?A)(?A)".to_string());
     }
 
@@ -640,10 +639,7 @@ mod tests {
         .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(
-            glycan.mass::<MonoIsotopic>(),
-            peptide.mass::<MonoIsotopic>()
-        );
+        assert_eq!(glycan.formula(), peptide.formula());
     }
 
     #[test]

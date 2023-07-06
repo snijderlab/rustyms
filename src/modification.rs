@@ -35,7 +35,7 @@ impl Chemical for Modification {
             Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula() * i.1
+                    acc + i.0.formula() * i.1 as i16
                 }),
             Self::Predefined(formula, _, _, _) => formula.clone(),
         }
@@ -250,7 +250,7 @@ impl Display for Modification {
                 write!(f, "{:+}", m.value).unwrap();
             }
             Self::Formula(elements) => {
-                write!(f, "Formula:{}", Element::hill_notation(elements)).unwrap();
+                write!(f, "Formula:{}", elements.hill_notation()).unwrap();
             }
             Self::Glycan(monosaccharides) => write!(
                 f,
@@ -260,7 +260,7 @@ impl Display for Modification {
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
             )
             .unwrap(),
-            Self::Predefined(_, _, _, context, name) => write!(f, "{context}:{name}",).unwrap(),
+            Self::Predefined(_, _, context, name) => write!(f, "{context}:{name}",).unwrap(),
         }
         Ok(())
     }

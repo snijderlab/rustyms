@@ -25,7 +25,7 @@ impl Element {
     }
 
     pub fn average_weight(&self, isotope: u16) -> Option<Mass> {
-        if self == Element::Electron {
+        if *self == Element::Electron {
             return Some(da(5.48579909065e-4));
         }
         Some(da(if isotope == 0 {
@@ -49,7 +49,7 @@ mod test {
     #[test]
     fn hill_notation() {
         assert_eq!(
-            Element::hill_notation(&[(Element::C, 6), (Element::O, 5), (Element::H, 10)]),
+            molecular_formula!(C 6 O 5 H 10).hill_notation(),
             "C6H10O5".to_string()
         );
     }

@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use uom::num_traits::Zero;
 
-use crate::{Mass, MassSystem, Peptide, SequenceElement};
+use crate::{Mass, MassSystem, MolecularFormula, Peptide, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -80,38 +80,42 @@ impl Alignment {
     }
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn ppm<M: MassSystem>(&self) -> Option<f64> {
-        Some(self.mass_a::<M>()?.ppm(self.mass_b::<M>()?))
+    pub fn ppm(&self) -> Option<f64> {
+        Some(
+            self.mass_a()?
+                .monoisotopic_mass()?
+                .ppm(self.mass_b()?.monoisotopic_mass()?),
+        )
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn mass_difference<M: MassSystem>(&self) -> Option<crate::Mass> {
-        Some(self.mass_a::<M>()? - self.mass_b::<M>()?)
+    pub fn mass_difference(&self) -> Option<crate::Mass> {
+        Some(self.mass_a()?.monoisotopic_mass()? - self.mass_b()?.monoisotopic_mass()?)
     }
 
-    fn mass_a<M: MassSystem>(&self) -> Option<Mass> {
+    fn mass_a(&self) -> Option<MolecularFormula> {
         if self.ty == Type::Global {
-            self.seq_a.mass::<M>()
+            self.seq_a.formula()
         } else {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
             self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
                 .iter()
-                .fold(Some(Mass::zero()), |acc, s| {
-                    s.mass_greedy::<M>(&mut placed_a)
+                .fold(Some(MolecularFormula::default()), |acc, s| {
+                    s.formula_greedy(&mut placed_a)
                         .and_then(|m| acc.map(|a| a + m))
                 })
         }
     }
 
-    fn mass_b<M: MassSystem>(&self) -> Option<Mass> {
+    fn mass_b(&self) -> Option<MolecularFormula> {
         if self.ty == Type::Global {
-            self.seq_b.mass::<M>()
+            self.seq_b.formula()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
             self.seq_a.sequence[self.start_b..self.start_b + self.len_b()]
                 .iter()
-                .fold(Some(Mass::zero()), |acc, s| {
-                    s.mass_greedy::<M>(&mut placed_b)
+                .fold(Some(MolecularFormula::default()), |acc, s| {
+                    s.formula_greedy(&mut placed_b)
                         .and_then(|m| acc.map(|a| a + m))
                 })
         }
@@ -479,7 +483,12 @@ fn score_pair<M: MassSystem>(
     alphabet: &[&[i8]],
     score: isize,
 ) -> Piece {
-    let ppm = a.mass_all::<M>().unwrap().ppm(b.mass_all::<M>().unwrap());
+    let ppm = a
+        .formula_all()
+        .unwrap()
+        .monoisotopic_mass()
+        .unwrap()
+        .ppm(b.formula_all().unwrap().monoisotopic_mass().unwrap());
     let local = alphabet[a.aminoacid as usize][b.aminoacid as usize] + 20
         - ppm.round().clamp(0.0, 20.0) as i8;
     Piece::new(score + local as isize, local, 1, 1)
@@ -492,9 +501,17 @@ fn score<M: MassSystem>(
 ) -> Option<Piece> {
     let ppm = a
         .iter()
-        .map(|s| s.mass_all::<M>().unwrap())
-        .sum::<Mass>()
-        .ppm(b.iter().map(|s| s.mass_all::<M>().unwrap()).sum::<Mass>());
+        .map(|s| s.formula_all().unwrap())
+        .sum::<MolecularFormula>()
+        .monoisotopic_mass()
+        .unwrap()
+        .ppm(
+            b.iter()
+                .map(|s| s.formula_all().unwrap())
+                .sum::<MolecularFormula>()
+                .monoisotopic_mass()
+                .unwrap(),
+        );
     if ppm > 20.0 {
         None
     } else {

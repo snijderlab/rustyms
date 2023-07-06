@@ -60,7 +60,7 @@ mod test {
     fn simple_fragments() {
         let peptide = peptide::Peptide::pro_forma("WFWF").unwrap();
         let fragments = peptide
-            .generate_theoretical_fragments::<AverageWeight>(Charge::new::<e>(1.0), &Model::all())
+            .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all())
             .unwrap();
         println!("{}", fragments.len());
         println!("{fragments:?}");
@@ -72,7 +72,7 @@ mod test {
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
         let peptide = peptide::Peptide::pro_forma("WFWF").unwrap();
         let fragments = peptide
-            .generate_theoretical_fragments::<AverageWeight>(Charge::new::<e>(1.0), &model)
+            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
             .unwrap();
         let annotated = spectrum[0].annotate(peptide, &fragments, &model);
         println!("{annotated:?}");

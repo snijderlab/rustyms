@@ -58,12 +58,12 @@ impl RawSpectrum {
         for (fragment_index, fragment) in theoretical_fragments.iter().enumerate() {
             connections.extend(self.spectrum.iter().enumerate().filter_map(|(i, p)| {
                 let ppm = p.ppm(fragment);
-                if ppm < model.ppm {
+                if ppm.map(|p| p < model.ppm).unwrap_or(false) {
                     Some((
                         i,
                         fragment_index,
                         AnnotatedPeak::new(p, fragment.clone()),
-                        ppm,
+                        ppm.unwrap(),
                     ))
                 } else {
                     None
@@ -241,8 +241,8 @@ pub struct RawPeak {
 }
 
 impl RawPeak {
-    pub fn ppm(&self, fragment: &Fragment) -> MassOverCharge {
-        MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()))
+    pub fn ppm(&self, fragment: &Fragment) -> Option<MassOverCharge> {
+        Some(MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()?)))
     }
 }
 

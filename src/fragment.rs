@@ -36,7 +36,7 @@ impl Fragment {
 
     #[must_use]
     pub fn with_charge(&self, charge: Charge) -> Self {
-        let c = charge.value as u16;
+        let c = charge.value as i16;
         Self {
             theoretical_mass: self.theoretical_mass + molecular_formula!(H c)
                 - molecular_formula!(Electron c),
