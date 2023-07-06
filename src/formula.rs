@@ -1,8 +1,7 @@
 use crate::uom::num_traits::Zero;
-use crate::{element::Element, r, Mass, Ratio};
+use crate::{r, Mass, Ratio};
 
 include!("shared/formula.rs");
-include!("shared/formula_macro.rs");
 
 impl MolecularFormula {
     pub fn elements(&self) -> &[(Element, u16, i16)] {

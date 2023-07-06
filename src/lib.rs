@@ -35,6 +35,7 @@ mod system;
 
 pub use crate::mass::*;
 
+pub use crate::element::*;
 pub use crate::formula::*;
 pub use crate::fragment::*;
 pub use crate::glycan::*;

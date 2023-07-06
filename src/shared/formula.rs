@@ -1,3 +1,5 @@
+use crate::Element;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MolecularFormula {
     // Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
@@ -153,4 +155,28 @@ impl std::ops::AddAssign<MolecularFormula> for MolecularFormula {
     fn add_assign(&mut self, rhs: MolecularFormula) {
         *self += &rhs;
     }
+}
+
+macro_rules! molecular_formula {
+    ($($tail:tt)*) => {
+        formula_internal!([$($tail)*] -> [])
+    };
+}
+
+macro_rules! formula_internal {
+    ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
+        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, 0, $n),])
+    };
+    ([($i:literal)$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
+        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, $i, $n),])
+    };
+    ([$e:ident $n:expr] -> [$($output:tt)*]) =>{
+        formula_internal!([] -> [$($output)*(Element::$e, 0, $n),])
+    };
+    ([($i:literal)$e:ident $n:expr] -> [$($output:tt)*]) =>{
+        formula_internal!([] -> [$($output)*(Element::$e, $i, $n),])
+    };
+    ([] -> [$($output:tt)*]) =>{
+        MolecularFormula::new(&[$($output)*])
+    };
 }

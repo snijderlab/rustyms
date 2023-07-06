@@ -1,3 +1,5 @@
+use crate::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum MonoSaccharide {
@@ -124,10 +126,8 @@ impl std::fmt::Display for MonoSaccharide {
     }
 }
 
-include!("formula_macro.rs");
-
-impl crate::Chemical for MonoSaccharide {
-    fn formula(&self) -> crate::MolecularFormula {
+impl Chemical for MonoSaccharide {
+    fn formula(&self) -> MolecularFormula {
         match self {
             Self::Hep => molecular_formula!(H 12 C 7 O 6),
             Self::phosphate => molecular_formula!(H 1 O 3 P 1),

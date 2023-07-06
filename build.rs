@@ -11,6 +11,7 @@ use std::path::Path;
 
 #[path = "./src/shared/element.rs"]
 mod element;
+#[macro_use]
 #[path = "./src/shared/formula.rs"]
 mod formula;
 #[path = "./src/shared/glycan.rs"]
@@ -19,7 +20,8 @@ mod glycan;
 #[path = "./src/helper_functions.rs"]
 mod helper_functions;
 
-use crate::element::*;
+pub use crate::element::*;
+use crate::formula::Chemical;
 use crate::formula::*;
 use crate::glycan::*;
 use crate::helper_functions::*;

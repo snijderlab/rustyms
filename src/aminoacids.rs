@@ -4,6 +4,7 @@ use crate::formula::{Chemical, MolecularFormula};
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
 use crate::system::f64::*;
+use crate::Element;
 use crate::Position;
 
 /// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
@@ -199,7 +200,7 @@ impl AminoAcid {
             Self::Glutamine => vec![molecular_formula!(H 4 C 2 N 1 O 1)],
             Self::Isoleucine => vec![molecular_formula!(H 3 C 1), molecular_formula!(H 5 C 2)],
             Self::Leucine => vec![molecular_formula!(H 7 C 3)],
-            Self::Lysine => vec![molecular_formula!(H 8 C 3 N)],
+            Self::Lysine => vec![molecular_formula!(H 8 C 3 N 1)],
             Self::Methionine => vec![molecular_formula!(H 5 C 2 S 1)],
             Self::Pyrrolysine => {
                 vec![molecular_formula!(H 15 C 9 N 2 O 1)]

@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
-use crate::{model::NeutralLoss, system::f64::*, Chemical, HasMass, MassSystem, MolecularFormula};
+use crate::{
+    model::NeutralLoss, system::f64::*, Chemical, Element, HasMass, MassSystem, MolecularFormula,
+};
 
 #[derive(Debug, Clone)]
 pub struct Fragment {
