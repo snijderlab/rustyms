@@ -88,7 +88,7 @@ These features are independent from each other:
 - [x] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [x] Enforce ontology modification placement rules
 - [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+- [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
 
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
@@ -104,7 +104,7 @@ PSI/mzIdentML/master/cv/XLMOD.obo
 | Name | Modifications | Numbered | Rules |
 | --- | --- | --- | --- |
 | Unimod | Yes | Yes | Yes |
-| PSI-MOD | Yes | Partial (missing isotopic mods) | - |
+| PSI-MOD | Yes | Yes | - |
 | RESID | - | - | - |
 | XL-MOD | - | - | - |
 | GNO | - | - | - |

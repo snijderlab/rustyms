@@ -201,7 +201,6 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
         if obj.name != "Term" {
             continue;
         }
-        let mut take = false;
         let mut modification = OntologyModification {
             id: obj.lines["id"][0]
                 .split_once(':')
@@ -217,29 +216,14 @@ fn parse_psi_mod(debug: bool) -> Vec<OntologyModification> {
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
-                    match parse_molecular_formula_psi_mod(&line[13..line.len() - 12]) {
-                        Ok(o) => {
-                            modification.elements = o;
-                            take = true;
-                        }
-                        Err(_e) => {
-                            print(
-                                format!(
-                                    "PSI-MOD: could not match formula: \"{}\"",
-                                    &line[13..line.len() - 12]
-                                ),
-                                debug,
-                            );
-                        }
-                    }
+                    modification.elements =
+                        parse_molecular_formula_psi_mod(&line[13..line.len() - 12]).unwrap();
                 } else if line.starts_with("Origin") {
                     // TODO: parse the rules
                 }
             }
         }
-        if take {
-            mods.push(modification);
-        }
+        mods.push(modification);
     }
 
     mods
