@@ -215,8 +215,8 @@ impl AminoAcid {
     #[allow(clippy::too_many_lines)]
     pub fn fragments(
         &self,
-        n_term: (MolecularFormula, String),
-        c_term: (MolecularFormula, String),
+        n_term: &[(MolecularFormula, String)],
+        c_term: &[(MolecularFormula, String)],
         modifications: MolecularFormula,
         max_charge: Charge,
         sequence_index: usize,
@@ -225,121 +225,87 @@ impl AminoAcid {
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         if ions.a.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &n_term.0 + self.formula() - molecular_formula!(H 1 C 1 O 1),
-                    Charge::zero(),
-                    FragmentType::a(Position::n(sequence_index, sequence_length)),
-                    n_term.1.clone(),
-                )
-                .with_neutral_losses(ions.a.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1),
+                FragmentType::a(Position::n(sequence_index, sequence_length)),
+                n_term,
+                ions.a.1,
+            ));
         }
         if ions.b.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &n_term.0 + self.formula() - molecular_formula!(H 1),
-                    Charge::zero(),
-                    FragmentType::b(Position::n(sequence_index, sequence_length)),
-                    n_term.1.clone(),
-                )
-                .with_neutral_losses(ions.b.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() - molecular_formula!(H 1),
+                FragmentType::b(Position::n(sequence_index, sequence_length)),
+                n_term,
+                ions.b.1,
+            ));
         }
         if ions.c.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &n_term.0 + self.formula() + molecular_formula!(H 2 N 1),
-                    Charge::zero(),
-                    FragmentType::c(Position::n(sequence_index, sequence_length)),
-                    n_term.1.clone(),
-                )
-                .with_neutral_losses(ions.c.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() + molecular_formula!(H 2 N 1),
+                FragmentType::c(Position::n(sequence_index, sequence_length)),
+                n_term,
+                ions.c.1,
+            ));
         }
         if ions.d.0 {
             for satellite in self.satellite_ion_fragments() {
-                base_fragments.extend(
-                    Fragment::new(
-                        &modifications + &n_term.0 + self.formula()
-                            - satellite
-                            - molecular_formula!(H 1 C 1 O 1),
-                        Charge::zero(),
-                        FragmentType::d(Position::n(sequence_index, sequence_length)),
-                        n_term.1.clone(),
-                    )
-                    .with_neutral_losses(ions.d.1),
-                );
+                base_fragments.extend(Fragment::generate_all(
+                    &modifications + &self.formula() - satellite - molecular_formula!(H 1 C 1 O 1),
+                    FragmentType::d(Position::n(sequence_index, sequence_length)),
+                    n_term,
+                    ions.d.1,
+                ));
             }
         }
         if ions.v.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &c_term.0 + molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
-                    Charge::zero(),
-                    FragmentType::v(Position::n(sequence_index, sequence_length)),
-                    c_term.1.clone(),
-                )
-                .with_neutral_losses(ions.v.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
+                FragmentType::v(Position::n(sequence_index, sequence_length)),
+                c_term,
+                ions.v.1,
+            ));
         }
         if ions.w.0 {
             for satellite in self.satellite_ion_fragments() {
-                base_fragments.extend(
-                    Fragment::new(
-                        &modifications + &c_term.0 + self.formula()
-                            - satellite
-                            - molecular_formula!(H 2 N 1),
-                        Charge::zero(),
-                        FragmentType::w(Position::c(sequence_index, sequence_length)),
-                        c_term.1.clone(),
-                    )
-                    .with_neutral_losses(ions.w.1),
-                );
+                base_fragments.extend(Fragment::generate_all(
+                    &modifications + &self.formula() - satellite - molecular_formula!(H 2 N 1),
+                    FragmentType::w(Position::c(sequence_index, sequence_length)),
+                    c_term,
+                    ions.w.1,
+                ));
             }
         }
         if ions.x.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &c_term.0 + self.formula() + molecular_formula!(C 1 O 1)
-                        - molecular_formula!(H 1),
-                    Charge::zero(),
-                    FragmentType::x(Position::c(sequence_index, sequence_length)),
-                    c_term.1.clone(),
-                )
-                .with_neutral_losses(ions.x.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() + molecular_formula!(C 1 O 1)
+                    - molecular_formula!(H 1),
+                FragmentType::x(Position::c(sequence_index, sequence_length)),
+                c_term,
+                ions.x.1,
+            ));
         }
         if ions.y.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &c_term.0 + self.formula() + molecular_formula!(H 1),
-                    Charge::zero(),
-                    FragmentType::y(Position::c(sequence_index, sequence_length)),
-                    c_term.1.clone(),
-                )
-                .with_neutral_losses(ions.y.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() + molecular_formula!(H 1),
+                FragmentType::y(Position::c(sequence_index, sequence_length)),
+                c_term,
+                ions.y.1,
+            ));
         }
         if ions.z.0 {
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &c_term.0 + self.formula() - molecular_formula!(H 2 N 1),
-                    Charge::zero(),
-                    FragmentType::z(Position::c(sequence_index, sequence_length)),
-                    c_term.1.clone(),
-                )
-                .with_neutral_losses(ions.z.1),
-            );
-            base_fragments.extend(
-                Fragment::new(
-                    &modifications + &c_term.0 + self.formula() - molecular_formula!(H 1 N 1),
-                    Charge::zero(),
-                    FragmentType::z·(Position::c(sequence_index, sequence_length)),
-                    c_term.1.clone(),
-                )
-                .with_neutral_losses(ions.z.1),
-            );
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() - molecular_formula!(H 2 N 1),
+                FragmentType::z(Position::c(sequence_index, sequence_length)),
+                c_term,
+                ions.z.1,
+            ));
+            base_fragments.extend(Fragment::generate_all(
+                &modifications + &self.formula() - molecular_formula!(H 1 N 1),
+                FragmentType::z·(Position::c(sequence_index, sequence_length)),
+                c_term,
+                ions.z.1,
+            ));
         }
         let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);
         for base in base_fragments {

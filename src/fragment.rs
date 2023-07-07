@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display};
 
+use uom::num_traits::Zero;
+
 use crate::{model::NeutralLoss, system::f64::*, Chemical, Element, MolecularFormula};
 
 #[derive(Debug, Clone)]
@@ -30,6 +32,27 @@ impl Fragment {
             label,
             neutral_loss: None,
         }
+    }
+
+    #[must_use]
+    pub fn generate_all(
+        theoretical_mass: MolecularFormula,
+        ion: FragmentType,
+        termini: &[(MolecularFormula, String)],
+        neutral_losses: &[NeutralLoss],
+    ) -> Vec<Self> {
+        termini
+            .iter()
+            .map(|term| {
+                Self::new(
+                    &term.0 + &theoretical_mass,
+                    Charge::zero(),
+                    ion,
+                    term.1.to_string(),
+                )
+            })
+            .flat_map(|m| m.with_neutral_losses(neutral_losses))
+            .collect()
     }
 
     #[must_use]
@@ -69,13 +92,14 @@ impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} {:?} {:+}{}",
+            "{:?} {:?} {:+}{} {}",
             self.ion,
             self.mz()
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
             self.charge.value,
             self.neutral_loss
-                .map_or(String::new(), |loss| format!(" -{loss}"))
+                .map_or(String::new(), |loss| format!(" -{loss}")),
+            self.label
         )
     }
 }

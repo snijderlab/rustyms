@@ -37,19 +37,17 @@ impl Peptide {
     }
 
     pub fn n_term(&self) -> MolecularFormula {
-        if let Some(m) = &self.n_term {
-            molecular_formula!(H 1) + m.formula()
-        } else {
-            molecular_formula!(H 1)
-        }
+        self.n_term.as_ref().map_or_else(
+            || molecular_formula!(H 1),
+            |m| molecular_formula!(H 1) + m.formula(),
+        )
     }
 
     pub fn c_term(&self) -> MolecularFormula {
-        if let Some(m) = &self.c_term {
-            molecular_formula!(H 1 O 1) + m.formula()
-        } else {
-            molecular_formula!(H 1 O 1)
-        }
+        self.c_term.as_ref().map_or_else(
+            || molecular_formula!(H 1 O 1),
+            |m| molecular_formula!(H 1 O 1) + m.formula(),
+        )
     }
 
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
@@ -242,14 +240,24 @@ impl Peptide {
             .fold(vec![Vec::new()], |acc, (id, possibilities)| {
                 acc.into_iter()
                     .flat_map(|path| {
-                        possibilities
+                        let mut path_clone = path.clone();
+                        let options = possibilities
                             .iter()
                             .filter(|pos| aa_range.contains(pos))
                             .map(move |pos| {
                                 let mut new = path.clone();
                                 new.push((id, *pos));
                                 new
-                            })
+                            });
+                        options.chain(
+                            possibilities
+                                .iter()
+                                .find(|pos| !aa_range.contains(pos))
+                                .map(move |pos| {
+                                    path_clone.push((id, *pos));
+                                    path_clone
+                                }),
+                        )
                     })
                     .collect()
             })
@@ -347,35 +355,21 @@ impl Peptide {
                 self.c_term(),
             )?;
 
-            let options = n_term
-                .iter()
-                .map(|n| (n.clone(), c_term[0].clone()))
-                .chain(
-                    c_term
+            output.append(
+                &mut self.sequence[index].aminoacid.fragments(
+                    &n_term,
+                    &c_term,
+                    self.sequence[index]
+                        .modifications
                         .iter()
-                        .skip(1)
-                        .map(|c| (n_term[0].clone(), c.clone())),
-                )
-                .collect::<Vec<((MolecularFormula, String), (MolecularFormula, String))>>();
-            //dbg!(index, &n_term, &c_term, &options);
-
-            for (n_term, c_term) in options {
-                output.append(
-                    &mut self.sequence[index].aminoacid.fragments(
-                        n_term,
-                        c_term,
-                        self.sequence[index]
-                            .modifications
-                            .iter()
-                            .map(Chemical::formula)
-                            .sum(),
-                        max_charge,
-                        index,
-                        self.sequence.len(),
-                        &model.ions(index, self.sequence.len()),
-                    ),
-                );
-            }
+                        .map(Chemical::formula)
+                        .sum(),
+                    max_charge,
+                    index,
+                    self.sequence.len(),
+                    &model.ions(index, self.sequence.len()),
+                ),
+            );
         }
         // Generate precursor peak
         output.push(
