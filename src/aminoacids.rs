@@ -126,7 +126,7 @@ impl Chemical for AminoAcid {
 #[allow(non_upper_case_globals)]
 impl AminoAcid {
     pub const A: Self = Self::Alanine;
-    pub const B: Self = Self::AmbiguousLeucine;
+    pub const B: Self = Self::AmbiguousAsparagine;
     pub const C: Self = Self::Cysteine;
     pub const D: Self = Self::AsparticAcid;
     pub const E: Self = Self::GlutamicAcid;
