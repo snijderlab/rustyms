@@ -110,7 +110,7 @@ impl Alignment {
             self.seq_b.formula()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
-            self.seq_a.sequence[self.start_b..self.start_b + self.len_b()]
+            self.seq_b.sequence[self.start_b..self.start_b + self.len_b()]
                 .iter()
                 .fold(Some(MolecularFormula::default()), |acc, s| {
                     s.formula_greedy(&mut placed_b)
