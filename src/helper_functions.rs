@@ -1,4 +1,4 @@
-use crate::{element, formula::MolecularFormula, ELEMENT_PARSE_LIST};
+use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 pub trait ResultExtensions<T, E> {
     fn flat_err(self) -> Result<T, E>;
 }

@@ -1,5 +1,3 @@
-use uom::num_traits::Zero;
-
 use crate::formula::{Chemical, MolecularFormula};
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
@@ -37,6 +35,18 @@ pub enum AminoAcid {
     Unknown,
     AmbiguousAsparagine,
     AmbiguousGlutamine,
+}
+
+impl TryFrom<&str> for AminoAcid {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.is_ascii() && value.len() == 1 {
+            let ch = value.chars().next().unwrap();
+            ch.try_into()
+        } else {
+            Err(())
+        }
+    }
 }
 
 impl TryFrom<char> for AminoAcid {
@@ -212,7 +222,7 @@ impl AminoAcid {
         }
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
     pub fn fragments(
         &self,
         n_term: &[(MolecularFormula, String)],

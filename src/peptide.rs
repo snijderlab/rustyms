@@ -65,6 +65,61 @@ impl Peptide {
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
         let mut ambiguous_found_positions = Vec::new();
+        let mut global_modifications = Vec::new();
+
+        // Global modification(s)
+        while chars[index] == b'<' {
+            let end_index = index
+                + 1
+                + chars[index..]
+                    .iter()
+                    .position(|c| *c == b'>')
+                    .ok_or(format!(
+                        "No valid closing delimiter for global modification [index: {index}]"
+                    ))?;
+            if let Some(offset) = chars[index..].iter().position(|c| *c == b'@') {
+                let at_index = index + 1 + offset;
+                if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
+                    return Err("A global fixed modification should always be enclosed in square brackets '[]'.".to_string());
+                }
+                let modification =
+                    Modification::try_from(&value[index + 2..at_index - 2], &mut ambiguous_lookup)
+                        .map(|m| {
+                            if let ReturnModification::Defined(m) = m {
+                                Ok(m)
+                            } else {
+                                Err("A global modification cannot be ambiguous".to_string())
+                            }
+                        })
+                        .flat_err()?;
+                for aa in value[at_index..end_index - 1].split(',') {
+                    global_modifications.push(GlobalModification::Fixed(
+                        aa.try_into().map_err(|_| {
+                            format!("Could not read as aminoacid in global modification: {aa}")
+                        })?,
+                        modification.clone(),
+                    ));
+                }
+            } else if &value[index + 1..end_index - 1] == "D" {
+                global_modifications.push(GlobalModification::Isotope(Element::H, 2));
+            } else {
+                let num = &value[index + 1..end_index - 1]
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect::<String>();
+                let el = &value[index + 1 + num.len()..end_index - 1];
+                global_modifications.push(GlobalModification::Isotope(
+                    el.try_into().map_err(|_| {
+                        format!("Could not read as element in global modification: {el}")
+                    })?,
+                    num.parse().map_err(|_| {
+                        format!("Could not read as isotope number in global modification: {num}")
+                    })?,
+                ));
+            }
+
+            index = end_index;
+        }
 
         // Labile modification(s)
         while chars[index] == b'{' {
@@ -212,6 +267,7 @@ impl Peptide {
             .collect();
 
         // Check all placement rules
+        peptide.apply_global_modifications(&global_modifications);
         peptide.enforce_modification_rules()?;
 
         Ok(peptide)
@@ -383,6 +439,19 @@ impl Peptide {
         );
         Some(output)
     }
+
+    fn apply_global_modifications(&mut self, global_modifications: &[GlobalModification]) {
+        for modification in global_modifications {
+            match modification {
+                GlobalModification::Fixed(aa, modification) => {
+                    for seq in self.sequence.iter_mut().filter(|seq| seq.aminoacid == *aa) {
+                        seq.modifications.push(modification.clone());
+                    }
+                }
+                GlobalModification::Isotope(_el, _isotope) => (), // TODO: implement
+            }
+        }
+    }
 }
 
 impl Display for Peptide {
@@ -412,15 +481,6 @@ pub struct SequenceElement {
     pub modifications: Vec<Modification>,
     pub possible_modifications: Vec<AmbiguousModification>,
     pub ambiguous: Option<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct AmbiguousModification {
-    pub id: usize,
-    pub modification: Modification,
-    pub localisation_score: Option<f64>,
-    /// If this is a named group contain the name and track if this is the preferred location or not
-    pub group: Option<(String, bool)>,
 }
 
 impl SequenceElement {
@@ -555,6 +615,20 @@ impl SequenceElement {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AmbiguousModification {
+    pub id: usize,
+    pub modification: Modification,
+    pub localisation_score: Option<f64>,
+    /// If this is a named group contain the name and track if this is the preferred location or not
+    pub group: Option<(String, bool)>,
+}
+
+pub enum GlobalModification {
+    Isotope(Element, isize),
+    Fixed(AminoAcid, Modification),
 }
 
 #[cfg(test)]

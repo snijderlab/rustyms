@@ -58,7 +58,7 @@ impl RawSpectrum {
         for (fragment_index, fragment) in theoretical_fragments.iter().enumerate() {
             connections.extend(self.spectrum.iter().enumerate().filter_map(|(i, p)| {
                 let ppm = p.ppm(fragment);
-                if ppm.map(|p| p < model.ppm).unwrap_or(false) {
+                if ppm.map_or(false, |p| p < model.ppm) {
                     Some((
                         i,
                         fragment_index,

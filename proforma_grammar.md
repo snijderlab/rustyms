@@ -38,7 +38,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 ```
 
 # Open questions
-- proper order for global/labile/unknown_position/additional peptides for MS?
+- proper order for global/labile/unknown_position and for additional peptides (xl/cys-xl/branched/chimeric) for MS?
 - what is the mass for B/Z?
 - what defines valid ionic species for ion charge?
 
@@ -77,7 +77,9 @@ These features are independent from each other:
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 6) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
 - [ ] 7 Charge and chimeric spectra are special cases (see Appendix II).
-- [ ] 4.6 Global modifications (e.g., every C is C13). 4.6
+- [ ] 4.6 Global modifications (e.g., every C is C13).
+    - [ ] 4.6.1 Isotope modifications `<15N>` (maybe apply as a post filter after generating the MolecularFormula??)
+    - [x] 4.6.2 Fixed modifications `<[Formula:H-1]@A>` 
 
 # Other stuff to implement still
 - [x] 4.5 Handle multiple modifications on a single position (or amino acid group)
@@ -89,22 +91,22 @@ These features are independent from each other:
 - [x] Enforce ontology modification placement rules
 - [ ] 4.2.4 Branched peptides, similar to cross linking
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+- [ ] Better error data, allowing the construction of rust-like error messages
 
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
 - Unimod: http://www.unimod.org/obo/unimod.obo
 - RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (RESIDUES.XML)
-- XL-MOD: https://raw.githubusercontent.com/HUPO-
-PSI/mzIdentML/master/cv/XLMOD.obo
+- XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo
 - GNO: https://www.ebi.ac.uk/ols/ontologies/gno
 - Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv
 
 # Ontologies
 
-| Name | Modifications | Numbered | Rules |
-| --- | --- | --- | --- |
-| Unimod | Yes | Yes | Yes |
-| PSI-MOD | Yes | Yes | - |
-| RESID | - | - | - |
-| XL-MOD | - | - | - |
-| GNO | - | - | - |
+| Name    | Modifications | Numbered | Rules |
+| ------- | ------------- | -------- | ----- |
+| Unimod  | Yes           | Yes      | Yes   |
+| PSI-MOD | Yes           | Yes      | -     |
+| RESID   | -             | -        | -     |
+| XL-MOD  | -             | -        | -     |
+| GNO     | -             | -        | -     |

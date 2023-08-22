@@ -503,7 +503,7 @@ fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), String> {
             (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5]);
         let mut abundance = abundance.to_owned();
         abundance.retain(|c| !c.is_whitespace()); // Remove any whitespace, including any sneaking non breaking spaces
-        if element == "Z" || isotope.starts_with("[") || abundance == "-" {
+        if element == "Z" || isotope.starts_with('[') || abundance == "-" {
             continue;
         }
 
