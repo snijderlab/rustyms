@@ -12,11 +12,20 @@ pub trait Chemical {
 }
 
 impl MolecularFormula {
-    /// Create a new molecular formula, the elements will be sorted on element/isotope but not deduplicated.
+    /// Create a new molecular formula, the elements will be sorted on element/isotope and deduplicated
     pub fn new(elements: &[(crate::Element, u16, i16)]) -> Self {
-        let mut elements = elements.to_vec();
-        elements.retain(|e| e.2 != 0);
-        elements.sort_by(|a, b| {
+        let result = Self {
+            elements: elements.to_vec(),
+            additional_mass: 0.0,
+        };
+        result.simplify()
+    }
+
+    // The elements will be sorted on element/isotope and deduplicated
+    #[must_use]
+    fn simplify(mut self) -> Self {
+        self.elements.retain(|e| e.2 != 0);
+        self.elements.sort_by(|a, b| {
             if a.0 == b.0 {
                 // If the elements are the same sort on the isotope number
                 a.1.cmp(&b.1)
@@ -24,10 +33,21 @@ impl MolecularFormula {
                 a.0.cmp(&b.0)
             }
         });
-        Self {
-            elements,
-            additional_mass: 0.0,
+        // Deduplicate
+        let mut max = self.elements.len() - 1;
+        let mut index = 0;
+        while index < max {
+            let this = self.elements[index];
+            let next = self.elements[index + 1];
+            if this.0 == next.0 && this.1 == next.1 {
+                self.elements[index].2 += next.2;
+                self.elements.remove(index + 1);
+                max -= 1;
+            } else {
+                index += 1;
+            }
         }
+        self
     }
 
     pub const fn with_additional_mass(additional_mass: f64) -> Self {
@@ -62,6 +82,23 @@ impl MolecularFormula {
 
     pub fn elements(&self) -> &[(Element, u16, i16)] {
         &self.elements
+    }
+
+    #[must_use]
+    pub fn with_global_isotope_modifications(&self, substitutions: &[(Element, u16)]) -> Self {
+        let mut new_elements = self.elements.clone();
+        for item in &mut new_elements {
+            for (substitute_element, substitute_species) in substitutions {
+                if item.0 == *substitute_element {
+                    item.1 = *substitute_species;
+                }
+            }
+        }
+        let result = Self {
+            elements: new_elements,
+            additional_mass: self.additional_mass,
+        };
+        result.simplify()
     }
 }
 

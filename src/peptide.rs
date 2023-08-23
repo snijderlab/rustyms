@@ -16,9 +16,17 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Peptide {
+    /// Global isotope modifications, saved as the element and the species that
+    /// all occurrence of that element will consist of. Eg (N, 15) will make
+    /// all occurring nitrogens be isotope 15.
+    pub global: Vec<(Element, u16)>,
+    /// Labile modifications, which will not be found in the actual spectrum.
     pub labile: Vec<Modification>,
+    /// N terminal modification
     pub n_term: Option<Modification>,
+    /// C terminal modification
     pub c_term: Option<Modification>,
+    /// The sequence of this peptide (includes local modifications)
     pub sequence: Vec<SequenceElement>,
     /// For each ambiguous modification list all possible positions it can be placed on.
     /// Index by the ambiguous modification id.
@@ -36,6 +44,7 @@ impl Peptide {
         self.sequence.is_empty()
     }
 
+    /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
     pub fn n_term(&self) -> MolecularFormula {
         self.n_term.as_ref().map_or_else(
             || molecular_formula!(H 1),
@@ -43,6 +52,7 @@ impl Peptide {
         )
     }
 
+    /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
     pub fn c_term(&self) -> MolecularFormula {
         self.c_term.as_ref().map_or_else(
             || molecular_formula!(H 1 O 1),
@@ -280,8 +290,9 @@ impl Peptide {
         Ok(())
     }
 
-    /// Generate all possible patterns for the ambiguous positions (Mass, String:Label)
-    /// It always contains at least one pattern (being (base mass, ""))
+    /// Generate all possible patterns for the ambiguous positions (Mass, String:Label).
+    /// It always contains at least one pattern (being (base mass, "")).
+    /// The global isotope modifications are NOT applied.
     fn ambiguous_patterns(
         &self,
         aa_range: impl RangeBounds<usize>,
@@ -377,6 +388,7 @@ impl Peptide {
         }
     }
 
+    /// Gives the formula for the whole peptide. With the global isotope modifications applied.
     pub fn formula(&self) -> Option<MolecularFormula> {
         let mut formula = self.n_term() + self.c_term();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
@@ -384,10 +396,11 @@ impl Peptide {
             formula += pos.formula_greedy(&mut placed)?;
         }
 
-        Some(formula)
+        Some(formula.with_global_isotope_modifications(&self.global))
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
+    /// With the global isotope modifications applied.
     ///
     /// # Panics
     /// If `max_charge` outside the range `1..=u64::MAX`.
@@ -427,6 +440,11 @@ impl Peptide {
                 ),
             );
         }
+        for fragment in &mut output {
+            fragment.theoretical_mass = fragment
+                .theoretical_mass
+                .with_global_isotope_modifications(&self.global);
+        }
         // Generate precursor peak
         output.push(
             Fragment::new(
@@ -448,7 +466,7 @@ impl Peptide {
                         seq.modifications.push(modification.clone());
                     }
                 }
-                GlobalModification::Isotope(_el, _isotope) => (), // TODO: implement
+                GlobalModification::Isotope(el, isotope) => self.global.push((*el, *isotope)),
             }
         }
     }
@@ -627,13 +645,15 @@ pub struct AmbiguousModification {
 }
 
 pub enum GlobalModification {
-    Isotope(Element, isize),
+    Isotope(Element, u16),
     Fixed(AminoAcid, Modification),
 }
 
 #[cfg(test)]
 mod tests {
     use super::Peptide;
+    use crate::Element;
+    use crate::MolecularFormula;
 
     #[test]
     fn parse_glycan() {
@@ -708,6 +728,23 @@ mod tests {
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(glycan.formula(), peptide.formula());
+    }
+
+    #[test]
+    fn parse_global() {
+        let deuterium = Peptide::pro_forma("<D>A").unwrap();
+        let nitrogen_15 = Peptide::pro_forma("<15N>A").unwrap();
+        assert_eq!(deuterium.sequence.len(), 1);
+        assert_eq!(nitrogen_15.sequence.len(), 1);
+        // Formula: A + H2O
+        assert_eq!(
+            deuterium.formula().unwrap(),
+            molecular_formula!((2)H 7 C 3 O 2 N 1)
+        );
+        assert_eq!(
+            nitrogen_15.formula().unwrap(),
+            molecular_formula!(H 7 C 3 O 2 (15)N 1)
+        );
     }
 
     #[test]

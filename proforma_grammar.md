@@ -77,8 +77,8 @@ These features are independent from each other:
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 6) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
 - [ ] 7 Charge and chimeric spectra are special cases (see Appendix II).
-- [ ] 4.6 Global modifications (e.g., every C is C13).
-    - [ ] 4.6.1 Isotope modifications `<15N>` (maybe apply as a post filter after generating the MolecularFormula??)
+- [x] 4.6 Global modifications (e.g., every C is C13).
+    - [x] 4.6.1 Isotope modifications `<15N>` (applied as a post filter after generating the MolecularFormula for generated fragments and full peptide, not applied on single aminoacids)
     - [x] 4.6.2 Fixed modifications `<[Formula:H-1]@A>` 
 
 # Other stuff to implement still
