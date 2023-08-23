@@ -13,6 +13,8 @@
 
 #[cfg(test)]
 mod fragmentation_tests;
+#[cfg(test)]
+mod pro_forma_parse_tests;
 #[macro_use]
 mod formula;
 

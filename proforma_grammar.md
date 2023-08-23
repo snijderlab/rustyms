@@ -92,6 +92,12 @@ These features are independent from each other:
 - [ ] 4.2.4 Branched peptides, similar to cross linking
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
 - [ ] Better error data, allowing the construction of rust-like error messages
+- [ ] Modification specific neutral losses, phospho: fully deleted
+- [ ] Modification diagnostic peaks
+
+# Bugs
+- [ ] Allow isotope definition in formulas
+- [ ] Allow for non-named localised ambiguous modifications, using mass or formulas `A[Formula:H-1#g1]AA[#g1]`
 
 # Sources for the downloaded files
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV
