@@ -1,3 +1,4 @@
+/// The elements (and electrons)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Element {
     /// Element Hydrogen (H) atomic number: 1
@@ -30,7 +31,7 @@ pub enum Element {
     Si,
     /// Element Phosphorus (P) atomic number: 15
     P,
-    /// Element Sulfur (S) atomic number: 16
+    /// Element Sulphur (S) atomic number: 16
     S,
     /// Element Chlorine (Cl) atomic number: 17
     Cl,
@@ -502,6 +503,7 @@ impl std::fmt::Display for Element {
     }
 }
 
+/// All elements sorted so that single characters come after two character element symbols (needed for greedy parsing)
 pub const ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
     ("He", Element::He),
     ("Li", Element::Li),

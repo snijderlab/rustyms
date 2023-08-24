@@ -8,6 +8,7 @@ impl Element {
         ELEMENTAL_DATA[self as usize].2
     }
 
+    /// The mass of the specified isotope of this element (if that isotope exists)
     pub fn mass(&self, isotope: u16) -> Option<Mass> {
         if *self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
@@ -23,6 +24,7 @@ impl Element {
         }))
     }
 
+    /// The average weight of the specified isotope of this element (if that isotope exists)
     pub fn average_weight(&self, isotope: u16) -> Option<Mass> {
         if *self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));

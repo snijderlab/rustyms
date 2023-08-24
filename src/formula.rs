@@ -4,6 +4,7 @@ use std::fmt::Write;
 include!("shared/formula.rs");
 
 impl MolecularFormula {
+    /// The mass of the molecular formula of this element, if all element species (isotopes) exists
     pub fn monoisotopic_mass(&self) -> Option<Mass> {
         let mut mass = da(self.additional_mass);
         for (e, i, n) in &self.elements {
@@ -11,6 +12,7 @@ impl MolecularFormula {
         }
         Some(mass)
     }
+    /// The average weight of the molecular formula of this element, if all element species (isotopes) exists
     pub fn average_weight(&self) -> Option<Mass> {
         let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {

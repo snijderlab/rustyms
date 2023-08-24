@@ -136,7 +136,7 @@ impl Model {
         }
     }
 
-    /// EThcD
+    /// electron-transfer/higher-energy collisional dissociation
     pub fn ethcd() -> Self {
         Self {
             a: (Location::None, Vec::new()),

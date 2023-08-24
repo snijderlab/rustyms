@@ -343,6 +343,7 @@ impl Type {
     }
 }
 
+/// The type of a single match step
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub enum MatchType {
     /// Aminoacid + Mass identity
@@ -372,7 +373,7 @@ const GAP_EXTEND_PENALTY: i8 = -1;
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
 pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Alignment {
-    const STEPS: usize = 3;
+    const STEPS: usize = 3; // can at max be i8::MAX / 2 => 64
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
     let mut matrix = vec![vec![Piece::default(); seq_b.len() + 1]; seq_a.len() + 1];
@@ -529,7 +530,7 @@ fn score_pair(
                 1,
             )
         }
-        (false, true) => Piece::new(score + ISOMASS as isize, ISOMASS, MatchType::Isobaric, 1, 1),
+        (false, true) => Piece::new(score + ISOMASS as isize, ISOMASS, MatchType::Isobaric, 1, 1), // TODO: I/L/J is now also scored as isobaric, which is correct but the score is considerably lower then in previous iterations
         (false, false) => Piece::new(
             score + MISMATCH as isize,
             MISMATCH,
@@ -553,13 +554,12 @@ fn score(
         let mut b_copy = b.to_owned();
         let switched = a.len() == b.len()
             && a.iter().all(|el| {
-                if let Some(pos) = b_copy.iter().position(|x| x == el) {
+                b_copy.iter().position(|x| x == el).map_or(false, |pos| {
                     b_copy.remove(pos);
                     true
-                } else {
-                    false
-                }
+                })
             });
+        #[allow(clippy::cast_possible_wrap)]
         let local = if switched {
             SWITCHED * a.len() as i8
         } else {
@@ -610,6 +610,7 @@ fn calculate_masses(steps: usize, sequence: &Peptide) -> Vec<Vec<Mass>> {
         .collect::<Vec<_>>()
 }
 
+/// The (slightly modified) blosum62 matrix for aminoacid homology scoring
 pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
 
 #[cfg(test)]

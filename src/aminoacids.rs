@@ -8,6 +8,7 @@ use crate::Position;
 /// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
 /// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(missing_docs)]
 pub enum AminoAcid {
     Alanine = 0,
     Arginine,
@@ -133,7 +134,7 @@ impl Chemical for AminoAcid {
     }
 }
 
-#[allow(non_upper_case_globals)]
+#[allow(non_upper_case_globals, missing_docs)]
 impl AminoAcid {
     pub const A: Self = Self::Alanine;
     pub const B: Self = Self::AmbiguousAsparagine;
@@ -227,7 +228,7 @@ impl AminoAcid {
         &self,
         n_term: &[(MolecularFormula, String)],
         c_term: &[(MolecularFormula, String)],
-        modifications: MolecularFormula,
+        modifications: &MolecularFormula,
         max_charge: Charge,
         sequence_index: usize,
         sequence_length: usize,
@@ -236,7 +237,7 @@ impl AminoAcid {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         if ions.a.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1),
+                &(modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1)),
                 FragmentType::a(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.a.1,
@@ -244,7 +245,7 @@ impl AminoAcid {
         }
         if ions.b.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() - molecular_formula!(H 1),
+                &(modifications + &self.formula() - molecular_formula!(H 1)),
                 FragmentType::b(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.b.1,
@@ -252,7 +253,7 @@ impl AminoAcid {
         }
         if ions.c.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() + molecular_formula!(H 2 N 1),
+                &(modifications + &self.formula() + molecular_formula!(H 2 N 1)),
                 FragmentType::c(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.c.1,
@@ -261,7 +262,9 @@ impl AminoAcid {
         if ions.d.0 {
             for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(Fragment::generate_all(
-                    &modifications + &self.formula() - satellite - molecular_formula!(H 1 C 1 O 1),
+                    &(modifications + &self.formula()
+                        - satellite
+                        - molecular_formula!(H 1 C 1 O 1)),
                     FragmentType::d(Position::n(sequence_index, sequence_length)),
                     n_term,
                     ions.d.1,
@@ -270,7 +273,7 @@ impl AminoAcid {
         }
         if ions.v.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &molecular_formula!(H 3 C 2 N 1 O 1), // TODO: are the modifications needed here?
+                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1)), // TODO: are the modifications needed here?
                 FragmentType::v(Position::n(sequence_index, sequence_length)),
                 c_term,
                 ions.v.1,
@@ -279,7 +282,7 @@ impl AminoAcid {
         if ions.w.0 {
             for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(Fragment::generate_all(
-                    &modifications + &self.formula() - satellite - molecular_formula!(H 2 N 1),
+                    &(modifications + &self.formula() - satellite - molecular_formula!(H 2 N 1)),
                     FragmentType::w(Position::c(sequence_index, sequence_length)),
                     c_term,
                     ions.w.1,
@@ -288,8 +291,8 @@ impl AminoAcid {
         }
         if ions.x.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() + molecular_formula!(C 1 O 1)
-                    - molecular_formula!(H 1),
+                &(modifications + &self.formula() + molecular_formula!(C 1 O 1)
+                    - molecular_formula!(H 1)),
                 FragmentType::x(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.x.1,
@@ -297,7 +300,7 @@ impl AminoAcid {
         }
         if ions.y.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() + molecular_formula!(H 1),
+                &(modifications + &self.formula() + molecular_formula!(H 1)),
                 FragmentType::y(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.y.1,
@@ -305,13 +308,13 @@ impl AminoAcid {
         }
         if ions.z.0 {
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() - molecular_formula!(H 2 N 1),
+                &(modifications + &self.formula() - molecular_formula!(H 2 N 1)),
                 FragmentType::z(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &modifications + &self.formula() - molecular_formula!(H 1 N 1),
+                &(modifications + &self.formula() - molecular_formula!(H 1 N 1)),
                 FragmentType::z·(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,

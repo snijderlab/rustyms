@@ -4,20 +4,28 @@ use uom::num_traits::Zero;
 
 use crate::{system::f64::*, Chemical, Element, MolecularFormula, NeutralLoss};
 
+/// A theoretical fragment of a peptide
 #[derive(Debug, Clone)]
 pub struct Fragment {
+    /// The theoretical composition
     pub theoretical_mass: MolecularFormula,
+    /// The charge
     pub charge: Charge,
+    /// The type of ion/fragment
     pub ion: FragmentType,
+    /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
+    /// Additional description for humans
     pub label: String,
 }
 
 impl Fragment {
+    /// Get the mz
     pub fn mz(&self) -> Option<MassOverCharge> {
         Some(self.theoretical_mass.monoisotopic_mass()? / self.charge)
     }
 
+    /// Create a new fragment
     #[must_use]
     pub fn new(
         theoretical_mass: MolecularFormula,
@@ -34,9 +42,10 @@ impl Fragment {
         }
     }
 
+    /// Generate a list of possible fragments from the list of possible preceding termini and neutral losses
     #[must_use]
     pub fn generate_all(
-        theoretical_mass: MolecularFormula,
+        theoretical_mass: &MolecularFormula,
         ion: FragmentType,
         termini: &[(MolecularFormula, String)],
         neutral_losses: &[NeutralLoss],
@@ -45,7 +54,7 @@ impl Fragment {
             .iter()
             .map(|term| {
                 Self::new(
-                    &term.0 + &theoretical_mass,
+                    &term.0 + theoretical_mass,
                     Charge::zero(),
                     ion,
                     term.1.to_string(),
@@ -55,6 +64,7 @@ impl Fragment {
             .collect()
     }
 
+    /// Create a copy of this fragment with the given charge
     #[must_use]
     pub fn with_charge(&self, charge: Charge) -> Self {
         let c = charge.value as i16;
@@ -66,6 +76,7 @@ impl Fragment {
         }
     }
 
+    /// Create a copy of this fragment with the given neutral loss
     #[must_use]
     pub fn with_neutral_loss(&self, neutral_loss: &NeutralLoss) -> Self {
         Self {
@@ -75,6 +86,7 @@ impl Fragment {
         }
     }
 
+    /// Create copies of this fragment with the given neutral losses (and a copy of this fragment itself)
     #[must_use]
     pub fn with_neutral_losses(&self, neutral_losses: &[NeutralLoss]) -> Vec<Self> {
         let mut output = Vec::with_capacity(neutral_losses.len() + 1);
@@ -104,19 +116,24 @@ impl Display for Fragment {
     }
 }
 
+/// The definition of the position of an ion
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Position {
+    /// The sequence index (0 based into the peptide sequence)
     pub sequence_index: usize,
+    /// The series number (1 based from the ion series terminal)
     pub series_number: usize,
 }
 
 impl Position {
+    /// Generate a position for N terminal ion series
     pub const fn n(sequence_index: usize, _length: usize) -> Self {
         Self {
             sequence_index,
             series_number: sequence_index + 1,
         }
     }
+    /// Generate a position for C terminal ion series
     pub const fn c(sequence_index: usize, length: usize) -> Self {
         Self {
             sequence_index,
@@ -125,23 +142,36 @@ impl Position {
     }
 }
 
+/// The possible types of fragments
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
+    /// a
     a(Position),
+    /// b
     b(Position),
+    /// c
     c(Position),
+    /// d
     d(Position),
+    /// v
     v(Position),
+    /// w
     w(Position),
+    /// x
     x(Position),
+    /// y
     y(Position),
+    /// z
     z(Position),
+    /// z·
     z·(Position),
+    /// precursor
     precursor,
 }
 
 impl FragmentType {
+    /// Get the position of this ion (or None if it is a precursor ion)
     pub const fn position(&self) -> Option<&Position> {
         match self {
             Self::a(n)

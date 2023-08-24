@@ -1,13 +1,17 @@
 use crate::Element;
 
+/// A molecular formula, a selection of elements of specified isotopes together forming a structure
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MolecularFormula {
-    // Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
+    /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     elements: Vec<(crate::Element, u16, i16)>,
+    /// Any addition mass, defined to be monoisotopic
     additional_mass: f64,
 }
 
+/// Any item that has a clearly defined molecular formula
 pub trait Chemical {
+    /// Get the molecular formula
     fn formula(&self) -> MolecularFormula;
 }
 
@@ -50,6 +54,7 @@ impl MolecularFormula {
         self
     }
 
+    /// Get an empty molecular formula with only a mass of unspecified origin
     pub const fn with_additional_mass(additional_mass: f64) -> Self {
         Self {
             elements: Vec::new(),
@@ -57,6 +62,7 @@ impl MolecularFormula {
         }
     }
 
+    /// Add the given element to this formula (while keeping it ordered and simplified)
     pub fn add(&mut self, element: (crate::Element, u16, i16)) {
         let mut index = 0;
         let mut done = false;
@@ -80,10 +86,12 @@ impl MolecularFormula {
         }
     }
 
+    /// Get the elements making this formula
     pub fn elements(&self) -> &[(Element, u16, i16)] {
         &self.elements
     }
 
+    /// Create a new molecular formula with the given global isotope modifications
     #[must_use]
     pub fn with_global_isotope_modifications(&self, substitutions: &[(Element, u16)]) -> Self {
         let mut new_elements = self.elements.clone();
