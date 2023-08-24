@@ -9,14 +9,22 @@ use crate::{
     system::{f64::*, mass_over_charge::mz},
 };
 
+/// A raw spectrum (meaning not annotated yet)
 #[derive(Clone, Debug)]
 pub struct RawSpectrum {
+    /// The title (as used in MGF)
     pub title: String,
+    /// The number of scans
     pub num_scans: u64,
+    /// The retention time
     pub rt: Time,
+    /// The found precursor charge
     pub charge: Charge,
+    /// The found precursor mass
     pub mass: Mass,
+    /// The found precursor intensity
     pub intensity: Option<f64>,
+    /// The peaks of which this spectrum consists
     pub spectrum: Vec<RawPeak>,
 }
 
@@ -37,6 +45,7 @@ impl RawSpectrum {
         self.spectrum.shrink_to_fit();
     }
 
+    /// Annotate this spectrum with the given peptide and given fragments see [`Peptide::generate_theoretical_fragments`].
     pub fn annotate(
         &self,
         peptide: Peptide,
@@ -57,17 +66,18 @@ impl RawSpectrum {
 
         for (fragment_index, fragment) in theoretical_fragments.iter().enumerate() {
             connections.extend(self.spectrum.iter().enumerate().filter_map(|(i, p)| {
-                let ppm = p.ppm(fragment);
-                if ppm.map_or(false, |p| p < model.ppm) {
-                    Some((
-                        i,
-                        fragment_index,
-                        AnnotatedPeak::new(p, fragment.clone()),
-                        ppm.unwrap(),
-                    ))
-                } else {
-                    None
-                }
+                p.ppm(fragment).and_then(|ppm| {
+                    if ppm < model.ppm {
+                        Some((
+                            i,
+                            fragment_index,
+                            AnnotatedPeak::new(p, fragment.clone()),
+                            ppm,
+                        ))
+                    } else {
+                        None
+                    }
+                })
             }));
         }
         annotated.spectrum.extend(cluster_matches(
@@ -222,39 +232,58 @@ pub fn non_recursive_combinations(
         .collect()
 }
 
+/// An annotated spectrum
 #[derive(Clone, Debug)]
 pub struct AnnotatedSpectrum {
+    /// The title (as used in MGF)
     pub title: String,
+    /// The number of scans
     pub num_scans: u64,
+    /// The retention time
     pub rt: Time,
+    /// The found precursor charge
     pub charge: Charge,
+    /// The found precursor mass
     pub mass: Mass,
+    /// The peptide with which this spectrum was annotated
     pub peptide: Peptide,
+    /// The spectrum
     pub spectrum: Vec<AnnotatedPeak>,
 }
 
+/// A raw peak
 #[derive(Clone, Debug)]
 pub struct RawPeak {
+    /// The mz value of this peak
     pub mz: MassOverCharge,
+    /// The intensity of this peak
     pub intensity: f64,
-    pub charge: Charge,
+    /// The charge of this peak
+    pub charge: Charge, // #TODO: Is this item needed?
 }
 
 impl RawPeak {
+    /// Determine the ppm error for the given fragment, optional because the mz of a [Fragment] is optional
     pub fn ppm(&self, fragment: &Fragment) -> Option<MassOverCharge> {
         Some(MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()?)))
     }
 }
 
+/// An annotated peak
 #[derive(Clone, Debug)]
 pub struct AnnotatedPeak {
+    /// The experimental mz
     pub experimental_mz: MassOverCharge,
+    /// The experimental intensity
     pub intensity: f64,
-    pub charge: Charge,
+    /// The charge
+    pub charge: Charge, // #TODO: Is this item needed?
+    /// The annotation, if present
     pub annotation: Option<Fragment>,
 }
 
 impl AnnotatedPeak {
+    /// Make a new annotated peak with the given annotation
     pub fn new(peak: &RawPeak, annotation: Fragment) -> Self {
         Self {
             experimental_mz: peak.mz,
@@ -264,6 +293,7 @@ impl AnnotatedPeak {
         }
     }
 
+    /// Make a new annotated peak if no annotation is possible
     pub fn background(peak: &RawPeak) -> Self {
         Self {
             experimental_mz: peak.mz,

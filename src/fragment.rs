@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use uom::num_traits::Zero;
 
-use crate::{model::NeutralLoss, system::f64::*, Chemical, Element, MolecularFormula};
+use crate::{system::f64::*, Chemical, Element, MolecularFormula, NeutralLoss};
 
 #[derive(Debug, Clone)]
 pub struct Fragment {

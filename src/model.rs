@@ -1,42 +1,64 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    element::Element,
-    formula::{Chemical, MolecularFormula},
     system::{f64::MassOverCharge, mass_over_charge::mz},
+    NeutralLoss,
 };
 
+/// A model for the fragmentation, allowing control over what theoretical fragment to generate.
 #[derive(PartialEq, Debug, Clone)]
 pub struct Model {
+    /// a series ions
     pub a: (Location, Vec<NeutralLoss>),
+    /// b series ions
     pub b: (Location, Vec<NeutralLoss>),
+    /// c series ions
     pub c: (Location, Vec<NeutralLoss>),
+    /// d series ions (side chain fragmentation from a)
     pub d: (Location, Vec<NeutralLoss>),
+    /// v series ions (full side chain broken off)
     pub v: (Location, Vec<NeutralLoss>),
+    /// w series ions (side chain fragmentation from z)
     pub w: (Location, Vec<NeutralLoss>),
+    /// x series ions
     pub x: (Location, Vec<NeutralLoss>),
+    /// y series ions
     pub y: (Location, Vec<NeutralLoss>),
+    /// z series ions
     pub z: (Location, Vec<NeutralLoss>),
+    /// precursor ions
     pub precursor: Vec<NeutralLoss>,
+    /// The matching tolerance
     pub ppm: MassOverCharge,
 }
+
+/// A struct to handle all possible fragments that could be generated on a single location
 #[allow(clippy::struct_excessive_bools)]
 pub struct PossibleIons<'a> {
+    /// a series ions
     pub a: (bool, &'a [NeutralLoss]),
+    /// b series ions
     pub b: (bool, &'a [NeutralLoss]),
+    /// c series ions
     pub c: (bool, &'a [NeutralLoss]),
+    /// d series ions (side chain fragmentation from a)
     pub d: (bool, &'a [NeutralLoss]),
+    /// v series ions (full side chain broken off)
     pub v: (bool, &'a [NeutralLoss]),
+    /// w series ions (side chain fragmentation from z)
     pub w: (bool, &'a [NeutralLoss]),
+    /// x series ions
     pub x: (bool, &'a [NeutralLoss]),
+    /// y series ions
     pub y: (bool, &'a [NeutralLoss]),
+    /// z series ions
     pub z: (bool, &'a [NeutralLoss]),
+    /// precursor ions
     pub precursor: &'a [NeutralLoss],
 }
 
 impl<'a> PossibleIons<'a> {
+    /// Give an upper bound for the number of theoretical fragment for these possible ions
     pub fn size_upper_bound(&self) -> usize {
         usize::from(self.a.0) * (self.a.1.len() + 1)
             + usize::from(self.b.0) * (self.b.1.len() + 1)
@@ -51,6 +73,7 @@ impl<'a> PossibleIons<'a> {
 }
 
 impl Model {
+    /// Give all possible ions for the given position
     pub fn ions(&self, index: usize, length: usize) -> PossibleIons {
         PossibleIons {
             a: (self.a.0.possible(index, length), self.a.1.as_slice()),
@@ -66,6 +89,7 @@ impl Model {
         }
     }
 
+    /// Build a new model
     #[allow(clippy::too_many_arguments, clippy::many_single_char_names)]
     pub fn new(
         a: (Location, Vec<NeutralLoss>),
@@ -95,6 +119,7 @@ impl Model {
         }
     }
 
+    /// Generate all possible fragments
     pub fn all() -> Self {
         Self {
             a: (Location::SkipN(1), vec![NeutralLoss::Water]),
@@ -111,22 +136,7 @@ impl Model {
         }
     }
 
-    pub fn really_all() -> Self {
-        Self {
-            a: (Location::All, vec![NeutralLoss::Water]),
-            b: (Location::All, vec![NeutralLoss::Water]),
-            c: (Location::All, vec![NeutralLoss::Water]),
-            d: (Location::All, vec![NeutralLoss::Water]),
-            v: (Location::All, vec![NeutralLoss::Water]),
-            w: (Location::All, vec![NeutralLoss::Water]),
-            x: (Location::All, vec![NeutralLoss::Water]),
-            y: (Location::All, vec![NeutralLoss::Water]),
-            z: (Location::All, vec![NeutralLoss::Water]),
-            precursor: vec![NeutralLoss::Water],
-            ppm: MassOverCharge::new::<mz>(20.0),
-        }
-    }
-
+    /// EThcD
     pub fn ethcd() -> Self {
         Self {
             a: (Location::None, Vec::new()),
@@ -143,6 +153,7 @@ impl Model {
         }
     }
 
+    /// CID Hcd
     pub fn cid_hcd() -> Self {
         Self {
             a: (
@@ -162,6 +173,7 @@ impl Model {
         }
     }
 
+    /// ETCID
     pub fn etcid() -> Self {
         Self {
             a: (Location::None, Vec::new()),
@@ -178,6 +190,7 @@ impl Model {
         }
     }
 
+    /// ETD
     pub fn etd() -> Self {
         Self {
             a: (Location::None, Vec::new()),
@@ -195,18 +208,32 @@ impl Model {
     }
 }
 
+/// A location, or range of locations where an ion can be generated
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Location {
+    /// Skip the given number from the N terminal side
     SkipN(usize),
+    /// Skip the given number of aminoacids from the N terminal and C terminal side respectively, only using the positions between these two
     SkipNC(usize, usize),
-    TakeN { skip: usize, take: usize },
+    /// Skip a certain number and then take a certain number of aminoacids
+    TakeN {
+        /// Skip this number of aminoacids
+        skip: usize,
+        /// Take this number of aminoacids
+        take: usize,
+    },
+    /// Skip a given number from the C terminal side
     SkipC(usize),
+    /// Take a given number of aminoacids from the C terminal side
     TakeC(usize),
+    /// All positions (including 0 and len-1)
     All,
+    /// Do not allow it anywhere
     None,
 }
 
 impl Location {
+    /// Determine if an ion is possible on this location
     pub const fn possible(&self, index: usize, length: usize) -> bool {
         match self {
             Self::SkipN(n) => index >= *n,
@@ -217,35 +244,5 @@ impl Location {
             Self::All => true,
             Self::None => false,
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub enum NeutralLoss {
-    Water,
-    Ammonia,
-    CarbonMonoxide,
-}
-
-impl Chemical for NeutralLoss {
-    fn formula(&self) -> crate::formula::MolecularFormula {
-        match self {
-            Self::Water => molecular_formula!(O 1 H 2),
-            Self::Ammonia => molecular_formula!(N 1 H 3),
-            Self::CarbonMonoxide => molecular_formula!(C 1 O 1),
-        }
-    }
-}
-impl Display for NeutralLoss {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Water => "Water",
-                Self::Ammonia => "Ammonia",
-                Self::CarbonMonoxide => "CarbonMonoxide",
-            }
-        )
     }
 }

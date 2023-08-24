@@ -1,3 +1,4 @@
+//! Handle MGF file reading
 use std::{
     fs::File,
     io::{BufRead, BufReader},

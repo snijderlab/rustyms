@@ -99,6 +99,7 @@ pub mod f64 {
     pub use super::ratio::r;
     pub use super::time::s;
 
+    /// Annotate the given number as being in Da
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)
     }

@@ -1,3 +1,5 @@
+//! Functions to generate alignments of peptides based on homology, while taking mass spec error into account.
+
 use std::fmt::Write;
 
 use crate::{MolecularFormula, Peptide, SequenceElement};

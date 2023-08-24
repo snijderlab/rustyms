@@ -1,5 +1,7 @@
+//! A crate to handle MS data with rust. Primarily an annotator of spectra for peptide fragmentation.
+
 #![allow(dead_code)]
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 #![allow(
     clippy::must_use_candidate,
     clippy::cast_precision_loss,
@@ -27,6 +29,7 @@ mod helper_functions;
 mod isotopes;
 mod model;
 mod modification;
+mod neutral_loss;
 mod ontologies;
 mod peptide;
 mod placement_rules;
@@ -39,6 +42,7 @@ pub use crate::formula::*;
 pub use crate::fragment::*;
 pub use crate::glycan::*;
 pub use crate::model::*;
+pub use crate::neutral_loss::*;
 pub use crate::peptide::*;
 pub use crate::spectrum::*;
 pub use crate::system::f64::*;
