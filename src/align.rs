@@ -2,7 +2,8 @@
 
 use std::fmt::Write;
 
-use crate::{MolecularFormula, Peptide, SequenceElement};
+use crate::uom::num_traits::Zero;
+use crate::{Mass, MolecularFormula, Peptide, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -32,7 +33,7 @@ impl Alignment {
             Deletion,
             Match,
             Mismatch,
-            Special(u8, u8),
+            Special(MatchType, u8, u8),
         }
         impl std::fmt::Display for StepType {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -44,7 +45,9 @@ impl Alignment {
                         Self::Deletion => String::from("D"),
                         Self::Match => String::from("="),
                         Self::Mismatch => String::from("X"),
-                        Self::Special(a, b) => format!("s[{a}, {b}]"),
+                        Self::Special(MatchType::Switched, a, b) => format!("s[{a}, {b}]"),
+                        Self::Special(MatchType::Isobaric, a, b) => format!("i[{a}, {b}]"),
+                        Self::Special(..) => panic!("A special match cannot be of this match type"),
                     }
                 )
             }
@@ -52,14 +55,20 @@ impl Alignment {
         let (_, _, output, last) = self.path.iter().fold(
             (self.start_a, self.start_b, String::new(), None),
             |(a, b, output, last), step| {
-                let current_type = match (step.step_a, step.step_b) {
-                    (0, 1) => StepType::Insertion,
-                    (1, 0) => StepType::Deletion,
-                    (1, 1) if self.seq_a.sequence[a] == self.seq_b.sequence[b] => StepType::Match,
-                    (1, 1) => StepType::Mismatch,
-                    (a, b) => StepType::Special(a, b),
+                let current_type = match (step.match_type, step.step_a, step.step_b) {
+                    (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
+                    (_, 0, 1) => StepType::Insertion,
+                    (_, 1, 0) => StepType::Deletion,
+                    (_, 1, 1) if self.seq_a.sequence[a] == self.seq_b.sequence[b] => {
+                        StepType::Match
+                    }
+                    (_, 1, 1) => StepType::Mismatch,
+                    (m, a, b) => StepType::Special(m, a, b),
                 };
                 let (str, last) = match last {
+                    Some((t @ StepType::Special(..), _)) => {
+                        (format!("{output}{t}"), Some((current_type, 1)))
+                    }
                     Some((t, n)) if t == current_type => (output, Some((t, n + 1))),
                     Some((t, n)) => (format!("{output}{n}{t}"), Some((current_type, 1))),
                     None => (output, Some((current_type, 1))),
@@ -72,10 +81,10 @@ impl Alignment {
                 )
             },
         );
-        if let Some((t, n)) = last {
-            format!("{output}{n}{t}")
-        } else {
-            output
+        match last {
+            Some((t @ StepType::Special(..), _)) => format!("{output}{t}"),
+            Some((t, n)) => format!("{output}{n}{t}"),
+            _ => output,
         }
     }
 
@@ -278,6 +287,8 @@ pub struct Piece {
     pub score: isize,
     /// The local contribution to the score of this piece
     pub local_score: i8,
+    /// The type of the match
+    pub match_type: MatchType,
     /// The number of steps on the first sequence
     pub step_a: u8,
     /// The number of steps on the second sequence
@@ -286,10 +297,17 @@ pub struct Piece {
 
 impl Piece {
     /// Create a new alignment piece
-    pub const fn new(score: isize, local_score: i8, step_a: u8, step_b: u8) -> Self {
+    pub const fn new(
+        score: isize,
+        local_score: i8,
+        match_type: MatchType,
+        step_a: u8,
+        step_b: u8,
+    ) -> Self {
         Self {
             score,
             local_score,
+            match_type,
             step_a,
             step_b,
         }
@@ -325,25 +343,31 @@ impl Type {
     }
 }
 
-#[repr(i8)]
-#[derive(Clone, Default, Debug)]
-pub enum Scoring {
-    /// The score for identity, should be the highest score of the bunch
-    Identity = 8,
-    /// The score for a mismatch
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub enum MatchType {
+    /// Aminoacid + Mass identity
+    FullIdentity,
+    /// Aminoacid + Mass mismatch
+    IdentityMassMismatch,
+    /// Full mismatch
     #[default]
-    Mismatch = -1,
-    /// The score for an iso mass set, eg Q<>AG
-    IsoMass = 5,
-    /// The score for a modification
-    Modification = 3,
-    /// The score for a switched set, defined as this value times the size of the set (eg AG scores 4 with GA)
-    Switched = 2,
-    /// The score for scoring a gap, should be less than `MISMATCH`
-    GapStartPenalty = -5,
-    GapExtendPenalty = -3,
+    Mismatch,
+    /// Set of aminoacids + mods with the same mass but different sequence
+    Isobaric,
+    /// Set of aminoacids + mods in a different order in the two sequences
+    Switched,
+    /// A gap
+    Gap,
 }
 
+const MISMATCH: i8 = -1;
+const MASS_MISMATCH_PENALTY: i8 = -1;
+const SWITCHED: i8 = 3;
+const ISOMASS: i8 = 2;
+const GAP_START_PENALTY: i8 = -5;
+const GAP_EXTEND_PENALTY: i8 = -1;
+
+/// Create an alignment of two peptides based on mass and homology.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
@@ -353,14 +377,17 @@ pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Al
     assert!(isize::try_from(seq_b.len()).is_ok());
     let mut matrix = vec![vec![Piece::default(); seq_b.len() + 1]; seq_a.len() + 1];
     let mut high = (0, 0, 0);
+    let masses_a = calculate_masses(STEPS, &seq_a);
+    let masses_b = calculate_masses(STEPS, &seq_b);
 
     if ty.global() {
         #[allow(clippy::cast_possible_wrap)]
         // b is always less than seq_b
         for index_b in 0..=seq_b.len() {
             matrix[0][index_b] = Piece::new(
-                (index_b as isize) * Scoring::GapExtendPenalty as isize,
-                Scoring::GapExtendPenalty as i8,
+                (index_b as isize) * GAP_EXTEND_PENALTY as isize,
+                GAP_EXTEND_PENALTY,
+                MatchType::Gap,
                 0,
                 u8::from(index_b != 0),
             );
@@ -371,8 +398,9 @@ pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Al
         // a is always less than seq_a
         for (index_a, row) in matrix.iter_mut().enumerate() {
             row[0] = Piece::new(
-                (index_a as isize) * Scoring::GapExtendPenalty as isize,
-                Scoring::GapExtendPenalty as i8,
+                (index_a as isize) * GAP_EXTEND_PENALTY as isize,
+                GAP_EXTEND_PENALTY,
+                MatchType::Gap,
                 u8::from(index_a != 0),
                 0,
             );
@@ -390,29 +418,33 @@ pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Al
                         || len_a > index_a
                         || len_b > index_b
                     {
-                        continue; // Do not allow double gaps (just makes no sense)
+                        continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                     }
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
                     let base_score = matrix[index_a - len_a][index_b - len_b].score;
-                    // len_a and b are always less then STEPS
+                    // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
                         Some(Piece::new(
-                            base_score + Scoring::GapExtendPenalty as isize,
-                            Scoring::GapExtendPenalty as i8,
+                            base_score + GAP_EXTEND_PENALTY as isize, // TODO: Check affine gaps
+                            GAP_EXTEND_PENALTY,
+                            MatchType::Gap,
                             len_a as u8,
                             len_b as u8,
                         ))
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
                             &seq_a.sequence[index_a - 1],
+                            masses_a[0][index_a],
                             &seq_b.sequence[index_b - 1],
+                            masses_b[0][index_b],
                             alphabet,
                             base_score,
                         ))
                     } else {
                         score(
                             &seq_a.sequence[index_a - len_a..index_a],
+                            masses_a[len_a - 1][index_a],
                             &seq_b.sequence[index_b - len_b..index_b],
+                            masses_b[len_b - 1][index_b],
                             base_score,
                         )
                     };
@@ -472,43 +504,110 @@ pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Al
     }
 }
 
-fn score_pair(a: &SequenceElement, b: &SequenceElement, alphabet: &[&[i8]], score: isize) -> Piece {
-    let ppm = a
-        .formula_all()
-        .unwrap()
-        .monoisotopic_mass()
-        .unwrap()
-        .ppm(b.formula_all().unwrap().monoisotopic_mass().unwrap());
-    let local = alphabet[a.aminoacid as usize][b.aminoacid as usize] + 20
-        - ppm.round().clamp(0.0, 20.0) as i8;
-    Piece::new(score + local as isize, local, 1, 1)
+/// Score a pair of sequence elements (AA + mods)
+fn score_pair(
+    a: &SequenceElement,
+    mass_a: Mass,
+    b: &SequenceElement,
+    mass_b: Mass,
+    alphabet: &[&[i8]],
+    score: isize,
+) -> Piece {
+    match (a == b, mass_similar(mass_a, mass_b)) {
+        (true, true) => {
+            let local = alphabet[a.aminoacid as usize][b.aminoacid as usize];
+            Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
+        }
+        (true, false) => {
+            let local =
+                alphabet[a.aminoacid as usize][b.aminoacid as usize] + MASS_MISMATCH_PENALTY;
+            Piece::new(
+                score + local as isize,
+                local,
+                MatchType::IdentityMassMismatch,
+                1,
+                1,
+            )
+        }
+        (false, true) => Piece::new(score + ISOMASS as isize, ISOMASS, MatchType::Isobaric, 1, 1),
+        (false, false) => Piece::new(
+            score + MISMATCH as isize,
+            MISMATCH,
+            MatchType::Mismatch,
+            1,
+            1,
+        ),
+    }
 }
 
-fn score(a: &[SequenceElement], b: &[SequenceElement], score: isize) -> Option<Piece> {
-    let ppm = a
-        .iter()
-        .map(|s| s.formula_all().unwrap())
-        .sum::<MolecularFormula>()
-        .monoisotopic_mass()
-        .unwrap()
-        .ppm(
-            b.iter()
-                .map(|s| s.formula_all().unwrap())
-                .sum::<MolecularFormula>()
-                .monoisotopic_mass()
-                .unwrap(),
-        );
-    if ppm > 20.0 {
-        None
-    } else {
-        let local = 20 - ppm.round().clamp(0.0, 20.0) as i8;
+/// Score two sets of aminoacids (it will only be called when at least one of a and b has len > 1)
+/// Returns none if no sensible explanation can be made
+fn score(
+    a: &[SequenceElement],
+    mass_a: Mass,
+    b: &[SequenceElement],
+    mass_b: Mass,
+    score: isize,
+) -> Option<Piece> {
+    if mass_similar(mass_a, mass_b) {
+        let mut b_copy = b.to_owned();
+        let switched = a.len() == b.len()
+            && a.iter().all(|el| {
+                if let Some(pos) = b_copy.iter().position(|x| x == el) {
+                    b_copy.remove(pos);
+                    true
+                } else {
+                    false
+                }
+            });
+        let local = if switched {
+            SWITCHED * a.len() as i8
+        } else {
+            ISOMASS * (a.len() + b.len()) as i8 / 2
+        };
         Some(Piece::new(
             score + local as isize,
             local,
+            if switched {
+                MatchType::Switched
+            } else {
+                MatchType::Isobaric
+            },
             a.len() as u8,
             b.len() as u8,
         ))
+    } else {
+        None
     }
+}
+
+/// Determine if two masses are close enough to be considered similar.
+/// This is the case if the two masses are within 10 ppm or 0.1 Da
+fn mass_similar(a: Mass, b: Mass) -> bool {
+    a.ppm(b) < 10.0 || (a.value - b.value).abs() < 0.1
+}
+
+/// Get the masses of all subsets of up to the given number of steps as a lookup table.
+/// The result should be is index by [steps-1][index]
+fn calculate_masses(steps: usize, sequence: &Peptide) -> Vec<Vec<Mass>> {
+    (1..=steps)
+        .map(|size| {
+            (0..=sequence.len())
+                .map(|index| {
+                    if index < size {
+                        Mass::zero()
+                    } else {
+                        sequence.sequence[index - size..index]
+                            .iter()
+                            .map(|s| s.formula_all().unwrap())
+                            .sum::<MolecularFormula>()
+                            .monoisotopic_mass()
+                            .unwrap()
+                    }
+                })
+                .collect::<Vec<Mass>>()
+        })
+        .collect::<Vec<_>>()
 }
 
 pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
@@ -517,16 +616,28 @@ pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
 mod tests {
     use crate::align::score;
     use crate::aminoacids::AminoAcid;
-    use crate::SequenceElement;
+    use crate::{MolecularFormula, SequenceElement};
 
     #[test]
     fn pair() {
+        let a = [SequenceElement::new(AminoAcid::N, None)];
+        let b = [
+            SequenceElement::new(AminoAcid::G, None),
+            SequenceElement::new(AminoAcid::G, None),
+        ];
         let pair = dbg!(score(
-            &[SequenceElement::new(AminoAcid::N, None)],
-            &[
-                SequenceElement::new(AminoAcid::G, None),
-                SequenceElement::new(AminoAcid::G, None)
-            ],
+            &a,
+            a.iter()
+                .map(|s| s.formula_all().unwrap())
+                .sum::<MolecularFormula>()
+                .monoisotopic_mass()
+                .unwrap(),
+            &b,
+            b.iter()
+                .map(|s| s.formula_all().unwrap())
+                .sum::<MolecularFormula>()
+                .monoisotopic_mass()
+                .unwrap(),
             0
         ));
         assert!(pair.is_some());
