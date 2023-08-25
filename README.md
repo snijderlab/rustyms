@@ -1,3 +1,6 @@
+[![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
+[![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms)
+
 # Match those fragments!
 
 A work in progress peptide fragmentation matching library for rust.
@@ -9,4 +12,4 @@ A work in progress peptide fragmentation matching library for rust.
  - Read mgf files
  - Match spectra to the generated fragments
  - Extensive use of `uom` for compile time unit checking
- - Align peptides based on mass (algorithm will be reworked in the near future) (see `Stitch` for more information, but the algorithm has changed)
+ - Align peptides based on mass (algorithm will be tweaked extensively over time) (see `Stitch` for more information, but the algorithm has changed)

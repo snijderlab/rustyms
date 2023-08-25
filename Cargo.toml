@@ -1,6 +1,6 @@
 [package]
 name = "rustyms"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 authors = ["Douwe Schulte <d.schulte@uu.nl>"]
@@ -10,8 +10,6 @@ keywords = ["spectra", "massspectrometry", "ms", "fragmentation", "proforma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
 include = ["src/**/*", "databases/**/*", "LICENSE", "README.md", "build.rs"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 uom = "0.35"
