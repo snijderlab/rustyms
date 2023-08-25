@@ -68,6 +68,9 @@ impl Peptide {
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(value: &str) -> Result<Self, String> {
+        if value.trim().is_empty() {
+            return Err("Peptide sequence is empty".to_string());
+        }
         let mut peptide = Self::default();
         let chars: &[u8] = value.as_bytes();
         let mut index = 0;
