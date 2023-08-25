@@ -39,6 +39,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 
 # Open questions
 - proper order for global/labile/unknown_position and for additional peptides (xl/cys-xl/branched/chimeric) for MS?
+    - A: `<GLOBAL_MOD>[UNKNOWN_POS]?{LABILE_MOD}[N_TERM]-PEPTIDE-[C_TERM]` https://github.com/HUPO-PSI/ProForma/issues/3#issuecomment-906448694
 - what is the mass for B/Z?
 - what defines valid ionic species for ion charge?
 
