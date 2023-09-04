@@ -2,7 +2,7 @@
 
 use std::{fmt::Display, ops::RangeBounds};
 
-use crate::{Element, MolecularFormula};
+use crate::{CollectionKind, Element, MolecularFormula, PeptideCollection};
 use itertools::Itertools;
 use uom::num_traits::Zero;
 
@@ -67,13 +67,31 @@ impl Peptide {
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     #[allow(clippy::too_many_lines)]
-    pub fn pro_forma(value: &str) -> Result<Self, String> {
+    pub fn pro_forma(value: &str) -> Result<PeptideCollection, String> {
+        let mut peptides = Vec::new();
+        let mut start = 0;
+        let (peptide, tail) = Self::pro_forma_inner(value, start)?;
+        start = tail;
+        peptides.push(peptide);
+
+        // Parse any following multimeric species
+        while start < value.len() {
+            let (peptide, tail) = Self::pro_forma_inner(value, start)?;
+            peptides.push(peptide);
+            start = tail;
+        }
+        Ok(PeptideCollection {
+            kind: CollectionKind::Multimeric,
+            peptides,
+        })
+    }
+
+    fn pro_forma_inner(value: &str, mut index: usize) -> Result<(Self, usize), String> {
         if value.trim().is_empty() {
             return Err("Peptide sequence is empty".to_string());
         }
         let mut peptide = Self::default();
         let chars: &[u8] = value.as_bytes();
-        let mut index = 0;
         let mut c_term = false;
         let mut ambiguous_aa_counter = 0;
         let mut ambiguous_aa = None;
@@ -189,17 +207,17 @@ impl Peptide {
 
         // Rest of the sequence
         while index < chars.len() {
-            match chars[index] {
-                b'(' if chars[index + 1] == b'?' && ambiguous_aa.is_none() => {
+            match (c_term, chars[index]) {
+                (false, b'(') if chars[index + 1] == b'?' && ambiguous_aa.is_none() => {
                     ambiguous_aa = Some(ambiguous_aa_counter);
                     ambiguous_aa_counter += 1;
                     index += 2;
                 }
-                b')' if ambiguous_aa.is_some() => {
+                (false, b')') if ambiguous_aa.is_some() => {
                     ambiguous_aa = None;
                     index += 1;
                 }
-                b'[' => {
+                (c_term, b'[') => {
                     let mut end_index = 0;
                     for (i, ch) in chars[index..].iter().enumerate() {
                         if *ch == b']' {
@@ -216,6 +234,7 @@ impl Peptide {
                         &value[index + 1..end_index],
                         &mut ambiguous_lookup,
                     )?;
+                    index = end_index + 1;
                     if c_term {
                         peptide.c_term =
                             Some(if let ReturnModification::Defined(m) = modification {
@@ -223,11 +242,9 @@ impl Peptide {
                             } else {
                                 Err("A labile modification cannot be ambiguous".to_string())
                             }?);
-                        if end_index != value.len() - 1 {
-                            return Err(
-                                format!("There cannot be any characters after the C terminal modification [index: {index}]"),
-                            );
-                        }
+                            if chars[index] == b'+' {
+                                index+=1; // If a peptide in a multimeric definition contains a C terminal modification
+                            }
                         break;
                     }
                     match peptide.sequence.last_mut() {
@@ -246,18 +263,27 @@ impl Peptide {
                             )
                         }
                     }
-                    index = end_index + 1;
                 }
-                b'-' => {
+                (false, b'-') => {
                     c_term = true;
                     index += 1;
                 }
-                ch => {
+                (false, b'+') => {
+                    // Multimeric spectrum stop for now, remove the plus
+                    index += 1;
+                    break;
+                }
+                (false, ch) => {
                     peptide.sequence.push(SequenceElement::new(
                         ch.try_into().map_err(|_| "Invalid Amino Acid code")?,
                         ambiguous_aa,
                     ));
                     index += 1;
+                }
+                (true, _) => {
+                    return Err(
+                        format!("A singular hyphen cannot exist ('-'), if this is part of a c-terminus follow the format 'AA-[modification]' [index: {index}]")
+                    )
                 }
             }
         }
@@ -284,7 +310,7 @@ impl Peptide {
         peptide.apply_global_modifications(&global_modifications);
         peptide.enforce_modification_rules()?;
 
-        Ok(peptide)
+        Ok((peptide, index))
     }
 
     fn enforce_modification_rules(&self) -> Result<(), String> {
@@ -673,8 +699,12 @@ mod tests {
 
     #[test]
     fn parse_glycan() {
-        let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
-        let spaces = Peptide::pro_forma("A[Glycan:    Hex    ]").unwrap();
+        let glycan = Peptide::pro_forma("A[Glycan:Hex]")
+            .unwrap()
+            .assume_singular();
+        let spaces = Peptide::pro_forma("A[Glycan:    Hex    ]")
+            .unwrap()
+            .assume_singular();
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(spaces.sequence.len(), 1);
         assert_eq!(glycan, spaces);
@@ -684,8 +714,12 @@ mod tests {
 
     #[test]
     fn parse_formula() {
-        let peptide = Peptide::pro_forma("A[Formula:C6H10O5]").unwrap();
-        let glycan = Peptide::pro_forma("A[Glycan:Hex]").unwrap();
+        let peptide = Peptide::pro_forma("A[Formula:C6H10O5]")
+            .unwrap()
+            .assume_singular();
+        let glycan = Peptide::pro_forma("A[Glycan:Hex]")
+            .unwrap()
+            .assume_singular();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(glycan.formula(), peptide.formula());
@@ -693,8 +727,10 @@ mod tests {
 
     #[test]
     fn parse_labile() {
-        let with = Peptide::pro_forma("{Formula:C6H10O5}A").unwrap();
-        let without = Peptide::pro_forma("A").unwrap();
+        let with = Peptide::pro_forma("{Formula:C6H10O5}A")
+            .unwrap()
+            .assume_singular();
+        let without = Peptide::pro_forma("A").unwrap().assume_singular();
         assert_eq!(with.sequence.len(), 1);
         assert_eq!(without.sequence.len(), 1);
         assert_eq!(with.formula(), without.formula());
@@ -703,8 +739,10 @@ mod tests {
 
     #[test]
     fn parse_ambiguous_modification() {
-        let with = Peptide::pro_forma("A[Phospho#g0]A[#g0]").unwrap();
-        let without = Peptide::pro_forma("AA").unwrap();
+        let with = Peptide::pro_forma("A[Phospho#g0]A[#g0]")
+            .unwrap()
+            .assume_singular();
+        let without = Peptide::pro_forma("AA").unwrap().assume_singular();
         assert_eq!(with.sequence.len(), 2);
         assert_eq!(without.sequence.len(), 2);
         assert_eq!(with.sequence[0].possible_modifications.len(), 1);
@@ -713,19 +751,27 @@ mod tests {
         assert!(Peptide::pro_forma("A[Phospho#g0]A[Phospho#g0]").is_err());
         assert!(Peptide::pro_forma("A[Phospho#g0]A[#g0(0.o1)]").is_err());
         assert_eq!(
-            Peptide::pro_forma("A[+12#g0]A[#g0]").unwrap().to_string(),
+            Peptide::pro_forma("A[+12#g0]A[#g0]")
+                .unwrap()
+                .assume_singular()
+                .to_string(),
             "A[+12#g0]A[#g0]".to_string()
         );
         assert_eq!(
-            Peptide::pro_forma("A[#g0]A[+12#g0]").unwrap().to_string(),
+            Peptide::pro_forma("A[#g0]A[+12#g0]")
+                .unwrap()
+                .assume_singular()
+                .to_string(),
             "A[#g0]A[+12#g0]".to_string()
         );
     }
 
     #[test]
     fn parse_ambiguous_aminoacid() {
-        let with = Peptide::pro_forma("(?AA)C(?A)(?A)").unwrap();
-        let without = Peptide::pro_forma("AACAA").unwrap();
+        let with = Peptide::pro_forma("(?AA)C(?A)(?A)")
+            .unwrap()
+            .assume_singular();
+        let without = Peptide::pro_forma("AACAA").unwrap().assume_singular();
         assert_eq!(with.sequence.len(), 5);
         assert_eq!(without.sequence.len(), 5);
         assert!(with.sequence[0].ambiguous.is_some());
@@ -736,11 +782,14 @@ mod tests {
 
     #[test]
     fn parse_hard_tags() {
-        let peptide = Peptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]").unwrap();
+        let peptide = Peptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]")
+            .unwrap()
+            .assume_singular();
         let glycan = Peptide::pro_forma(
             "A[info:you can define a tag multiple times|Glycan:Hex|Formula:C6H10O5]",
         )
-        .unwrap();
+        .unwrap()
+        .assume_singular();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(glycan.formula(), peptide.formula());
@@ -748,8 +797,8 @@ mod tests {
 
     #[test]
     fn parse_global() {
-        let deuterium = Peptide::pro_forma("<D>A").unwrap();
-        let nitrogen_15 = Peptide::pro_forma("<15N>A").unwrap();
+        let deuterium = Peptide::pro_forma("<D>A").unwrap().assume_singular();
+        let nitrogen_15 = Peptide::pro_forma("<15N>A").unwrap().assume_singular();
         assert_eq!(deuterium.sequence.len(), 1);
         assert_eq!(nitrogen_15.sequence.len(), 1);
         // Formula: A + H2O
@@ -761,6 +810,20 @@ mod tests {
             nitrogen_15.formula().unwrap(),
             molecular_formula!(H 7 C 3 O 2 (15)N 1)
         );
+    }
+
+    #[test]
+    fn parse_multimeric() {
+        let dimeric = Peptide::pro_forma("A+AA").unwrap();
+        let trimeric = dbg!(Peptide::pro_forma("A+AA-[+2]+AAA").unwrap());
+        assert_eq!(dimeric.peptides.len(), 2);
+        assert_eq!(dimeric.peptides[0].len(), 1);
+        assert_eq!(dimeric.peptides[1].len(), 2);
+        assert_eq!(trimeric.peptides.len(), 3);
+        assert_eq!(trimeric.peptides[0].len(), 1);
+        assert_eq!(trimeric.peptides[1].len(), 2);
+        assert_eq!(trimeric.peptides[2].len(), 3);
+        assert!(trimeric.peptides[1].c_term.is_some());
     }
 
     #[test]

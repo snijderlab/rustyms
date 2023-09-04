@@ -32,6 +32,7 @@ mod modification;
 mod neutral_loss;
 mod ontologies;
 mod peptide;
+mod peptide_collection;
 mod placement_rules;
 pub mod rawfile;
 mod spectrum;
@@ -44,6 +45,7 @@ pub use crate::glycan::*;
 pub use crate::model::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::*;
+pub use crate::peptide_collection::*;
 pub use crate::spectrum::*;
 pub use crate::system::f64::*;
 pub use aminoacids::AminoAcid;
@@ -61,7 +63,9 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = peptide::Peptide::pro_forma("WFWF").unwrap();
+        let peptide = peptide::Peptide::pro_forma("WFWF")
+            .unwrap()
+            .assume_singular();
         let fragments = peptide
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all())
             .unwrap();
@@ -73,7 +77,9 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = peptide::Peptide::pro_forma("WFWF").unwrap();
+        let peptide = peptide::Peptide::pro_forma("WFWF")
+            .unwrap()
+            .assume_singular();
         let fragments = peptide
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
             .unwrap();
