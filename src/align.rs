@@ -3,7 +3,7 @@
 use std::fmt::Write;
 
 use crate::uom::num_traits::Zero;
-use crate::{Mass, MolecularFormula, Peptide, SequenceElement};
+use crate::{LinearPeptide, Mass, MolecularFormula, SequenceElement};
 
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
@@ -17,9 +17,9 @@ pub struct Alignment {
     /// The position in the second sequence where the alignment starts
     pub start_b: usize,
     /// The first sequence
-    pub seq_a: Peptide,
+    pub seq_a: LinearPeptide,
     /// The second sequence
-    pub seq_b: Peptide,
+    pub seq_b: LinearPeptide,
     /// The alignment type
     pub ty: Type,
 }
@@ -372,7 +372,12 @@ const GAP_EXTEND_PENALTY: i8 = -1;
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
-pub fn align(seq_a: Peptide, seq_b: Peptide, alphabet: &[&[i8]], ty: Type) -> Alignment {
+pub fn align(
+    seq_a: LinearPeptide,
+    seq_b: LinearPeptide,
+    alphabet: &[&[i8]],
+    ty: Type,
+) -> Alignment {
     const STEPS: usize = 3; // can at max be i8::MAX / 2 => 64
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
@@ -589,7 +594,7 @@ fn mass_similar(a: Mass, b: Mass) -> bool {
 
 /// Get the masses of all subsets of up to the given number of steps as a lookup table.
 /// The result should be is index by [steps-1][index]
-fn calculate_masses(steps: usize, sequence: &Peptide) -> Vec<Vec<Mass>> {
+fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Mass>> {
     (1..=steps)
         .map(|size| {
             (0..=sequence.len())

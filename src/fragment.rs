@@ -11,8 +11,8 @@ pub struct Fragment {
     pub theoretical_mass: MolecularFormula,
     /// The charge
     pub charge: Charge,
-    /// The type of ion/fragment
-    pub ion: Vec<(usize, FragmentType)>,
+    /// All possible annotations for this fragment saved as a tuple of peptide index and its type
+    pub annotations: Vec<(usize, FragmentType)>,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
     /// Additional description for humans
@@ -36,13 +36,13 @@ impl Fragment {
         theoretical_mass: MolecularFormula,
         charge: Charge,
         peptide_index: usize,
-        ion: FragmentType,
+        annotation: FragmentType,
         label: String,
     ) -> Self {
         Self {
             theoretical_mass,
             charge,
-            ion: vec![(peptide_index, ion)],
+            annotations: vec![(peptide_index, annotation)],
             label,
             neutral_loss: None,
         }
@@ -53,7 +53,7 @@ impl Fragment {
     pub fn generate_all(
         theoretical_mass: &MolecularFormula,
         peptide_index: usize,
-        ion: FragmentType,
+        annotation: FragmentType,
         termini: &[(MolecularFormula, String)],
         neutral_losses: &[NeutralLoss],
     ) -> Vec<Self> {
@@ -64,7 +64,7 @@ impl Fragment {
                     &term.0 + theoretical_mass,
                     Charge::zero(),
                     peptide_index,
-                    ion,
+                    annotation,
                     term.1.to_string(),
                 )
             })
@@ -109,7 +109,7 @@ impl Fragment {
 
     /// Add an additional annotation for this same fragment, used when multiple fragments have exactly the same mass in a spectrum
     pub fn add_annotation(&mut self, annotation: (usize, FragmentType)) {
-        self.ion.push(annotation);
+        self.annotations.push(annotation);
     }
 }
 
@@ -118,7 +118,7 @@ impl Display for Fragment {
         write!(
             f,
             "{:?} {:?} {:+}{} {}",
-            self.ion,
+            self.annotations,
             self.mz()
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
             self.charge.value,

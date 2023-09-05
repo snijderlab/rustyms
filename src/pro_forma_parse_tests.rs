@@ -5,7 +5,7 @@ macro_rules! parse_test {
     ($case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            assert!(Peptide::pro_forma($case).is_ok());
+            assert!(ComplexPeptide::pro_forma($case).is_ok());
         }
     };
 }

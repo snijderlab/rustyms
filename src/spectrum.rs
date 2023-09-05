@@ -4,8 +4,8 @@ use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
+    linear_peptide::LinearPeptide,
     model::Model,
-    peptide::Peptide,
     system::{f64::*, mass_over_charge::mz},
 };
 
@@ -48,7 +48,7 @@ impl RawSpectrum {
     /// Annotate this spectrum with the given peptide and given fragments see [`Peptide::generate_theoretical_fragments`].
     pub fn annotate(
         &self,
-        peptide: Peptide,
+        peptide: LinearPeptide,
         theoretical_fragments: &[Fragment],
         model: &Model,
     ) -> AnnotatedSpectrum {
@@ -246,7 +246,7 @@ pub struct AnnotatedSpectrum {
     /// The found precursor mass
     pub mass: Mass,
     /// The peptide with which this spectrum was annotated
-    pub peptide: Peptide,
+    pub peptide: LinearPeptide,
     /// The spectrum
     pub spectrum: Vec<AnnotatedPeak>,
 }

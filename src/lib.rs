@@ -22,36 +22,36 @@ mod formula;
 
 pub mod align;
 mod aminoacids;
+mod complex_peptide;
 mod element;
 mod fragment;
 mod glycan;
 mod helper_functions;
 mod isotopes;
+mod linear_peptide;
 mod model;
 mod modification;
 mod neutral_loss;
 mod ontologies;
-mod peptide;
-mod peptide_collection;
 mod placement_rules;
 pub mod rawfile;
 mod spectrum;
 mod system;
 
+pub use crate::complex_peptide::*;
 pub use crate::element::*;
 pub use crate::formula::*;
 pub use crate::fragment::*;
 pub use crate::glycan::*;
+pub use crate::linear_peptide::*;
 pub use crate::model::*;
 pub use crate::neutral_loss::*;
-pub use crate::peptide::*;
-pub use crate::peptide_collection::*;
 pub use crate::spectrum::*;
 pub use crate::system::f64::*;
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;
+pub use linear_peptide::LinearPeptide;
 pub use model::Model;
-pub use peptide::Peptide;
 pub use uom::num_traits::Zero;
 
 #[macro_use]
@@ -63,9 +63,7 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = peptide::Peptide::pro_forma("WFWF")
-            .unwrap()
-            .assume_singular();
+        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap().assume_linear();
         let fragments = peptide
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all(), 0)
             .unwrap();
@@ -77,9 +75,7 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = peptide::Peptide::pro_forma("WFWF")
-            .unwrap()
-            .assume_singular();
+        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap().assume_linear();
         let fragments = peptide
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &model, 0)
             .unwrap();

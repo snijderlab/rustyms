@@ -8,7 +8,7 @@ use crate::{
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
-    Chemical, Element, Mass, MolecularFormula, MonoSaccharide,
+    AminoAcid, Chemical, Element, Mass, MolecularFormula, MonoSaccharide,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -206,6 +206,25 @@ pub enum ReturnModification {
     Defined(Modification),
     Referenced(usize, Option<f64>),
     Preferred(usize, Option<f64>),
+}
+
+/// An ambiguous modification which could be placed on any of a set of locations
+#[derive(Debug, Clone, PartialEq)]
+pub struct AmbiguousModification {
+    /// The id to compare be able to find the other locations where this modifications can be placed
+    pub id: usize,
+    /// The modification itself
+    pub modification: Modification,
+    /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
+    pub localisation_score: Option<f64>,
+    /// If this is a named group contain the name and track if this is the preferred location or not
+    pub group: Option<(String, bool)>,
+}
+
+/// Intermediate representation of a global modification
+pub enum GlobalModification {
+    Isotope(Element, u16),
+    Fixed(AminoAcid, Modification),
 }
 
 fn find_name_in_ontology(
