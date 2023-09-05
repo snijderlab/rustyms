@@ -12,7 +12,7 @@ pub struct Fragment {
     /// The charge
     pub charge: Charge,
     /// The type of ion/fragment
-    pub ion: FragmentType,
+    pub ion: Vec<(usize, FragmentType)>,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
     /// Additional description for humans
@@ -25,18 +25,24 @@ impl Fragment {
         Some(self.theoretical_mass.monoisotopic_mass()? / self.charge)
     }
 
+    /// Get the ppm difference between two fragments
+    pub fn ppm(&self, other: &Self) -> Option<MassOverCharge> {
+        Some(MassOverCharge::new::<mz>(self.mz()?.ppm(other.mz()?)))
+    }
+
     /// Create a new fragment
     #[must_use]
     pub fn new(
         theoretical_mass: MolecularFormula,
         charge: Charge,
+        peptide_index: usize,
         ion: FragmentType,
         label: String,
     ) -> Self {
         Self {
             theoretical_mass,
             charge,
-            ion,
+            ion: vec![(peptide_index, ion)],
             label,
             neutral_loss: None,
         }
@@ -46,6 +52,7 @@ impl Fragment {
     #[must_use]
     pub fn generate_all(
         theoretical_mass: &MolecularFormula,
+        peptide_index: usize,
         ion: FragmentType,
         termini: &[(MolecularFormula, String)],
         neutral_losses: &[NeutralLoss],
@@ -56,6 +63,7 @@ impl Fragment {
                 Self::new(
                     &term.0 + theoretical_mass,
                     Charge::zero(),
+                    peptide_index,
                     ion,
                     term.1.to_string(),
                 )
@@ -97,6 +105,11 @@ impl Fragment {
                 .map(|loss| self.with_neutral_loss(loss)),
         );
         output
+    }
+
+    /// Add an additional annotation for this same fragment, used when multiple fragments have exactly the same mass in a spectrum
+    pub fn add_annotation(&mut self, annotation: (usize, FragmentType)) {
+        self.ion.push(annotation);
     }
 }
 
@@ -223,6 +236,7 @@ mod tests {
         let a = Fragment::new(
             AminoAcid::AsparticAcid.formula(),
             Charge::new::<e>(1.0),
+            0,
             FragmentType::precursor,
             String::new(),
         );

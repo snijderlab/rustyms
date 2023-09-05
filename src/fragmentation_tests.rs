@@ -328,7 +328,7 @@ fn all_aminoacids() {
 
 fn test(theoretical_fragments: &[(f64, &str)], peptide: &Peptide, model: &Model, charge: f64) {
     let mut calculated_fragments = peptide
-        .generate_theoretical_fragments(Charge::new::<e>(charge), model)
+        .generate_theoretical_fragments(Charge::new::<e>(charge), model, 0)
         .unwrap();
     let mut combined = Vec::new();
     let mut found = Vec::new();

@@ -67,7 +67,7 @@ mod test {
             .unwrap()
             .assume_singular();
         let fragments = peptide
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all())
+            .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all(), 0)
             .unwrap();
         println!("{}", fragments.len());
         println!("{fragments:?}");
@@ -81,7 +81,7 @@ mod test {
             .unwrap()
             .assume_singular();
         let fragments = peptide
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
+            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model, 0)
             .unwrap();
         let annotated = spectrum[0].annotate(peptide, &fragments, &model);
         println!("{annotated:?}");

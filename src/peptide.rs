@@ -438,6 +438,7 @@ impl Peptide {
         &self,
         max_charge: Charge,
         model: &Model,
+        peptide_index: usize,
     ) -> Option<Vec<Fragment>> {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
@@ -467,6 +468,7 @@ impl Peptide {
                     index,
                     self.sequence.len(),
                     &model.ions(index, self.sequence.len()),
+                    peptide_index,
                 ),
             );
         }
@@ -480,6 +482,7 @@ impl Peptide {
             Fragment::new(
                 self.formula()?,
                 Charge::zero(),
+                peptide_index,
                 FragmentType::precursor,
                 String::new(),
             )
