@@ -30,8 +30,10 @@ pub struct LinearPeptide {
     /// The sequence of this peptide (includes local modifications)
     pub sequence: Vec<SequenceElement>,
     /// For each ambiguous modification list all possible positions it can be placed on.
-    /// Index by the ambiguous modification id.
+    /// Indexed by the ambiguous modification id.
     pub ambiguous_modifications: Vec<Vec<usize>>,
+    /// The adduct ions, if specified
+    pub adduct_ions: Vec<(isize, MolecularFormula)>,
 }
 
 impl LinearPeptide {

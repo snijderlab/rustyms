@@ -42,6 +42,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
     - A: `<GLOBAL_MOD>[UNKNOWN_POS]?{LABILE_MOD}[N_TERM]-PEPTIDE-[C_TERM]` https://github.com/HUPO-PSI/ProForma/issues/3#issuecomment-906448694
 - what is the mass for B/Z?
 - what defines valid ionic species for ion charge?
+- for ionic charge/adduct ions, is there a way to specify higher charged ionic species? (Ca+2 or Ca2+?)
 
 # Levels of support
 
@@ -78,6 +79,10 @@ These features are independent from each other:
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 6) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
 - [ ] 7 Charge and chimeric spectra are special cases (see Appendix II).
+    - [x] Parse chimeric spectra
+    - [x] Annotate chimeric spectra
+    - [x] Parse charge state/adduct ions
+    - [ ] Handle/annotate charge state/adduct ions
 - [x] 4.6 Global modifications (e.g., every C is C13).
     - [x] 4.6.1 Isotope modifications `<15N>` (applied as a post filter after generating the MolecularFormula for generated fragments and full peptide, not applied on single aminoacids)
     - [x] 4.6.2 Fixed modifications `<[Formula:H-1]@A>` 
