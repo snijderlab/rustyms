@@ -4,9 +4,9 @@ use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
-    linear_peptide::LinearPeptide,
     model::Model,
     system::{f64::*, mass_over_charge::mz},
+    ComplexPeptide,
 };
 
 /// A raw spectrum (meaning not annotated yet)
@@ -48,7 +48,7 @@ impl RawSpectrum {
     /// Annotate this spectrum with the given peptide and given fragments see [`Peptide::generate_theoretical_fragments`].
     pub fn annotate(
         &self,
-        peptide: LinearPeptide,
+        peptide: ComplexPeptide,
         theoretical_fragments: &[Fragment],
         model: &Model,
     ) -> AnnotatedSpectrum {
@@ -80,12 +80,9 @@ impl RawSpectrum {
                 })
             }));
         }
-        annotated.spectrum.extend(cluster_matches(
-            connections,
-            &self.spectrum,
-            annotated.peptide.sequence.len(),
-            model,
-        ));
+        annotated
+            .spectrum
+            .extend(cluster_matches(connections, &self.spectrum, model));
 
         annotated
     }
@@ -110,7 +107,6 @@ type Connection = (usize, usize, AnnotatedPeak, MassOverCharge);
 fn cluster_matches(
     matches: Vec<Connection>,
     spectrum: &[RawPeak],
-    peptide_length: usize,
     model: &Model,
 ) -> Vec<AnnotatedPeak> {
     let mut found_peak_indices = HashMap::new();
@@ -119,9 +115,10 @@ fn cluster_matches(
         *found_peak_indices.entry(pair.0).or_insert(0) += 1;
         *found_fragment_indices.entry(pair.1).or_insert(0) += 1;
     }
-    let mut output = Vec::with_capacity(20 * peptide_length + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
+    let mut output = Vec::new();
     let mut selected_peaks = Vec::new();
     let mut ambiguous = Vec::new();
+
     // First get all peaks that are unambiguously matched out of the selection to prevent a lot of computation
     for pair in matches {
         if found_peak_indices.get(&pair.0).map_or(false, |v| *v == 1)
@@ -139,7 +136,7 @@ fn cluster_matches(
     ambiguous.sort_unstable_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
     // Now find all possible combinations of the ambiguous matches and get the non expandable set with the lowest total ppm error
-    let mut sets = non_recursive_combinations(&ambiguous, model.ppm * peptide_length as f64);
+    let mut sets = non_recursive_combinations(&ambiguous, model.ppm);
     let max_number_connections =
         (found_peak_indices.len() - output.len()).min(found_fragment_indices.len() - output.len());
     for c in &mut sets {
@@ -155,7 +152,7 @@ fn cluster_matches(
             }
         },
     );
-    //dbg!(&selected_set);
+
     selected_peaks.extend(selected_set.1.iter().map(|c| c.0));
     output.extend(selected_set.1.into_iter().map(|c| c.2));
     selected_peaks.sort_unstable();
@@ -246,7 +243,7 @@ pub struct AnnotatedSpectrum {
     /// The found precursor mass
     pub mass: Mass,
     /// The peptide with which this spectrum was annotated
-    pub peptide: LinearPeptide,
+    pub peptide: ComplexPeptide,
     /// The spectrum
     pub spectrum: Vec<AnnotatedPeak>,
 }

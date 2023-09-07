@@ -75,9 +75,9 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap().assume_linear();
+        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap();
         let fragments = peptide
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model, 0)
+            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
             .unwrap();
         let annotated = spectrum[0].annotate(peptide, &fragments, &model);
         println!("{annotated:?}");
