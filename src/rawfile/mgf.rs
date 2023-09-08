@@ -111,6 +111,11 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
             _ => {}
         }
     }
+    for current in &mut output {
+        current
+            .spectrum
+            .sort_unstable_by(|a, b| a.mz.value.partial_cmp(&b.mz.value).unwrap());
+    }
     Ok(output)
 }
 
@@ -133,4 +138,5 @@ fn test_open() {
     let spectra = open(std::env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
     assert_eq!(spectra.len(), 1);
     assert_eq!(spectra[0].spectrum.len(), 5);
+    assert!(spectra[0].spectrum[0].mz < spectra[0].spectrum[1].mz);
 }

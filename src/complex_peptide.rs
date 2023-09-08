@@ -308,7 +308,7 @@ impl ComplexPeptide {
     }
 
     /// Get all peptides making up this `ComplexPeptide`, regardless of its type
-    fn peptides(&self) -> &[LinearPeptide] {
+    pub fn peptides(&self) -> &[LinearPeptide] {
         match self {
             Self::Singular(pep) => std::slice::from_ref(pep),
             Self::Multimeric(peptides) => peptides,
