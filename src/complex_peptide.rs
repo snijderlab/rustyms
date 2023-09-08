@@ -316,8 +316,6 @@ impl ComplexPeptide {
     }
 
     /// Generate the theoretical fragments for this peptide collection.
-    /// By iteratively adding every fragment to the set and combining ones that are within the model ppm.
-    #[allow(clippy::missing_panics_doc)] // Unwrap is guaranteed to never panic
     pub fn generate_theoretical_fragments(
         &self,
         max_charge: Charge,
@@ -325,25 +323,7 @@ impl ComplexPeptide {
     ) -> Option<Vec<Fragment>> {
         let mut base = Vec::new();
         for (index, peptide) in self.peptides().iter().enumerate() {
-            for fragment in peptide.generate_theoretical_fragments(max_charge, model, index)? {
-                let (closest_fragment, ppm) =
-                    base.iter_mut().fold((None, f64::INFINITY), |acc, i| {
-                        let ppm = fragment.ppm(i).map_or(f64::INFINITY, |p| p.value);
-                        if acc.1 > ppm {
-                            (Some(i), ppm)
-                        } else {
-                            acc
-                        }
-                    });
-                if ppm < model.ppm.value {
-                    // TODO: is this the best combination limit?
-                    closest_fragment
-                        .unwrap()
-                        .add_annotation(fragment.annotations[0]);
-                } else {
-                    base.push(fragment);
-                }
-            }
+            base.extend(peptide.generate_theoretical_fragments(max_charge, model, index)?);
         }
         Some(base)
     }

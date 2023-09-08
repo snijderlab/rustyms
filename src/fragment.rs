@@ -12,7 +12,8 @@ pub struct Fragment {
     /// The charge
     pub charge: Charge,
     /// All possible annotations for this fragment saved as a tuple of peptide index and its type
-    pub annotations: Vec<(usize, FragmentType)>,
+    pub ion: FragmentType,
+    pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
     /// Additional description for humans
@@ -36,13 +37,14 @@ impl Fragment {
         theoretical_mass: MolecularFormula,
         charge: Charge,
         peptide_index: usize,
-        annotation: FragmentType,
+        ion: FragmentType,
         label: String,
     ) -> Self {
         Self {
             theoretical_mass,
             charge,
-            annotations: vec![(peptide_index, annotation)],
+            ion,
+            peptide_index,
             label,
             neutral_loss: None,
         }
@@ -106,11 +108,6 @@ impl Fragment {
         );
         output
     }
-
-    /// Add an additional annotation for this same fragment, used when multiple fragments have exactly the same mass in a spectrum
-    pub fn add_annotation(&mut self, annotation: (usize, FragmentType)) {
-        self.annotations.push(annotation);
-    }
 }
 
 impl Display for Fragment {
@@ -118,7 +115,7 @@ impl Display for Fragment {
         write!(
             f,
             "{:?} {:?} {:+}{} {}",
-            self.annotations,
+            self.ion,
             self.mz()
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
             self.charge.value,
