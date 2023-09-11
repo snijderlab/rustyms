@@ -31,6 +31,7 @@ mod isotopes;
 mod linear_peptide;
 mod model;
 mod modification;
+mod molecular_charge;
 mod neutral_loss;
 mod ontologies;
 mod placement_rules;

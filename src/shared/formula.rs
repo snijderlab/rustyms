@@ -108,6 +108,16 @@ impl MolecularFormula {
         };
         result.simplify()
     }
+
+    /// Get the number of electrons (the only charged species, any ionic species is saved as that element +/- the correct number of electrons).
+    /// The inverse of that number is given as the charge.
+    pub fn charge(&self) -> i16 {
+        -self
+            .elements
+            .iter()
+            .find(|e| e.0 == Element::Electron)
+            .map_or(0, |e| e.2)
+    }
 }
 
 impl std::ops::Add<&MolecularFormula> for &MolecularFormula {

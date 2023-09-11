@@ -2,17 +2,20 @@ use std::fmt::{Debug, Display};
 
 use uom::num_traits::Zero;
 
-use crate::{system::f64::*, Chemical, Element, MolecularFormula, NeutralLoss};
+use crate::{
+    molecular_charge::MolecularCharge, system::f64::*, Chemical, MolecularFormula, NeutralLoss,
+};
 
 /// A theoretical fragment of a peptide
 #[derive(Debug, Clone)]
 pub struct Fragment {
     /// The theoretical composition
-    pub theoretical_mass: MolecularFormula,
+    pub formula: MolecularFormula,
     /// The charge
     pub charge: Charge,
     /// All possible annotations for this fragment saved as a tuple of peptide index and its type
     pub ion: FragmentType,
+    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`ComplexPeptide`] struct
     pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
@@ -23,7 +26,7 @@ pub struct Fragment {
 impl Fragment {
     /// Get the mz
     pub fn mz(&self) -> Option<MassOverCharge> {
-        Some(self.theoretical_mass.monoisotopic_mass()? / self.charge)
+        Some(self.formula.monoisotopic_mass()? / self.charge)
     }
 
     /// Get the ppm difference between two fragments
@@ -41,7 +44,7 @@ impl Fragment {
         label: String,
     ) -> Self {
         Self {
-            theoretical_mass,
+            formula: theoretical_mass,
             charge,
             ion,
             peptide_index,
@@ -76,12 +79,13 @@ impl Fragment {
 
     /// Create a copy of this fragment with the given charge
     #[must_use]
-    pub fn with_charge(&self, charge: Charge) -> Self {
-        let c = charge.value as i16;
+    pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
+        // TODO: Figure out if labelling these in any way would be nice for later checking when used with adduct ions other than protons
+        let formula = charge.formula();
+        let c = Charge::new::<e>(f64::from(formula.charge()));
         Self {
-            theoretical_mass: &self.theoretical_mass + &molecular_formula!(H c)
-                - molecular_formula!(Electron c),
-            charge,
+            formula: &self.formula + &formula,
+            charge: c,
             ..self.clone()
         }
     }
@@ -90,7 +94,7 @@ impl Fragment {
     #[must_use]
     pub fn with_neutral_loss(&self, neutral_loss: &NeutralLoss) -> Self {
         Self {
-            theoretical_mass: &self.theoretical_mass - &neutral_loss.formula(),
+            formula: &self.formula - &neutral_loss.formula(),
             neutral_loss: Some(*neutral_loss),
             ..self.clone()
         }
@@ -239,10 +243,7 @@ mod tests {
         );
         let loss = a.with_neutral_losses(&[NeutralLoss::Water]);
         dbg!(&a, &loss);
-        assert_eq!(a.theoretical_mass, loss[0].theoretical_mass);
-        assert_eq!(
-            a.theoretical_mass,
-            &loss[1].theoretical_mass + &NeutralLoss::Water.formula()
-        );
+        assert_eq!(a.formula, loss[0].formula);
+        assert_eq!(a.formula, &loss[1].formula + &NeutralLoss::Water.formula());
     }
 }

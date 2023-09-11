@@ -4,6 +4,7 @@ use std::{fmt::Display, ops::RangeBounds};
 
 use crate::{
     modification::{AmbiguousModification, GlobalModification},
+    molecular_charge::MolecularCharge,
     Element, MolecularFormula,
 };
 use itertools::Itertools;
@@ -33,7 +34,7 @@ pub struct LinearPeptide {
     /// Indexed by the ambiguous modification id.
     pub ambiguous_modifications: Vec<Vec<usize>>,
     /// The adduct ions, if specified
-    pub adduct_ions: Vec<(isize, MolecularFormula)>,
+    pub charge_carriers: Option<MolecularCharge>,
 }
 
 impl LinearPeptide {
@@ -193,6 +194,9 @@ impl LinearPeptide {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
 
+        let default_charge = MolecularCharge::proton(max_charge.value as isize);
+        let charge_carriers = self.charge_carriers.as_ref().unwrap_or(&default_charge);
+
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
             let n_term =
@@ -214,7 +218,7 @@ impl LinearPeptide {
                         .iter()
                         .map(Chemical::formula)
                         .sum(),
-                    max_charge,
+                    charge_carriers,
                     index,
                     self.sequence.len(),
                     &model.ions(index, self.sequence.len()),
@@ -223,10 +227,11 @@ impl LinearPeptide {
             );
         }
         for fragment in &mut output {
-            fragment.theoretical_mass = fragment
-                .theoretical_mass
+            fragment.formula = fragment
+                .formula
                 .with_global_isotope_modifications(&self.global);
         }
+
         // Generate precursor peak
         output.push(
             Fragment::new(
@@ -236,7 +241,7 @@ impl LinearPeptide {
                 FragmentType::precursor,
                 String::new(),
             )
-            .with_charge(max_charge),
+            .with_charge(charge_carriers),
         );
         Some(output)
     }

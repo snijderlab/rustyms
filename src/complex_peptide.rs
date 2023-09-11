@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::{
     helper_functions::ResultExtensions,
     modification::{AmbiguousModification, GlobalModification, Modification, ReturnModification},
-    Charge, Element, Fragment, LinearPeptide, Model, SequenceElement, MolecularFormula,
+    Charge, Element, Fragment, LinearPeptide, Model, SequenceElement, MolecularFormula, molecular_charge::MolecularCharge,
 };
 
 /// A single pro forma entry, can contain multiple peptides
@@ -180,6 +180,7 @@ impl ComplexPeptide {
                             "No valid closing delimiter adduct ion [index: {}]", index+2+charge_len
                         ))?;
                         let mut offset = index+2+charge_len;
+                        let mut charge_carriers = Vec::new();
                         for set in chars[index+2+charge_len..end_index].split(|c| *c == b',') {
                             // num
                             let (count_len, count) = next_num(chars, offset, true).ok_or(format!("Invalid adduct ion count for peptide [index: {offset}]"))?;
@@ -192,10 +193,11 @@ impl ComplexPeptide {
                             // charge
                             let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or(format!("Invalid adduct ion charge for peptide [index: {offset}]"))?;
 
-                            peptide.adduct_ions.push((count, MolecularFormula::new(&[(element, 0, 1), (Element::Electron, 0, -ion_charge as i16)])));
+                            charge_carriers.push((count, MolecularFormula::new(&[(element, 0, 1), (Element::Electron, 0, -ion_charge as i16)])));
 
                             offset += set.len() + 1;
                         }
+                        peptide.charge_carriers = Some(MolecularCharge::new(charge_carriers));
                         index = end_index+1;
                         if index < chars.len() && chars[index] == b'+' {
                             index+=1; // If a peptide in a multimeric definition contains a charge state modification
@@ -203,7 +205,7 @@ impl ComplexPeptide {
                         break; // Nothing else to do, the total charge of the adduct ions should sum up to the charge as provided and this definitively is the last thing in a sequence 
                     } 
                     // If no adduct ions are provided assume it is just protons
-                    peptide.adduct_ions.push((charge, MolecularFormula::new(&[(Element::H, 0, 1), (Element::Electron, 0, -1)])));
+                    peptide.charge_carriers = Some(MolecularCharge::proton(charge));
                     index += charge_len+1;
                     if index < chars.len() && chars[index] == b'+' {
                         index+=1; // If a peptide in a multimeric definition contains a charge state modification
@@ -351,7 +353,7 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
         start +=1;
         sign_set = true;
     }
-    let len = chars[start..].into_iter().take_while(|c| c.is_ascii_digit()).count();
+    let len = chars[start..].iter().take_while(|c| c.is_ascii_digit()).count();
     if len == 0 {
         if allow_only_sign && sign_set {
             Some((1, sign))
@@ -360,7 +362,7 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
         }
     } else {
         let num: isize = std::str::from_utf8(&chars[start..start+len]).unwrap().parse().unwrap();
-        Some((sign_set as usize + len, sign * num))
+        Some((usize::from(sign_set) + len, sign * num))
     }
 }
 
@@ -546,7 +548,7 @@ mod tests {
     fn parse_adduct_ions_01() {
         let peptide = ComplexPeptide::pro_forma("A/2[2Na+]+A").unwrap();
         assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(peptide.peptides()[0].adduct_ions, vec![(2, molecular_formula!(Na 1 Electron -1))]);
+        assert_eq!(peptide.peptides()[0].charge_carriers.clone().unwrap().charge_carriers, vec![(2, molecular_formula!(Na 1 Electron -1))]);
         assert_eq!(peptide.peptides()[0].sequence, peptide.peptides()[1].sequence);
     }
 
@@ -554,7 +556,7 @@ mod tests {
     fn parse_adduct_ions_02() {
         let peptide = ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap();
         assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(peptide.peptides()[0].adduct_ions, vec![(1, molecular_formula!(Na 1 Electron -1)), (1, molecular_formula!(H 1 Electron -1))]);
+        assert_eq!(peptide.peptides()[0].charge_carriers.clone().unwrap().charge_carriers, vec![(1, molecular_formula!(Na 1 Electron -1)), (1, molecular_formula!(H 1 Electron -1))]);
         // Check if the C term mod is applied
         assert_eq!(peptide.peptides()[0].sequence[0].formula_all(), peptide.peptides()[1].sequence[0].formula_all());
     }

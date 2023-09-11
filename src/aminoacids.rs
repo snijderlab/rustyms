@@ -1,7 +1,7 @@
 use crate::formula::{Chemical, MolecularFormula};
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
-use crate::system::f64::*;
+use crate::molecular_charge::MolecularCharge;
 use crate::Element;
 use crate::Position;
 
@@ -229,7 +229,7 @@ impl AminoAcid {
         n_term: &[(MolecularFormula, String)],
         c_term: &[(MolecularFormula, String)],
         modifications: &MolecularFormula,
-        max_charge: Charge,
+        charge_carriers: &MolecularCharge,
         sequence_index: usize,
         sequence_length: usize,
         ions: &PossibleIons,
@@ -331,10 +331,11 @@ impl AminoAcid {
                 ions.z.1,
             ));
         }
-        let mut charged = Vec::with_capacity(base_fragments.len() * max_charge.value as usize);
+        let charge_options = charge_carriers.all_charge_options();
+        let mut charged = Vec::with_capacity(base_fragments.len() * charge_options.len());
         for base in base_fragments {
-            for charge in 1..=(max_charge.value as u64) {
-                charged.push(base.with_charge(Charge::new::<e>(charge as f64)));
+            for charge in &charge_options {
+                charged.push(base.with_charge(charge));
             }
         }
         charged
