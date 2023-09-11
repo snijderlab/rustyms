@@ -3,7 +3,7 @@ use uom::num_traits::Zero;
 use crate::{
     fragment::Fragment,
     system::{f64::*, mass_over_charge::mz},
-    ComplexPeptide,
+    ComplexPeptide, Model,
 };
 
 /// A raw spectrum (meaning not annotated yet)
@@ -50,6 +50,7 @@ impl RawSpectrum {
         &self,
         peptide: ComplexPeptide,
         theoretical_fragments: &[Fragment],
+        model: &Model,
     ) -> AnnotatedSpectrum {
         let mut annotated = AnnotatedSpectrum {
             title: self.title.clone(),
@@ -74,16 +75,20 @@ impl RawSpectrum {
 
             // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
             let mut closest = (0, f64::INFINITY);
-            for i in (index - 1).max(0)..=(index + 1).min(self.spectrum.len() - 1) {
+            for i in
+                if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1)
+            {
                 let ppm = self.spectrum[i].ppm(fragment).unwrap().value;
                 if ppm < closest.1 {
                     closest = (i, ppm);
                 }
             }
 
-            annotated.spectrum[closest.0]
-                .annotation
-                .push(fragment.clone());
+            if closest.1 < model.ppm.value {
+                annotated.spectrum[closest.0]
+                    .annotation
+                    .push(fragment.clone());
+            }
         }
 
         annotated
