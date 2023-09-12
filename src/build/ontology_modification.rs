@@ -65,7 +65,7 @@ impl Display for PlacementRule {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum Position {
     #[default]
     Undefined = 1,

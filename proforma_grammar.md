@@ -100,6 +100,8 @@ These features are independent from each other:
 - [ ] Better error data, allowing the construction of rust-like error messages
 - [ ] Modification specific neutral losses, phospho: fully deleted
 - [ ] Modification diagnostic peaks
+- [ ] Match isotope patterns in fragmentation matching
+- [ ] Custom modifications defined using a CV grammar but loaded at runtime
 
 # Bugs
 - [ ] Allow isotope definition in formulas

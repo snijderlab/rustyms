@@ -2,7 +2,10 @@ use std::{ffi::OsString, fs, path::Path};
 
 use crate::helper_functions::parse_molecular_formula_psi_mod;
 
-use super::{obo::OboOntology, ontology_modification::OntologyModification};
+use super::{
+    obo::OboOntology,
+    ontology_modification::{OntologyModification, PlacementRule, Position},
+};
 
 pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_psi_mod(debug);
@@ -41,14 +44,46 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             ..Default::default()
         };
 
+        let mut aa = Vec::new();
+        let mut term = None;
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
                     modification.elements =
                         parse_molecular_formula_psi_mod(&line[13..line.len() - 12]).unwrap();
                 } else if line.starts_with("Origin") {
+                    aa = line[8..line.len() - 12]
+                        .split(',')
+                        .map(|s| s.trim().chars().next().unwrap())
+                        .collect();
                     // TODO: parse the rules
+                    //property_value: Origin "E" xsd:string
+                    //property_value: TermSpec "N-term" xsd:string
+                    // separate
+                    //property_value: Origin "D, G" xsd:string
+                    //even only on specific mods
+                    //property_value: Origin "MOD:01801" xsd:string
+                    // c: property_value: TermSpec "C-term" xsd:string
+                } else if line.starts_with("TermSpec") {
+                    if line[10..].starts_with("N-term") {
+                        term = Some(Position::AnyNTerm);
+                    } else if line[10..].starts_with("C-term") {
+                        term = Some(Position::AnyCTerm);
+                    } else {
+                        panic!("Invalid TermSpec: {line}")
+                    }
                 }
+            }
+        }
+        for aminoacid in &aa {
+            modification.rules.push(PlacementRule::AminoAcid(
+                *aminoacid,
+                term.unwrap_or(Position::Anywhere),
+            ));
+        }
+        if aa.is_empty() {
+            if let Some(term) = term {
+                modification.rules.push(PlacementRule::Terminal(term))
             }
         }
         mods.push(modification);
