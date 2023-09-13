@@ -32,6 +32,7 @@ fn main() {
     println!("cargo:rerun-if-changed=databases/IUPAC-atomic-masses.csv");
     println!("cargo:rerun-if-changed=databases/CIAAW-atomic-weights.csv");
     println!("cargo:rerun-if-changed=databases/CIAAW-isotopic-abundances.csv");
+    println!("cargo:rerun-if-changed=src/build/*");
     println!("cargo:rerun-if-changed=build.rs");
     print(out_dir.as_os_str().to_str().unwrap(), debug);
 }

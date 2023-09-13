@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct OntologyModification {
-    pub elements: MolecularFormula,
+    pub diff_formula: MolecularFormula,
     pub monosaccharides: Vec<(MonoSaccharide, i16)>,
     pub code_name: String,
     pub full_name: String,
@@ -19,27 +19,25 @@ pub struct OntologyModification {
 impl OntologyModification {
     pub fn to_code(&self) -> String {
         format!(
-            "// {} [code name: {}] rules: {}\n({}, \"{}\", Modification::Predefined(&[{}], &[{}], \"{}\", \"{}\"))",
-            self.full_name,
-            self.code_name,
-            self.rules
-                .iter()
-                .fold(String::new(), |acc, r| format!("{acc}{r},")),
+            "({}, \"{}\", Modification::Predefined(&[{}], &[{}], Ontology::{}, \"{}\", {}))",
             self.id,
             self.code_name.to_ascii_lowercase(),
-            self.monosaccharides.iter().fold(self.elements.clone(), |acc, m| acc + m.0.formula() * m.1).elements().iter()
-            .fold(String::new(), |acc, (e, i, n)| format!(
-                "{acc}(Element::{e},{i},{n}),",
-            )),
-            self.rules
+            self.monosaccharides
                 .iter()
-                .fold(String::new(), |acc, e| format!(
-                    "{}PlacementRule::{},",
-                    acc,
-                    e
+                .fold(self.diff_formula.clone(), |acc, m| acc
+                    + m.0.formula() * m.1)
+                .elements()
+                .iter()
+                .fold(String::new(), |acc, (e, i, n)| format!(
+                    "{acc}(Element::{e},{i},{n}),",
                 )),
-                self.context,
-                self.code_name,
+            self.rules.iter().fold(String::new(), |acc, e| format!(
+                "{}PlacementRule::{},",
+                acc, e
+            )),
+            self.context,
+            self.code_name,
+            self.id,
         )
     }
 }
@@ -47,6 +45,7 @@ impl OntologyModification {
 #[derive(Debug)]
 pub enum PlacementRule {
     AminoAcid(char, Position),
+    PsiModification(usize, Position),
     Terminal(Position),
 }
 
@@ -59,6 +58,9 @@ impl Display for PlacementRule {
                     "AminoAcid(AminoAcid::{}, Position::{:?})",
                     aminoacid, position
                 )
+            }
+            Self::PsiModification(index, position) => {
+                write!(f, "PsiModification({}, Position::{:?})", index, position)
             }
             Self::Terminal(t) => write!(f, "Terminal(Position::{:?})", t),
         }

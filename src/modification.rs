@@ -8,7 +8,7 @@ use crate::{
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
-    AminoAcid, Chemical, Element, Mass, MolecularFormula, MonoSaccharide,
+    AminoAcid, Chemical, Element, Mass, MolecularFormula, MonoSaccharide, SequenceElement,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,8 +21,9 @@ pub enum Modification {
     Predefined(
         &'static [(Element, u16, i16)],
         &'static [PlacementRule],
-        &'static str, // Context
+        Ontology,     // Context
         &'static str, // Name
+        usize,        // Index
     ),
 }
 
@@ -36,7 +37,7 @@ impl Chemical for Modification {
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula() * i.1 as i16
                 }),
-            Self::Predefined(formula, _, _, _) => MolecularFormula::new(formula),
+            Self::Predefined(formula, _, _, _, _) => MolecularFormula::new(formula),
         }
     }
 }
@@ -73,6 +74,20 @@ impl Modification {
             },
             Err,
         )
+    }
+
+    /// Check to see if this modification can be placed on the specified element
+    pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
+        if let Self::Predefined(_, rules, _, _, _) = self {
+            // If any of the rules match the current situation then it can be placed
+            if !rules
+                .iter()
+                .any(|rule| rule.is_possible(seq, index, length))
+            {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -202,6 +217,21 @@ fn parse_single_modification(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ontology {
+    Unimod,
+    PSIMOD,
+}
+
+impl Ontology {
+    pub const fn char(self) -> char {
+        match self {
+            Self::Unimod => 'U',
+            Self::PSIMOD => 'M',
+        }
+    }
+}
+
 pub enum ReturnModification {
     Defined(Modification),
     Referenced(usize, Option<f64>),
@@ -240,7 +270,7 @@ fn find_name_in_ontology(
     Err(())
 }
 
-fn find_id_in_ontology(
+pub fn find_id_in_ontology(
     id: usize,
     ontology: &[(usize, &str, Modification)],
 ) -> Result<Modification, ()> {
@@ -276,7 +306,9 @@ impl Display for Modification {
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
             )
             .unwrap(),
-            Self::Predefined(_, _, context, name) => write!(f, "{context}:{name}",).unwrap(),
+            Self::Predefined(_, _, context, name, _) => {
+                write!(f, "{}:{name}", context.char()).unwrap();
+            }
         }
         Ok(())
     }

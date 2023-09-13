@@ -95,8 +95,8 @@ These features are independent from each other:
 - [x] Show ambiguous amino acids back to the user
 - [x] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [x] Enforce ontology modification placement rules
-- [ ] 4.2.4 Branched peptides, similar to cross linking
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+- [ ] 4.2.4 Branched peptides, similar to cross linking
 - [ ] Better error data, allowing the construction of rust-like error messages
 - [ ] Modification specific neutral losses, phospho: fully deleted
 - [ ] Modification diagnostic peaks
@@ -120,7 +120,7 @@ These features are independent from each other:
 | Name    | Modifications | Numbered | Rules |
 | ------- | ------------- | -------- | ----- |
 | Unimod  | Yes           | Yes      | Yes   |
-| PSI-MOD | Yes           | Yes      | -     |
+| PSI-MOD | Yes           | Yes      | Yes   |
 | RESID   | -             | -        | -     |
 | XL-MOD  | -             | -        | -     |
 | GNO     | -             | -        | -     |

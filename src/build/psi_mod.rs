@@ -1,6 +1,6 @@
 use std::{ffi::OsString, fs, path::Path};
 
-use crate::helper_functions::parse_molecular_formula_psi_mod;
+use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 
 use super::{
     obo::OboOntology,
@@ -40,30 +40,22 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
-            context: "PSI-MOD".to_string(),
+            context: "PSIMOD".to_string(),
             ..Default::default()
         };
 
-        let mut aa = Vec::new();
+        let mut origins = Vec::new();
         let mut term = None;
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
-                    modification.elements =
+                    modification.diff_formula =
                         parse_molecular_formula_psi_mod(&line[13..line.len() - 12]).unwrap();
                 } else if line.starts_with("Origin") {
-                    aa = line[8..line.len() - 12]
+                    origins = line[8..line.len() - 12]
                         .split(',')
-                        .map(|s| s.trim().chars().next().unwrap())
+                        .map(|s| s.trim())
                         .collect();
-                    // TODO: parse the rules
-                    //property_value: Origin "E" xsd:string
-                    //property_value: TermSpec "N-term" xsd:string
-                    // separate
-                    //property_value: Origin "D, G" xsd:string
-                    //even only on specific mods
-                    //property_value: Origin "MOD:01801" xsd:string
-                    // c: property_value: TermSpec "C-term" xsd:string
                 } else if line.starts_with("TermSpec") {
                     if line[10..].starts_with("N-term") {
                         term = Some(Position::AnyNTerm);
@@ -75,13 +67,25 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 }
             }
         }
-        for aminoacid in &aa {
-            modification.rules.push(PlacementRule::AminoAcid(
-                *aminoacid,
-                term.unwrap_or(Position::Anywhere),
-            ));
+        for origin in &origins {
+            if origin.len() == 1 {
+                modification.rules.push(PlacementRule::AminoAcid(
+                    origin.chars().next().unwrap(),
+                    term.unwrap_or(Position::Anywhere),
+                ));
+            } else {
+                modification.rules.push(PlacementRule::PsiModification(
+                    origin
+                        .split_once(':')
+                        .expect("Incorrect psi mod id, should contain a colon")
+                        .1
+                        .parse()
+                        .expect("Incorrect psi mod id, should be numerical"),
+                    term.unwrap_or(Position::Anywhere),
+                ));
+            }
         }
-        if aa.is_empty() {
+        if origins.is_empty() {
             if let Some(term) = term {
                 modification.rules.push(PlacementRule::Terminal(term))
             }
@@ -90,4 +94,86 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
     }
 
     mods
+}
+
+// PSI-MOD: (12)C -5 (13)C 5 H 0 N 0 O 0 S 0
+pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, String> {
+    let mut index = 0;
+    let mut isotope = 0;
+    let mut element = None;
+    let bytes = value.as_bytes();
+    let mut result = MolecularFormula::default();
+    while index < value.len() {
+        match bytes[index] {
+            b'(' if isotope == 0 => {
+                let len = bytes
+                    .iter()
+                    .skip(index)
+                    .position(|c| *c == b')')
+                    .ok_or(format!(
+                        "No closing round bracket for round bracket at index: {index}"
+                    ))?;
+                isotope = value[index + 1..index + len]
+                    .parse::<u16>()
+                    .map_err(|e| e.to_string())?;
+                index += len + 1;
+            }
+            b'-' | b'0'..=b'9' if element.is_some() => {
+                let (num, len) = std::str::from_utf8(
+                    &bytes
+                        .iter()
+                        .skip(index)
+                        .take_while(|c| c.is_ascii_digit() || **c == b'-')
+                        .copied()
+                        .collect::<Vec<_>>(),
+                )
+                .map(|v| (v.parse::<i16>().map_err(|e| e.to_string()), v.len()))
+                .map_err(|e| e.to_string())?;
+                let num = num?;
+                if num != 0 {
+                    result.add((element.unwrap(), isotope, num));
+                }
+                element = None;
+                isotope = 0;
+                index += len;
+            }
+            b' ' => index += 1,
+            _ => {
+                let mut found = false;
+                for possible in ELEMENT_PARSE_LIST {
+                    if value[index..].starts_with(possible.0) {
+                        element = Some(possible.1);
+                        index += possible.0.len();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return Err(format!(
+                        "Could not parse PSI-MOD elemental formula, broke down at index: {index}"
+                    ));
+                }
+            }
+        }
+    }
+    if isotope != 0 || element.is_some() {
+        Err("Last element missed a count".to_string())
+    } else {
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn parse_molecular_formula() {
+        assert_eq!(
+            parse_molecular_formula_psi_mod("(12)C -5 (13)C 5 H 0 N 0 O 0 S 0").unwrap(),
+            molecular_formula!((12)C -5 (13)C 5 H 0 N 0 O 0 S 0)
+        );
+        assert_eq!(
+            parse_molecular_formula_psi_mod("(12)C -9 (13)C 9").unwrap(),
+            molecular_formula!((12)C -9 (13)C 9)
+        );
+    }
 }

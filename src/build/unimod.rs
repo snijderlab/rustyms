@@ -153,8 +153,8 @@ impl OntologyModification {
                 b')' => {
                     let num = last_number.parse::<i16>().map_err(|_| ())? * minus;
                     match parse_unimod_composition_brick(last_name.as_str()) {
-                        Ok(Brick::Formula(f)) => self.elements += &(f * num),
-                        Ok(Brick::Element(e)) => self.elements.add((e, 0, num)),
+                        Ok(Brick::Formula(f)) => self.diff_formula += &(f * num),
+                        Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, num)),
                         Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, num)),
                         Err(()) => return Err(()),
                     }
@@ -165,8 +165,8 @@ impl OntologyModification {
                 b' ' => {
                     if !last_name.is_empty() {
                         match parse_unimod_composition_brick(last_name.as_str()) {
-                            Ok(Brick::Formula(f)) => self.elements += &f,
-                            Ok(Brick::Element(e)) => self.elements.add((e, 0, 1)),
+                            Ok(Brick::Formula(f)) => self.diff_formula += &f,
+                            Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, 1)),
                             Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                             Err(()) => return Err(()),
                         }
@@ -180,8 +180,8 @@ impl OntologyModification {
         }
         if !last_name.is_empty() {
             match parse_unimod_composition_brick(last_name.as_str()) {
-                Ok(Brick::Formula(f)) => self.elements += &f,
-                Ok(Brick::Element(e)) => self.elements.add((e, 0, 1)),
+                Ok(Brick::Formula(f)) => self.diff_formula += &f,
+                Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, 1)),
                 Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                 Err(()) => return Err(()),
             }

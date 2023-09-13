@@ -250,10 +250,16 @@ impl LinearPeptide {
         &mut self,
         global_modifications: &[GlobalModification],
     ) {
+        let length = self.len();
         for modification in global_modifications {
             match modification {
-                GlobalModification::Fixed(aa, modification) => {
-                    for seq in self.sequence.iter_mut().filter(|seq| seq.aminoacid == *aa) {
+                GlobalModification::Fixed(_, modification) => {
+                    for (_, seq) in self
+                        .sequence
+                        .iter_mut()
+                        .enumerate()
+                        .filter(|(index, seq)| modification.is_possible(seq, *index, length))
+                    {
                         seq.modifications.push(modification.clone());
                     }
                 }
@@ -416,17 +422,11 @@ impl SequenceElement {
     /// Enforce the placement rules of predefined modifications.
     fn enforce_modification_rules(&self, index: usize, length: usize) -> Result<(), String> {
         for modification in &self.modifications {
-            if let Modification::Predefined(_, rules, _, _) = modification {
-                if !rules.is_empty()
-                    && !rules
-                        .iter()
-                        .any(|rule| rule.is_possible(self.aminoacid, index, length))
-                {
-                    return Err(format!(
-                        "Modification {modification} is not allowed on aminoacid {} index {index}",
-                        self.aminoacid.char()
-                    ));
-                }
+            if !modification.is_possible(self, index, length) {
+                return Err(format!(
+                    "Modification {modification} is not allowed on aminoacid {} index {index}",
+                    self.aminoacid.char()
+                ));
             }
         }
         Ok(())
