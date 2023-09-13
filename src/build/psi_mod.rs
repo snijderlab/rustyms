@@ -67,25 +67,30 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 }
             }
         }
-        for origin in &origins {
-            if origin.len() == 1 {
-                modification.rules.push(PlacementRule::AminoAcid(
-                    origin.chars().next().unwrap(),
-                    term.unwrap_or(Position::Anywhere),
-                ));
-            } else {
-                modification.rules.push(PlacementRule::PsiModification(
-                    origin
-                        .split_once(':')
-                        .expect("Incorrect psi mod id, should contain a colon")
-                        .1
-                        .parse()
-                        .expect("Incorrect psi mod id, should be numerical"),
-                    term.unwrap_or(Position::Anywhere),
-                ));
+        // If the list of possible origins contains "X" than the mod can be placed on any aminoacid
+        // But if there is a TermSpec definition that should still be accounted for
+        let all_aminoacids = origins.contains(&"X");
+        if !all_aminoacids {
+            for origin in &origins {
+                if origin.len() == 1 {
+                    modification.rules.push(PlacementRule::AminoAcid(
+                        origin.chars().next().unwrap(),
+                        term.unwrap_or(Position::Anywhere),
+                    ));
+                } else {
+                    modification.rules.push(PlacementRule::PsiModification(
+                        origin
+                            .split_once(':')
+                            .expect("Incorrect psi mod id, should contain a colon")
+                            .1
+                            .parse()
+                            .expect("Incorrect psi mod id, should be numerical"),
+                        term.unwrap_or(Position::Anywhere),
+                    ));
+                }
             }
         }
-        if origins.is_empty() {
+        if origins.is_empty() || all_aminoacids {
             if let Some(term) = term {
                 modification.rules.push(PlacementRule::Terminal(term))
             }
