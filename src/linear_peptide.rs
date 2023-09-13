@@ -3,7 +3,7 @@
 use std::{fmt::Display, ops::RangeBounds};
 
 use crate::{
-    modification::{AmbiguousModification, GlobalModification},
+    modification::{AmbiguousModification, GlobalModification, ReturnModification},
     molecular_charge::MolecularCharge,
     Element, MolecularFormula,
 };
@@ -253,7 +253,14 @@ impl LinearPeptide {
         let length = self.len();
         for modification in global_modifications {
             match modification {
-                GlobalModification::Fixed(_, modification) => {
+                GlobalModification::Fixed(aa, modification) => {
+                    for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
+                        seq.aminoacid == *aa && modification.is_possible(seq, *index, length)
+                    }) {
+                        seq.modifications.push(modification.clone());
+                    }
+                }
+                GlobalModification::Free(modification) => {
                     for (_, seq) in self
                         .sequence
                         .iter_mut()
@@ -265,6 +272,111 @@ impl LinearPeptide {
                 }
                 GlobalModification::Isotope(el, isotope) => self.global.push((*el, *isotope)),
             }
+        }
+    }
+
+    /// Place all global unknown positions at all possible locations as ambiguous modifications
+    pub(crate) fn apply_unknown_position_modification(
+        &mut self,
+        unknown_position_modifications: &[Modification],
+    ) {
+        for modification in unknown_position_modifications {
+            let id = self.ambiguous_modifications.len();
+            let length = self.len();
+            #[allow(clippy::unnecessary_filter_map)]
+            // Side effects so the lint does not apply here
+            self.ambiguous_modifications.push(
+                (0..length)
+                    .filter_map(|i| {
+                        if modification.is_possible(&self.sequence[i], i, length) {
+                            self.sequence[i]
+                                .possible_modifications
+                                .push(AmbiguousModification {
+                                    id,
+                                    modification: modification.clone(),
+                                    localisation_score: None,
+                                    group: None,
+                                });
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+            );
+        }
+    }
+    /// Place all ranged unknown positions at all possible locations as ambiguous modifications
+    pub(crate) fn apply_ranged_unknown_position_modification(
+        &mut self,
+        ranged_unknown_position_modifications: &[(usize, usize, ReturnModification)],
+        ambiguous_lookup: &[(Option<String>, Option<Modification>)],
+    ) {
+        for (start, end, ret_modification) in ranged_unknown_position_modifications {
+            let (id, modification, score, group) = match ret_modification {
+                ReturnModification::Defined(def) => {
+                    self.ambiguous_modifications.push(Vec::new());
+                    (
+                        self.ambiguous_modifications.len() - 1,
+                        def.clone(),
+                        None,
+                        None,
+                    )
+                }
+                ReturnModification::Preferred(i, score) => {
+                    if *i >= self.ambiguous_modifications.len() {
+                        self.ambiguous_modifications.push(Vec::new());
+                    }
+                    (
+                        *i,
+                        ambiguous_lookup[*i].1.clone().unwrap(),
+                        *score,
+                        Some((ambiguous_lookup[*i].0.clone().unwrap(), true)), // TODO: now all possible location in the range are listed as preferred
+                    )
+                }
+                ReturnModification::Referenced(i, score) => {
+                    if *i >= self.ambiguous_modifications.len() {
+                        self.ambiguous_modifications.push(Vec::new());
+                    }
+                    (
+                        *i,
+                        ambiguous_lookup[*i].1.clone().unwrap(),
+                        *score,
+                        Some((ambiguous_lookup[*i].0.clone().unwrap(), false)),
+                    )
+                }
+            };
+            let length = self.len();
+            #[allow(clippy::unnecessary_filter_map)]
+            // Side effects so the lint does not apply here
+            let positions = (*start..=*end)
+                .filter_map(|i| {
+                    if modification.is_possible(&self.sequence[i], i, length) {
+                        self.sequence[i]
+                            .possible_modifications
+                            .push(AmbiguousModification {
+                                id,
+                                modification: modification.clone(),
+                                localisation_score: None,
+                                group: group.clone(),
+                            });
+                        Some(i)
+                    } else {
+                        None
+                    }
+                })
+                .collect_vec();
+            if let Some(score) = score {
+                let individual_score = score / positions.len() as f64;
+                for pos in &positions {
+                    self.sequence[*pos]
+                        .possible_modifications
+                        .last_mut()
+                        .unwrap()
+                        .localisation_score = Some(individual_score);
+                }
+            }
+            self.ambiguous_modifications[id].extend(positions);
         }
     }
 }

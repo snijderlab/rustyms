@@ -3,7 +3,8 @@ use itertools::Itertools;
 use crate::{
     helper_functions::ResultExtensions,
     modification::{AmbiguousModification, GlobalModification, Modification, ReturnModification},
-    Charge, Element, Fragment, LinearPeptide, Model, SequenceElement, MolecularFormula, molecular_charge::MolecularCharge,
+    molecular_charge::MolecularCharge,
+    Charge, Element, Fragment, LinearPeptide, Mass, Model, MolecularFormula, SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptides
@@ -54,6 +55,8 @@ impl ComplexPeptide {
         let mut ambiguous_lookup = Vec::new();
         let mut ambiguous_found_positions = Vec::new();
         let mut global_modifications = Vec::new();
+        let mut unknown_position_modifications = Vec::new();
+        let mut ranged_unknown_position_modifications = Vec::new();
 
         // Global modification(s)
         while chars[index] == b'<' {
@@ -109,6 +112,24 @@ impl ComplexPeptide {
             index = end_index;
         }
 
+        // Unknown position mods
+        if let Some(result) = unknown_position_mods(chars, index) {
+            let (buf, mods, ambiguous_mods) = result.map_err(|e| e.join("\n"))?;
+            index = buf;
+
+            unknown_position_modifications = mods
+                .into_iter()
+                .filter_map(|m| {
+                    if let ReturnModification::Defined(def) = m {
+                        Some(def)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            ambiguous_lookup.extend(ambiguous_mods);
+        }
+
         // Labile modification(s)
         while chars[index] == b'{' {
             // TODO: Should I allow for the used of paired curly brackets inside as well?
@@ -162,6 +183,7 @@ impl ComplexPeptide {
         }
 
         // Rest of the sequence
+        let mut braces_start = None; // Sequence index where the last unopened braces started
         while index < chars.len() {
             match (c_term, chars[index]) {
                 (false, b'(') if chars[index + 1] == b'?' && ambiguous_aa.is_none() => {
@@ -172,6 +194,29 @@ impl ComplexPeptide {
                 (false, b')') if ambiguous_aa.is_some() => {
                     ambiguous_aa = None;
                     index += 1;
+                }
+                (false, b'(') => {
+                    braces_start = Some(peptide.sequence.len());
+                    index += 1;
+                }
+                (false, b')') if braces_start.is_some()=> {
+                    braces_start = Some(peptide.sequence.len());
+                    index += 1;
+                    while chars[index] == b'[' {
+                        let end_index = next_char(chars, index, b']').ok_or(format!(
+                            "No valid closing delimiter ranged ambiguous modification [index: {index}]"
+                        ))?;
+                        let modification = Modification::try_from(
+                            &value[index + 1..end_index],
+                            &mut ambiguous_lookup,
+                        )?;
+                        index = end_index + 1;
+                        ranged_unknown_position_modifications.push((
+                            braces_start.unwrap(),
+                            peptide.sequence.len(),
+                            modification,
+                        ));
+                    }
                 }
                 (false, b'/') => {
                     let (charge_len, charge) = next_num(chars, index+1, false).ok_or(format!("Invalid charge state number for peptide [index: {}]", index+1))?;
@@ -185,7 +230,7 @@ impl ComplexPeptide {
                             // num
                             let (count_len, count) = next_num(chars, offset, true).ok_or(format!("Invalid adduct ion count for peptide [index: {offset}]"))?;
                             // element
-                            let element_len = 
+                            let element_len =
                                 chars[offset+count_len..].iter()
                                 .take_while(|c| c.is_ascii_alphabetic())
                                 .count();
@@ -203,7 +248,7 @@ impl ComplexPeptide {
                             index+=1; // If a peptide in a multimeric definition contains a charge state modification
                         }
                         break; // Nothing else to do, the total charge of the adduct ions should sum up to the charge as provided and this definitively is the last thing in a sequence 
-                    } 
+                    }
                     // If no adduct ions are provided assume it is just protons
                     peptide.charge_carriers = Some(MolecularCharge::proton(charge));
                     index += charge_len+1;
@@ -294,6 +339,11 @@ impl ComplexPeptide {
 
         // Check all placement rules
         peptide.apply_global_modifications(&global_modifications);
+        peptide.apply_unknown_position_modification(&unknown_position_modifications);
+        peptide.apply_ranged_unknown_position_modification(
+            &ranged_unknown_position_modifications,
+            &ambiguous_lookup,
+        );
         peptide.enforce_modification_rules()?;
 
         Ok((peptide, index))
@@ -350,10 +400,13 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
         start += 1;
         sign_set = true;
     } else if chars[start] == b'+' {
-        start +=1;
+        start += 1;
         sign_set = true;
     }
-    let len = chars[start..].iter().take_while(|c| c.is_ascii_digit()).count();
+    let len = chars[start..]
+        .iter()
+        .take_while(|c| c.is_ascii_digit())
+        .count();
     if len == 0 {
         if allow_only_sign && sign_set {
             Some((1, sign))
@@ -361,8 +414,68 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
             None
         }
     } else {
-        let num: isize = std::str::from_utf8(&chars[start..start+len]).unwrap().parse().unwrap();
+        let num: isize = std::str::from_utf8(&chars[start..start + len])
+            .unwrap()
+            .parse()
+            .unwrap();
         Some((usize::from(sign_set) + len, sign * num))
+    }
+}
+
+/// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
+/// The returned happy path contains the mods and the index from where to continue parsing.
+fn unknown_position_mods(
+    chars: &[u8],
+    start: usize,
+) -> Option<
+    Result<
+        (
+            usize,
+            Vec<ReturnModification>,
+            Vec<(Option<String>, Option<Modification>)>,
+        ),
+        Vec<String>,
+    >,
+> {
+    let mut index = start;
+    let mut modifications = Vec::new();
+    let mut errs = Vec::new();
+    let mut ambiguous_lookup = Vec::new();
+    while chars[index] == b'[' {
+        let end_index = next_char(chars, index + 1, b']').unwrap_or_else(|| {
+            format!("No valid closing delimiter modification [index: {index}]");
+            index
+        });
+        #[allow(clippy::map_unwrap_or)]
+        // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
+        let modification = Modification::try_from(
+            std::str::from_utf8(&chars[index + 1..end_index]).unwrap(),
+            &mut ambiguous_lookup,
+        )
+        .unwrap_or_else(|e| {
+            errs.push(e);
+            ReturnModification::Defined(Modification::Mass(Mass::default()))
+        });
+        index = end_index + 1;
+        if chars[index] == b'^' {
+            if let Some((len, num)) = next_num(chars, index + 1, false) {
+                index += len + 1;
+                modifications.extend(std::iter::repeat(modification).take(num as usize));
+            } else {
+                errs.push(format!("A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol [index: {index}]"));
+            }
+        } else {
+            modifications.push(modification);
+        }
+    }
+    if chars[index] == b'?' {
+        if errs.is_empty() {
+            Some(Ok((index + 1, modifications, ambiguous_lookup)))
+        } else {
+            Some(Err(errs))
+        }
+    } else {
+        None
     }
 }
 
@@ -548,16 +661,39 @@ mod tests {
     fn parse_adduct_ions_01() {
         let peptide = ComplexPeptide::pro_forma("A/2[2Na+]+A").unwrap();
         assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(peptide.peptides()[0].charge_carriers.clone().unwrap().charge_carriers, vec![(2, molecular_formula!(Na 1 Electron -1))]);
-        assert_eq!(peptide.peptides()[0].sequence, peptide.peptides()[1].sequence);
+        assert_eq!(
+            peptide.peptides()[0]
+                .charge_carriers
+                .clone()
+                .unwrap()
+                .charge_carriers,
+            vec![(2, molecular_formula!(Na 1 Electron -1))]
+        );
+        assert_eq!(
+            peptide.peptides()[0].sequence,
+            peptide.peptides()[1].sequence
+        );
     }
 
     #[test]
     fn parse_adduct_ions_02() {
         let peptide = ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap();
         assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(peptide.peptides()[0].charge_carriers.clone().unwrap().charge_carriers, vec![(1, molecular_formula!(Na 1 Electron -1)), (1, molecular_formula!(H 1 Electron -1))]);
+        assert_eq!(
+            peptide.peptides()[0]
+                .charge_carriers
+                .clone()
+                .unwrap()
+                .charge_carriers,
+            vec![
+                (1, molecular_formula!(Na 1 Electron -1)),
+                (1, molecular_formula!(H 1 Electron -1))
+            ]
+        );
         // Check if the C term mod is applied
-        assert_eq!(peptide.peptides()[0].sequence[0].formula_all(), peptide.peptides()[1].sequence[0].formula_all());
+        assert_eq!(
+            peptide.peptides()[0].sequence[0].formula_all(),
+            peptide.peptides()[1].sequence[0].formula_all()
+        );
     }
 }

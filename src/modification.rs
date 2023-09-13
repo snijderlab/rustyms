@@ -232,6 +232,7 @@ impl Ontology {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum ReturnModification {
     Defined(Modification),
     Referenced(usize, Option<f64>),
@@ -254,7 +255,10 @@ pub struct AmbiguousModification {
 /// Intermediate representation of a global modification
 pub enum GlobalModification {
     Isotope(Element, u16),
+    // Can be placed on any place it fits, if that is the correct aminoacid
     Fixed(AminoAcid, Modification),
+    // Can be placed on any place where it can fit
+    Free(Modification),
 }
 
 fn find_name_in_ontology(

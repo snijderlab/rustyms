@@ -54,30 +54,29 @@ Represents the lowest level of compliance, this level involves providing support
     - [x] Prepare PSI-MOD and parse modifications
 - [x] 4.2.6 Protein modifications using delta masses (without prefixes)
 - [x] 4.3 N-terminal, C-terminal and labile modifications.
-- [ ] 4.4 Ambiguity in the modification position, including support for localisation scores. 
-    - [ ] Global: `[Phospho]^2?`
+- [x] 4.4 Ambiguity in the modification position, including support for localisation scores. 
+    - [x] Global: `[Phospho]^2?`
     - [x] Local/named: `[Phospho#g1(0.01)]` 
-    - [ ] Stretch: `(AAA)[Phospho]` (note: also handle multiple modifications on a group + scores)
-    - Implementation note: translate all notations to save all possible ambiguous modifications on each specific Amino Acid location, using the rules from the modifications to generate the least number of possible positions. Using these generate all possible N-term/C-term base masses when calculating ion masses. Additionally find a way to nicely store the path taken for each base mass and show this to the user. Maybe having something like `base + 12[Phospho] + 15[Phospho]`.
+    - [x] Stretch: `(AAA)[Phospho]` (note: also handle multiple modifications on a group + scores)
 - [x] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
 - [x] 4.8 INFO tag.
-2) Additional Separate Support (Technical name: level 2-ProForma compliant)
+1) Additional Separate Support (Technical name: level 2-ProForma compliant)
 These features are independent from each other:
 - [x] 4.1 Unusual amino acids (O and U).
 - [x] 4.1 Ambiguous amino acids (e.g. X, B, Z). This would include support for sequence tags of known mass (using the character X).
 - [x] 4.2.6 Protein modifications using delta masses (using prefixes for the different CVs/ontologies).
 - [x] 4.2.1 Use of prefixes for Unimod (U:) and PSI-MOD (M:) names.
 - [x] 4.9 Support for the joint representation of experimental data and its interpretation. (see 4.9)
-3) Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
+1) Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
 - [ ] 4.2.1 Additional CV/ontologies for protein modifications: RESID (the prefix R MUST be used for RESID CV/ontology term names)
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
-4) Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
+1) Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
 - [ ] 4.2.1/4.2.3 Cross-linked peptides (using the XL-MOD CV/ontology, the prefix X MUST be used for XL-MOD CV/ontology term names).
-5) Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
+1) Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
 - [ ] 4.2.5 Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
 - [x] 4.2.9 Glycan composition.
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
-6) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
+1) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
 - [x] 7 Charge and chimeric spectra are special cases (see Appendix II).
     - [x] Parse chimeric spectra
     - [x] Annotate chimeric spectra

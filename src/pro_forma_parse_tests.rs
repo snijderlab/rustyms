@@ -6,7 +6,7 @@ macro_rules! parse_test {
         #[test]
         fn $name() {
             let res = ComplexPeptide::pro_forma($case);
-            println!("{:?}", res);
+            println!("{}\n{:?}", $case, res);
             assert!(res.is_ok());
         }
     };
