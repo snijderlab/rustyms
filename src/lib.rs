@@ -36,6 +36,7 @@ mod neutral_loss;
 mod ontologies;
 mod placement_rules;
 pub mod rawfile;
+pub mod read_annotation;
 mod spectrum;
 mod system;
 

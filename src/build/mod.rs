@@ -1,4 +1,5 @@
 mod atomic_masses;
+#[path="../shared/csv.rs"]
 mod csv;
 mod obo;
 mod ontology_modification;
