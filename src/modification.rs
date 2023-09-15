@@ -1,10 +1,15 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    ops::{Bound, Range},
+};
 
 use regex::Regex;
 use uom::num_traits::Zero;
 
 use crate::{
     dalton,
+    error::Context,
+    error::CustomError,
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
@@ -47,9 +52,10 @@ impl Modification {
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
     pub fn try_from(
-        value: &str,
+        line: &str,
+        range: Range<usize>,
         lookup: &mut Vec<(Option<String>, Option<Self>)>,
-    ) -> Result<ReturnModification, String> {
+    ) -> Result<ReturnModification, CustomError> {
         // Because multiple modifications could be chained with the pipe operator
         // the parsing iterates over all links until it finds one it understands
         // it then returns that one. If no 'understandable' links are found it
@@ -57,14 +63,16 @@ impl Modification {
         // but if any of the links returned an error it returns the last error.
         let mut last_result = Ok(None);
         let mut last_error = None;
-        for part in value.split('|') {
-            last_result = parse_single_modification(part, lookup);
+        let mut offset = range.start;
+        for part in line[range].split('|') {
+            last_result = parse_single_modification(line, part, offset, lookup);
             if let Ok(Some(m)) = last_result {
                 return Ok(m);
             }
             if let Err(er) = &last_result {
                 last_error = Some(er.clone());
             }
+            offset += part.len() + 1;
         }
         last_error.map_or_else(
             || {
@@ -92,9 +100,11 @@ impl Modification {
 }
 
 fn parse_single_modification(
+    line: &str,
     full_modification: &str,
+    offset: usize,
     lookup: &mut Vec<(Option<String>, Option<Modification>)>,
-) -> Result<Option<ReturnModification>, String> {
+) -> Result<Option<ReturnModification>, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
     let regex =
         Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap();
@@ -102,14 +112,17 @@ fn parse_single_modification(
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
         let (full, head, tail, group, localisation_score) = (
             groups.get(1).map(|m| m.as_str()).unwrap_or_default(),
-            groups.get(2).map(|m| m.as_str().to_ascii_lowercase()),
-            groups.get(3).map(|m| m.as_str()),
-            groups.get(4).map(|m| m.as_str()),
+            groups
+                .get(2)
+                .map(|m| (m.as_str().to_ascii_lowercase(), m.start(), m.len())),
+            groups.get(3).map(|m| (m.as_str(), m.start(), m.len())),
+            groups.get(4).map(|m| (m.as_str(), m.start(), m.len())),
             groups.get(5).map(|m| {
                 m.as_str().parse::<f64>().map_err(|_| {
-                    format!(
-                        "Ambiguous modification localisation score is not a valid number: \"{}\"",
-                        m.as_str()
+                    CustomError::error(
+                        "Invalid modification localisation score",
+                        "The ambiguous modification localisation score needs to be a valid number",
+                        Context::line(0, line, offset + m.start(), m.len()),
                     )
                 })
             }),
@@ -122,18 +135,30 @@ fn parse_single_modification(
         };
 
         let modification = if let (Some(head), Some(tail)) = (head.as_ref(), tail) {
-            match (head.as_str(), tail) {
+            let basic_error = CustomError::error(
+                "Invalid modification",
+                "..",
+                Context::line(0, line, tail.1, tail.2),
+            );
+            match (head.0.as_str(), tail.0) {
                 ("unimod", tail) => {
-                    let id = tail.parse::<usize>().map_err(|e| e.to_string())?;
+                    let id = tail.parse::<usize>().map_err(|_| {
+                        basic_error
+                            .with_long_description("Unimod accession number should be a number")
+                    })?;
                     find_id_in_ontology(id, UNIMOD_ONTOLOGY)
                         .map(Some)
-                        .map_err(|_| format!("{tail} is not a valid Unimod accession number"))
+                        .map_err(|_| 
+                            basic_error
+                            .with_long_description("The supplied Unimod accession number is not an existing modification"))
                 }
                 ("mod", tail) => {
-                    let id = tail.parse::<usize>().map_err(|e| e.to_string())?;
+                    let id = tail.parse::<usize>().map_err(|_| basic_error
+                        .with_long_description("PSI-MOD accession number should be a number"))?;
                     find_id_in_ontology(id, PSI_MOD_ONTOLOGY)
                         .map(Some)
-                        .map_err(|_| format!("{tail} is not a valid PSI-MOD accession number"))
+                        .map_err(|_| basic_error
+                            .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
                 }
                 ("u", tail) => find_name_in_ontology(tail, UNIMOD_ONTOLOGY)
                     .map_err(|_| numerical_mod(tail))

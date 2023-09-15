@@ -1,6 +1,8 @@
 use itertools::Itertools;
 
 use crate::{
+    error::Context,
+    error::CustomError,
     helper_functions::ResultExtensions,
     modification::{AmbiguousModification, GlobalModification, Modification, ReturnModification},
     molecular_charge::MolecularCharge,
@@ -23,7 +25,7 @@ impl ComplexPeptide {
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
     #[allow(clippy::too_many_lines)]
-    pub fn pro_forma(value: &str) -> Result<Self, String> {
+    pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
         let mut peptides = Vec::new();
         let mut start = 0;
         let (peptide, tail) = Self::pro_forma_inner(value, start)?;
@@ -39,13 +41,24 @@ impl ComplexPeptide {
         Ok(if peptides.len() > 1 {
             Self::Multimeric(peptides)
         } else {
-            Self::Singular(peptides.pop().ok_or("No peptide found")?)
+            Self::Singular(peptides.pop().ok_or(CustomError::error(
+                "No peptide found",
+                "The peptide definition is empty",
+                Context::full_line(0, value),
+            ))?)
         })
     }
 
-    fn pro_forma_inner(value: &str, mut index: usize) -> Result<(LinearPeptide, usize), String> {
+    fn pro_forma_inner(
+        value: &str,
+        mut index: usize,
+    ) -> Result<(LinearPeptide, usize), CustomError> {
         if value.trim().is_empty() {
-            return Err("Peptide sequence is empty".to_string());
+            return Err(CustomError::error(
+                "Peptide sequence is empty",
+                "A peptide sequence cannot be empty",
+                Context::line(0, value, index, 1),
+            ));
         }
         let mut peptide = LinearPeptide::default();
         let chars: &[u8] = value.as_bytes();
@@ -60,33 +73,42 @@ impl ComplexPeptide {
 
         // Global modification(s)
         while chars[index] == b'<' {
-            let end_index = index
-                + 1
-                + chars[index..]
-                    .iter()
-                    .position(|c| *c == b'>')
-                    .ok_or(format!(
-                        "No valid closing delimiter for global modification [index: {index}]"
-                    ))?;
-            if let Some(offset) = chars[index..].iter().position(|c| *c == b'@') {
+            let end_index = next_char(chars, index, b'>').ok_or(CustomError::error(
+                "Global modification not closed",
+                "A global modification should be closed with a closing angle bracket '>'",
+                Context::line(0, value, index, 1),
+            ))?;
+            if let Some(offset) = next_char(chars, index, b'@') {
                 let at_index = index + 1 + offset;
                 if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
-                    return Err("A global fixed modification should always be enclosed in square brackets '[]'.".to_string());
+                    return Err(CustomError::error(
+                        "Invalid global modification",
+                        "A global modification should always be enclosed in square brackets '[]'",
+                        Context::line(0, value, index + 1, at_index - index - 2),
+                    ));
                 }
                 let modification =
-                    Modification::try_from(&value[index + 2..at_index - 2], &mut ambiguous_lookup)
+                    Modification::try_from(&value, index + 2..at_index - 2, &mut ambiguous_lookup)
                         .map(|m| {
                             if let ReturnModification::Defined(m) = m {
                                 Ok(m)
                             } else {
-                                Err("A global modification cannot be ambiguous".to_string())
+                                Err(CustomError::error(
+                                    "Invalid global modification",
+                                    "A global modification cannot be ambiguous",
+                                    Context::line(0, value, index + 2, at_index - index - 4),
+                                ))
                             }
                         })
                         .flat_err()?;
                 for aa in value[at_index..end_index - 1].split(',') {
                     global_modifications.push(GlobalModification::Fixed(
                         aa.try_into().map_err(|_| {
-                            format!("Could not read as aminoacid in global modification: {aa}")
+                            CustomError::error(
+                                "Invalid global modification",
+                                "The location could not be read as an amino acid",
+                                Context::line(0, value, at_index, at_index - end_index - 1),
+                            )
                         })?,
                         modification.clone(),
                     ));
@@ -101,10 +123,23 @@ impl ComplexPeptide {
                 let el = &value[index + 1 + num.len()..end_index - 1];
                 global_modifications.push(GlobalModification::Isotope(
                     el.try_into().map_err(|_| {
-                        format!("Could not read as element in global modification: {el}")
+                        CustomError::error(
+                            "Invalid global modification",
+                            "Could not determine the element",
+                            Context::line(
+                                0,
+                                value,
+                                index + 1 + num.len(),
+                                index + num.len() - end_index,
+                            ),
+                        )
                     })?,
                     num.parse().map_err(|_| {
-                        format!("Could not read as isotope number in global modification: {num}")
+                        CustomError::error(
+                            "Invalid global modification",
+                            "Could not read isotope number",
+                            Context::line(0, value, index + 1, index - end_index),
+                        )
                     })?,
                 ));
             }

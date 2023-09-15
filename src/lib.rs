@@ -39,6 +39,7 @@ pub mod rawfile;
 pub mod read_annotation;
 mod spectrum;
 mod system;
+pub mod error;
 
 pub use crate::complex_peptide::*;
 pub use crate::element::*;
