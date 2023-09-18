@@ -16,7 +16,7 @@ pub fn parse_csv(path: &str) -> Result<Vec<Vec<String>>, String> {
         let mut cell = String::new();
         for ch in line.chars() {
             match (ch, enclosed) {
-                ('\"', None) | ('\'', None) => enclosed = Some(ch),
+                ('\"' | '\'', None) => enclosed = Some(ch),
                 (c, Some(e)) if c == e => enclosed = None,
                 (',', None) => {
                     row.push(cell.trim().to_string());

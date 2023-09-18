@@ -16,7 +16,7 @@ pub struct CustomError {
 }
 
 impl CustomError {
-    /// Create a new CustomError
+    /// Create a new `CustomError`
     ///
     /// ## Arguments
     /// * `short_desc` - A short description of the error, generally used as title line
@@ -34,7 +34,7 @@ impl CustomError {
             context,
         }
     }
-    /// Create a new CustomError
+    /// Create a new `CustomError`
     ///
     /// ## Arguments
     /// * `short_desc` - A short description of the error, generally used as title line
@@ -130,7 +130,7 @@ mod tests {
         let a = CustomError::error("test", "test", Context::none());
         println!("{a}");
         assert_eq!(format!("{a}"), "GeneralWarning: test\ntest\n");
-        assert_eq!(a.is_warning(), false);
+        assert!(!a.is_warning());
     }
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
             format!("{a}"),
             "StrictWarning: test\n  ╷\n1 │ testing line\n  ╵\ntest\n"
         );
-        assert_eq!(a.is_warning(), true);
+        assert!(a.is_warning());
     }
 
     #[test]
@@ -159,7 +159,7 @@ mod tests {
         let a = CustomError::warning("test", "test error", Context::range(&pos1, &pos2));
         println!("{a}");
         assert_eq!(format!("{a}"), "LooseWarning: test\n  ╷\n1 │ hello world\n2 │ this is a multiline\n3 │ piece of teXt\n  ╵\ntest error\n");
-        assert_eq!(a.is_warning(), true);
+        assert!(a.is_warning());
         assert_eq!(pos2.text, "");
         assert_eq!(pos2.line, 4);
         assert_eq!(pos2.column, 13);

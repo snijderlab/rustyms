@@ -41,11 +41,13 @@ impl ComplexPeptide {
         Ok(if peptides.len() > 1 {
             Self::Multimeric(peptides)
         } else {
-            Self::Singular(peptides.pop().ok_or(CustomError::error(
-                "No peptide found",
-                "The peptide definition is empty",
-                Context::full_line(0, value),
-            ))?)
+            Self::Singular(peptides.pop().ok_or_else(|| {
+                CustomError::error(
+                    "No peptide found",
+                    "The peptide definition is empty",
+                    Context::full_line(0, value),
+                )
+            })?)
         })
     }
 
@@ -73,11 +75,13 @@ impl ComplexPeptide {
 
         // Global modification(s)
         while chars[index] == b'<' {
-            let end_index = next_char(chars, index, b'>').ok_or(CustomError::error(
-                "Global modification not closed",
-                "A global modification should be closed with a closing angle bracket '>'",
-                Context::line(0, value, index, 1),
-            ))?;
+            let end_index = next_char(chars, index, b'>').ok_or_else(|| {
+                CustomError::error(
+                    "Global modification not closed",
+                    "A global modification should be closed with a closing angle bracket '>'",
+                    Context::line(0, value, index, 1),
+                )
+            })?;
             if let Some(offset) = next_char(chars, index, b'@') {
                 let at_index = index + 1 + offset;
                 if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
@@ -88,7 +92,7 @@ impl ComplexPeptide {
                     ));
                 }
                 let modification =
-                    Modification::try_from(&value, index + 2..at_index - 2, &mut ambiguous_lookup)
+                    Modification::try_from(value, index + 2..at_index - 2, &mut ambiguous_lookup)
                         .map(|m| {
                             if let ReturnModification::Defined(m) = m {
                                 Ok(m)
@@ -173,13 +177,15 @@ impl ComplexPeptide {
                 + chars[index..]
                     .iter()
                     .position(|c| *c == b'}')
-                    .ok_or(CustomError::error(
-                        "Invalid labile modification",
-                        "No valid closing delimiter",
-                        Context::line(0, value, index, 1),
-                    ))?;
+                    .ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid labile modification",
+                            "No valid closing delimiter",
+                            Context::line(0, value, index, 1),
+                        )
+                    })?;
             peptide.labile.push(
-                Modification::try_from(&value, index + 1..end_index - 1, &mut ambiguous_lookup)
+                Modification::try_from(value, index + 1..end_index - 1, &mut ambiguous_lookup)
                     .map(|m| {
                         if let ReturnModification::Defined(m) = m {
                             Ok(m)
@@ -212,7 +218,7 @@ impl ComplexPeptide {
                 ));
             }
             peptide.n_term = Some(
-                Modification::try_from(&value, index + 1..end_index - 1, &mut ambiguous_lookup)
+                Modification::try_from(value, index + 1..end_index - 1, &mut ambiguous_lookup)
                     .map(|m| {
                         if let ReturnModification::Defined(m) = m {
                             Ok(m)
@@ -250,13 +256,13 @@ impl ComplexPeptide {
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
                     while chars[index] == b'[' {
-                        let end_index = next_char(chars, index, b']').ok_or(CustomError::error(
+                        let end_index = next_char(chars, index, b']').ok_or_else(||CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "No valid closing delimiter",
                             Context::line(0, value, index, 1),
                         ))?;
                         let modification = Modification::try_from(
-                            &value, index + 1..end_index,
+                            value, index + 1..end_index,
                             &mut ambiguous_lookup,
                         )?;
                         index = end_index + 1;
@@ -268,13 +274,13 @@ impl ComplexPeptide {
                     }
                 }
                 (false, b'/') => {
-                    let (charge_len, charge) = next_num(chars, index+1, false).ok_or(CustomError::error(
+                    let (charge_len, charge) = next_num(chars, index+1, false).ok_or_else(||CustomError::error(
                         "Invalid peptide charge state",
                         "THere should be a number dictating the total charge of the peptide",
                         Context::line(0, value, index+1, 1),
                     ))?;
                     if index+1+charge_len < chars.len() && chars[index+1+charge_len] == b'[' {
-                        let end_index = next_char(chars, index+2+charge_len, b']').ok_or(CustomError::error(
+                        let end_index = next_char(chars, index+2+charge_len, b']').ok_or_else(||CustomError::error(
                             "Invalid adduct ion",
                             "No valid closing delimiter",
                             Context::line(0, value, index+2+charge_len, 1),
@@ -283,7 +289,7 @@ impl ComplexPeptide {
                         let mut charge_carriers = Vec::new();
                         for set in chars[index+2+charge_len..end_index].split(|c| *c == b',') {
                             // num
-                            let (count_len, count) = next_num(chars, offset, true).ok_or(CustomError::error(
+                            let (count_len, count) = next_num(chars, offset, true).ok_or_else(||CustomError::error(
                                 "Invalid adduct ion",
                                 "Invalid adduct ion count",
                                 Context::line(0, value, offset, 1),
@@ -299,7 +305,7 @@ impl ComplexPeptide {
                                 Context::line(0, value, offset+count_len, element_len),
                             ))?;
                             // charge
-                            let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or(CustomError::error(
+                            let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or_else(||CustomError::error(
                                 "Invalid adduct ion",
                                 "Invalid adduct ion charge",
                                 Context::line(0, value, offset+count_len+element_len, 1),
@@ -325,13 +331,13 @@ impl ComplexPeptide {
                     break;
                 }
                 (c_term, b'[') => {
-                    let end_index = next_char(chars, index, b']').ok_or(CustomError::error(
+                    let end_index = next_char(chars, index, b']').ok_or_else(||CustomError::error(
                         "Invalid modification",
                         "No valid closing delimiter",
                         Context::line(0, value, index, 1),
                     ))?;
                     let modification = Modification::try_from(
-                        &value, index + 1..end_index,
+                        value, index + 1..end_index,
                         &mut ambiguous_lookup,
                     )?;
                     let start_index = index +1;
@@ -410,7 +416,7 @@ impl ComplexPeptide {
             peptide.sequence[index].possible_modifications.push(
                 AmbiguousModification {
                     id,
-                    modification: ambiguous_lookup[id].1.as_ref().cloned().ok_or(
+                    modification: ambiguous_lookup[id].1.as_ref().cloned().ok_or_else(||
                         CustomError::error(
                             "Invalid ambiguous modification",
                             format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0.as_ref().map_or(id.to_string(), ToString::to_string)),
@@ -541,7 +547,7 @@ fn unknown_position_mods(
         #[allow(clippy::map_unwrap_or)]
         // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
         let modification = Modification::try_from(
-            std::str::from_utf8(&chars).unwrap(),
+            std::str::from_utf8(chars).unwrap(),
             index + 1..end_index,
             &mut ambiguous_lookup,
         )
@@ -556,7 +562,7 @@ fn unknown_position_mods(
                 modifications.extend(std::iter::repeat(modification).take(num as usize));
             } else {
                 errs.push(
-                    CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(0, std::str::from_utf8(&chars).unwrap(), index, 1)));
+                    CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
             }
         } else {
             modifications.push(modification);

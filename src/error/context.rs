@@ -105,14 +105,14 @@ impl Context {
         if pos.text.is_empty() {
             Self::Line {
                 linenumber: pos.line,
-                line: "".to_string(),
+                line: String::new(),
                 offset: 0,
                 length: 3,
             }
         } else {
             Self::Line {
                 linenumber: pos.line,
-                line: pos.text.lines().into_iter().next().unwrap().to_string(),
+                line: pos.text.lines().next().unwrap().to_string(),
                 offset: 0,
                 length: 3,
             }
@@ -134,7 +134,6 @@ impl Context {
                 lines: start
                     .text
                     .lines()
-                    .into_iter()
                     .take(end.line - start.line)
                     .map(ToString::to_string)
                     .collect::<Vec<String>>(),

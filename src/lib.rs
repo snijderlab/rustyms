@@ -24,6 +24,7 @@ pub mod align;
 mod aminoacids;
 mod complex_peptide;
 mod element;
+pub mod error;
 mod fragment;
 mod glycan;
 mod helper_functions;
@@ -39,7 +40,6 @@ pub mod rawfile;
 pub mod read_annotation;
 mod spectrum;
 mod system;
-pub mod error;
 
 pub use crate::complex_peptide::*;
 pub use crate::element::*;

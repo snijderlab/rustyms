@@ -1,3 +1,4 @@
+/// The file format for any peaks format, determining the existence and location of all possible columns
 pub struct PeaksFormat {
     fraction: Option<usize>,
     source_file: Option<usize>,
@@ -23,14 +24,21 @@ pub struct PeaksFormat {
     format: PeaksVersion,
 }
 
+/// All possible peaks versions
 pub enum PeaksVersion {
+    /// A custom version of a PEAKS file forma
     Custom,
+    /// An older version of a PEAKS export
     Old,
+    /// Version X of PEAKS export (made for build 31 january 2019)
     X,
+    /// Version X+ of PEAKS export (made for build 20 november 2019)
     Xplus,
+    /// Version Ab of PEAKS export
     Ab,
 }
 
+/// An older version of a PEAKS export
 pub const OLD: PeaksFormat = PeaksFormat {
     scan: 0,
     peptide: 1,
@@ -56,6 +64,7 @@ pub const OLD: PeaksFormat = PeaksFormat {
     format: PeaksVersion::Old,
 };
 
+/// Version X of PEAKS export (made for build 31 january 2019)
 pub const X: PeaksFormat = PeaksFormat {
     fraction: Some(0),
     source_file: Some(1),
@@ -81,6 +90,7 @@ pub const X: PeaksFormat = PeaksFormat {
     format: PeaksVersion::X,
 };
 
+/// Version X+ of PEAKS export (made for build 20 november 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
     fraction: Some(0),
     source_file: Some(1),
@@ -106,6 +116,7 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     format: PeaksVersion::Xplus,
 };
 
+/// Version Ab of PEAKS export
 pub const AB: PeaksFormat = PeaksFormat {
     scan: 0,
     peptide: 1,
@@ -131,6 +142,7 @@ pub const AB: PeaksFormat = PeaksFormat {
     format: PeaksVersion::Ab,
 };
 
+/// A single parsed line of a peaks file
 pub struct PeaksData {
     fraction: Option<usize>,
     source_file: Option<String>,

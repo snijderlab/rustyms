@@ -1,6 +1,8 @@
+//! Read in the annotations from peptide identification sources
+
+#[path = "../shared/csv.rs"]
+mod csv;
 mod peaks;
 mod read;
-#[path="../shared/csv.rs"]
-mod csv;
 pub use peaks::*;
 pub use read::*;

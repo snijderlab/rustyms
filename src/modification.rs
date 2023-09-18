@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    ops::{Bound, Range},
-};
+use std::{fmt::Display, ops::Range};
 
 use regex::Regex;
 use uom::num_traits::Zero;
@@ -111,7 +108,10 @@ fn parse_single_modification(
     if let Some(groups) = regex.captures(full_modification) {
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
         let (full, head, tail, group, localisation_score) = (
-            groups.get(1).map(|m| (m.as_str(), m.start(), m.len())).unwrap_or_default(),
+            groups
+                .get(1)
+                .map(|m| (m.as_str(), m.start(), m.len()))
+                .unwrap_or_default(),
             groups
                 .get(2)
                 .map(|m| (m.as_str().to_ascii_lowercase(), m.start(), m.len())),
@@ -148,7 +148,7 @@ fn parse_single_modification(
                     })?;
                     find_id_in_ontology(id, UNIMOD_ONTOLOGY)
                         .map(Some)
-                        .map_err(|_| 
+                        .map_err(|_|
                             basic_error
                             .with_long_description("The supplied Unimod accession number is not an existing modification"))
                 }
@@ -189,7 +189,7 @@ fn parse_single_modification(
                     .map_err(|_| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| 
+                    .map_err(|_|
                         CustomError::error(
                             "Invalid modification",
                             "Rustyms does not support these types of modification (yet)",
@@ -205,7 +205,7 @@ fn parse_single_modification(
                 .map_err(|_| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
-                .map_err(|_| 
+                .map_err(|_|
                     CustomError::error(
                         "Invalid modification",
                         "This modification cannot be read as a Unimod name, PSI-MOD name, or numerical modification",
