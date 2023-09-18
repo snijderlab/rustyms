@@ -1,7 +1,8 @@
+use serde::*;
 use std::fmt;
 
 /// A struct to define the context of an error message
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Context {
     /// When no context can be given
     None,

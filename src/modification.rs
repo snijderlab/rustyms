@@ -138,7 +138,7 @@ fn parse_single_modification(
             let basic_error = CustomError::error(
                 "Invalid modification",
                 "..",
-                Context::line(0, line, tail.1, tail.2),
+                Context::line(0, line, offset + tail.1, tail.2),
             );
             match (head.0.as_str(), tail.0) {
                 ("unimod", tail) => {
@@ -193,7 +193,7 @@ fn parse_single_modification(
                         CustomError::error(
                             "Invalid modification",
                             "Rustyms does not support these types of modification (yet)",
-                            Context::line(0, line, head.1, head.2),
+                            Context::line(0, line, offset+head.1, head.2),
                         )),
             }
         } else if full.0.is_empty() {
@@ -209,7 +209,7 @@ fn parse_single_modification(
                     CustomError::error(
                         "Invalid modification",
                         "This modification cannot be read as a Unimod name, PSI-MOD name, or numerical modification",
-                        Context::line(0, line, full.1, full.2),
+                        Context::line(0, line, offset+full.1, full.2),
                     ))
         };
         // Handle ambiguous modifications
@@ -227,7 +227,7 @@ fn parse_single_modification(
                     CustomError::error(
                         "Invalid ambiguous modification",
                         "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
-                        Context::line(0, line, full.1, full.2),
+                        Context::line(0, line, offset+full.1, full.2),
                     )),
                 // Have a mod defined here, the name present in the lookup but not yet the mod
                 (Ok(Some(m)), Some((index, false))) => {

@@ -180,7 +180,7 @@ impl ComplexPeptide {
                     .ok_or_else(|| {
                         CustomError::error(
                             "Invalid labile modification",
-                            "No valid closing delimiter",
+                            "No valid closing delimiter, a labile modification should be closed by '}'",
                             Context::line(0, value, index, 1),
                         )
                     })?;
@@ -213,7 +213,7 @@ impl ComplexPeptide {
             if end_index == 0 {
                 return Err(CustomError::error(
                     "Invalid N terminal modification",
-                    "No valid closing delimiter",
+                    "No valid closing delimiter, a N terminal modification should be closed by ']-'",
                     Context::line(0, value, index, 1),
                 ));
             }

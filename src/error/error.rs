@@ -1,9 +1,10 @@
 use super::Context;
+use serde::*;
 use std::error;
 use std::fmt;
 
 /// An error surfacing while handling a PDB
-#[derive(PartialEq, Clone, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Eq)]
 pub struct CustomError {
     /// The level of the error, defining how it should be handled
     warning: bool,
