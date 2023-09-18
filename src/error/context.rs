@@ -62,6 +62,8 @@ pub enum Context {
 }
 
 impl Context {
+    // TODO: create a constructor based on a RangeBounds instance, automatically adjusting to all possible cases of the range
+
     /// Creates a new context when no context can be given
     pub const fn none() -> Self {
         Self::None

@@ -81,7 +81,7 @@ impl CustomError {
     pub fn with_long_description(&self, long_desc: impl std::string::ToString) -> Self {
         Self {
             long_description: long_desc.to_string(),
-            ..self
+            ..self.clone()
         }
     }
 

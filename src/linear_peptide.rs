@@ -3,6 +3,7 @@
 use std::{fmt::Display, ops::RangeBounds};
 
 use crate::{
+    error::{Context, CustomError},
     modification::{AmbiguousModification, GlobalModification, ReturnModification},
     molecular_charge::MolecularCharge,
     Element, MolecularFormula,
@@ -64,7 +65,7 @@ impl LinearPeptide {
         )
     }
 
-    pub(crate) fn enforce_modification_rules(&self) -> Result<(), String> {
+    pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
         for (index, element) in self.sequence.iter().enumerate() {
             element.enforce_modification_rules(index, self.sequence.len())?;
         }
@@ -532,12 +533,16 @@ impl SequenceElement {
     }
 
     /// Enforce the placement rules of predefined modifications.
-    fn enforce_modification_rules(&self, index: usize, length: usize) -> Result<(), String> {
+    fn enforce_modification_rules(&self, index: usize, length: usize) -> Result<(), CustomError> {
         for modification in &self.modifications {
             if !modification.is_possible(self, index, length) {
-                return Err(format!(
-                    "Modification {modification} is not allowed on aminoacid {} index {index}",
-                    self.aminoacid.char()
+                return Err(CustomError::error(
+                    "Modification incorrectly placed",
+                    format!(
+                        "Modification {modification} is not allowed on aminoacid {} index {index}",
+                        self.aminoacid.char()
+                    ),
+                    Context::none(), // TODO: go and give the correct context here
                 ));
             }
         }

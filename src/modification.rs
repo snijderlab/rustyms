@@ -111,7 +111,7 @@ fn parse_single_modification(
     if let Some(groups) = regex.captures(full_modification) {
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
         let (full, head, tail, group, localisation_score) = (
-            groups.get(1).map(|m| m.as_str()).unwrap_or_default(),
+            groups.get(1).map(|m| (m.as_str(), m.start(), m.len())).unwrap_or_default(),
             groups
                 .get(2)
                 .map(|m| (m.as_str().to_ascii_lowercase(), m.start(), m.len())),
@@ -164,40 +164,53 @@ fn parse_single_modification(
                     .map_err(|_| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| format!("Not a valid Unimod modification: {tail}")),
+                    .map_err(|_| basic_error
+                        .with_long_description("This modification cannot be read as a Unimod name or numerical modification")),
                 ("m", tail) => find_name_in_ontology(tail, PSI_MOD_ONTOLOGY)
                     .map_err(|_| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| format!("Not a valid PSI-MOD modification: {tail}")),
+                    .map_err(|_| basic_error
+                        .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
                 ("formula", tail) => Ok(Some(Modification::Formula(
-                    parse_molecular_formula_pro_forma(tail)?,
+                    parse_molecular_formula_pro_forma(tail).map_err(|e| basic_error
+                        .with_long_description(format!("This modification cannot be read as a valid formula: {e}")))?,
                 ))),
                 ("glycan", tail) => Ok(Some(Modification::Glycan(parse_named_counter(
                     tail,
                     crate::GLYCAN_PARSE_LIST,
                     false,
-                )?))),
+                ).map_err(|e| basic_error
+                    .with_long_description(format!("This modification cannot be read as a valid glycan: {e}")))?))),
                 ("info", _) => Ok(None),
-                ("obs", tail) => numerical_mod(tail).map(Some),
-                (head, _tail) => find_name_in_ontology(full, UNIMOD_ONTOLOGY)
-                    .map_err(|_| find_name_in_ontology(full, PSI_MOD_ONTOLOGY))
+                ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
+                    .with_long_description("This modification cannot be read as a numerical modification")),
+                (_, _tail) => find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
+                    .map_err(|_| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| format!("Does not support these types yet: {head}")),
+                    .map_err(|_| 
+                        CustomError::error(
+                            "Invalid modification",
+                            "Rustyms does not support these types of modification (yet)",
+                            Context::line(0, line, head.1, head.2),
+                        )),
             }
-        } else if full.is_empty() {
+        } else if full.0.is_empty() {
             Ok(None)
         } else {
-            find_name_in_ontology(full, UNIMOD_ONTOLOGY)
-                .map_err(|_| find_name_in_ontology(full, PSI_MOD_ONTOLOGY))
+            find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
+                .map_err(|_| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
                 .flat_err()
-                .map_err(|_| numerical_mod(full))
+                .map_err(|_| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
-                .map_err(|_| {
-                    format!("Not a valid delta mass, Unimod, or PSI-MOD modification: {full}")
-                })
+                .map_err(|_| 
+                    CustomError::error(
+                        "Invalid modification",
+                        "This modification cannot be read as a Unimod name, PSI-MOD name, or numerical modification",
+                        Context::line(0, line, full.1, full.2),
+                    ))
         };
         // Handle ambiguous modifications
         if let Some(group) = group {
@@ -205,12 +218,17 @@ fn parse_single_modification(
             let found_definition = lookup
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == group))
+                .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == group.0))
                 .map(|(index, (_, modification))| (index, modification.is_some()));
             // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
             match (modification, found_definition) {
                 // Have a mod defined here and already in the lookup (error)
-                (Ok(Some(_)), Some((_, true))) => Err("An ambiguous modification cannot be placed twice (leave out the modification and only provide the group name)".to_string()),
+                (Ok(Some(_)), Some((_, true))) => Err(
+                    CustomError::error(
+                        "Invalid ambiguous modification",
+                        "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
+                        Context::line(0, line, full.1, full.2),
+                    )),
                 // Have a mod defined here, the name present in the lookup but not yet the mod
                 (Ok(Some(m)), Some((index, false))) => {
                     lookup[index].1 = Some(m);
@@ -219,7 +237,7 @@ fn parse_single_modification(
                 // Have a mod defined here which is not present in the lookup
                 (Ok(Some(m)), None) => {
                     let index = lookup.len();
-                    lookup.push((Some(group.to_string()), Some(m)));
+                    lookup.push((Some(group.0.to_string()), Some(m)));
                     Ok(Some(ReturnModification::Preferred(index, localisation_score)))
                 },
                 // No mod defined, but the name is present in the lookup
@@ -227,7 +245,7 @@ fn parse_single_modification(
                 // No mod defined, and no name present in the lookup
                 (Ok(None), None) => {
                     let index = lookup.len();
-                    lookup.push((Some(group.to_string()), None));
+                    lookup.push((Some(group.0.to_string()), None));
                     Ok(Some(ReturnModification::Referenced(index, localisation_score)))},
                     // Earlier error
                     (Err(e), _) => Err(e),
@@ -236,8 +254,10 @@ fn parse_single_modification(
             modification.map(|m| m.map(ReturnModification::Defined))
         }
     } else {
-        Err(format!(
-            "Modification does not match pro forma pattern: \"{full_modification}\""
+        Err(CustomError::error(
+            "Invalid modification",
+            "It does not match the Pro Forma definition for modifications",
+            Context::line(0, line, offset, full_modification.len()),
         ))
     }
 }
