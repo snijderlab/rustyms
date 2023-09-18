@@ -306,7 +306,7 @@ impl ComplexPeptide {
                 }
                 (false, ch) => {
                     peptide.sequence.push(SequenceElement::new(
-                        ch.try_into().map_err(|_| "Invalid Amino Acid code")?,
+                        ch.try_into().map_err(|_| format!("Invalid Amino Acid code [index: {index}]"))?,
                         ambiguous_aa,
                     ));
                     index += 1;
