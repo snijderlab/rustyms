@@ -213,7 +213,7 @@ impl ComplexPeptide {
             if end_index == 0 {
                 return Err(CustomError::error(
                     "Invalid N terminal modification",
-                    "No valid closing delimiter, a N terminal modification should be closed by ']-'",
+                    "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(0, value, index, 1),
                 ));
             }
@@ -225,7 +225,7 @@ impl ComplexPeptide {
                         } else {
                             Err(CustomError::error(
                                 "Invalid N terminal modification",
-                                "A N terminal modification cannot be ambiguous",
+                                "An N terminal modification cannot be ambiguous",
                                 Context::line(0, value, index + 1, end_index - 2 - index),
                             ))
                         }
@@ -276,7 +276,7 @@ impl ComplexPeptide {
                 (false, b'/') => {
                     let (charge_len, charge) = next_num(chars, index+1, false).ok_or_else(||CustomError::error(
                         "Invalid peptide charge state",
-                        "THere should be a number dictating the total charge of the peptide",
+                        "There should be a number dictating the total charge of the peptide",
                         Context::line(0, value, index+1, 1),
                     ))?;
                     if index+1+charge_len < chars.len() && chars[index+1+charge_len] == b'[' {

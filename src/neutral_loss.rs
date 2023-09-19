@@ -16,6 +16,12 @@ pub enum NeutralLoss {
     Ammonia,
     /// Loss of carbon monoxide
     CarbonMonoxide,
+    /// Loss of hydrogen
+    Hydrogen,
+    /// Gain of hydrogen
+    HydrogenGain,
+    /// Gain of water
+    WaterGain,
 }
 
 impl Chemical for NeutralLoss {
@@ -24,6 +30,9 @@ impl Chemical for NeutralLoss {
             Self::Water => molecular_formula!(O 1 H 2),
             Self::Ammonia => molecular_formula!(N 1 H 3),
             Self::CarbonMonoxide => molecular_formula!(C 1 O 1),
+            Self::Hydrogen => molecular_formula!(H 1),
+            Self::HydrogenGain => molecular_formula!(H - 1),
+            Self::WaterGain => molecular_formula!(O -1 H -2),
         }
     }
 }
@@ -36,6 +45,9 @@ impl Display for NeutralLoss {
                 Self::Water => "Water",
                 Self::Ammonia => "Ammonia",
                 Self::CarbonMonoxide => "CarbonMonoxide",
+                Self::Hydrogen => "Hydrogen",
+                Self::HydrogenGain => "HydrogenGain",
+                Self::WaterGain => "WaterGain",
             }
         )
     }
