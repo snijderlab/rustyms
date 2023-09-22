@@ -185,6 +185,7 @@ fn parse_single_modification(
                     false,
                 ).map_err(|e| basic_error
                     .with_long_description(format!("This modification cannot be read as a valid glycan: {e}")))?))),
+                ("glycanstructure", _) => GlycanStructure::parse(line, offset + tail.1..offset+tail.1+tail.2).map(|g| Some(Modification::GlycanStructure(g))),
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
                     .with_long_description("This modification cannot be read as a numerical modification")),

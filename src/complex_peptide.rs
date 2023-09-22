@@ -480,10 +480,26 @@ impl ComplexPeptide {
 }
 
 /// Get the index of the next copy of the given char
-fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
+pub(crate) fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     for (i, ch) in chars[start..].iter().enumerate() {
         if *ch == char {
             return Some(start + i);
+        }
+    }
+    None
+}
+
+/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
+pub(crate) fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
+    let mut state = 1;
+    for (i, ch) in chars[start..].iter().enumerate() {
+        if *ch == open {
+            state += 1;
+        } else if *ch == close {
+            state -= 1;
+            if state == 0 {
+                return Some(start + i);
+            }
         }
     }
     None

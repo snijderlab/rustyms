@@ -1,13 +1,17 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Range};
 
 use itertools::Itertools;
 
-use crate::{molecular_charge::MolecularCharge, Chemical, MolecularFormula};
+use crate::{
+    error::{Context, CustomError},
+    molecular_charge::MolecularCharge,
+    Chemical, MolecularFormula,
+};
 
 include!("shared/glycan.rs");
 
 /// Rose tree representation of glycan structure
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlycanStructure {
     sugar: MonoSaccharide,
     branches: Vec<GlycanStructure>,
@@ -20,6 +24,93 @@ impl Chemical for GlycanStructure {
 }
 
 impl GlycanStructure {
+    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
+    /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
+    /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
+    ///          =>  Hex-Hex-HexNAc
+    ///              └Fuc  └Hex-HexNAc
+    /// # Errors
+    /// Return an Err if the format is not correct
+    pub fn parse(line: &str, range: Range<usize>) -> Result<Self, CustomError> {
+        Self::parse_internal(line, range).map(|(g, _)| g)
+    }
+
+    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
+    /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
+    /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
+    ///          =>  Hex-Hex-HexNAc
+    ///              └Fuc  └Hex-HexNAc
+    /// # Errors
+    /// Return an Err if the format is not correct
+    pub fn from_str(line: &str) -> Result<Self, CustomError> {
+        Self::parse(line, 0..line.len())
+    }
+
+    fn parse_internal(line: &str, range: Range<usize>) -> Result<(Self, usize), CustomError> {
+        // Parse at the start the first recognised glycan name
+        for name in GLYCAN_PARSE_LIST {
+            if line[range.clone()].starts_with(name.0) {
+                // If the name is followed by a bracket parse a list of branches
+                return if line.as_bytes()[range.start + name.0.len()] == b'(' {
+                    // Find the end of this list
+                    let end = end_of_enclosure(
+                        line.as_bytes(),
+                        range.start + name.0.len() + 1,
+                        b'(',
+                        b')',
+                    )
+                    .ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid glycan branch",
+                            "No valid closing delimiter",
+                            Context::line(0, line, range.start + name.0.len(), 1),
+                        )
+                    })?;
+                    // Parse the first branch
+                    let mut index = range.start + name.0.len() + 1;
+                    let mut branches = Vec::new();
+                    let (glycan, pos) = Self::parse_internal(line, index..end)?;
+                    index = pos;
+                    branches.push(glycan);
+                    // Keep parsing until the end of this branch level (until ')' is reached)
+                    while index < end {
+                        if line.as_bytes()[index] != b',' {
+                            return Err(CustomError::error(
+                                "Invalid glycan structure",
+                                "Branches should be separated by commas ','",
+                                Context::line(0, line, index, 1),
+                            ));
+                        }
+                        index += 1;
+                        let (glycan, pos) = Self::parse_internal(line, index..end)?;
+                        branches.push(glycan);
+                        index = pos;
+                    }
+                    Ok((
+                        Self {
+                            sugar: name.1,
+                            branches,
+                        },
+                        end + 1,
+                    ))
+                } else {
+                    Ok((
+                        Self {
+                            sugar: name.1,
+                            branches: Vec::new(),
+                        },
+                        range.start + name.0.len(),
+                    ))
+                };
+            }
+        }
+        Err(CustomError::error(
+            "Could not parse glycan structure",
+            "Could not parse the following part",
+            Context::line(0, line, range.start, range.len()),
+        ))
+    }
+
     /// Annotate all positions in this tree with all positions
     pub fn determine_positions(self) -> PositionedGlycanStructure {
         self.internal_pos(0, &[]).0
@@ -96,6 +187,11 @@ impl GlycanStructure {
 }
 
 impl Display for GlycanStructure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display_tree())
+    }
+}
+impl std::fmt::Debug for GlycanStructure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.display_tree())
     }
@@ -315,30 +411,84 @@ mod test {
     }
 
     #[test]
-    fn internal_breakages() {
-        let glycan = GlycanStructure {
-            sugar: MonoSaccharide::HexNAc,
-            branches: vec![GlycanStructure {
-                sugar: MonoSaccharide::Hex,
+    fn parse_glycan_structure() {
+        assert_eq!(
+            GlycanStructure::from_str("HexNAc(Hex)").unwrap(),
+            GlycanStructure {
+                sugar: MonoSaccharide::HexNAc,
                 branches: vec![GlycanStructure {
                     sugar: MonoSaccharide::Hex,
-                    branches: vec![
-                        GlycanStructure {
-                            sugar: MonoSaccharide::Hex,
-                            branches: vec![GlycanStructure {
-                                sugar: MonoSaccharide::HexNAc,
-                                branches: Vec::new(),
-                            }],
-                        },
-                        GlycanStructure {
-                            sugar: MonoSaccharide::Hex,
-                            branches: Vec::new(),
-                        },
-                    ],
+                    branches: Vec::new()
                 }],
-            }],
-        }
-        .determine_positions();
+            }
+        );
+        assert_eq!(
+            GlycanStructure::from_str("Hex(Hex,HexNAc)").unwrap(),
+            GlycanStructure {
+                sugar: MonoSaccharide::Hex,
+                branches: vec![
+                    GlycanStructure {
+                        sugar: MonoSaccharide::Hex,
+                        branches: Vec::new()
+                    },
+                    GlycanStructure {
+                        sugar: MonoSaccharide::HexNAc,
+                        branches: Vec::new()
+                    }
+                ],
+            }
+        );
+        assert_eq!(
+            GlycanStructure::from_str("Hex(Hex(Hex),HexNAc)").unwrap(),
+            GlycanStructure {
+                sugar: MonoSaccharide::Hex,
+                branches: vec![
+                    GlycanStructure {
+                        sugar: MonoSaccharide::Hex,
+                        branches: vec![GlycanStructure {
+                            sugar: MonoSaccharide::Hex,
+                            branches: Vec::new()
+                        }]
+                    },
+                    GlycanStructure {
+                        sugar: MonoSaccharide::HexNAc,
+                        branches: Vec::new()
+                    }
+                ],
+            }
+        );
+        assert_eq!(
+            GlycanStructure::from_str("HexNAc(Hex(Hex(Hex(HexNAc),Hex)))").unwrap(),
+            GlycanStructure {
+                sugar: MonoSaccharide::HexNAc,
+                branches: vec![GlycanStructure {
+                    sugar: MonoSaccharide::Hex,
+                    branches: vec![GlycanStructure {
+                        sugar: MonoSaccharide::Hex,
+                        branches: vec![
+                            GlycanStructure {
+                                sugar: MonoSaccharide::Hex,
+                                branches: vec![GlycanStructure {
+                                    sugar: MonoSaccharide::HexNAc,
+                                    branches: Vec::new(),
+                                }],
+                            },
+                            GlycanStructure {
+                                sugar: MonoSaccharide::Hex,
+                                branches: Vec::new(),
+                            },
+                        ],
+                    }],
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn internal_breakages() {
+        let glycan = GlycanStructure::from_str("HexNAc(Hex(Hex(Hex(HexNAc),Hex)))")
+            .unwrap()
+            .determine_positions();
         let fragments = glycan.generate_theoretical_fragments(
             &Model {
                 glycan_fragmentation: Some(Vec::new()),
@@ -351,7 +501,6 @@ mod test {
         for fragment in &fragments {
             println!("{fragment}");
         }
-        assert_eq!(fragments.len(), 3);
-        todo!();
+        assert_eq!(fragments.len(), 31);
     }
 }
