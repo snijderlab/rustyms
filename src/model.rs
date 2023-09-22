@@ -30,6 +30,8 @@ pub struct Model {
     pub precursor: Vec<NeutralLoss>,
     /// The matching tolerance
     pub ppm: MassOverCharge,
+    /// If some search for glycan with the given neutral losses
+    pub glycan_fragmentation: Option<Vec<NeutralLoss>>,
 }
 
 /// A struct to handle all possible fragments that could be generated on a single location
@@ -103,6 +105,7 @@ impl Model {
         z: (Location, Vec<NeutralLoss>),
         precursor: Vec<NeutralLoss>,
         ppm: MassOverCharge,
+        glycan_fragmentation: Option<Vec<NeutralLoss>>,
     ) -> Self {
         Self {
             a,
@@ -116,6 +119,7 @@ impl Model {
             z,
             precursor,
             ppm,
+            glycan_fragmentation,
         }
     }
 
@@ -133,6 +137,25 @@ impl Model {
             z: (Location::SkipN(1), vec![NeutralLoss::Water]),
             precursor: vec![NeutralLoss::Water],
             ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: Some(vec![NeutralLoss::Water]),
+        }
+    }
+
+    /// Generate no fragments (except for precursor)
+    pub fn none() -> Self {
+        Self {
+            a: (Location::None, vec![]),
+            b: (Location::None, vec![]),
+            c: (Location::None, vec![]),
+            d: (Location::None, vec![]),
+            v: (Location::None, vec![]),
+            w: (Location::None, vec![]),
+            x: (Location::None, vec![]),
+            y: (Location::None, vec![]),
+            z: (Location::None, vec![]),
+            precursor: vec![],
+            ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: None,
         }
     }
 
@@ -150,6 +173,7 @@ impl Model {
             z: (Location::SkipN(1), vec![NeutralLoss::Water]),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: Some(vec![NeutralLoss::Water]),
         }
     }
 
@@ -170,6 +194,7 @@ impl Model {
             z: (Location::None, Vec::new()),
             precursor: vec![NeutralLoss::Water],
             ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: None,
         }
     }
 
@@ -187,6 +212,7 @@ impl Model {
             z: (Location::SkipN(1), vec![NeutralLoss::Water]),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: None,
         }
     }
 
@@ -204,6 +230,7 @@ impl Model {
             z: (Location::SkipN(1), vec![NeutralLoss::Water]),
             precursor: vec![NeutralLoss::Water, NeutralLoss::Ammonia],
             ppm: MassOverCharge::new::<mz>(20.0),
+            glycan_fragmentation: None,
         }
     }
 }

@@ -33,6 +33,7 @@ fn triple_a() {
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
         ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -82,6 +83,7 @@ fn with_modifications() {
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
         ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -116,6 +118,7 @@ fn with_possible_modifications() {
         z: (Location::None, vec![]),
         precursor: vec![],
         ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -156,6 +159,7 @@ fn higher_charges() {
         z: (Location::None, vec![]),
         precursor: vec![],
         ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -317,6 +321,7 @@ fn all_aminoacids() {
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
         ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,

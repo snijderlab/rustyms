@@ -1,7 +1,7 @@
 use crate::*;
 
 /// All monosaccharides as required by pro forma
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types, missing_docs)]
 pub enum MonoSaccharide {
     Hep,

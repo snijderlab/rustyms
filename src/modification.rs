@@ -10,7 +10,8 @@ use crate::{
     helper_functions::*,
     ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
-    AminoAcid, Chemical, Element, Mass, MolecularFormula, MonoSaccharide, SequenceElement,
+    AminoAcid, Chemical, Element, GlycanStructure, Mass, MolecularFormula, MonoSaccharide,
+    SequenceElement,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,6 +21,7 @@ pub enum Modification {
     #[allow(non_snake_case)]
     Formula(MolecularFormula),
     Glycan(Vec<(MonoSaccharide, isize)>),
+    GlycanStructure(GlycanStructure),
     Predefined(
         &'static [(Element, u16, i16)],
         &'static [PlacementRule],
@@ -39,6 +41,7 @@ impl Chemical for Modification {
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula() * i.1 as i16
                 }),
+            Self::GlycanStructure(glycan) => glycan.formula(),
             Self::Predefined(formula, _, _, _, _) => MolecularFormula::new(formula),
         }
     }
@@ -355,6 +358,7 @@ impl Display for Modification {
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
             )
             .unwrap(),
+            Self::GlycanStructure(glycan) => write!(f, "GlycanStructure:{glycan}",).unwrap(),
             Self::Predefined(_, _, context, name, _) => {
                 write!(f, "{}:{name}", context.char()).unwrap();
             }

@@ -69,7 +69,7 @@ impl Fragment {
                     &term.0 + theoretical_mass,
                     Charge::zero(),
                     peptide_index,
-                    annotation,
+                    annotation.clone(),
                     term.1.to_string(),
                 )
             })
@@ -118,7 +118,7 @@ impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} {:?} {:+}{} {}",
+            "{}@{}{:+}{} {}",
             self.ion,
             self.mz()
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
@@ -156,8 +156,49 @@ impl Position {
     }
 }
 
+/// The definition of the position of an ion inside a glycan
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct GlycanPosition {
+    /// The depth starting at the amino acid
+    pub inner_depth: usize,
+    /// The series number (from the ion series terminal)
+    pub series_number: usize,
+    /// The branch naming
+    pub branch: Vec<usize>,
+}
+
+impl GlycanPosition {
+    /// Generate the label for this glycan position, example: `1α'`
+    /// # Panics
+    /// Panics if the first branch number is outside the range of the greek alphabet (small and caps together).
+    pub fn label(&self) -> String {
+        format!(
+            "{}{}",
+            self.series_number,
+            self.branch
+                .iter()
+                .enumerate()
+                .map(|(i, b)| if i == 0 {
+                    char::from_u32(
+                        (0x03B1..=0x03C9)
+                            .chain(0x0391..=0x03A9)
+                            .nth(*b)
+                            .expect("Too many branches in glycan, out of greek letters"),
+                    )
+                    .unwrap()
+                    .to_string()
+                } else if i == 1 {
+                    "\'".repeat(*b)
+                } else {
+                    format!(",{b}")
+                })
+                .collect::<String>()
+        )
+    }
+}
+
 /// The possible types of fragments
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     /// a
@@ -180,6 +221,20 @@ pub enum FragmentType {
     z(Position),
     /// z·
     z·(Position),
+    /// glycan A fragment
+    A(GlycanPosition),
+    /// glycan B fragment
+    B(GlycanPosition),
+    /// glycan C fragment
+    C(GlycanPosition),
+    /// glycan X fragment
+    X(GlycanPosition),
+    /// glycan Y fragment
+    Y(GlycanPosition),
+    /// glycan Z fragment
+    Z(GlycanPosition),
+    /// glycan Z fragment
+    InternalGlycan(Vec<GlycanBreakPos>),
     /// precursor
     precursor,
 }
@@ -198,7 +253,31 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n) => Some(n),
-            Self::precursor => None,
+            _ => None,
+        }
+    }
+
+    /// Get the label for this fragment type
+    pub const fn label(&self) -> &str {
+        match self {
+            Self::a(_) => "a",
+            Self::b(_) => "b",
+            Self::c(_) => "c",
+            Self::d(_) => "d",
+            Self::v(_) => "v",
+            Self::w(_) => "w",
+            Self::x(_) => "x",
+            Self::y(_) => "y",
+            Self::z(_) => "z",
+            Self::z·(_) => "z·",
+            Self::A(_) => "A",
+            Self::B(_) => "B",
+            Self::C(_) => "C",
+            Self::X(_) => "X",
+            Self::Y(_) => "Y",
+            Self::Z(_) => "Z",
+            Self::InternalGlycan(_) => "internal_glycan",
+            Self::precursor => "precursor",
         }
     }
 }
@@ -209,19 +288,50 @@ impl Display for FragmentType {
             f,
             "{}",
             match self {
-                Self::a(_) => "a",
-                Self::b(_) => "b",
-                Self::c(_) => "c",
-                Self::d(_) => "d",
-                Self::v(_) => "v",
-                Self::w(_) => "w",
-                Self::x(_) => "x",
-                Self::y(_) => "y",
-                Self::z(_) => "z",
-                Self::z·(_) => "z·",
-                Self::precursor => "precursor",
+                Self::a(pos) => format!("a{}", pos.series_number),
+                Self::b(pos) => format!("b{}", pos.series_number),
+                Self::c(pos) => format!("c{}", pos.series_number),
+                Self::d(pos) => format!("d{}", pos.series_number),
+                Self::v(pos) => format!("v{}", pos.series_number),
+                Self::w(pos) => format!("w{}", pos.series_number),
+                Self::x(pos) => format!("x{}", pos.series_number),
+                Self::y(pos) => format!("y{}", pos.series_number),
+                Self::z(pos) => format!("z{}", pos.series_number),
+                Self::z·(pos) => format!("z·{}", pos.series_number),
+                Self::A(pos) => format!("A{}", pos.label()),
+                Self::B(pos) => format!("B{}", pos.label()),
+                Self::C(pos) => format!("C{}", pos.label()),
+                Self::X(pos) => format!("X{}", pos.label()),
+                Self::Y(pos) => format!("Y{}", pos.label()),
+                Self::Z(pos) => format!("Z{}", pos.label()),
+                Self::InternalGlycan(positions) => positions
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect(),
+                Self::precursor => "precursor".to_string(),
             }
         )
+    }
+}
+
+/// All positions where a glycan can break
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum GlycanBreakPos {
+    /// No breaks just until the end of a chain
+    End(GlycanPosition),
+    /// Break at a Y position
+    Y(GlycanPosition),
+    /// Break at a B position
+    B(GlycanPosition),
+}
+
+impl std::fmt::Display for GlycanBreakPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::End(p) => write!(f, "End{}", p.label()),
+            Self::Y(p) => write!(f, "Y{}", p.label()),
+            Self::B(p) => write!(f, "B{}", p.label()),
+        }
     }
 }
 
