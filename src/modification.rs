@@ -99,11 +99,13 @@ impl Modification {
     }
 }
 
+pub(crate) type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
+
 fn parse_single_modification(
     line: &str,
     full_modification: &str,
     offset: usize,
-    lookup: &mut Vec<(Option<String>, Option<Modification>)>,
+    lookup: &mut AmbiguousLookup,
 ) -> Result<Option<ReturnModification>, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
     let regex =

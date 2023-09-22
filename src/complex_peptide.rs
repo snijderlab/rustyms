@@ -1,10 +1,15 @@
+use std::str::from_utf8;
+
 use itertools::Itertools;
 
 use crate::{
     error::Context,
     error::CustomError,
     helper_functions::ResultExtensions,
-    modification::{AmbiguousModification, GlobalModification, Modification, ReturnModification},
+    modification::{
+        AmbiguousLookup, AmbiguousModification, GlobalModification, Modification,
+        ReturnModification,
+    },
     molecular_charge::MolecularCharge,
     Charge, Element, Fragment, LinearPeptide, Mass, Model, MolecularFormula, SequenceElement,
 };
@@ -541,25 +546,15 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
 fn unknown_position_mods(
     chars: &[u8],
     start: usize,
-) -> Option<
-    Result<
-        (
-            usize,
-            Vec<ReturnModification>,
-            Vec<(Option<String>, Option<Modification>)>,
-        ),
-        Vec<CustomError>,
-    >,
-> {
+) -> Option<Result<(usize, Vec<ReturnModification>, AmbiguousLookup), Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
     let mut errs = Vec::new();
     let mut ambiguous_lookup = Vec::new();
+
+    // Parse until no new modifications are found
     while chars[index] == b'[' {
-        let end_index = next_char(chars, index + 1, b']').unwrap_or_else(|| {
-            format!("No valid closing delimiter modification [index: {index}]");
-            index
-        });
+        let end_index = next_char(chars, index + 1, b']')?;
         #[allow(clippy::map_unwrap_or)]
         // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
         let modification = Modification::try_from(
@@ -572,27 +567,27 @@ fn unknown_position_mods(
             ReturnModification::Defined(Modification::Mass(Mass::default()))
         });
         index = end_index + 1;
-        if chars[index] == b'^' {
+        let number = if chars[index] == b'^' {
             if let Some((len, num)) = next_num(chars, index + 1, false) {
                 index += len + 1;
-                modifications.extend(std::iter::repeat(modification).take(num as usize));
+                num as usize
             } else {
                 errs.push(
                     CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                0
             }
         } else {
-            modifications.push(modification);
-        }
+            1
+        };
+        modifications.extend(std::iter::repeat(modification).take(number));
     }
-    if chars[index] == b'?' {
+    (chars[index] == b'?').then_some({
         if errs.is_empty() {
-            Some(Ok((index + 1, modifications, ambiguous_lookup)))
+            Ok((index + 1, modifications, ambiguous_lookup))
         } else {
-            Some(Err(errs))
+            Err(errs)
         }
-    } else {
-        None
-    }
+    })
 }
 
 #[cfg(test)]
