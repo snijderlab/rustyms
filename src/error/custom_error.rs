@@ -132,7 +132,7 @@ mod tests {
     fn create_empty_error() {
         let a = CustomError::error("test", "test", Context::none());
         println!("{a}");
-        assert_eq!(format!("{a}"), "GeneralWarning: test\ntest\n");
+        assert_eq!(format!("{a}"), "error: test\ntest\n");
         assert!(!a.is_warning());
     }
 
@@ -142,7 +142,7 @@ mod tests {
         println!("{a}");
         assert_eq!(
             format!("{a}"),
-            "StrictWarning: test\n  ╷\n1 │ testing line\n  ╵\ntest\n"
+            "warning: test\n  ╷\n1 │ testing line\n  ╵\ntest\n"
         );
         assert!(a.is_warning());
     }
@@ -161,7 +161,7 @@ mod tests {
         };
         let a = CustomError::warning("test", "test error", Context::range(&pos1, &pos2));
         println!("{a}");
-        assert_eq!(format!("{a}"), "LooseWarning: test\n  ╷\n1 │ hello world\n2 │ this is a multiline\n3 │ piece of teXt\n  ╵\ntest error\n");
+        assert_eq!(format!("{a}"), "warning: test\n  ╷\n1 │ hello world\n2 │ this is a multiline\n3 │ piece of teXt\n  ╵\ntest error\n");
         assert!(a.is_warning());
         assert_eq!(pos2.text, "");
         assert_eq!(pos2.line, 4);

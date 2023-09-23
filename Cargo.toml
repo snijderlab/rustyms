@@ -10,6 +10,7 @@ keywords = ["spectra", "massspectrometry", "ms", "fragmentation", "proforma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
 include = ["src/**/*", "databases/**/*", "LICENSE", "README.md", "build.rs"]
+rust-version = "1.62.1"
 
 [dependencies]
 uom = "0.35"

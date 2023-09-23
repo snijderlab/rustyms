@@ -103,7 +103,7 @@ These features are independent from each other:
 - [ ] Custom modifications defined using a CV grammar but loaded at runtime
 
 # Bugs
-- [ ] Allow isotope definition in formulas
+- [x] Allow isotope definition in formulas
 - [ ] Allow for non-named localised ambiguous modifications, using mass or formulas `A[Formula:H-1#g1]AA[#g1]`
 
 # Sources for the downloaded files

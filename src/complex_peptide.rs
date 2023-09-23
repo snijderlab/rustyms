@@ -108,26 +108,26 @@ impl ComplexPeptide {
                             }
                         })
                         .flat_err()?;
-                for aa in line[at_index..end_index - 1].split(',') {
+                for aa in line[at_index..end_index].split(',') {
                     global_modifications.push(GlobalModification::Fixed(
                         aa.try_into().map_err(|_| {
                             CustomError::error(
                                 "Invalid global modification",
                                 "The location could not be read as an amino acid",
-                                Context::line(0, line, at_index, at_index - end_index - 1),
+                                Context::line(0, line, at_index, at_index - end_index),
                             )
                         })?,
                         modification.clone(),
                     ));
                 }
-            } else if &line[index + 1..end_index - 1] == "D" {
+            } else if &line[index + 1..end_index] == "D" {
                 global_modifications.push(GlobalModification::Isotope(Element::H, 2));
             } else {
-                let num = &line[index + 1..end_index - 1]
+                let num = &line[index + 1..end_index]
                     .chars()
                     .take_while(char::is_ascii_digit)
                     .collect::<String>();
-                let el = &line[index + 1 + num.len()..end_index - 1];
+                let el = &line[index + 1 + num.len()..end_index];
                 global_modifications.push(GlobalModification::Isotope(
                     el.try_into().map_err(|_| {
                         CustomError::error(
@@ -136,8 +136,8 @@ impl ComplexPeptide {
                             Context::line(
                                 0,
                                 line,
-                                index + 1 + num.len(),
-                                index + num.len() - end_index,
+                                index + num.len(),
+                                index + 1 + num.len() - end_index,
                             ),
                         )
                     })?,
@@ -151,7 +151,7 @@ impl ComplexPeptide {
                 ));
             }
 
-            index = end_index;
+            index = end_index + 1;
         }
 
         // Unknown position mods
@@ -187,7 +187,7 @@ impl ComplexPeptide {
             })?;
 
             peptide.labile.push(
-                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup)
+                Modification::try_from(line, index + 1..end_index, &mut ambiguous_lookup)
                     .map(|m| {
                         if let ReturnModification::Defined(m) = m {
                             Ok(m)
@@ -195,13 +195,13 @@ impl ComplexPeptide {
                             Err(CustomError::error(
                                 "Invalid labile modification",
                                 "A labile modification cannot be ambiguous",
-                                Context::line(0, line, index + 1, end_index - 2 - index),
+                                Context::line(0, line, index + 1, end_index - 1 - index),
                             ))
                         }
                     })
                     .flat_err()?,
             );
-            index = end_index;
+            index = end_index + 1;
         }
         // N term modification
         if chars[index] == b'[' {
@@ -258,7 +258,7 @@ impl ComplexPeptide {
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
                     while chars[index] == b'[' {
-                        let end_index = next_char(chars, index, b']').ok_or_else(||CustomError::error(
+                        let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "No valid closing delimiter",
                             Context::line(0, line, index, 1),
@@ -333,7 +333,7 @@ impl ComplexPeptide {
                     break;
                 }
                 (c_term, b'[') => {
-                    let end_index = next_char(chars, index, b']').ok_or_else(||CustomError::error(
+                    let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
                         "Invalid modification",
                         "No valid closing delimiter",
                         Context::line(0, line, index, 1),
@@ -763,7 +763,7 @@ mod tests {
         let fragments = dbg!(dimeric
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model)
             .unwrap());
-        assert_eq!(fragments.len(), 2); // aA, pAA
+        assert_eq!(fragments.len(), 4); // aA, pAA (both twice once for each peptide)
     }
 
     #[test]

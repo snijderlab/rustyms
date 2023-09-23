@@ -21,6 +21,7 @@ impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
     }
 }
 
+#[allow(dead_code)]
 pub fn parse_named_counter<T: Copy>(
     value: &str,
     names: &[(&str, T)],
@@ -66,6 +67,7 @@ pub fn parse_named_counter<T: Copy>(
 }
 
 // ProForma: [13C2][12C-2]H2N
+#[allow(dead_code)]
 pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula, String> {
     let mut index = 0;
     let mut element = None;
@@ -80,7 +82,7 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
                     .skip(index)
                     .position(|c| *c == b']')
                     .ok_or(format!(
-                        "No closing round bracket for round bracket at index: {index}"
+                        "No closing square bracket for square bracket at index: {index}"
                     ))?;
                 let isotope = bytes
                     .iter()
