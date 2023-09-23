@@ -1,5 +1,4 @@
-//! A crate to handle MS data with rust. Primarily an annotator of spectra for peptide fragmentation.
-
+#![doc = include_str!("../README.md")]
 #![allow(dead_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 #![allow(
