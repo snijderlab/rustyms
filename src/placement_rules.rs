@@ -16,7 +16,7 @@ impl PlacementRule {
             Self::AminoAcid(aa, r_pos) => *aa == seq.aminoacid && r_pos.is_possible(index, length),
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
-                    if let Modification::Predefined(_, _, Ontology::PSIMOD, _, i) = m {
+                    if let Modification::Predefined(_, _, Ontology::Psimod, _, i) = m {
                         i == mod_index
                     } else {
                         false

@@ -16,6 +16,7 @@ pub struct CustomError {
     context: Context,
 }
 
+#[allow(clippy::needless_pass_by_value)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl CustomError {
     /// Create a new `CustomError`
     ///
@@ -79,6 +80,7 @@ impl CustomError {
     }
 
     /// Create a copy of the error with a new long description
+    #[must_use]
     pub fn with_long_description(&self, long_desc: impl std::string::ToString) -> Self {
         Self {
             long_description: long_desc.to_string(),

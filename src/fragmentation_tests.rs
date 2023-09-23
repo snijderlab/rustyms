@@ -342,7 +342,6 @@ fn test(
     let mut calculated_fragments = peptide
         .generate_theoretical_fragments(Charge::new::<e>(charge), model, 0)
         .unwrap();
-    let mut combined = Vec::new();
     let mut found = Vec::new();
     let mut this_found;
     for goal in theoretical_fragments {
@@ -354,7 +353,7 @@ fn test(
                 .ppm(MassOverCharge::new::<mz>(goal.0))
                 < 20.0
             {
-                combined.push((goal.0, goal.1, calculated_fragments.remove(fragment)));
+                calculated_fragments.remove(fragment);
                 this_found = true;
                 break;
             }

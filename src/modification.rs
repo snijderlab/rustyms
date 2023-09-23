@@ -99,7 +99,7 @@ impl Modification {
     }
 }
 
-pub(crate) type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
+pub type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
 
 fn parse_single_modification(
     line: &str,
@@ -271,14 +271,14 @@ fn parse_single_modification(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ontology {
     Unimod,
-    PSIMOD,
+    Psimod,
 }
 
 impl Ontology {
     pub const fn char(self) -> char {
         match self {
             Self::Unimod => 'U',
-            Self::PSIMOD => 'M',
+            Self::Psimod => 'M',
         }
     }
 }

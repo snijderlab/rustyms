@@ -28,6 +28,7 @@ pub mod error;
 mod fragment;
 mod glycan;
 mod helper_functions;
+pub mod identifications;
 mod isotopes;
 mod linear_peptide;
 mod model;
@@ -37,7 +38,6 @@ mod neutral_loss;
 mod ontologies;
 mod placement_rules;
 pub mod rawfile;
-pub mod read_annotation;
 mod spectrum;
 mod system;
 

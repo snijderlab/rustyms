@@ -58,7 +58,7 @@ impl Fragment {
     pub fn generate_all(
         theoretical_mass: &MolecularFormula,
         peptide_index: usize,
-        annotation: FragmentType,
+        annotation: &FragmentType,
         termini: &[(MolecularFormula, String)],
         neutral_losses: &[NeutralLoss],
     ) -> Vec<Self> {

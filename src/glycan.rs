@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Range};
+use std::{fmt::Display, ops::Range, str::FromStr};
 
 use itertools::Itertools;
 
@@ -23,6 +23,20 @@ impl Chemical for GlycanStructure {
     }
 }
 
+impl FromStr for GlycanStructure {
+    type Err = CustomError;
+    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
+    /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
+    /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
+    ///          =>  Hex-Hex-HexNAc
+    ///              └Fuc  └Hex-HexNAc
+    /// # Errors
+    /// Return an Err if the format is not correct
+    fn from_str(line: &str) -> Result<Self, CustomError> {
+        Self::parse(line, 0..line.len())
+    }
+}
+
 impl GlycanStructure {
     /// Parse a textual structure representation of a glycan (outside Pro Forma format)
     /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
@@ -33,17 +47,6 @@ impl GlycanStructure {
     /// Return an Err if the format is not correct
     pub fn parse(line: &str, range: Range<usize>) -> Result<Self, CustomError> {
         Self::parse_internal(line, range).map(|(g, _)| g)
-    }
-
-    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
-    /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
-    /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
-    ///          =>  Hex-Hex-HexNAc
-    ///              └Fuc  └Hex-HexNAc
-    /// # Errors
-    /// Return an Err if the format is not correct
-    pub fn from_str(line: &str) -> Result<Self, CustomError> {
-        Self::parse(line, 0..line.len())
     }
 
     fn parse_internal(line: &str, range: Range<usize>) -> Result<(Self, usize), CustomError> {

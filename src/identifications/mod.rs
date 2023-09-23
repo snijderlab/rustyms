@@ -2,7 +2,7 @@
 
 #[path = "../shared/csv.rs"]
 mod csv;
+mod identified_peptide;
 mod peaks;
-mod read;
+pub use identified_peptide::*;
 pub use peaks::*;
-pub use read::*;

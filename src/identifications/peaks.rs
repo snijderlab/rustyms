@@ -174,7 +174,10 @@ pub struct PeaksData {
 // * no conversion to common read type yet
 // * build peaks metadata struct
 impl PeaksData {
-    pub fn parse_read(line: &[String], format: PeaksFormat) -> Result<Self, String> {
+    /// Parse a single line into the given peaks format
+    /// # Errors
+    /// Returns Err when the parsing could not be performed successfully
+    pub fn parse_read(line: &[String], format: &PeaksFormat) -> Result<Self, String> {
         macro_rules! get_column {
             ($line:ident, $column:expr) => {
                 match $column {

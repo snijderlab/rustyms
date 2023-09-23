@@ -62,6 +62,7 @@ pub enum Context {
     },
 }
 
+#[allow(clippy::needless_pass_by_value)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl Context {
     // TODO: create a constructor based on a RangeBounds instance, automatically adjusting to all possible cases of the range
 
@@ -101,7 +102,7 @@ impl Context {
     }
 
     /// Creates a new context to highlight a certain position
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
     pub fn position(pos: &FilePosition<'_>) -> Self {
         if pos.text.is_empty() {
             Self::Line {
@@ -153,28 +154,28 @@ impl Context {
         )]
         let get_margin = |n| ((n + 1) as f64).log10().max(1.0).ceil() as usize;
         let margin = match self {
-            Self::None => 0,
+            Self::None | Self::Multiple { .. } => 0,
             Self::Show { .. } => 2,
-            Self::FullLine { linenumber: n, .. } => get_margin(*n),
-            Self::Line { linenumber: n, .. } => get_margin(*n),
+            Self::FullLine { linenumber: n, .. } | Self::Line { linenumber: n, .. } => {
+                get_margin(*n)
+            }
             Self::Range {
                 start_linenumber: n,
                 lines: l,
                 ..
-            } => get_margin(n + l.len()),
-            Self::RangeHighlights {
+            }
+            | Self::RangeHighlights {
                 start_linenumber: n,
                 lines: l,
                 ..
             } => get_margin(n + l.len()),
-            Self::Multiple { .. } => 0,
         };
         match self {
             Self::None => {
                 return Ok(());
             }
             Self::Show { line } => {
-                write!(f, "\n{:pad$} ╷\n{:pad$} │ {}", "", "", line, pad = margin)?
+                write!(f, "\n{:pad$} ╷\n{:pad$} │ {}", "", "", line, pad = margin)?;
             }
             Self::FullLine { linenumber, line } => write!(
                 f,

@@ -240,7 +240,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1)),
                 peptide_index,
-                FragmentType::a(Position::n(sequence_index, sequence_length)),
+                &FragmentType::a(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.a.1,
             ));
@@ -249,7 +249,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() - molecular_formula!(H 1)),
                 peptide_index,
-                FragmentType::b(Position::n(sequence_index, sequence_length)),
+                &FragmentType::b(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.b.1,
             ));
@@ -258,7 +258,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() + molecular_formula!(H 2 N 1)),
                 peptide_index,
-                FragmentType::c(Position::n(sequence_index, sequence_length)),
+                &FragmentType::c(Position::n(sequence_index, sequence_length)),
                 n_term,
                 ions.c.1,
             ));
@@ -270,7 +270,7 @@ impl AminoAcid {
                         - satellite
                         - molecular_formula!(H 1 C 1 O 1)),
                     peptide_index,
-                    FragmentType::d(Position::n(sequence_index, sequence_length)),
+                    &FragmentType::d(Position::n(sequence_index, sequence_length)),
                     n_term,
                     ions.d.1,
                 ));
@@ -278,9 +278,9 @@ impl AminoAcid {
         }
         if ions.v.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1)), // TODO: are the modifications needed here?
+                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1)), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
                 peptide_index,
-                FragmentType::v(Position::n(sequence_index, sequence_length)),
+                &FragmentType::v(Position::n(sequence_index, sequence_length)),
                 c_term,
                 ions.v.1,
             ));
@@ -290,7 +290,7 @@ impl AminoAcid {
                 base_fragments.extend(Fragment::generate_all(
                     &(modifications + &self.formula() - satellite - molecular_formula!(H 2 N 1)),
                     peptide_index,
-                    FragmentType::w(Position::c(sequence_index, sequence_length)),
+                    &FragmentType::w(Position::c(sequence_index, sequence_length)),
                     c_term,
                     ions.w.1,
                 ));
@@ -301,7 +301,7 @@ impl AminoAcid {
                 &(modifications + &self.formula() + molecular_formula!(C 1 O 1)
                     - molecular_formula!(H 1)),
                 peptide_index,
-                FragmentType::x(Position::c(sequence_index, sequence_length)),
+                &FragmentType::x(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.x.1,
             ));
@@ -310,7 +310,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() + molecular_formula!(H 1)),
                 peptide_index,
-                FragmentType::y(Position::c(sequence_index, sequence_length)),
+                &FragmentType::y(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.y.1,
             ));
@@ -319,14 +319,14 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() - molecular_formula!(H 2 N 1)),
                 peptide_index,
-                FragmentType::z(Position::c(sequence_index, sequence_length)),
+                &FragmentType::z(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
                 &(modifications + &self.formula() - molecular_formula!(H 1 N 1)),
                 peptide_index,
-                FragmentType::z·(Position::c(sequence_index, sequence_length)),
+                &FragmentType::z·(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));

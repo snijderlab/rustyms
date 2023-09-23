@@ -118,7 +118,7 @@ impl LinearPeptide {
                     .collect::<Vec<_>>();
                 aa.iter()
                     .enumerate()
-                    .fold(Some(MolecularFormula::default()), |acc, (index, aa)| {
+                    .try_fold(MolecularFormula::default(), |acc, (index, aa)| {
                         aa.formula(
                             &pattern
                                 .iter()
@@ -126,7 +126,7 @@ impl LinearPeptide {
                                 .filter_map(|(id, pos)| (pos == index).then_some(id))
                                 .collect_vec(),
                         )
-                        .and_then(|m| acc.map(|a| a + m))
+                        .map(|m| acc + m)
                     })
                     .map(|m| {
                         &base

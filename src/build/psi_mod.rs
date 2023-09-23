@@ -40,7 +40,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
-            context: "PSIMOD".to_string(),
+            context: "Psimod".to_string(),
             ..Default::default()
         };
 

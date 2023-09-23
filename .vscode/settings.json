@@ -3,7 +3,9 @@
         "aminoacids",
         "dimeric",
         "Hecklib",
+        "itertools",
         "monoisotopic",
+        "Psimod",
         "unimod"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false

@@ -3,7 +3,7 @@
 /// The context of an error
 mod context;
 /// An error with all its properties
-mod error;
+mod custom_error;
 
 pub use context::{Context, FilePosition};
-pub use error::CustomError;
+pub use custom_error::CustomError;
