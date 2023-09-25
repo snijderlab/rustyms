@@ -1,4 +1,5 @@
 use crate::error::{Context, CustomError};
+use std::ops::Range;
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
 pub struct PeaksFormat {
@@ -189,108 +190,105 @@ pub struct PeaksData {
 // TODO:
 // * hard crashes if you have too little elements per line
 // * does not crash if you have too many elements per line
-// * no nice errors
-// * no conversion to common read type yet
-// * build peaks metadata struct
 impl PeaksData {
     /// Parse a single line into the given peaks format
     /// # Errors
     /// Returns Err when the parsing could not be performed successfully
     pub fn parse_read(
-        line_number: usize,
-        line: &(String, [(String, usize, usize)]),
+        line: &(usize, String, [Range<usize>]),
         format: &PeaksFormat,
     ) -> Result<Self, CustomError> {
+        let (line_number, line, locations) = line;
         macro_rules! get_column {
-            ($line:ident, $column:expr) => {
+            ($column:expr) => {
                 match $column {
-                    Some(index) => Some($line.1[index].0.clone()),
+                    Some(index) => Some(line[locations[index].clone()].to_string()),
                     None => None,
                 }
             };
-            ($line:ident, $column:expr, $typ:ty) => {
+            ($column:expr, $typ:ty) => {
                 match $column {
-                    Some(index) => Some($line.1[index].0.parse::<$typ>().map_err(|_| CustomError::error(
+                    Some(index) => Some(line[locations[index].clone()].parse::<$typ>().map_err(|_| CustomError::error(
                         "Invalid Peaks line",
                         format!("Column {} is not of the correct type ({}) for this peaks format ({})", index+1, stringify!($typ), format.format),
-                        Context::line(line_number, &line.0, $line.1[index].1, $line.1[index].2)
+                        Context::line(*line_number, &line, locations[index].start, locations[index].len())
                     ))?),
                     None => None,
                 }
             };
-            ($line:ident, $column:expr => $func:ident) => {
+            ($column:expr => $func:ident) => {
                 match $column {
-                    Some(index) => Some($func(&$line.1[index])?),
+                    Some(index) => Some($func(locations[index].clone())?),
                     None => None,
                 }
             };
         }
-        // TODO: get the correct offset into the full line
-        let get_num_from_slice = |text: (&str, usize, usize)| -> Result<usize, CustomError> {
-            text.0.parse::<usize>().map_err(|_| CustomError::error(
+        // TODO: refactor get_num into macro
+        let get_num_from_slice = |location: Range<usize>| -> Result<usize, CustomError> {
+            line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
                 "Invalid Peaks line",
                 format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(line_number, &line.0, text.1, text.2),
+                Context::line(*line_number, line, location.start, location.len()),
             ))
         };
-        let get_num = |text: &(String, usize, usize)| -> Result<usize, CustomError> {
-            text.0.parse::<usize>().map_err(|_| CustomError::error(
+        let get_num = |location: Range<usize>| -> Result<usize, CustomError> {
+            line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
                 "Invalid Peaks line",
                 format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(line_number, &line.0, text.1, text.2),
+                Context::line(*line_number, line, location.start, location.len()),
             ))
         };
-        let get_float = |text: &(String, usize, usize)| -> Result<f64, CustomError> {
-            text.0.parse::<f64>().map_err(|_| CustomError::error(
+        let get_float = |location: Range<usize>| -> Result<f64, CustomError> {
+            line[location.clone()].parse::<f64>().map_err(|_| CustomError::error(
                 "Invalid Peaks line",
                 format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(line_number, &line.0, text.1, text.2),
+                Context::line(*line_number, line, location.start, location.len()),
             ))
         };
-        let get_frac = |text: &(String, usize, usize)| -> Result<(usize, usize), CustomError> {
-            let (start, end) = text.0.split_once(':').ok_or_else(|| {
+        let get_frac = |location: Range<usize>| -> Result<(usize, usize), CustomError> {
+            let (start, end) = line[location.clone()].split_once(':').ok_or_else(|| {
                 CustomError::error(
                     "Invalid Peaks line",
                     "Invalid scan number it is missing the required colon",
-                    Context::line(line_number, &line.0, text.1, text.2),
+                    Context::line(*line_number, line, location.start, location.len()),
                 )
             })?;
             Ok((
-                get_num_from_slice((&start[1..], 1, start.len() - 1))?,
-                get_num_from_slice((end, 0, end.len()))?,
+                get_num_from_slice(location.start + 1..start.len() - 1)?,
+                get_num_from_slice(location.start + start.len() + 1..end.len())?,
             ))
         };
-        let get_array = |text: &(String, usize, usize)| -> Result<Vec<usize>, CustomError> {
+        let get_array = |location: Range<usize>| -> Result<Vec<usize>, CustomError> {
             let mut offset = 0;
             let mut output = Vec::new();
-            for part in text.0.split(' ') {
-                output.push(get_num_from_slice((part, text.1 + offset, part.len()))?);
+            for part in line[location.clone()].split(' ') {
+                output.push(get_num_from_slice(location.start + offset..part.len())?);
                 offset += part.len() + 1;
             }
             Ok(output)
         };
         Ok(Self {
-            fraction: get_column!(line, format.fraction, usize),
-            source_file: get_column!(line, format.source_file),
-            feature: get_column!(line, format.feature => get_frac),
-            scan: get_frac(&line.1[format.scan])?,
-            peptide: line.1[format.peptide].0.clone(),
-            tag_length: get_num(&line.1[format.tag_length])?,
-            de_novo_score: get_column!(line, format.de_novo_score, usize),
-            alc: get_num(&line.1[format.alc])?,
-            length: get_num(&line.1[format.length])?,
-            mz: get_num(&line.1[format.mz])?,
-            z: get_num(&line.1[format.z])?,
-            rt: get_float(&line.1[format.rt])?,
-            predicted_rt: get_column!(line, format.de_novo_score, f64),
-            area: get_float(&line.1[format.area])?,
-            mass: get_float(&line.1[format.mass])?,
-            ppm: get_float(&line.1[format.ppm])?,
-            ptm: line.1[format.ptm].0.clone(),
-            local_confidence: get_array(&line.1[format.local_confidence])?,
-            tag: line.1[format.tag].0.clone(),
-            mode: line.1[format.mode].0.clone(),
-            accession: get_column!(line, format.accession),
+            fraction: get_column!(format.fraction, usize),
+            source_file: get_column!(format.source_file),
+            feature: get_column!(format.feature => get_frac),
+            scan: get_frac(locations[format.scan].clone())?,
+            peptide: line[locations[format.peptide].clone()].to_string(),
+            tag_length: get_num(locations[format.tag_length].clone())?,
+            de_novo_score: get_column!(format.de_novo_score, usize),
+            alc: get_num(locations[format.alc].clone())?,
+            length: get_num(locations[format.length].clone())?,
+            mz: get_num(locations[format.mz].clone())?,
+            z: get_num(locations[format.z].clone())?,
+            rt: get_float(locations[format.rt].clone())?,
+            predicted_rt: get_column!(format.de_novo_score, f64),
+            area: get_float(locations[format.area].clone())?,
+            mass: get_float(locations[format.mass].clone())?,
+            ppm: get_float(locations[format.ppm].clone())?,
+            ptm: line[locations[format.ptm].clone()].to_string(),
+            local_confidence: get_array(locations[format.local_confidence].clone())?,
+            tag: line[locations[format.tag].clone()].to_string(),
+            mode: line[locations[format.mode].clone()].to_string(),
+            accession: get_column!(format.accession),
         })
     }
 }
