@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+use itertools::Itertools;
 use uom::num_traits::Zero;
 
 use crate::{
@@ -165,20 +166,20 @@ pub struct GlycanPosition {
     pub series_number: usize,
     /// The branch naming
     pub branch: Vec<usize>,
+    /// The aminoacid index where this glycan is attached
+    pub attachment: usize,
 }
 
 impl GlycanPosition {
-    /// Generate the label for this glycan position, example: `1α'`
+    /// Get the branch names
     /// # Panics
     /// Panics if the first branch number is outside the range of the greek alphabet (small and caps together).
-    pub fn label(&self) -> String {
-        format!(
-            "{}{}",
-            self.series_number,
-            self.branch
-                .iter()
-                .enumerate()
-                .map(|(i, b)| if i == 0 {
+    pub fn branch_names(&self) -> String {
+        self.branch
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                if i == 0 {
                     char::from_u32(
                         (0x03B1..=0x03C9)
                             .chain(0x0391..=0x03A9)
@@ -191,8 +192,19 @@ impl GlycanPosition {
                     "\'".repeat(*b)
                 } else {
                     format!(",{b}")
-                })
-                .collect::<String>()
+                }
+            })
+            .collect::<String>()
+    }
+    /// Generate the label for this glycan position, example: `1α'`
+    /// # Panics
+    /// Panics if the first branch number is outside the range of the greek alphabet (small and caps together).
+    pub fn label(&self) -> String {
+        format!(
+            "{}{}@{}",
+            self.series_number,
+            self.branch_names(),
+            self.attachment + 1 // humans like 1-based counting sigh
         )
     }
 }
@@ -254,6 +266,40 @@ impl FragmentType {
             | Self::z(n)
             | Self::z·(n) => Some(n),
             _ => None,
+        }
+    }
+
+    /// Get the glycan position of this ion (or None nor applicable)
+    pub const fn glycan_position(&self) -> Option<&GlycanPosition> {
+        match self {
+            Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Y(n) | Self::Z(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    /// Get the position label, unless it is a precursor ion
+    pub fn position_label(&self) -> Option<String> {
+        match self {
+            Self::a(n)
+            | Self::b(n)
+            | Self::c(n)
+            | Self::d(n)
+            | Self::v(n)
+            | Self::w(n)
+            | Self::x(n)
+            | Self::y(n)
+            | Self::z(n)
+            | Self::z·(n) => Some(n.series_number.to_string()),
+            Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Y(n) | Self::Z(n) => {
+                Some(n.label())
+            }
+            Self::InternalGlycan(breakages) => Some(
+                breakages
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .join(""),
+            ),
+            Self::precursor => None,
         }
     }
 
@@ -325,13 +371,27 @@ pub enum GlycanBreakPos {
     B(GlycanPosition),
 }
 
+impl GlycanBreakPos {
+    /// Get the position of this breaking position
+    pub const fn position(&self) -> &GlycanPosition {
+        match self {
+            Self::B(p) | Self::End(p) | Self::Y(p) => p,
+        }
+    }
+
+    /// Get the label for this breaking position
+    pub const fn label(&self) -> &str {
+        match self {
+            Self::End(_) => "End",
+            Self::Y(_) => "Y",
+            Self::B(_) => "B",
+        }
+    }
+}
+
 impl std::fmt::Display for GlycanBreakPos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::End(p) => write!(f, "End{}", p.label()),
-            Self::Y(p) => write!(f, "Y{}", p.label()),
-            Self::B(p) => write!(f, "B{}", p.label()),
-        }
+        write!(f, "{}{}", self.label(), self.position().label())
     }
 }
 

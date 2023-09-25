@@ -248,7 +248,7 @@ impl LinearPeptide {
         // Add glycan fragmentation to all peptide fragments
         // Assuming that only one glycan can ever fragment at the same time,
         // and that no peptide fragmentation occurs during glycan fragmentation
-        for position in &self.sequence {
+        for (sequence_index, position) in self.sequence.iter().enumerate() {
             for modification in &position.modifications {
                 if let Modification::GlycanStructure(glycan) = modification {
                     output.extend(
@@ -260,6 +260,7 @@ impl LinearPeptide {
                                 peptide_index,
                                 charge_carriers,
                                 &self.formula()?,
+                                sequence_index,
                             ),
                     );
                 }

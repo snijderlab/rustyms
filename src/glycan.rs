@@ -224,13 +224,15 @@ impl PositionedGlycanStructure {
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
         full_formula: &MolecularFormula,
+        sequence_index: usize,
     ) -> Vec<Fragment> {
         model
             .glycan_fragmentation
             .as_ref()
             .map_or(vec![], |neutral_losses| {
                 // Get all base fragments from this node and all its children
-                let base_fragments = self.base_theoretical_fragments(peptide_index, full_formula);
+                let base_fragments =
+                    self.base_theoretical_fragments(peptide_index, full_formula, sequence_index);
                 // Apply all neutral losses and all charge options
                 let charge_options = charge_carriers.all_charge_options();
                 base_fragments
@@ -246,6 +248,7 @@ impl PositionedGlycanStructure {
         &self,
         peptide_index: usize,
         full_formula: &MolecularFormula,
+        sequence_index: usize,
     ) -> Vec<Fragment> {
         // Generate the basic single breakage fragments
         let mut base_fragments = vec![
@@ -257,6 +260,7 @@ impl PositionedGlycanStructure {
                     inner_depth: self.inner_depth,
                     series_number: self.outer_depth + 1,
                     branch: self.branch.clone(),
+                    attachment: sequence_index,
                 }),
                 String::new(),
             ),
@@ -279,6 +283,7 @@ impl PositionedGlycanStructure {
                     inner_depth: self.inner_depth,
                     series_number: self.inner_depth,
                     branch: self.branch.clone(),
+                    attachment: sequence_index,
                 }),
                 String::new(),
             ),
@@ -297,7 +302,7 @@ impl PositionedGlycanStructure {
         ];
         // Extend with all internal fragments, meaning multiple breaking bonds
         base_fragments.extend(
-            self.internal_break_points()
+            self.internal_break_points(sequence_index)
                 .into_iter()
                 .filter(|(_, breakages)| {
                     !breakages
@@ -314,6 +319,7 @@ impl PositionedGlycanStructure {
                                 inner_depth: self.inner_depth,
                                 series_number: self.outer_depth + 1,
                                 branch: self.branch.clone(),
+                                attachment: sequence_index,
                             })],
                         ]
                         .concat(),
@@ -330,15 +336,16 @@ impl PositionedGlycanStructure {
                 }),
         );
         // Extend with the theoretical fragments for all branches of this position
-        base_fragments.extend(
-            self.branches
-                .iter()
-                .flat_map(|b| b.base_theoretical_fragments(peptide_index, full_formula)),
-        );
+        base_fragments.extend(self.branches.iter().flat_map(|b| {
+            b.base_theoretical_fragments(peptide_index, full_formula, sequence_index)
+        }));
         base_fragments
     }
 
-    fn internal_break_points(&self) -> Vec<(MolecularFormula, Vec<GlycanBreakPos>)> {
+    fn internal_break_points(
+        &self,
+        sequence_index: usize,
+    ) -> Vec<(MolecularFormula, Vec<GlycanBreakPos>)> {
         // Find every internal fragment ending at this bond (in a B breakage) (all bonds found are Y breakages and endings)
         // Walk through all branches and determine all possible breakages
         if self.branches.is_empty() {
@@ -349,6 +356,7 @@ impl PositionedGlycanStructure {
                         inner_depth: self.inner_depth,
                         series_number: self.inner_depth,
                         branch: self.branch.clone(),
+                        attachment: sequence_index,
                     })],
                 ),
                 (
@@ -357,13 +365,14 @@ impl PositionedGlycanStructure {
                         inner_depth: self.inner_depth,
                         series_number: self.inner_depth,
                         branch: self.branch.clone(),
+                        attachment: sequence_index,
                     })],
                 ),
             ]
         } else {
             self.branches
                 .iter()
-                .map(Self::internal_break_points) // get all previous options
+                .map(|b| b.internal_break_points(sequence_index)) // get all previous options
                 .fold(Vec::new(), |accumulator, branch_options| {
                     if accumulator.is_empty() {
                         branch_options
@@ -389,6 +398,7 @@ impl PositionedGlycanStructure {
                         inner_depth: self.inner_depth,
                         series_number: self.inner_depth,
                         branch: self.branch.clone(),
+                        attachment: sequence_index,
                     })],
                 )))
                 .collect()
@@ -500,6 +510,7 @@ mod test {
             0,
             &MolecularCharge::proton(1),
             &glycan.formula(),
+            0,
         );
         for fragment in &fragments {
             println!("{fragment}");
