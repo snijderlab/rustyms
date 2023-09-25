@@ -1,3 +1,5 @@
+use crate::error::{Context, CustomError};
+
 /// The file format for any peaks format, determining the existence and location of all possible columns
 pub struct PeaksFormat {
     fraction: Option<usize>,
@@ -36,6 +38,22 @@ pub enum PeaksVersion {
     Xplus,
     /// Version Ab of PEAKS export
     Ab,
+}
+
+impl std::fmt::Display for PeaksVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Custom => "Custom",
+                Self::Old => "Old",
+                Self::X => "X",
+                Self::Xplus => "X+",
+                Self::Ab => "Ab",
+            }
+        )
+    }
 }
 
 /// An older version of a PEAKS export
@@ -143,28 +161,29 @@ pub const AB: PeaksFormat = PeaksFormat {
 };
 
 /// A single parsed line of a peaks file
+#[allow(missing_docs)]
 pub struct PeaksData {
-    fraction: Option<usize>,
-    source_file: Option<String>,
-    feature: Option<(usize, usize)>,
-    scan: (usize, usize),
-    peptide: String,
-    tag_length: usize,
-    de_novo_score: Option<usize>,
-    alc: usize,
-    length: usize,
-    mz: usize,
-    z: usize,
-    rt: f64,
-    predicted_rt: Option<f64>,
-    area: f64,
-    mass: f64,
-    ppm: f64,
-    ptm: String,
-    local_confidence: Vec<usize>,
-    tag: String,
-    mode: String,
-    accession: Option<String>,
+    pub fraction: Option<usize>,
+    pub source_file: Option<String>,
+    pub feature: Option<(usize, usize)>,
+    pub scan: (usize, usize),
+    pub peptide: String,
+    pub tag_length: usize,
+    pub de_novo_score: Option<usize>,
+    pub alc: usize,
+    pub length: usize,
+    pub mz: usize,
+    pub z: usize,
+    pub rt: f64,
+    pub predicted_rt: Option<f64>,
+    pub area: f64,
+    pub mass: f64,
+    pub ppm: f64,
+    pub ptm: String,
+    pub local_confidence: Vec<usize>,
+    pub tag: String,
+    pub mode: String,
+    pub accession: Option<String>,
 }
 
 // TODO:
@@ -177,72 +196,100 @@ impl PeaksData {
     /// Parse a single line into the given peaks format
     /// # Errors
     /// Returns Err when the parsing could not be performed successfully
-    pub fn parse_read(line: &[String], format: &PeaksFormat) -> Result<Self, String> {
+    pub fn parse_read(
+        line_number: usize,
+        line: &(String, [(String, usize, usize)]),
+        format: &PeaksFormat,
+    ) -> Result<Self, CustomError> {
         macro_rules! get_column {
             ($line:ident, $column:expr) => {
                 match $column {
-                    Some(index) => Some($line[index].clone()),
+                    Some(index) => Some($line.1[index].0.clone()),
                     None => None,
                 }
             };
             ($line:ident, $column:expr, $typ:ty) => {
                 match $column {
-                    Some(index) => Some($line[index].parse::<$typ>().map_err(|e| e.to_string())?),
+                    Some(index) => Some($line.1[index].0.parse::<$typ>().map_err(|_| CustomError::error(
+                        "Invalid Peaks line",
+                        format!("Column {} is not of the correct type ({}) for this peaks format ({})", index+1, stringify!($typ), format.format),
+                        Context::line(line_number, &line.0, $line.1[index].1, $line.1[index].2)
+                    ))?),
                     None => None,
                 }
             };
             ($line:ident, $column:expr => $func:ident) => {
                 match $column {
-                    Some(index) => Some($func(&$line[index])?),
+                    Some(index) => Some($func(&$line.1[index])?),
                     None => None,
                 }
             };
         }
-        let get_frac = |text: &str| -> Result<(usize, usize), String> {
-            let (start, end) = text
-                .split_once(':')
-                .ok_or_else(|| "Invalid scan number".to_string())?;
-            Ok((
-                start[1..].parse::<usize>().map_err(|e| e.to_string())?,
-                end.parse::<usize>().map_err(|e| e.to_string())?,
+        // TODO: get the correct offset into the full line
+        let get_num_from_slice = |text: (&str, usize, usize)| -> Result<usize, CustomError> {
+            text.0.parse::<usize>().map_err(|_| CustomError::error(
+                "Invalid Peaks line",
+                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
+                Context::line(line_number, &line.0, text.1, text.2),
             ))
+        };
+        let get_num = |text: &(String, usize, usize)| -> Result<usize, CustomError> {
+            text.0.parse::<usize>().map_err(|_| CustomError::error(
+                "Invalid Peaks line",
+                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
+                Context::line(line_number, &line.0, text.1, text.2),
+            ))
+        };
+        let get_float = |text: &(String, usize, usize)| -> Result<f64, CustomError> {
+            text.0.parse::<f64>().map_err(|_| CustomError::error(
+                "Invalid Peaks line",
+                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
+                Context::line(line_number, &line.0, text.1, text.2),
+            ))
+        };
+        let get_frac = |text: &(String, usize, usize)| -> Result<(usize, usize), CustomError> {
+            let (start, end) = text.0.split_once(':').ok_or_else(|| {
+                CustomError::error(
+                    "Invalid Peaks line",
+                    "Invalid scan number it is missing the required colon",
+                    Context::line(line_number, &line.0, text.1, text.2),
+                )
+            })?;
+            Ok((
+                get_num_from_slice((&start[1..], 1, start.len() - 1))?,
+                get_num_from_slice((end, 0, end.len()))?,
+            ))
+        };
+        let get_array = |text: &(String, usize, usize)| -> Result<Vec<usize>, CustomError> {
+            let mut offset = 0;
+            let mut output = Vec::new();
+            for part in text.0.split(' ') {
+                output.push(get_num_from_slice((part, text.1 + offset, part.len()))?);
+                offset += part.len() + 1;
+            }
+            Ok(output)
         };
         Ok(Self {
             fraction: get_column!(line, format.fraction, usize),
             source_file: get_column!(line, format.source_file),
             feature: get_column!(line, format.feature => get_frac),
-            scan: get_frac(&line[format.scan])?,
-            peptide: line[format.peptide].clone(),
-            tag_length: line[format.tag_length]
-                .parse::<usize>()
-                .map_err(|e| e.to_string())?,
+            scan: get_frac(&line.1[format.scan])?,
+            peptide: line.1[format.peptide].0.clone(),
+            tag_length: get_num(&line.1[format.tag_length])?,
             de_novo_score: get_column!(line, format.de_novo_score, usize),
-            alc: line[format.alc]
-                .parse::<usize>()
-                .map_err(|e| e.to_string())?,
-            length: line[format.length]
-                .parse::<usize>()
-                .map_err(|e| e.to_string())?,
-            mz: line[format.mz]
-                .parse::<usize>()
-                .map_err(|e| e.to_string())?,
-            z: line[format.z].parse::<usize>().map_err(|e| e.to_string())?,
-            rt: line[format.rt].parse::<f64>().map_err(|e| e.to_string())?,
+            alc: get_num(&line.1[format.alc])?,
+            length: get_num(&line.1[format.length])?,
+            mz: get_num(&line.1[format.mz])?,
+            z: get_num(&line.1[format.z])?,
+            rt: get_float(&line.1[format.rt])?,
             predicted_rt: get_column!(line, format.de_novo_score, f64),
-            area: line[format.area]
-                .parse::<f64>()
-                .map_err(|e| e.to_string())?,
-            mass: line[format.mass]
-                .parse::<f64>()
-                .map_err(|e| e.to_string())?,
-            ppm: line[format.ppm].parse::<f64>().map_err(|e| e.to_string())?,
-            ptm: line[format.ptm].clone(),
-            local_confidence: line[format.local_confidence]
-                .split(' ')
-                .flat_map(|t| t.parse::<usize>().map_err(|e| e.to_string()))
-                .collect(),
-            tag: line[format.tag].clone(),
-            mode: line[format.mode].clone(),
+            area: get_float(&line.1[format.area])?,
+            mass: get_float(&line.1[format.mass])?,
+            ppm: get_float(&line.1[format.ppm])?,
+            ptm: line.1[format.ptm].0.clone(),
+            local_confidence: get_array(&line.1[format.local_confidence])?,
+            tag: line.1[format.tag].0.clone(),
+            mode: line.1[format.mode].0.clone(),
             accession: get_column!(line, format.accession),
         })
     }
