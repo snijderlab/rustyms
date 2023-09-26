@@ -87,6 +87,14 @@ impl CustomError {
             ..self.clone()
         }
     }
+    /// Create a copy of the error with a new context
+    #[must_use]
+    pub fn with_context(&self, context: Context) -> Self {
+        Self {
+            context,
+            ..self.clone()
+        }
+    }
 
     /// Gives the context for this error
     pub const fn context(&self) -> &Context {

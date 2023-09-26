@@ -28,7 +28,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
             .map_err(|_| {
             format!("Not a valid isotope+element, could not recognise element: {nuclide}")
         })?;
-        let mass = mass.parse::<f64>().map_err(|e| e.to_string())?;
+        let mass = mass.parse::<f64>().map_err(|e| format!("{}@{}", e, mass))?;
         atomic_masses[element as usize - 1].push((isotope, mass))
     }
 

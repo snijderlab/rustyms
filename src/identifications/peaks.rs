@@ -1,6 +1,8 @@
 use crate::error::{Context, CustomError};
 use std::ops::Range;
 
+use super::csv::CsvLine;
+
 /// The file format for any peaks format, determining the existence and location of all possible columns
 pub struct PeaksFormat {
     fraction: Option<usize>,
@@ -25,6 +27,17 @@ pub struct PeaksFormat {
     mode: usize,
     accession: Option<usize>,
     format: PeaksVersion,
+}
+
+impl PeaksFormat {
+    const fn number_of_columns(&self) -> usize {
+        15 + self.fraction.is_some() as usize
+            + self.source_file.is_some() as usize
+            + self.feature.is_some() as usize
+            + self.de_novo_score.is_some() as usize
+            + self.predicted_rt.is_some() as usize
+            + self.accession.is_some() as usize
+    }
 }
 
 /// All possible peaks versions
@@ -187,70 +200,54 @@ pub struct PeaksData {
     pub accession: Option<String>,
 }
 
-// TODO:
-// * hard crashes if you have too little elements per line
-// * does not crash if you have too many elements per line
 impl PeaksData {
     /// Parse a single line into the given peaks format
     /// # Errors
     /// Returns Err when the parsing could not be performed successfully
-    pub fn parse_read(
-        line: &(usize, String, [Range<usize>]),
-        format: &PeaksFormat,
-    ) -> Result<Self, CustomError> {
-        let (line_number, line, locations) = line;
-        macro_rules! get_column {
+    pub fn parse_read(line: &CsvLine, format: &PeaksFormat) -> Result<Self, CustomError> {
+        //let (line_number, line, locations) = line;
+        if line.fields.len() != format.number_of_columns() {
+            return Err(CustomError::error(
+                "Invalid Peaks line", 
+                format!("The number of columns ({}) is not equal to the expected number of columns ({})", line.fields.len(), format.number_of_columns()), 
+                line.full_context()));
+        }
+        // Unpack an optional column either taking the full cell, parsing the column based on context clues for the type, or applying a function to the cell
+        macro_rules! optional_column {
             ($column:expr) => {
-                match $column {
-                    Some(index) => Some(line[locations[index].clone()].to_string()),
-                    None => None,
-                }
+                $column.map(|index| line[index].to_string())
             };
-            ($column:expr, $typ:ty) => {
+            ($column:expr, $error:expr) => {
                 match $column {
-                    Some(index) => Some(line[locations[index].clone()].parse::<$typ>().map_err(|_| CustomError::error(
-                        "Invalid Peaks line",
-                        format!("Column {} is not of the correct type ({}) for this peaks format ({})", index+1, stringify!($typ), format.format),
-                        Context::line(*line_number, &line, locations[index].start, locations[index].len())
-                    ))?),
+                    Some(index) => Some(line.parse_column(index, $error)?),
                     None => None,
                 }
             };
             ($column:expr => $func:ident) => {
                 match $column {
-                    Some(index) => Some($func(locations[index].clone())?),
+                    Some(index) => Some($func(line.fields[index].clone())?),
                     None => None,
                 }
             };
         }
-        // TODO: refactor get_num into macro
         let get_num_from_slice = |location: Range<usize>| -> Result<usize, CustomError> {
-            line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
+            line.line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
                 "Invalid Peaks line",
                 format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(*line_number, line, location.start, location.len()),
-            ))
-        };
-        let get_num = |location: Range<usize>| -> Result<usize, CustomError> {
-            line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
-                "Invalid Peaks line",
-                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(*line_number, line, location.start, location.len()),
-            ))
-        };
-        let get_float = |location: Range<usize>| -> Result<f64, CustomError> {
-            line[location.clone()].parse::<f64>().map_err(|_| CustomError::error(
-                "Invalid Peaks line",
-                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
-                Context::line(*line_number, line, location.start, location.len()),
+                Context::line(line.line_index, line.line.clone(), location.start, location.len()),
             ))
         };
         let get_frac = |location: Range<usize>| -> Result<(usize, usize), CustomError> {
-            let (start, end) = line[location.clone()].split_once(':').ok_or_else(|| {
+            let (start, end) = line.line[location.clone()].split_once(':').ok_or_else(|| {
                 CustomError::error(
                     "Invalid Peaks line",
-                    "Invalid scan number it is missing the required colon",
-                    Context::line(*line_number, line, location.start, location.len()),
+                    "Invalid scan number, it is missing the required colon",
+                    Context::line(
+                        line.line_index,
+                        line.line.clone(),
+                        location.start,
+                        location.len(),
+                    ),
                 )
             })?;
             Ok((
@@ -261,34 +258,39 @@ impl PeaksData {
         let get_array = |location: Range<usize>| -> Result<Vec<usize>, CustomError> {
             let mut offset = 0;
             let mut output = Vec::new();
-            for part in line[location.clone()].split(' ') {
+            for part in line.line[location.clone()].split(' ') {
                 output.push(get_num_from_slice(location.start + offset..part.len())?);
                 offset += part.len() + 1;
             }
             Ok(output)
         };
+        let number_error = CustomError::error(
+            "Invalid Peaks line",
+            format!("This column is not a number but it is required to be a number in this peaks format ({})", format.format),
+            line.full_context(),
+        );
         Ok(Self {
-            fraction: get_column!(format.fraction, usize),
-            source_file: get_column!(format.source_file),
-            feature: get_column!(format.feature => get_frac),
-            scan: get_frac(locations[format.scan].clone())?,
-            peptide: line[locations[format.peptide].clone()].to_string(),
-            tag_length: get_num(locations[format.tag_length].clone())?,
-            de_novo_score: get_column!(format.de_novo_score, usize),
-            alc: get_num(locations[format.alc].clone())?,
-            length: get_num(locations[format.length].clone())?,
-            mz: get_num(locations[format.mz].clone())?,
-            z: get_num(locations[format.z].clone())?,
-            rt: get_float(locations[format.rt].clone())?,
-            predicted_rt: get_column!(format.de_novo_score, f64),
-            area: get_float(locations[format.area].clone())?,
-            mass: get_float(locations[format.mass].clone())?,
-            ppm: get_float(locations[format.ppm].clone())?,
-            ptm: line[locations[format.ptm].clone()].to_string(),
-            local_confidence: get_array(locations[format.local_confidence].clone())?,
-            tag: line[locations[format.tag].clone()].to_string(),
-            mode: line[locations[format.mode].clone()].to_string(),
-            accession: get_column!(format.accession),
+            fraction: optional_column!(format.fraction, &number_error),
+            source_file: optional_column!(format.source_file),
+            feature: optional_column!(format.feature => get_frac),
+            scan: get_frac(line.fields[format.scan].clone())?,
+            peptide: line[format.peptide].to_string(),
+            tag_length: line.parse_column(format.tag_length, &number_error)?,
+            de_novo_score: optional_column!(format.de_novo_score, &number_error),
+            alc: line.parse_column(format.alc, &number_error)?,
+            length: line.parse_column(format.length, &number_error)?,
+            mz: line.parse_column(format.mz, &number_error)?,
+            z: line.parse_column(format.z, &number_error)?,
+            rt: line.parse_column(format.rt, &number_error)?,
+            predicted_rt: optional_column!(format.de_novo_score, &number_error),
+            area: line.parse_column(format.area, &number_error)?,
+            mass: line.parse_column(format.mass, &number_error)?,
+            ppm: line.parse_column(format.ppm, &number_error)?,
+            ptm: line[format.ptm].to_string(),
+            local_confidence: get_array(line.fields[format.local_confidence].clone())?,
+            tag: line[format.tag].to_string(),
+            mode: line[format.mode].to_string(),
+            accession: optional_column!(format.accession),
         })
     }
 }
