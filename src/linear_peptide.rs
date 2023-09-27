@@ -260,7 +260,7 @@ impl LinearPeptide {
                                 peptide_index,
                                 charge_carriers,
                                 &self.formula()?,
-                                sequence_index,
+                                (position.aminoacid, sequence_index),
                             ),
                     );
                 }

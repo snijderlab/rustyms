@@ -4,7 +4,8 @@ use itertools::Itertools;
 use uom::num_traits::Zero;
 
 use crate::{
-    molecular_charge::MolecularCharge, system::f64::*, Chemical, MolecularFormula, NeutralLoss,
+    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MolecularFormula,
+    NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -167,7 +168,7 @@ pub struct GlycanPosition {
     /// The branch naming
     pub branch: Vec<usize>,
     /// The aminoacid index where this glycan is attached
-    pub attachment: usize,
+    pub attachment: (AminoAcid, usize),
 }
 
 impl GlycanPosition {
@@ -200,12 +201,11 @@ impl GlycanPosition {
     /// # Panics
     /// Panics if the first branch number is outside the range of the greek alphabet (small and caps together).
     pub fn label(&self) -> String {
-        format!(
-            "{}{}@{}",
-            self.series_number,
-            self.branch_names(),
-            self.attachment + 1 // humans like 1-based counting sigh
-        )
+        format!("{}{}", self.series_number, self.branch_names())
+    }
+    /// Generate the label for this glycan attachment eg N1 (1 based numbering)
+    pub fn attachment(&self) -> String {
+        format!("{}{}", self.attachment.0.char(), self.attachment.1 + 1)
     }
 }
 
