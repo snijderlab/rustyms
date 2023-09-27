@@ -47,6 +47,7 @@ pub use crate::fragment::*;
 pub use crate::glycan::*;
 pub use crate::linear_peptide::*;
 pub use crate::model::*;
+pub use crate::modification::*;
 pub use crate::neutral_loss::*;
 pub use crate::spectrum::*;
 pub use crate::system::f64::*;
