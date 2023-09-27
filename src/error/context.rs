@@ -144,6 +144,47 @@ impl Context {
         }
     }
 
+    /// Overwrite the line number with the given number, if applicable
+    #[must_use]
+    pub fn overwrite_line_number(self, line_number: usize) -> Self {
+        match self {
+            Context::FullLine { line, .. } => Context::FullLine {
+                linenumber: line_number,
+                line,
+            },
+            Self::Line {
+                line,
+                offset,
+                length,
+                ..
+            } => Self::Line {
+                linenumber: line_number,
+                line,
+                offset,
+                length,
+            },
+            Self::Range { lines, offset, .. } => Self::Range {
+                start_linenumber: line_number,
+                offset,
+                lines,
+            },
+            Self::RangeHighlights {
+                lines, highlights, ..
+            } => Self::RangeHighlights {
+                start_linenumber: line_number,
+                lines,
+                highlights,
+            },
+            Self::Multiple { contexts } => Self::Multiple {
+                contexts: contexts
+                    .into_iter()
+                    .map(|(l, c)| (l, c.overwrite_line_number(line_number)))
+                    .collect(),
+            },
+            n => n,
+        }
+    }
+
     /// Display this context, with an optional note after the context.
     fn display(&self, f: &mut fmt::Formatter<'_>, note: Option<&str>) -> fmt::Result {
         let mut tail = true; // End with a tailing line ╵

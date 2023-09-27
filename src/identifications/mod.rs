@@ -2,10 +2,12 @@
 
 #[path = "../shared/csv.rs"]
 mod csv;
+mod fasta;
 mod identified_peptide;
 mod peaks;
 use std::str::FromStr;
 
+pub use fasta::*;
 pub use identified_peptide::*;
 pub use peaks::*;
 

@@ -10,4 +10,4 @@ pub use align_type::Type;
 pub use alignment::Alignment;
 pub use mass_alignment::align;
 pub use piece::Piece;
-pub use scoring::MatchType;
+pub use scoring::{MatchType, BLOSUM62};
