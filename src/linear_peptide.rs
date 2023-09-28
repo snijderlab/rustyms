@@ -234,7 +234,7 @@ impl LinearPeptide {
         }
 
         // Generate precursor peak
-        output.push(
+        output.extend(
             Fragment::new(
                 self.formula()?,
                 Charge::zero(),
@@ -242,7 +242,8 @@ impl LinearPeptide {
                 FragmentType::precursor,
                 String::new(),
             )
-            .with_charge(charge_carriers),
+            .with_charge(charge_carriers)
+            .with_neutral_losses(&model.precursor),
         );
 
         // Add glycan fragmentation to all peptide fragments
