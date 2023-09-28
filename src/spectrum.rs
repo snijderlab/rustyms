@@ -23,6 +23,8 @@ pub struct RawSpectrum {
     pub intensity: Option<f64>,
     /// The peaks of which this spectrum consists
     pub spectrum: Vec<RawPeak>,
+    /// MGF: if present the SEQUENCE line
+    pub sequence: Option<String>,
 }
 
 impl RawSpectrum {
@@ -105,6 +107,7 @@ impl Default for RawSpectrum {
             mass: Mass::zero(),
             spectrum: Vec::new(),
             intensity: None,
+            sequence: None,
         }
     }
 }

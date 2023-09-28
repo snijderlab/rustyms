@@ -1,86 +1,116 @@
-use std::fmt::Display;
-
-use serde::{Deserialize, Serialize};
+use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    formula::{Chemical, MolecularFormula},
-    Element,
+    error::{Context, CustomError},
+    formula::MolecularFormula,
+    helper_functions::parse_molecular_formula_pro_forma,
 };
 
 /// All possible neutral losses
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NeutralLoss {
-    /// Loss of water
-    Water,
-    /// Gain of water
-    WaterGain,
-    /// Loss of 2 water
-    DiWater,
-    /// Gain of 2 water
-    DiWaterGain,
-    /// Loss of 3 water
-    TriWater,
-    /// Gain of 3 water
-    TriWaterGain,
-    /// Loss of ammonia (NH3)
-    Ammonia,
-    /// Loss of carbon monoxide
-    CarbonMonoxide,
-    /// Loss of hydrogen
-    Hydrogen,
-    /// Gain of hydrogen
-    HydrogenGain,
-    /// Loss of 2 hydrogens
-    Capital,
-    /// Gain of 2 hydrogens
-    CapitalGain,
-    /// Loss of 3 hydrogens
-    TriHydrogen,
-    /// Gain of 3 hydrogens
-    TriHydrogenGain,
+    /// Gain of a specific formula
+    Gain(MolecularFormula),
+    /// Loss of a specific formula
+    Loss(MolecularFormula),
 }
 
-impl Chemical for NeutralLoss {
-    fn formula(&self) -> crate::formula::MolecularFormula {
+impl NeutralLoss {
+    pub fn hill_notation_html(&self) -> String {
         match self {
-            Self::Water => molecular_formula!(O 1 H 2),
-            Self::DiWater => molecular_formula!(O 2 H 4),
-            Self::TriWater => molecular_formula!(O 3 H 6),
-            Self::Ammonia => molecular_formula!(N 1 H 3),
-            Self::CarbonMonoxide => molecular_formula!(C 1 O 1),
-            Self::Hydrogen => molecular_formula!(H 1),
-            Self::Capital => molecular_formula!(H 2),
-            Self::HydrogenGain => molecular_formula!(H - 1),
-            Self::CapitalGain => molecular_formula!(H - 2),
-            Self::WaterGain => molecular_formula!(O -1 H -2),
-            Self::DiWaterGain => molecular_formula!(O -2 H -4),
-            Self::TriWaterGain => molecular_formula!(O -3 H -6),
-            Self::TriHydrogen => molecular_formula!(H 3),
-            Self::TriHydrogenGain => molecular_formula!(H - 3),
+            Self::Loss(c) => format!("-{}", c.hill_notation_html()),
+            Self::Gain(c) => format!("+{}", c.hill_notation_html()),
         }
     }
 }
+
+impl FromStr for NeutralLoss {
+    type Err = CustomError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(c) = s.chars().next() {
+            match c {
+                '+' => Ok(Self::Gain(
+                    parse_molecular_formula_pro_forma(&s[1..]).map_err(|e| {
+                        CustomError::error(
+                            "Invalid neutral loss",
+                            e,
+                            Context::line(0, s, 1, s.len() - 1),
+                        )
+                    })?,
+                )),
+                '-' => Ok(Self::Loss(
+                    parse_molecular_formula_pro_forma(&s[1..]).map_err(|e| {
+                        CustomError::error(
+                            "Invalid neutral loss",
+                            e,
+                            Context::line(0, s, 1, s.len() - 1),
+                        )
+                    })?,
+                )),
+                _ => Err(CustomError::error(
+                    "Invalid neutral loss",
+                    "A neutral loss can only start with '+' or '-'",
+                    Context::line(0, s, 0, 1),
+                )),
+            }
+        } else {
+            Err(CustomError::error(
+                "Invalid neutral loss",
+                "A neutral loss cannot be an empty string",
+                Context::None,
+            ))
+        }
+    }
+}
+
 impl Display for NeutralLoss {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Self::Water => "Water",
-                Self::DiWater => "DiWater",
-                Self::TriWater => "TriWater",
-                Self::Ammonia => "Ammonia",
-                Self::CarbonMonoxide => "CarbonMonoxide",
-                Self::Hydrogen => "Hydrogen",
-                Self::Capital => "Capital",
-                Self::HydrogenGain => "HydrogenGain",
-                Self::CapitalGain => "CapitalGain",
-                Self::WaterGain => "WaterGain",
-                Self::DiWaterGain => "DiWaterGain",
-                Self::TriWaterGain => "TriWaterGain",
-                Self::TriHydrogen => "TriHydrogen",
-                Self::TriHydrogenGain => "TriHydrogenGain",
+                Self::Loss(c) => format!("-{c}"),
+                Self::Gain(c) => format!("+{c}"),
             }
         )
+    }
+}
+
+impl std::ops::Add<NeutralLoss> for MolecularFormula {
+    type Output = Self;
+    fn add(self, rhs: NeutralLoss) -> Self::Output {
+        match rhs {
+            NeutralLoss::Gain(mol) => self + mol,
+            NeutralLoss::Loss(mol) => self - mol,
+        }
+    }
+}
+
+impl std::ops::Add<NeutralLoss> for &MolecularFormula {
+    type Output = MolecularFormula;
+    fn add(self, rhs: NeutralLoss) -> Self::Output {
+        match rhs {
+            NeutralLoss::Gain(mol) => self + &mol,
+            NeutralLoss::Loss(mol) => self - &mol,
+        }
+    }
+}
+
+impl std::ops::Add<&NeutralLoss> for MolecularFormula {
+    type Output = Self;
+    fn add(self, rhs: &NeutralLoss) -> Self::Output {
+        match rhs {
+            NeutralLoss::Gain(mol) => &self + mol,
+            NeutralLoss::Loss(mol) => &self - mol,
+        }
+    }
+}
+impl std::ops::Add<&NeutralLoss> for &MolecularFormula {
+    type Output = MolecularFormula;
+    fn add(self, rhs: &NeutralLoss) -> Self::Output {
+        match rhs {
+            NeutralLoss::Gain(mol) => self + mol,
+            NeutralLoss::Loss(mol) => self - mol,
+        }
     }
 }

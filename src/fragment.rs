@@ -96,8 +96,8 @@ impl Fragment {
     #[must_use]
     pub fn with_neutral_loss(&self, neutral_loss: &NeutralLoss) -> Self {
         Self {
-            formula: &self.formula - &neutral_loss.formula(),
-            neutral_loss: Some(*neutral_loss),
+            formula: &self.formula + neutral_loss,
+            neutral_loss: Some(neutral_loss.clone()),
             ..self.clone()
         }
     }
@@ -126,7 +126,9 @@ impl Display for Fragment {
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
             self.charge.value,
             self.neutral_loss
-                .map_or(String::new(), |loss| format!(" -{loss}")),
+                .as_ref()
+                .map(std::string::ToString::to_string)
+                .unwrap_or_default(),
             self.label
         )
     }
@@ -411,9 +413,9 @@ mod tests {
             FragmentType::precursor,
             String::new(),
         );
-        let loss = a.with_neutral_losses(&[NeutralLoss::Water]);
+        let loss = a.with_neutral_losses(&[molecular_formula!(H 2 O 1)]);
         dbg!(&a, &loss);
         assert_eq!(a.formula, loss[0].formula);
-        assert_eq!(a.formula, &loss[1].formula + &NeutralLoss::Water.formula());
+        assert_eq!(a.formula, &loss[1].formula + &molecular_formula!(H 2 O 1));
     }
 }

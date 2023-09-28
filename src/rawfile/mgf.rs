@@ -72,6 +72,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
                             })?);
                     }
                     "TITLE" => current.title = value.to_owned(),
+                    "SEQUENCE" => current.sequence = Some(value.to_owned()),
                     "NUM_SCANS" => {
                         current.num_scans = value.parse().map_err(|_| {
                             format!("Not a number {key} for NUM_SCANS on {linenumber}")

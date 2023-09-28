@@ -19,7 +19,12 @@ pub struct GlycanStructure {
 
 impl Chemical for GlycanStructure {
     fn formula(&self) -> MolecularFormula {
-        self.sugar.formula() + self.branches.iter().map(formula::Chemical::formula).sum()
+        self.sugar.formula()
+            + self
+                .branches
+                .iter()
+                .map(formula::Chemical::formula)
+                .sum::<MolecularFormula>()
     }
 }
 
@@ -211,7 +216,12 @@ pub struct PositionedGlycanStructure {
 
 impl Chemical for PositionedGlycanStructure {
     fn formula(&self) -> MolecularFormula {
-        self.sugar.formula() + self.branches.iter().map(formula::Chemical::formula).sum()
+        self.sugar.formula()
+            + self
+                .branches
+                .iter()
+                .map(formula::Chemical::formula)
+                .sum::<MolecularFormula>()
     }
 }
 

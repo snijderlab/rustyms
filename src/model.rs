@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     system::{f64::MassOverCharge, mass_over_charge::mz},
-    NeutralLoss,
+    Element, MolecularFormula, NeutralLoss,
 };
 
 /// A model for the fragmentation, allowing control over what theoretical fragment to generate.
@@ -126,18 +126,45 @@ impl Model {
     /// Generate all possible fragments
     pub fn all() -> Self {
         Self {
-            a: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            b: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            c: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            d: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            v: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            w: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            x: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            y: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            z: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            precursor: vec![NeutralLoss::Water],
+            a: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            b: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            c: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            d: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            v: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            w: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            x: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            y: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            z: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Water]),
+            glycan_fragmentation: Some(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
         }
     }
 
@@ -163,17 +190,32 @@ impl Model {
     pub fn ethcd() -> Self {
         Self {
             a: (Location::None, Vec::new()),
-            b: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            c: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            b: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            c: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
-            w: (Location::SkipN(1), vec![NeutralLoss::Water]),
+            w: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             x: (Location::None, Vec::new()),
-            y: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            z: (Location::SkipN(1), vec![NeutralLoss::Water]),
+            y: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            z: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Water]),
+            glycan_fragmentation: Some(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
         }
     }
 
@@ -182,17 +224,23 @@ impl Model {
         Self {
             a: (
                 Location::TakeN { skip: 1, take: 1 },
-                vec![NeutralLoss::Water],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
-            b: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            b: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             c: (Location::None, Vec::new()),
             d: (Location::TakeN { skip: 1, take: 1 }, Vec::new()),
             v: (Location::None, Vec::new()),
             w: (Location::None, Vec::new()),
             x: (Location::None, Vec::new()),
-            y: (Location::SkipN(1), vec![NeutralLoss::Water]),
+            y: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             z: (Location::None, Vec::new()),
-            precursor: vec![NeutralLoss::Water],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ppm: MassOverCharge::new::<mz>(20.0),
             glycan_fragmentation: None,
         }
@@ -202,14 +250,29 @@ impl Model {
     pub fn etcid() -> Self {
         Self {
             a: (Location::None, Vec::new()),
-            b: (Location::SkipC(1), vec![NeutralLoss::Water]),
-            c: (Location::SkipC(1), vec![NeutralLoss::Water]),
+            b: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            c: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
-            w: (Location::SkipN(1), vec![NeutralLoss::Water]),
+            w: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             x: (Location::None, Vec::new()),
-            y: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            z: (Location::SkipN(1), vec![NeutralLoss::Water]),
+            y: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            z: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
             glycan_fragmentation: None,
@@ -226,9 +289,18 @@ impl Model {
             v: (Location::None, Vec::new()),
             w: (Location::None, Vec::new()),
             x: (Location::None, Vec::new()),
-            y: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            z: (Location::SkipN(1), vec![NeutralLoss::Water]),
-            precursor: vec![NeutralLoss::Water, NeutralLoss::Ammonia],
+            y: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            z: (
+                Location::SkipN(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            ),
+            precursor: vec![
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+            ],
             ppm: MassOverCharge::new::<mz>(20.0),
             glycan_fragmentation: None,
         }

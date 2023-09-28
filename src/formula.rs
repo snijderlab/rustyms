@@ -21,25 +21,104 @@ impl MolecularFormula {
         Some(mass)
     }
 
-    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements
+    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
-        // TODO: Handle isotopes
         let mut output = String::new();
-        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C) {
+        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
             write!(output, "C{}", carbon.2).unwrap();
-            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H) {
+            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
                 write!(output, "H{}", hydrogen.2).unwrap();
             }
             for element in self
                 .elements
                 .iter()
-                .filter(|e| e.0 != Element::H && e.0 != Element::C)
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
             {
-                write!(output, "{}{}", element.0, element.2).unwrap();
+                if element.1 == 0 {
+                    write!(output, "{}{}", element.0, element.2).unwrap();
+                } else {
+                    write!(output, "[{}{}{}]", element.1, element.0, element.2).unwrap();
+                }
             }
         } else {
             for element in &self.elements {
-                write!(output, "{}{}", element.0, element.2).unwrap();
+                if element.1 == 0 {
+                    write!(output, "{}{}", element.0, element.2).unwrap();
+                } else {
+                    write!(output, "[{}{}{}]", element.1, element.0, element.2).unwrap();
+                }
+            }
+        }
+        output
+    }
+
+    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements encoded in HTML
+    pub fn hill_notation_html(&self) -> String {
+        let mut output = String::new();
+        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
+            write!(
+                output,
+                "C{}",
+                if carbon.2 == 1 {
+                    String::new()
+                } else {
+                    format!("<sub>{}</sub>", carbon.2)
+                }
+            )
+            .unwrap();
+            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
+                write!(
+                    output,
+                    "H{}",
+                    if hydrogen.2 == 1 {
+                        String::new()
+                    } else {
+                        format!("<sub>{}</sub>", hydrogen.2)
+                    }
+                )
+                .unwrap();
+            }
+            for element in self
+                .elements
+                .iter()
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
+                .filter(|e| e.2 != 0)
+            {
+                write!(
+                    output,
+                    "{}{}{}",
+                    if element.1 == 0 {
+                        String::new()
+                    } else {
+                        format!("<sup>{}</sup>", element.1)
+                    },
+                    element.0,
+                    if element.2 == 1 {
+                        String::new()
+                    } else {
+                        format!("<sub>{}</sub>", element.2)
+                    }
+                )
+                .unwrap();
+            }
+        } else {
+            for element in self.elements.iter().filter(|e| e.2 != 0) {
+                write!(
+                    output,
+                    "{}{}{}",
+                    if element.1 == 0 {
+                        String::new()
+                    } else {
+                        format!("<sup>{}</sup>", element.1)
+                    },
+                    element.0,
+                    if element.2 == 1 {
+                        String::new()
+                    } else {
+                        format!("<sub>{}</sub>", element.2)
+                    }
+                )
+                .unwrap();
             }
         }
         output

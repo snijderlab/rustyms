@@ -11,7 +11,7 @@ pub use fasta::*;
 pub use identified_peptide::*;
 pub use peaks::*;
 
-use crate::error::{Context, CustomError};
+use crate::error::CustomError;
 
 use self::csv::CsvLine;
 

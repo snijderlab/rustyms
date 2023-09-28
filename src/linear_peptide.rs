@@ -139,7 +139,7 @@ impl LinearPeptide {
                                         .contains(&&am.id)
                                         .then(|| am.modification.formula())
                                 })
-                                .sum()
+                                .sum::<MolecularFormula>()
                     })
                     .map(|m| {
                         (
@@ -503,7 +503,11 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(Chemical::formula).sum()
+                    + self
+                        .modifications
+                        .iter()
+                        .map(Chemical::formula)
+                        .sum::<MolecularFormula>()
                     + self
                         .possible_modifications
                         .iter()
@@ -512,7 +516,7 @@ impl SequenceElement {
                                 .contains(&m.id)
                                 .then(|| m.modification.formula())
                         })
-                        .sum(),
+                        .sum::<MolecularFormula>(),
             )
         }
     }
@@ -524,7 +528,11 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(Chemical::formula).sum()
+                    + self
+                        .modifications
+                        .iter()
+                        .map(Chemical::formula)
+                        .sum::<MolecularFormula>()
                     + self
                         .possible_modifications
                         .iter()
@@ -534,7 +542,7 @@ impl SequenceElement {
                                 m.modification.formula()
                             })
                         })
-                        .sum(),
+                        .sum::<MolecularFormula>(),
             )
         }
     }
@@ -546,12 +554,16 @@ impl SequenceElement {
         } else {
             Some(
                 self.aminoacid.formula()
-                    + self.modifications.iter().map(Chemical::formula).sum()
+                    + self
+                        .modifications
+                        .iter()
+                        .map(Chemical::formula)
+                        .sum::<MolecularFormula>()
                     + self
                         .possible_modifications
                         .iter()
                         .map(|m| m.modification.formula())
-                        .sum(),
+                        .sum::<MolecularFormula>(),
             )
         }
     }
