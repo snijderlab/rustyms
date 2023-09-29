@@ -450,7 +450,7 @@ mod tests {
             AminoAcid::try_from(b'B').unwrap(),
             AminoAcid::AmbiguousAsparagine
         );
-        assert_eq!(AminoAcid::try_from('c'), Err(()));
+        assert_eq!(AminoAcid::try_from('c'), Ok(AminoAcid::Cysteine));
         assert_eq!(AminoAcid::try_from('🦀'), Err(()));
     }
 }

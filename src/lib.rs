@@ -17,6 +17,8 @@ mod fragmentation_tests;
 #[cfg(test)]
 mod pro_forma_parse_tests;
 #[macro_use]
+mod helper_functions;
+#[macro_use]
 mod formula;
 
 pub mod align;
@@ -26,7 +28,6 @@ mod element;
 pub mod error;
 mod fragment;
 mod glycan;
-mod helper_functions;
 pub mod identifications;
 mod isotopes;
 mod linear_peptide;

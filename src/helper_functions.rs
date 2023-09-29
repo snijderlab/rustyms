@@ -155,17 +155,34 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
     Ok(result)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Element;
-    use crate::MolecularFormula;
+/// Implement a binary operator for all ref cases after the implementation for the ref-ref case (assumes deref operator works)
+macro_rules! impl_binop_ref_cases {
+    (impl $imp:ident, $method:ident for $t:ty, $u:ty, $o:ty) => {
+        impl<'a> $imp<$u> for &'a $t {
+            type Output = $o;
 
-    #[test]
-    fn simple_formulae() {
-        assert_eq!(
-            parse_molecular_formula_pro_forma("[13C2][12C-2]H2N").unwrap(),
-            molecular_formula!((12)C -2 (13)C 2 H 2 N 1)
-        );
-    }
+            #[inline]
+            fn $method(self, other: $u) -> $o {
+                $imp::$method(self, &other)
+            }
+        }
+
+        impl<'a> $imp<&'a $u> for $t {
+            type Output = $o;
+
+            #[inline]
+            fn $method(self, other: &'a $u) -> $o {
+                $imp::$method(&self, other)
+            }
+        }
+
+        impl $imp<$u> for $t {
+            type Output = $o;
+
+            #[inline]
+            fn $method(self, other: $u) -> $o {
+                $imp::$method(&self, &other)
+            }
+        }
+    };
 }

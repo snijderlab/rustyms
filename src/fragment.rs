@@ -4,8 +4,8 @@ use itertools::Itertools;
 use uom::num_traits::Zero;
 
 use crate::{
-    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MolecularFormula,
-    NeutralLoss,
+    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, Element,
+    MolecularFormula, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -413,7 +413,7 @@ mod tests {
             FragmentType::precursor,
             String::new(),
         );
-        let loss = a.with_neutral_losses(&[molecular_formula!(H 2 O 1)]);
+        let loss = a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1))]);
         dbg!(&a, &loss);
         assert_eq!(a.formula, loss[0].formula);
         assert_eq!(a.formula, &loss[1].formula + &molecular_formula!(H 2 O 1));

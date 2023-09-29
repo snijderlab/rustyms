@@ -1,5 +1,8 @@
 use std::env;
 
+#[macro_use]
+#[path = "./src/helper_functions.rs"]
+mod helper_functions;
 #[path = "./src/shared/element.rs"]
 mod element;
 #[macro_use]
@@ -7,9 +10,6 @@ mod element;
 mod formula;
 #[path = "./src/shared/glycan.rs"]
 mod glycan;
-
-#[path = "./src/helper_functions.rs"]
-mod helper_functions;
 
 #[path = "./src/build/mod.rs"]
 mod build;

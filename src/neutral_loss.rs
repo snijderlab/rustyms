@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, ops::Add, str::FromStr};
 
 use crate::{
     error::{Context, CustomError},
@@ -76,35 +76,6 @@ impl Display for NeutralLoss {
     }
 }
 
-impl std::ops::Add<NeutralLoss> for MolecularFormula {
-    type Output = Self;
-    fn add(self, rhs: NeutralLoss) -> Self::Output {
-        match rhs {
-            NeutralLoss::Gain(mol) => self + mol,
-            NeutralLoss::Loss(mol) => self - mol,
-        }
-    }
-}
-
-impl std::ops::Add<NeutralLoss> for &MolecularFormula {
-    type Output = MolecularFormula;
-    fn add(self, rhs: NeutralLoss) -> Self::Output {
-        match rhs {
-            NeutralLoss::Gain(mol) => self + &mol,
-            NeutralLoss::Loss(mol) => self - &mol,
-        }
-    }
-}
-
-impl std::ops::Add<&NeutralLoss> for MolecularFormula {
-    type Output = Self;
-    fn add(self, rhs: &NeutralLoss) -> Self::Output {
-        match rhs {
-            NeutralLoss::Gain(mol) => &self + mol,
-            NeutralLoss::Loss(mol) => &self - mol,
-        }
-    }
-}
 impl std::ops::Add<&NeutralLoss> for &MolecularFormula {
     type Output = MolecularFormula;
     fn add(self, rhs: &NeutralLoss) -> Self::Output {
@@ -114,3 +85,5 @@ impl std::ops::Add<&NeutralLoss> for &MolecularFormula {
         }
     }
 }
+
+impl_binop_ref_cases!(impl Add, add for MolecularFormula, NeutralLoss, MolecularFormula);
