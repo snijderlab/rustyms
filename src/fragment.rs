@@ -4,8 +4,8 @@ use itertools::Itertools;
 use uom::num_traits::Zero;
 
 use crate::{
-    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, Element,
-    MolecularFormula, NeutralLoss,
+    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MolecularFormula,
+    NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -400,7 +400,7 @@ impl std::fmt::Display for GlycanBreakPos {
 #[cfg(test)]
 mod tests {
 
-    use crate::AminoAcid;
+    use crate::{AminoAcid, Element};
 
     use super::*;
 

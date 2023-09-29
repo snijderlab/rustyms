@@ -148,7 +148,7 @@ impl Context {
     #[must_use]
     pub fn overwrite_line_number(self, line_number: usize) -> Self {
         match self {
-            Context::FullLine { line, .. } => Context::FullLine {
+            Self::FullLine { line, .. } => Self::FullLine {
                 linenumber: line_number,
                 line,
             },

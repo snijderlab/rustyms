@@ -14,14 +14,19 @@ use crate::{
     SequenceElement,
 };
 
+/// A modification on an amino acid
 #[derive(Debug, Clone, PartialEq)]
 pub enum Modification {
-    /// Monoisotopic mass shift
+    /// A modification defined with a monoisotopic mass shift
     Mass(Mass),
+    /// A modification defined with a molecular formula
     #[allow(non_snake_case)]
     Formula(MolecularFormula),
+    /// A glycan without a defined structure
     Glycan(Vec<(MonoSaccharide, isize)>),
+    /// A glycan with a defined structure
     GlycanStructure(GlycanStructure),
+    /// A modification from one of the modification ontologies
     Predefined(
         &'static [(Element, u16, i16)],
         &'static [PlacementRule],
@@ -51,6 +56,8 @@ impl Modification {
     /// Try to parse the modification. Any ambiguous modification will be number
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
+    /// # Errors
+    /// If it is not a valid modification return a `CustomError` explaining the error.
     pub fn try_from(
         line: &str,
         range: Range<usize>,
@@ -99,6 +106,7 @@ impl Modification {
     }
 }
 
+/// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
 pub type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
 
 fn parse_single_modification(
@@ -153,7 +161,7 @@ fn parse_single_modification(
                     })?;
                     find_id_in_ontology(id, UNIMOD_ONTOLOGY)
                         .map(Some)
-                        .map_err(|_|
+                        .ok_or_else(||
                             basic_error
                             .with_long_description("The supplied Unimod accession number is not an existing modification"))
                 }
@@ -162,7 +170,7 @@ fn parse_single_modification(
                         .with_long_description("PSI-MOD accession number should be a number"))?;
                     find_id_in_ontology(id, PSI_MOD_ONTOLOGY)
                         .map(Some)
-                        .map_err(|_| basic_error
+                        .ok_or_else(|| basic_error
                             .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
                 }
                 ("u", tail) => find_name_in_ontology(tail, UNIMOD_ONTOLOGY)
@@ -268,13 +276,17 @@ fn parse_single_modification(
     }
 }
 
+/// All allowed ontologies for modification names
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ontology {
+    /// Unimod
     Unimod,
+    /// PSI-MOD
     Psimod,
 }
 
 impl Ontology {
+    /// Get the prefix character for the ontology (TODO: the full name is needed when the name is used right, lets make sure the output is always valid pro forma)
     pub const fn char(self) -> char {
         match self {
             Self::Unimod => 'U',
@@ -283,10 +295,14 @@ impl Ontology {
     }
 }
 
+/// A modification as returned by the parser
 #[derive(Debug, Clone)]
 pub enum ReturnModification {
+    /// A fully self contained modification
     Defined(Modification),
+    /// A modification that references an ambiguous modification
     Referenced(usize, Option<f64>),
+    /// A modification that references an ambiguous modification and is preferred on this location
     Preferred(usize, Option<f64>),
 }
 
@@ -305,10 +321,11 @@ pub struct AmbiguousModification {
 
 /// Intermediate representation of a global modification
 pub enum GlobalModification {
+    /// A global isotope modification
     Isotope(Element, u16),
-    // Can be placed on any place it fits, if that is the correct aminoacid
+    /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
     Fixed(AminoAcid, Modification),
-    // Can be placed on any place where it can fit
+    /// Can be placed on any place where it can fit (according to the placement rules of the modification itself)
     Free(Modification),
 }
 
@@ -325,16 +342,17 @@ fn find_name_in_ontology(
     Err(())
 }
 
+/// Find the given id in the given ontology
 pub fn find_id_in_ontology(
     id: usize,
     ontology: &[(usize, &str, Modification)],
-) -> Result<Modification, ()> {
+) -> Option<Modification> {
     for option in ontology {
         if option.0 == id {
-            return Ok(option.2.clone());
+            return Some(option.2.clone());
         }
     }
-    Err(())
+    None
 }
 
 fn numerical_mod(text: &str) -> Result<Modification, String> {

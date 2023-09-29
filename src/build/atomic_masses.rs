@@ -108,7 +108,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
     fs::write(
         dest_path,
         format!(
-            "pub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &[
+            "/// The data for all the elements (atomic_mass/monoisotopic mass, atomic_weight, isotopes: (num, mass, abundance))\npub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &[
                 {}
                 ];",
             combined_data.fold(String::new(), |acc, element| format!(

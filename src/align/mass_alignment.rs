@@ -134,9 +134,21 @@ pub fn align(
         );
         path.push(value);
     }
+
+    let path: Vec<Piece> = path.into_iter().rev().collect();
+    let max_score = seq_a.sequence
+        [high.1..high.1 + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
+        .iter()
+        .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
+        .sum::<isize>()
+        + seq_b.sequence[high.2..high.2 + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
+            .iter()
+            .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
+            .sum::<isize>();
     Alignment {
-        score: high_score,
-        path: path.into_iter().rev().collect(),
+        absolute_score: high_score,
+        normalised_score: high_score as f64 / max_score as f64 * 2.0,
+        path,
         start_a: high.1,
         start_b: high.2,
         seq_a,

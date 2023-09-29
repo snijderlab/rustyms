@@ -98,7 +98,7 @@ impl CustomError {
 
     /// Overwrite the line number with the given number, if applicable
     #[must_use]
-    pub fn overwrite_line_number(self, line_number: usize) -> Self {
+    pub fn overwrite_line_number(&self, line_number: usize) -> Self {
         Self {
             context: self.context.clone().overwrite_line_number(line_number),
             ..self.clone()

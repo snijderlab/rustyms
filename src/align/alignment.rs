@@ -10,8 +10,12 @@ use crate::{LinearPeptide, MolecularFormula};
 /// An alignment of two reads.
 #[derive(Debug, Clone)]
 pub struct Alignment {
-    /// The score of this alignment
-    pub score: isize,
+    /// The absolute score of this alignment
+    pub absolute_score: isize,
+    /// The normalised score, normalised for the alignment length and for the used alphabet.
+    /// The normalisation is as follows `score / max_score` where max score is the average score of the sequence slices on sequence a and b if they were aligned to themself.
+    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`
+    pub normalised_score: f64,
     /// The path or steps taken for the alignment
     pub path: Vec<Piece>,
     /// The position in the first sequence where the alignment starts
@@ -111,9 +115,8 @@ impl Alignment {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
             self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
                 .iter()
-                .fold(Some(MolecularFormula::default()), |acc, s| {
-                    s.formula_greedy(&mut placed_a)
-                        .and_then(|m| acc.map(|a| a + m))
+                .try_fold(MolecularFormula::default(), |acc, s| {
+                    s.formula_greedy(&mut placed_a).map(|m| acc + m)
                 })
         }
     }
@@ -125,54 +128,39 @@ impl Alignment {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
             self.seq_b.sequence[self.start_b..self.start_b + self.len_b()]
                 .iter()
-                .fold(Some(MolecularFormula::default()), |acc, s| {
-                    s.formula_greedy(&mut placed_b)
-                        .and_then(|m| acc.map(|a| a + m))
+                .try_fold(MolecularFormula::default(), |acc, s| {
+                    s.formula_greedy(&mut placed_b).map(|m| acc + m)
                 })
         }
     }
 
-    /// Returns statistics for this match. Returns `(identical, gap, length)`. Retrieve the identity (or gap) as percentage
-    /// by calculating `identical as f64 / length as f64`.
-    pub fn stats(&self) -> (usize, usize, usize) {
-        let (identical, gap, _, _) =
-            self.path
-                .iter()
-                .fold((0, 0, self.start_a, self.start_b), |acc, p| {
-                    if p.step_a + p.step_b == 1 {
-                        (
-                            acc.0,
-                            acc.1 + 1,
-                            acc.2 + p.step_a as usize,
-                            acc.3 + p.step_b as usize,
-                        )
-                    } else if p.step_a == 1
-                        && p.step_b == 1
-                        && self.seq_a.sequence[acc.2] == self.seq_b.sequence[acc.3]
-                    {
-                        (
-                            acc.0 + 1,
-                            acc.1,
-                            acc.2 + p.step_a as usize,
-                            acc.3 + p.step_b as usize,
-                        )
-                    } else {
-                        (
-                            acc.0,
-                            acc.1,
-                            acc.2 + p.step_a as usize,
-                            acc.3 + p.step_b as usize,
-                        )
-                    }
-                });
-        (identical, gap, self.len_a().max(self.len_b()))
+    /// Returns statistics for this match. Returns `(identical, similar, gap, length)`. Retrieve the identity (or gap) as percentage
+    /// by calculating `identical as f64 / length as f64`. The length is calculated as the max length of `len_a` and `len_b`.
+    pub fn stats(&self) -> (usize, usize, usize, usize) {
+        let (identical, similar, gap) = self.path.iter().fold((0, 0, 0), |acc, p| {
+            let m = p.match_type;
+            (
+                acc.0
+                    + usize::from(
+                        m == MatchType::IdentityMassMismatch || m == MatchType::FullIdentity,
+                    ),
+                acc.1
+                    + usize::from(
+                        m == MatchType::FullIdentity
+                            || m == MatchType::Isobaric
+                            || m == MatchType::Switched,
+                    ) * p.step_a as usize,
+                acc.2 + usize::from(m == MatchType::Gap),
+            )
+        });
+        (identical, similar, gap, self.len_a().max(self.len_b()))
     }
 
     /// Generate a summary of this alignment for printing to the command line
     pub fn summary(&self) -> String {
         format!(
             "score: {}\npath: {}\nstart: ({}, {})\naligned:\n{}",
-            self.score,
+            self.absolute_score,
             self.short(),
             self.start_a,
             self.start_b,

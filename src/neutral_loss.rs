@@ -16,6 +16,7 @@ pub enum NeutralLoss {
 }
 
 impl NeutralLoss {
+    /// Generate a nice HTML notation for this `NeutralLoss`
     pub fn hill_notation_html(&self) -> String {
         match self {
             Self::Loss(c) => format!("-{}", c.hill_notation_html()),

@@ -15,6 +15,8 @@ pub struct FastaData {
 
 impl FastaData {
     /// Parse a single fasta file
+    /// # Errors
+    /// A custom error when it is not a valid fasta file
     pub fn parse_reads(path: &str) -> Result<Vec<Self>, CustomError> {
         let file = std::fs::File::open(path).map_err(|_| {
             CustomError::error(
@@ -36,6 +38,7 @@ impl FastaData {
                     Context::show(path),
                 )
             })?;
+            #[allow(clippy::manual_strip)]
             if line.starts_with('>') {
                 if let Some((id, full_header)) = last_header {
                     sequences.push(Self {
