@@ -20,14 +20,8 @@ impl TryFrom<PeaksData> for IdentifiedPeptide {
     fn try_from(value: PeaksData) -> Result<Self, Self::Error> {
         Ok(Self {
             peptide: ComplexPeptide::pro_forma(&value.peptide)?,
-            local_confidence: Some(
-                value
-                    .local_confidence
-                    .iter()
-                    .map(|v| *v as f64 / 100.0)
-                    .collect(),
-            ),
-            score: Some(value.de_novo_score.unwrap_or(value.alc) as f64 / 100.0),
+            local_confidence: Some(value.local_confidence.clone()),
+            score: Some(value.de_novo_score.map_or(value.alc, |s| s as f64 / 100.0)),
             metadata: MetaData::Peaks(value),
         })
     }

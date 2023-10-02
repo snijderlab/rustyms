@@ -174,17 +174,44 @@ pub const AB: PeaksFormat = PeaksFormat {
     format: PeaksVersion::Ab,
 };
 
+/// Version 11 of PEAKS export
+pub const XI: PeaksFormat = PeaksFormat {
+    source_file: Some(0),
+    scan: 1,
+    peptide: 2,
+    tag_length: 3,
+    alc: 4,
+    length: 5,
+    mz: 6,
+    z: 7,
+    rt: 8,
+    area: 9,
+    mass: 10,
+    ppm: 11,
+    ptm: 12,
+    local_confidence: 13,
+    mode: 14,
+    tag: 15,
+    feature: Some(16),
+    fraction: None,
+    accession: None,
+    predicted_rt: None,
+    de_novo_score: None,
+    format: PeaksVersion::Ab,
+};
+
 /// A single parsed line of a peaks file
 #[allow(missing_docs)]
 pub struct PeaksData {
     pub fraction: Option<usize>,
     pub source_file: Option<String>,
-    pub feature: Option<(usize, usize)>,
-    pub scan: (usize, usize),
+    pub feature: Option<(Option<usize>, usize)>,
+    pub scan: Vec<(Option<usize>, usize)>,
     pub peptide: String,
     pub tag_length: usize,
     pub de_novo_score: Option<usize>,
-    pub alc: usize,
+    /// Average local confidence [0-1]
+    pub alc: f64,
     pub length: usize,
     pub mz: usize,
     pub z: usize,
@@ -194,7 +221,8 @@ pub struct PeaksData {
     pub mass: f64,
     pub ppm: f64,
     pub ptm: String,
-    pub local_confidence: Vec<usize>,
+    /// Local confidence [0-1]
+    pub local_confidence: Vec<f64>,
     pub tag: String,
     pub mode: String,
     pub accession: Option<String>,
@@ -205,6 +233,21 @@ impl PeaksData {
     /// # Errors
     /// Returns Err when the parsing could not be performed successfully
     pub fn parse_read(line: &CsvLine, format: &PeaksFormat) -> Result<Self, CustomError> {
+        fn get_array<T>(
+            line: &CsvLine,
+            location: Range<usize>,
+            sep: char,
+            callback: impl Fn(Range<usize>) -> Result<T, CustomError>,
+        ) -> Result<Vec<T>, CustomError> {
+            let mut offset = 0;
+            let mut output = Vec::new();
+            for part in line.line[location.clone()].split(sep) {
+                output.push(callback(location.start + offset..part.len())?);
+                offset += part.len() + 1;
+            }
+            Ok(output)
+        }
+
         //let (line_number, line, locations) = line;
         if line.fields.len() != format.number_of_columns() {
             return Err(CustomError::error(
@@ -237,32 +280,15 @@ impl PeaksData {
                 Context::line(line.line_index, line.line.clone(), location.start, location.len()),
             ))
         };
-        let get_frac = |location: Range<usize>| -> Result<(usize, usize), CustomError> {
-            let (start, end) = line.line[location.clone()].split_once(':').ok_or_else(|| {
-                CustomError::error(
-                    "Invalid Peaks line",
-                    "Invalid scan number, it is missing the required colon",
-                    Context::line(
-                        line.line_index,
-                        line.line.clone(),
-                        location.start,
-                        location.len(),
-                    ),
-                )
-            })?;
-            Ok((
-                get_num_from_slice(location.start + 1..start.len() - 1)?,
-                get_num_from_slice(location.start + start.len() + 1..end.len())?,
-            ))
-        };
-        let get_array = |location: Range<usize>| -> Result<Vec<usize>, CustomError> {
-            let mut offset = 0;
-            let mut output = Vec::new();
-            for part in line.line[location.clone()].split(' ') {
-                output.push(get_num_from_slice(location.start + offset..part.len())?);
-                offset += part.len() + 1;
+        let get_id = |location: Range<usize>| -> Result<(Option<usize>, usize), CustomError> {
+            if let Some((start, end)) = line.line[location.clone()].split_once(':') {
+                Ok((
+                    Some(get_num_from_slice(location.start + 1..start.len() - 1)?),
+                    get_num_from_slice(location.start + start.len() + 1..end.len())?,
+                ))
+            } else {
+                Ok((None, get_num_from_slice(location)?))
             }
-            Ok(output)
         };
         let number_error = CustomError::error(
             "Invalid Peaks line",
@@ -272,12 +298,12 @@ impl PeaksData {
         Ok(Self {
             fraction: optional_column!(format.fraction, &number_error),
             source_file: optional_column!(format.source_file),
-            feature: optional_column!(format.feature => get_frac),
-            scan: get_frac(line.fields[format.scan].clone())?,
+            feature: optional_column!(format.feature => get_id),
+            scan: get_array(line, line.fields[format.scan].clone(), ';', get_id)?,
             peptide: line[format.peptide].to_string(),
             tag_length: line.parse_column(format.tag_length, &number_error)?,
             de_novo_score: optional_column!(format.de_novo_score, &number_error),
-            alc: line.parse_column(format.alc, &number_error)?,
+            alc: line.parse_column::<f64>(format.alc, &number_error)? / 100.0,
             length: line.parse_column(format.length, &number_error)?,
             mz: line.parse_column(format.mz, &number_error)?,
             z: line.parse_column(format.z, &number_error)?,
@@ -287,7 +313,12 @@ impl PeaksData {
             mass: line.parse_column(format.mass, &number_error)?,
             ppm: line.parse_column(format.ppm, &number_error)?,
             ptm: line[format.ptm].to_string(),
-            local_confidence: get_array(line.fields[format.local_confidence].clone())?,
+            local_confidence: get_array(
+                line,
+                line.fields[format.local_confidence].clone(),
+                ' ',
+                |l| get_num_from_slice(l).map(|v| v as f64 / 100.0),
+            )?,
             tag: line[format.tag].to_string(),
             mode: line[format.mode].to_string(),
             accession: optional_column!(format.accession),
