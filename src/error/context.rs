@@ -239,7 +239,11 @@ impl Context {
                 line,
                 "",
                 " ".repeat(*offset),
-                "─".repeat(*length),
+                if *length == 0 {
+                    "└".to_string()
+                } else {
+                    "─".repeat(*length)
+                },
                 pad = margin
             )?,
             Self::Range {

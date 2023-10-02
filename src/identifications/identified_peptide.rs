@@ -1,9 +1,9 @@
 use super::peaks::PeaksData;
-use crate::{error::CustomError, ComplexPeptide};
+use crate::{error::CustomError, LinearPeptide};
 
 /// A peptide that is identified by a de novo or database matching program
 pub struct IdentifiedPeptide {
-    peptide: ComplexPeptide,
+    peptide: LinearPeptide,
     local_confidence: Option<Vec<f64>>,
     score: Option<f64>,
     metadata: MetaData,
@@ -19,7 +19,7 @@ impl TryFrom<PeaksData> for IdentifiedPeptide {
     type Error = CustomError;
     fn try_from(value: PeaksData) -> Result<Self, Self::Error> {
         Ok(Self {
-            peptide: ComplexPeptide::pro_forma(&value.peptide)?,
+            peptide: value.peptide.clone(),
             local_confidence: Some(value.local_confidence.clone()),
             score: Some(value.de_novo_score.map_or(value.alc, |s| s as f64 / 100.0)),
             metadata: MetaData::Peaks(value),

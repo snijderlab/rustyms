@@ -1,4 +1,7 @@
-use crate::error::{Context, CustomError};
+use crate::{
+    error::{Context, CustomError},
+    ComplexPeptide, LinearPeptide,
+};
 use std::ops::Range;
 
 use super::csv::CsvLine;
@@ -8,16 +11,17 @@ pub struct PeaksFormat {
     fraction: Option<usize>,
     source_file: Option<usize>,
     feature: Option<usize>,
+    de_novo_score: Option<usize>,
+    predicted_rt: Option<usize>,
+    accession: Option<usize>,
     scan: usize,
     peptide: usize,
     tag_length: usize,
-    de_novo_score: Option<usize>,
     alc: usize,
     length: usize,
     mz: usize,
     z: usize,
     rt: usize,
-    predicted_rt: Option<usize>,
     area: usize,
     mass: usize,
     ppm: usize,
@@ -25,7 +29,6 @@ pub struct PeaksFormat {
     local_confidence: usize,
     tag: usize,
     mode: usize,
-    accession: Option<usize>,
     format: PeaksVersion,
 }
 
@@ -52,6 +55,8 @@ pub enum PeaksVersion {
     Xplus,
     /// Version Ab of PEAKS export
     Ab,
+    /// Version 11
+    XI,
 }
 
 impl std::fmt::Display for PeaksVersion {
@@ -65,6 +70,7 @@ impl std::fmt::Display for PeaksVersion {
                 Self::X => "X",
                 Self::Xplus => "X+",
                 Self::Ab => "Ab",
+                Self::XI => "11",
             }
         )
     }
@@ -197,7 +203,7 @@ pub const XI: PeaksFormat = PeaksFormat {
     accession: None,
     predicted_rt: None,
     de_novo_score: None,
-    format: PeaksVersion::Ab,
+    format: PeaksVersion::XI,
 };
 
 /// A single parsed line of a peaks file
@@ -207,17 +213,17 @@ pub struct PeaksData {
     pub source_file: Option<String>,
     pub feature: Option<(Option<usize>, usize)>,
     pub scan: Vec<(Option<usize>, usize)>,
-    pub peptide: String,
+    pub peptide: LinearPeptide,
     pub tag_length: usize,
     pub de_novo_score: Option<usize>,
     /// Average local confidence [0-1]
     pub alc: f64,
     pub length: usize,
-    pub mz: usize,
+    pub mz: f64,
     pub z: usize,
     pub rt: f64,
     pub predicted_rt: Option<f64>,
-    pub area: f64,
+    pub area: Option<f64>,
     pub mass: f64,
     pub ppm: f64,
     pub ptm: String,
@@ -242,7 +248,9 @@ impl PeaksData {
             let mut offset = 0;
             let mut output = Vec::new();
             for part in line.line[location.clone()].split(sep) {
-                output.push(callback(location.start + offset..part.len())?);
+                output.push(callback(
+                    location.start + offset..location.start + offset + part.len(),
+                )?);
                 offset += part.len() + 1;
             }
             Ok(output)
@@ -268,7 +276,13 @@ impl PeaksData {
             };
             ($column:expr => $func:ident) => {
                 match $column {
-                    Some(index) => Some($func(line.fields[index].clone())?),
+                    Some(index) => Some($func(index, line.fields[index].clone())?),
+                    None => None,
+                }
+            };
+            ($column:expr =>? $func:ident) => {
+                match $column {
+                    Some(index) => $func(index, line.fields[index].clone())?,
                     None => None,
                 }
             };
@@ -276,18 +290,30 @@ impl PeaksData {
         let get_num_from_slice = |location: Range<usize>| -> Result<usize, CustomError> {
             line.line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
                 "Invalid Peaks line",
-                format!("This text is not a number but it is required to be a number in this peaks format ({})", format.format),
+                format!("This text is not a number but it is required to be a number in this peaks format ({}) [{}]", format.format, &line.line[location.clone()]),
                 Context::line(line.line_index, line.line.clone(), location.start, location.len()),
             ))
         };
         let get_id = |location: Range<usize>| -> Result<(Option<usize>, usize), CustomError> {
             if let Some((start, end)) = line.line[location.clone()].split_once(':') {
                 Ok((
-                    Some(get_num_from_slice(location.start + 1..start.len() - 1)?),
-                    get_num_from_slice(location.start + start.len() + 1..end.len())?,
+                    Some(get_num_from_slice(
+                        location.start + 1..location.start + start.len(),
+                    )?),
+                    get_num_from_slice(
+                        location.start + start.len() + 1
+                            ..location.start + start.len() + 1 + end.len(),
+                    )?,
                 ))
             } else {
                 Ok((None, get_num_from_slice(location)?))
+            }
+        };
+        let get_id_optional = |_, range: Range<usize>| {
+            if line.line[range.clone()] == *"-" {
+                Ok(None)
+            } else {
+                get_id(range).map(Some)
             }
         };
         let number_error = CustomError::error(
@@ -295,12 +321,20 @@ impl PeaksData {
             format!("This column is not a number but it is required to be a number in this peaks format ({})", format.format),
             line.full_context(),
         );
+        let number_or_empty = |i, _| line.parse_column_or_empty(i, &number_error);
         Ok(Self {
             fraction: optional_column!(format.fraction, &number_error),
             source_file: optional_column!(format.source_file),
-            feature: optional_column!(format.feature => get_id),
-            scan: get_array(line, line.fields[format.scan].clone(), ';', get_id)?,
-            peptide: line[format.peptide].to_string(),
+            feature: optional_column!(format.feature =>? get_id_optional),
+            scan: if line[format.scan] == *"-" {
+                Vec::new()
+            } else {
+                get_array(line, line.fields[format.scan].clone(), ';', get_id)?
+            },
+            peptide: ComplexPeptide::sloppy_pro_forma(
+                &line.line,
+                line.fields[format.peptide].clone(),
+            )?,
             tag_length: line.parse_column(format.tag_length, &number_error)?,
             de_novo_score: optional_column!(format.de_novo_score, &number_error),
             alc: line.parse_column::<f64>(format.alc, &number_error)? / 100.0,
@@ -308,8 +342,8 @@ impl PeaksData {
             mz: line.parse_column(format.mz, &number_error)?,
             z: line.parse_column(format.z, &number_error)?,
             rt: line.parse_column(format.rt, &number_error)?,
-            predicted_rt: optional_column!(format.de_novo_score, &number_error),
-            area: line.parse_column(format.area, &number_error)?,
+            predicted_rt: optional_column!(format.de_novo_score =>? number_or_empty),
+            area: line.parse_column_or_empty(format.area, &number_error)?,
             mass: line.parse_column(format.mass, &number_error)?,
             ppm: line.parse_column(format.ppm, &number_error)?,
             ptm: line[format.ptm].to_string(),
