@@ -21,6 +21,19 @@ impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
     }
 }
 
+pub trait InvertResult<T, E> {
+    fn invert(self) -> Result<Option<T>, E>;
+}
+
+impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
+    fn invert(self) -> Result<Option<T>, E> {
+        match self {
+            Some(o) => o.map(|v| Some(v)),
+            None => Ok(None),
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub fn parse_named_counter<T: Copy>(
     value: &str,

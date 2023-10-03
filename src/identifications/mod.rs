@@ -27,6 +27,11 @@ impl CsvLine {
             self.fields[column].len(),
         )
     }
+
+    pub fn range_context(&self, range: std::ops::Range<usize>) -> crate::error::Context {
+        crate::error::Context::line(self.line_index, self.line.clone(), range.start, range.len())
+    }
+
     pub fn full_context(&self) -> crate::error::Context {
         crate::error::Context::full_line(self.line_index, self.line.clone())
     }

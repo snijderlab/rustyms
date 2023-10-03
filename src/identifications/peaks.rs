@@ -1,8 +1,9 @@
 use crate::{
     error::{Context, CustomError},
+    helper_functions::InvertResult,
     ComplexPeptide, LinearPeptide,
 };
-use std::ops::Range;
+use std::{ops::Range, str::FromStr};
 
 use super::csv::CsvLine;
 
@@ -239,123 +240,124 @@ impl PeaksData {
     /// # Errors
     /// Returns Err when the parsing could not be performed successfully
     pub fn parse_read(line: &CsvLine, format: &PeaksFormat) -> Result<Self, CustomError> {
-        fn get_array<T>(
-            line: &CsvLine,
-            location: Range<usize>,
-            sep: char,
-            callback: impl Fn(Range<usize>) -> Result<T, CustomError>,
-        ) -> Result<Vec<T>, CustomError> {
-            let mut offset = 0;
-            let mut output = Vec::new();
-            for part in line.line[location.clone()].split(sep) {
-                output.push(callback(
-                    location.start + offset..location.start + offset + part.len(),
-                )?);
-                offset += part.len() + 1;
-            }
-            Ok(output)
-        }
-
-        //let (line_number, line, locations) = line;
         if line.fields.len() != format.number_of_columns() {
             return Err(CustomError::error(
                 "Invalid Peaks line", 
                 format!("The number of columns ({}) is not equal to the expected number of columns ({})", line.fields.len(), format.number_of_columns()), 
                 line.full_context()));
         }
-        // Unpack an optional column either taking the full cell, parsing the column based on context clues for the type, or applying a function to the cell
-        macro_rules! optional_column {
-            ($column:expr) => {
-                $column.map(|index| line[index].to_string())
-            };
-            ($column:expr, $error:expr) => {
-                match $column {
-                    Some(index) => Some(line.parse_column(index, $error)?),
-                    None => None,
-                }
-            };
-            ($column:expr => $func:ident) => {
-                match $column {
-                    Some(index) => Some($func(index, line.fields[index].clone())?),
-                    None => None,
-                }
-            };
-            ($column:expr =>? $func:ident) => {
-                match $column {
-                    Some(index) => $func(index, line.fields[index].clone())?,
-                    None => None,
-                }
-            };
-        }
-        let get_num_from_slice = |location: Range<usize>| -> Result<usize, CustomError> {
-            line.line[location.clone()].parse::<usize>().map_err(|_| CustomError::error(
-                "Invalid Peaks line",
-                format!("This text is not a number but it is required to be a number in this peaks format ({}) [{}]", format.format, &line.line[location.clone()]),
-                Context::line(line.line_index, line.line.clone(), location.start, location.len()),
-            ))
-        };
-        let get_id = |location: Range<usize>| -> Result<(Option<usize>, usize), CustomError> {
-            if let Some((start, end)) = line.line[location.clone()].split_once(':') {
-                Ok((
-                    Some(get_num_from_slice(
-                        location.start + 1..location.start + start.len(),
-                    )?),
-                    get_num_from_slice(
-                        location.start + start.len() + 1
-                            ..location.start + start.len() + 1 + end.len(),
-                    )?,
-                ))
-            } else {
-                Ok((None, get_num_from_slice(location)?))
-            }
-        };
-        let get_id_optional = |_, range: Range<usize>| {
-            if line.line[range.clone()] == *"-" {
-                Ok(None)
-            } else {
-                get_id(range).map(Some)
-            }
-        };
         let number_error = CustomError::error(
             "Invalid Peaks line",
             format!("This column is not a number but it is required to be a number in this peaks format ({})", format.format),
             line.full_context(),
         );
-        let number_or_empty = |i, _| line.parse_column_or_empty(i, &number_error);
         Ok(Self {
-            fraction: optional_column!(format.fraction, &number_error),
-            source_file: optional_column!(format.source_file),
-            feature: optional_column!(format.feature =>? get_id_optional),
-            scan: if line[format.scan] == *"-" {
-                Vec::new()
-            } else {
-                get_array(line, line.fields[format.scan].clone(), ';', get_id)?
-            },
+            fraction: optional_column(format.fraction, line)
+                .map(|l| parse(l, &number_error))
+                .invert()?,
+            source_file: optional_column(format.source_file, line)
+                .map(|l| l.0.line[l.1].to_string()),
+            feature: optional_column(format.feature, line)
+                .and_then(or_empty)
+                .map(|l| get_id(l, &number_error))
+                .invert()?,
+            scan: or_empty(column(format.scan, line))
+                .map(|l| array(l, ';').map(|v| get_id(v, &number_error)).collect())
+                .invert()?
+                .unwrap_or_default(),
             peptide: ComplexPeptide::sloppy_pro_forma(
                 &line.line,
                 line.fields[format.peptide].clone(),
             )?,
-            tag_length: line.parse_column(format.tag_length, &number_error)?,
-            de_novo_score: optional_column!(format.de_novo_score, &number_error),
-            alc: line.parse_column::<f64>(format.alc, &number_error)? / 100.0,
-            length: line.parse_column(format.length, &number_error)?,
-            mz: line.parse_column(format.mz, &number_error)?,
-            z: line.parse_column(format.z, &number_error)?,
-            rt: line.parse_column(format.rt, &number_error)?,
-            predicted_rt: optional_column!(format.de_novo_score =>? number_or_empty),
-            area: line.parse_column_or_empty(format.area, &number_error)?,
+            tag_length: parse(column(format.tag_length, line), &number_error)?,
+            de_novo_score: format
+                .de_novo_score
+                .map(|i| column(i, line))
+                .map(|l| parse(l, &number_error))
+                .invert()?,
+            alc: parse::<f64>(column(format.alc, line), &number_error)? / 100.0,
+            length: parse(column(format.length, line), &number_error)?,
+            mz: parse(column(format.mz, line), &number_error)?,
+            z: parse(column(format.z, line), &number_error)?,
+            rt: parse(column(format.rt, line), &number_error)?,
+            predicted_rt: format
+                .de_novo_score
+                .map(|i| column(i, line))
+                .and_then(or_empty)
+                .map(|l| parse(l, &number_error))
+                .invert()?,
+            area: or_empty(column(format.mz, line))
+                .map(|l| parse(l, &number_error))
+                .invert()?,
             mass: line.parse_column(format.mass, &number_error)?,
             ppm: line.parse_column(format.ppm, &number_error)?,
             ptm: line[format.ptm].to_string(),
-            local_confidence: get_array(
-                line,
-                line.fields[format.local_confidence].clone(),
-                ' ',
-                |l| get_num_from_slice(l).map(|v| v as f64 / 100.0),
-            )?,
+            local_confidence: array(column(format.local_confidence, line), ' ')
+                .map(|l| parse::<f64>(l, &number_error).map(|v| v / 100.0))
+                .collect::<Result<Vec<_>, _>>()?,
             tag: line[format.tag].to_string(),
             mode: line[format.mode].to_string(),
-            accession: optional_column!(format.accession),
+            accession: optional_column(format.accession, line).map(|l| l.0.line[l.1].to_string()),
         })
+    }
+}
+
+/// The base location type to keep track of the location of to be parsed pieces in the monadic parser combinators below
+type Location<'a> = (&'a CsvLine, Range<usize>);
+
+fn column(column: usize, line: &CsvLine) -> Location {
+    (line, line.fields[column].clone())
+}
+
+fn optional_column(column: Option<usize>, line: &CsvLine) -> Option<Location> {
+    column.map(|index| (line, line.fields[index].clone()))
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn array(loc: Location, sep: char) -> impl Iterator<Item = Location> {
+    let mut offset = 0;
+    let mut output = Vec::new();
+    for part in loc.0.line[loc.1.clone()].split(sep) {
+        output.push((
+            loc.0,
+            loc.1.start + offset..loc.1.start + offset + part.len(),
+        ));
+        offset += part.len() + 1;
+    }
+    output.into_iter()
+}
+
+fn or_empty(loc: Location) -> Option<Location> {
+    let text = &loc.0.line[loc.1.clone()];
+    if text.is_empty() || text == "-" {
+        None
+    } else {
+        Some(loc)
+    }
+}
+
+fn parse<T: FromStr>(loc: Location, base_error: &CustomError) -> Result<T, CustomError> {
+    loc.0.line[loc.1.clone()]
+        .parse()
+        .map_err(|_| base_error.with_context(loc.0.range_context(loc.1)))
+}
+
+fn get_id(loc: Location, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
+    if let Some((start, end)) = loc.0.line[loc.1.clone()].split_once(':') {
+        Ok((
+            Some(parse(
+                (loc.0, loc.1.start + 1..loc.1.start + start.len()),
+                base_error,
+            )?),
+            parse(
+                (
+                    loc.0,
+                    loc.1.start + start.len() + 1..loc.1.start + start.len() + 1 + end.len(),
+                ),
+                base_error,
+            )?,
+        ))
+    } else {
+        Ok((None, parse(loc, base_error)?))
     }
 }
