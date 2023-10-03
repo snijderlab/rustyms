@@ -252,112 +252,149 @@ impl PeaksData {
             line.full_context(),
         );
         Ok(Self {
-            fraction: optional_column(format.fraction, line)
-                .map(|l| parse(l, &number_error))
-                .invert()?,
-            source_file: optional_column(format.source_file, line)
-                .map(|l| l.0.line[l.1].to_string()),
-            feature: optional_column(format.feature, line)
-                .and_then(or_empty)
-                .map(|l| get_id(l, &number_error))
-                .invert()?,
-            scan: or_empty(column(format.scan, line))
-                .map(|l| array(l, ';').map(|v| get_id(v, &number_error)).collect())
+            fraction: Location::optional_column(format.fraction, line).parse(&number_error)?,
+            source_file: Location::optional_column(format.source_file, line).get_string(),
+            feature: Location::optional_column(format.feature, line)
+                .or_empty()
+                .get_id(&number_error)?,
+            scan: Location::column(format.scan, line)
+                .or_empty()
+                .map(|l| l.array(';').map(|v| v.get_id(&number_error)).collect())
                 .invert()?
                 .unwrap_or_default(),
             peptide: ComplexPeptide::sloppy_pro_forma(
                 &line.line,
                 line.fields[format.peptide].clone(),
             )?,
-            tag_length: parse(column(format.tag_length, line), &number_error)?,
-            de_novo_score: format
-                .de_novo_score
-                .map(|i| column(i, line))
-                .map(|l| parse(l, &number_error))
-                .invert()?,
-            alc: parse::<f64>(column(format.alc, line), &number_error)? / 100.0,
-            length: parse(column(format.length, line), &number_error)?,
-            mz: parse(column(format.mz, line), &number_error)?,
-            z: parse(column(format.z, line), &number_error)?,
-            rt: parse(column(format.rt, line), &number_error)?,
-            predicted_rt: format
-                .de_novo_score
-                .map(|i| column(i, line))
-                .and_then(or_empty)
-                .map(|l| parse(l, &number_error))
-                .invert()?,
-            area: or_empty(column(format.mz, line))
-                .map(|l| parse(l, &number_error))
-                .invert()?,
-            mass: line.parse_column(format.mass, &number_error)?,
-            ppm: line.parse_column(format.ppm, &number_error)?,
+            tag_length: Location::column(format.tag_length, line).parse(&number_error)?,
+            de_novo_score: Location::optional_column(format.de_novo_score, line)
+                .parse(&number_error)?,
+            alc: Location::column(format.alc, line).parse::<f64>(&number_error)? / 100.0,
+            length: Location::column(format.length, line).parse(&number_error)?,
+            mz: Location::column(format.mz, line).parse(&number_error)?,
+            z: Location::column(format.z, line).parse(&number_error)?,
+            rt: Location::column(format.rt, line).parse(&number_error)?,
+            predicted_rt: Location::optional_column(format.de_novo_score, line)
+                .or_empty()
+                .parse(&number_error)?,
+            area: Location::column(format.mz, line)
+                .or_empty()
+                .parse(&number_error)?,
+            mass: Location::column(format.mass, line).parse(&number_error)?,
+            ppm: Location::column(format.ppm, line).parse(&number_error)?,
             ptm: line[format.ptm].to_string(),
-            local_confidence: array(column(format.local_confidence, line), ' ')
-                .map(|l| parse::<f64>(l, &number_error).map(|v| v / 100.0))
+            local_confidence: Location::column(format.local_confidence, line)
+                .array(' ')
+                .map(|l| l.parse::<f64>(&number_error).map(|v| v / 100.0))
                 .collect::<Result<Vec<_>, _>>()?,
             tag: line[format.tag].to_string(),
             mode: line[format.mode].to_string(),
-            accession: optional_column(format.accession, line).map(|l| l.0.line[l.1].to_string()),
+            accession: Location::optional_column(format.accession, line).get_string(),
         })
     }
 }
 
 /// The base location type to keep track of the location of to be parsed pieces in the monadic parser combinators below
-type Location<'a> = (&'a CsvLine, Range<usize>);
-
-fn column(column: usize, line: &CsvLine) -> Location {
-    (line, line.fields[column].clone())
+struct Location<'a> {
+    line: &'a CsvLine,
+    location: Range<usize>,
 }
 
-fn optional_column(column: Option<usize>, line: &CsvLine) -> Option<Location> {
-    column.map(|index| (line, line.fields[index].clone()))
-}
-
-#[allow(clippy::needless_pass_by_value)]
-fn array(loc: Location, sep: char) -> impl Iterator<Item = Location> {
-    let mut offset = 0;
-    let mut output = Vec::new();
-    for part in loc.0.line[loc.1.clone()].split(sep) {
-        output.push((
-            loc.0,
-            loc.1.start + offset..loc.1.start + offset + part.len(),
-        ));
-        offset += part.len() + 1;
+impl<'a> Location<'a> {
+    fn column(column: usize, line: &'a CsvLine) -> Self {
+        Location {
+            line,
+            location: line.fields[column].clone(),
+        }
     }
-    output.into_iter()
-}
 
-fn or_empty(loc: Location) -> Option<Location> {
-    let text = &loc.0.line[loc.1.clone()];
-    if text.is_empty() || text == "-" {
-        None
-    } else {
-        Some(loc)
+    fn optional_column(column: Option<usize>, line: &'a CsvLine) -> Option<Self> {
+        column.map(|index| Location {
+            line,
+            location: line.fields[index].clone(),
+        })
     }
-}
 
-fn parse<T: FromStr>(loc: Location, base_error: &CustomError) -> Result<T, CustomError> {
-    loc.0.line[loc.1.clone()]
-        .parse()
-        .map_err(|_| base_error.with_context(loc.0.range_context(loc.1)))
-}
+    #[allow(clippy::needless_pass_by_value)]
+    fn array(self, sep: char) -> impl Iterator<Item = Location<'a>> {
+        let mut offset = 0;
+        let mut output = Vec::new();
+        for part in self.line.line[self.location.clone()].split(sep) {
+            output.push(Location {
+                line: self.line,
+                location: self.location.start + offset..self.location.start + offset + part.len(),
+            });
+            offset += part.len() + 1;
+        }
+        output.into_iter()
+    }
 
-fn get_id(loc: Location, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
-    if let Some((start, end)) = loc.0.line[loc.1.clone()].split_once(':') {
-        Ok((
-            Some(parse(
-                (loc.0, loc.1.start + 1..loc.1.start + start.len()),
-                base_error,
-            )?),
-            parse(
-                (
-                    loc.0,
-                    loc.1.start + start.len() + 1..loc.1.start + start.len() + 1 + end.len(),
+    fn or_empty(self) -> Option<Self> {
+        let text = &self.line.line[self.location.clone()];
+        if text.is_empty() || text == "-" {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<T, CustomError> {
+        self.line.line[self.location.clone()]
+            .parse()
+            .map_err(|_| base_error.with_context(self.line.range_context(self.location)))
+    }
+
+    fn get_id(self, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
+        if let Some((start, end)) = self.line.line[self.location.clone()].split_once(':') {
+            Ok((
+                Some(
+                    Self {
+                        line: self.line,
+                        location: self.location.start + 1..self.location.start + start.len(),
+                    }
+                    .parse(base_error)?,
                 ),
-                base_error,
-            )?,
-        ))
-    } else {
-        Ok((None, parse(loc, base_error)?))
+                Self {
+                    line: self.line,
+                    location: self.location.start + start.len() + 1
+                        ..self.location.start + start.len() + 1 + end.len(),
+                }
+                .parse(base_error)?,
+            ))
+        } else {
+            Ok((None, self.parse(base_error)?))
+        }
+    }
+
+    fn get_string(self) -> String {
+        self.line.line[self.location].to_string()
+    }
+}
+
+trait OptionalLocation<'a> {
+    fn or_empty(self) -> Option<Location<'a>>;
+    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError>;
+    fn get_id(
+        self,
+        base_error: &CustomError,
+    ) -> Result<Option<(Option<usize>, usize)>, CustomError>;
+    fn get_string(self) -> Option<String>;
+}
+
+impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
+    fn or_empty(self) -> Self {
+        self.and_then(Location::or_empty)
+    }
+    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError> {
+        self.map(|l| l.parse(base_error)).invert()
+    }
+    fn get_id(
+        self,
+        base_error: &CustomError,
+    ) -> Result<Option<(Option<usize>, usize)>, CustomError> {
+        self.map(|l| l.get_id(base_error)).invert()
+    }
+    fn get_string(self) -> Option<String> {
+        self.map(Location::get_string)
     }
 }
