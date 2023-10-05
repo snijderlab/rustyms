@@ -74,7 +74,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                                 .take(index + 1 - rules.len()),
                         );
                     }
-                    rules[index].0 = site;
+                    rules[index].0.push_str(&site);
                 } else {
                     continue;
                 }
@@ -84,12 +84,11 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                 .filter_map(|rule| match (rule.0.as_str(), rule.1.as_str()) {
                     ("C-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
                     ("N-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
-                    (aa, pos) if aa.len() == 1 => Some(PlacementRule::AminoAcid(
-                        aa.chars().next().unwrap(),
+                    ("", "") => None,
+                    (aa, pos) => Some(PlacementRule::AminoAcid(
+                        aa.to_string(),
                         pos.try_into().unwrap(),
                     )),
-                    ("", "") => None,
-                    (_, _) => panic!("Invalid rule definition: {rule:?}"),
                 })
                 .collect();
         }

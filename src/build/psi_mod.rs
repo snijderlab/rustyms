@@ -74,7 +74,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             for origin in &origins {
                 if origin.len() == 1 {
                     modification.rules.push(PlacementRule::AminoAcid(
-                        origin.chars().next().unwrap(),
+                        origin.to_string(),
                         term.unwrap_or(Position::Anywhere),
                     ));
                 } else {

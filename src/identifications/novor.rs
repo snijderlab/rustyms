@@ -1,9 +1,4 @@
-use crate::{
-    error::{Context, CustomError},
-    helper_functions::InvertResult,
-    ComplexPeptide, LinearPeptide,
-};
-use std::{ops::Range, str::FromStr};
+use crate::{error::CustomError, helper_functions::InvertResult, ComplexPeptide, LinearPeptide};
 
 use super::{
     common_parser::{Location, OptionalLocation},

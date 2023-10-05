@@ -5,7 +5,7 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum PlacementRule {
-    AminoAcid(AminoAcid, Position),
+    AminoAcid(Vec<AminoAcid>, Position),
     PsiModification(usize, Position),
     Terminal(Position),
 }
@@ -13,7 +13,9 @@ pub enum PlacementRule {
 impl PlacementRule {
     pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
         match self {
-            Self::AminoAcid(aa, r_pos) => *aa == seq.aminoacid && r_pos.is_possible(index, length),
+            Self::AminoAcid(aa, r_pos) => {
+                aa.iter().any(|a| *a == seq.aminoacid) && r_pos.is_possible(index, length)
+            }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
                     if let Modification::Predefined(_, _, Ontology::Psimod, _, i) = m {
@@ -90,7 +92,7 @@ mod tests {
     #[test]
     fn place_anywhere() {
         assert!(
-            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -103,7 +105,7 @@ mod tests {
             "start"
         );
         assert!(
-            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -116,7 +118,7 @@ mod tests {
             "middle"
         );
         assert!(
-            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -129,18 +131,16 @@ mod tests {
             "end"
         );
         assert!(
-            modification::find_id_in_ontology(7, UNIMOD_ONTOLOGY)
-                .unwrap()
-                .is_possible(
-                    &SequenceElement {
-                        aminoacid: AminoAcid::Q,
-                        modifications: Vec::new(),
-                        possible_modifications: Vec::new(),
-                        ambiguous: None
-                    },
-                    4,
-                    5
-                ),
+            dbg!(modification::find_id_in_ontology(7, UNIMOD_ONTOLOGY).unwrap()).is_possible(
+                &SequenceElement {
+                    aminoacid: AminoAcid::Q,
+                    modifications: Vec::new(),
+                    possible_modifications: Vec::new(),
+                    ambiguous: None
+                },
+                4,
+                5
+            ),
             "unimod deamidated at end"
         );
     }

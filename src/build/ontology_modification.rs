@@ -44,7 +44,7 @@ impl OntologyModification {
 
 #[derive(Debug)]
 pub enum PlacementRule {
-    AminoAcid(char, Position),
+    AminoAcid(String, Position),
     PsiModification(usize, Position),
     Terminal(Position),
 }
@@ -55,8 +55,12 @@ impl Display for PlacementRule {
             Self::AminoAcid(aminoacid, position) => {
                 write!(
                     f,
-                    "AminoAcid(AminoAcid::{}, Position::{:?})",
-                    aminoacid, position
+                    "AminoAcid(vec![{}], Position::{:?})",
+                    aminoacid
+                        .chars()
+                        .map(|a| format!("AminoAcid::{a},"))
+                        .collect::<String>(),
+                    position
                 )
             }
             Self::PsiModification(index, position) => {
