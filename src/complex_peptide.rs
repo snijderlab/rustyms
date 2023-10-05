@@ -116,6 +116,14 @@ impl ComplexPeptide {
                             ))
                         }
                     })
+                    .flat_err()
+                    .map_err(|err| {
+                        Modification::sloppy_modification(
+                            line,
+                            location.start + index + 1..location.start + end_index,
+                        )
+                        .ok_or(err)
+                    })
                     .flat_err()?;
                     index = end_index + 1;
 

@@ -1,11 +1,14 @@
 {
     "cSpell.words": [
         "aminoacids",
+        "denovo",
         "dimeric",
         "Hecklib",
         "itertools",
         "monoisotopic",
+        "novor",
         "Psimod",
+        "psms",
         "unimod"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false

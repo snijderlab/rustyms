@@ -91,6 +91,15 @@ impl Modification {
         )
     }
 
+    /// Parse a modification defined by sloppy names
+    pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
+        match line[location].to_lowercase().as_str() {
+            "o" => find_id_in_ontology(35, UNIMOD_ONTOLOGY), // oxidation
+            "cam" => find_id_in_ontology(4, UNIMOD_ONTOLOGY), // carbamidomethyl
+            _ => None,
+        }
+    }
+
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
         if let Self::Predefined(_, rules, _, _, _) = self {

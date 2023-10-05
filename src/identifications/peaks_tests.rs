@@ -1,5 +1,7 @@
 use std::io::BufReader;
 
+use crate::identifications::IdentifiedPeptideSource;
+
 use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 
 #[test]
@@ -8,10 +10,7 @@ fn peaks_x() {
     let lines = parse_csv_raw(reader).unwrap();
     for line in lines.iter().skip(1) {
         println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_read(line, &peaks::X)
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::X).unwrap().into();
     }
 }
 
@@ -21,10 +20,9 @@ fn peaks_x_plus() {
     let lines = parse_csv_raw(reader).unwrap();
     for line in lines.iter().skip(1) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_read(line, &peaks::XPLUS)
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::XPLUS)
             .unwrap()
-            .try_into()
-            .unwrap();
+            .into();
     }
 }
 
@@ -34,10 +32,7 @@ fn peaks_11() {
     let lines = parse_csv_raw(reader).unwrap();
     for line in lines.iter().skip(1) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_read(line, &peaks::XI)
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::XI).unwrap().into();
     }
 }
 #[test]
@@ -46,10 +41,7 @@ fn peaks_ab() {
     let lines = parse_csv_raw(reader).unwrap();
     for line in lines.iter().skip(1) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_read(line, &peaks::AB)
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::AB).unwrap().into();
     }
 }
 

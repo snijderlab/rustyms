@@ -51,7 +51,10 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
-    use crate::{modification::find_id_in_ontology, ontologies::PSI_MOD_ONTOLOGY};
+    use crate::{
+        modification::{self, find_id_in_ontology},
+        ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
+    };
 
     use super::*;
     #[test]
@@ -81,6 +84,64 @@ mod tests {
                 1
             ),
             "Multi level mod can be placed if the dependent mod is present"
+        );
+    }
+
+    #[test]
+    fn place_anywhere() {
+        assert!(
+            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+                &SequenceElement {
+                    aminoacid: AminoAcid::Q,
+                    modifications: Vec::new(),
+                    possible_modifications: Vec::new(),
+                    ambiguous: None
+                },
+                0,
+                5
+            ),
+            "start"
+        );
+        assert!(
+            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+                &SequenceElement {
+                    aminoacid: AminoAcid::Q,
+                    modifications: Vec::new(),
+                    possible_modifications: Vec::new(),
+                    ambiguous: None
+                },
+                2,
+                5
+            ),
+            "middle"
+        );
+        assert!(
+            PlacementRule::AminoAcid(AminoAcid::Q, Position::Anywhere).is_possible(
+                &SequenceElement {
+                    aminoacid: AminoAcid::Q,
+                    modifications: Vec::new(),
+                    possible_modifications: Vec::new(),
+                    ambiguous: None
+                },
+                4,
+                5
+            ),
+            "end"
+        );
+        assert!(
+            modification::find_id_in_ontology(7, UNIMOD_ONTOLOGY)
+                .unwrap()
+                .is_possible(
+                    &SequenceElement {
+                        aminoacid: AminoAcid::Q,
+                        modifications: Vec::new(),
+                        possible_modifications: Vec::new(),
+                        ambiguous: None
+                    },
+                    4,
+                    5
+                ),
+            "unimod deamidated at end"
         );
     }
 }

@@ -1,21 +1,25 @@
 //! Read in the annotations from peptide identification sources
 
+mod common_parser;
 #[path = "../shared/csv.rs"]
 mod csv;
 mod fasta;
 mod identified_peptide;
+mod novor;
 mod peaks;
 
+use self::csv::CsvLine;
+use crate::error::CustomError;
+pub use fasta::*;
+pub use identified_peptide::*;
+pub use novor::*;
+pub use peaks::*;
+
+#[cfg(test)]
+mod novor_tests;
 #[cfg(test)]
 mod peaks_tests;
 
-pub use fasta::*;
-pub use identified_peptide::*;
-pub use peaks::*;
-
-use crate::error::CustomError;
-
-use self::csv::CsvLine;
 use std::str::FromStr;
 
 impl CsvLine {
@@ -60,4 +64,26 @@ impl CsvLine {
             })?))
         }
     }
+}
+
+/// The required methods for any source of identified peptides
+pub trait IdentifiedPeptideSource
+where
+    Self: std::marker::Sized,
+{
+    /// The source data where the peptides are parsed form eg [`CsvLine`]
+    type Source;
+    /// The format type eg [`PeaksFormat`]
+    type Format;
+    /// Parse a single identified peptide from its source and return the detected format
+    /// # Errors
+    /// When the source is not a valid peptide
+    fn parse(source: &Self::Source) -> Result<(Self, &'static Self::Format), CustomError>;
+    /// Parse a single identified peptide with the given format
+    /// # Errors
+    /// When the source is not a valid peptide
+    fn parse_specific(
+        source: &Self::Source,
+        format: &'static Self::Format,
+    ) -> Result<Self, CustomError>;
 }

@@ -1,11 +1,10 @@
-use crate::{
-    error::{Context, CustomError},
-    helper_functions::InvertResult,
-    ComplexPeptide, LinearPeptide,
-};
-use std::{ops::Range, str::FromStr};
+use crate::{error::CustomError, helper_functions::InvertResult, ComplexPeptide, LinearPeptide};
 
-use super::csv::CsvLine;
+use super::{
+    common_parser::{Location, OptionalLocation},
+    csv::CsvLine,
+    IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
+};
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
 pub struct PeaksFormat {
@@ -30,7 +29,7 @@ pub struct PeaksFormat {
     local_confidence: usize,
     tag: usize,
     mode: usize,
-    format: PeaksVersion,
+    version: PeaksVersion,
 }
 
 impl PeaksFormat {
@@ -45,6 +44,7 @@ impl PeaksFormat {
 }
 
 /// All possible peaks versions
+#[derive(Clone, Debug)]
 pub enum PeaksVersion {
     /// A custom version of a PEAKS file forma
     Custom,
@@ -100,7 +100,7 @@ pub const OLD: PeaksFormat = PeaksFormat {
     de_novo_score: None,
     predicted_rt: None,
     accession: None,
-    format: PeaksVersion::Old,
+    version: PeaksVersion::Old,
 };
 
 /// Version X of PEAKS export (made for build 31 january 2019)
@@ -126,7 +126,7 @@ pub const X: PeaksFormat = PeaksFormat {
     de_novo_score: None,
     predicted_rt: None,
     accession: None,
-    format: PeaksVersion::X,
+    version: PeaksVersion::X,
 };
 
 /// Version X+ of PEAKS export (made for build 20 november 2019)
@@ -152,7 +152,7 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     tag: 18,
     mode: 19,
     accession: None,
-    format: PeaksVersion::Xplus,
+    version: PeaksVersion::Xplus,
 };
 
 /// Version Ab of PEAKS export
@@ -178,7 +178,7 @@ pub const AB: PeaksFormat = PeaksFormat {
     de_novo_score: None,
     source_file: None,
     feature: None,
-    format: PeaksVersion::Ab,
+    version: PeaksVersion::Ab,
 };
 
 /// Version 11 of PEAKS export
@@ -204,7 +204,7 @@ pub const XI: PeaksFormat = PeaksFormat {
     accession: None,
     predicted_rt: None,
     de_novo_score: None,
-    format: PeaksVersion::XI,
+    version: PeaksVersion::XI,
 };
 
 /// A single parsed line of a peaks file
@@ -233,168 +233,87 @@ pub struct PeaksData {
     pub tag: String,
     pub mode: String,
     pub accession: Option<String>,
+    pub version: PeaksVersion,
 }
 
-impl PeaksData {
-    /// Parse a single line into the given peaks format
-    /// # Errors
-    /// Returns Err when the parsing could not be performed successfully
-    pub fn parse_read(line: &CsvLine, format: &PeaksFormat) -> Result<Self, CustomError> {
-        if line.fields.len() != format.number_of_columns() {
+impl IdentifiedPeptideSource for PeaksData {
+    type Source = CsvLine;
+    type Format = PeaksFormat;
+    fn parse(source: &CsvLine) -> Result<(Self, &'static PeaksFormat), CustomError> {
+        for format in [&XI, &XPLUS, &X, &AB, &OLD] {
+            if let Ok(peptide) = Self::parse_specific(source, format) {
+                return Ok((peptide, format));
+            }
+        }
+        Err(CustomError::error(
+            "Invalid Peaks line",
+            "The correct format could not be determined automatically",
+            source.full_context(),
+        ))
+    }
+    fn parse_specific(source: &CsvLine, format: &PeaksFormat) -> Result<Self, CustomError> {
+        if source.fields.len() != format.number_of_columns() {
             return Err(CustomError::error(
                 "Invalid Peaks line", 
-                format!("The number of columns ({}) is not equal to the expected number of columns ({})", line.fields.len(), format.number_of_columns()), 
-                line.full_context()));
+                format!("The number of columns ({}) is not equal to the expected number of columns ({})", source.fields.len(), format.number_of_columns()), 
+                source.full_context()));
         }
         let number_error = CustomError::error(
             "Invalid Peaks line",
-            format!("This column is not a number but it is required to be a number in this peaks format ({})", format.format),
-            line.full_context(),
+            format!("This column is not a number but it is required to be a number in this peaks format ({})", format.version),
+            source.full_context(),
         );
         Ok(Self {
-            fraction: Location::optional_column(format.fraction, line).parse(&number_error)?,
-            source_file: Location::optional_column(format.source_file, line).get_string(),
-            feature: Location::optional_column(format.feature, line)
+            fraction: Location::optional_column(format.fraction, source).parse(&number_error)?,
+            source_file: Location::optional_column(format.source_file, source).get_string(),
+            feature: Location::optional_column(format.feature, source)
                 .or_empty()
                 .get_id(&number_error)?,
-            scan: Location::column(format.scan, line)
+            scan: Location::column(format.scan, source)
                 .or_empty()
                 .map(|l| l.array(';').map(|v| v.get_id(&number_error)).collect())
                 .invert()?
                 .unwrap_or_default(),
             peptide: ComplexPeptide::sloppy_pro_forma(
-                &line.line,
-                line.fields[format.peptide].clone(),
+                &source.line,
+                source.fields[format.peptide].clone(),
             )?,
-            tag_length: Location::column(format.tag_length, line).parse(&number_error)?,
-            de_novo_score: Location::optional_column(format.de_novo_score, line)
+            tag_length: Location::column(format.tag_length, source).parse(&number_error)?,
+            de_novo_score: Location::optional_column(format.de_novo_score, source)
                 .parse(&number_error)?,
-            alc: Location::column(format.alc, line).parse::<f64>(&number_error)? / 100.0,
-            length: Location::column(format.length, line).parse(&number_error)?,
-            mz: Location::column(format.mz, line).parse(&number_error)?,
-            z: Location::column(format.z, line).parse(&number_error)?,
-            rt: Location::column(format.rt, line).parse(&number_error)?,
-            predicted_rt: Location::optional_column(format.de_novo_score, line)
+            alc: Location::column(format.alc, source).parse::<f64>(&number_error)? / 100.0,
+            length: Location::column(format.length, source).parse(&number_error)?,
+            mz: Location::column(format.mz, source).parse(&number_error)?,
+            z: Location::column(format.z, source).parse(&number_error)?,
+            rt: Location::column(format.rt, source).parse(&number_error)?,
+            predicted_rt: Location::optional_column(format.de_novo_score, source)
                 .or_empty()
                 .parse(&number_error)?,
-            area: Location::column(format.mz, line)
+            area: Location::column(format.mz, source)
                 .or_empty()
                 .parse(&number_error)?,
-            mass: Location::column(format.mass, line).parse(&number_error)?,
-            ppm: Location::column(format.ppm, line).parse(&number_error)?,
-            ptm: line[format.ptm].to_string(),
-            local_confidence: Location::column(format.local_confidence, line)
+            mass: Location::column(format.mass, source).parse(&number_error)?,
+            ppm: Location::column(format.ppm, source).parse(&number_error)?,
+            ptm: source[format.ptm].to_string(),
+            local_confidence: Location::column(format.local_confidence, source)
                 .array(' ')
                 .map(|l| l.parse::<f64>(&number_error).map(|v| v / 100.0))
                 .collect::<Result<Vec<_>, _>>()?,
-            tag: line[format.tag].to_string(),
-            mode: line[format.mode].to_string(),
-            accession: Location::optional_column(format.accession, line).get_string(),
+            tag: source[format.tag].to_string(),
+            mode: source[format.mode].to_string(),
+            accession: Location::optional_column(format.accession, source).get_string(),
+            version: format.version.clone(),
         })
     }
 }
 
-/// The base location type to keep track of the location of to be parsed pieces in the monadic parser combinators below
-struct Location<'a> {
-    line: &'a CsvLine,
-    location: Range<usize>,
-}
-
-impl<'a> Location<'a> {
-    fn column(column: usize, line: &'a CsvLine) -> Self {
-        Location {
-            line,
-            location: line.fields[column].clone(),
+impl From<PeaksData> for IdentifiedPeptide {
+    fn from(value: PeaksData) -> Self {
+        Self {
+            peptide: value.peptide.clone(),
+            local_confidence: Some(value.local_confidence.clone()),
+            score: Some(value.de_novo_score.map_or(value.alc, |s| s as f64 / 100.0)),
+            metadata: MetaData::Peaks(value),
         }
-    }
-
-    fn optional_column(column: Option<usize>, line: &'a CsvLine) -> Option<Self> {
-        column.map(|index| Location {
-            line,
-            location: line.fields[index].clone(),
-        })
-    }
-
-    #[allow(clippy::needless_pass_by_value)]
-    fn array(self, sep: char) -> impl Iterator<Item = Location<'a>> {
-        let mut offset = 0;
-        let mut output = Vec::new();
-        for part in self.line.line[self.location.clone()].split(sep) {
-            output.push(Location {
-                line: self.line,
-                location: self.location.start + offset..self.location.start + offset + part.len(),
-            });
-            offset += part.len() + 1;
-        }
-        output.into_iter()
-    }
-
-    fn or_empty(self) -> Option<Self> {
-        let text = &self.line.line[self.location.clone()];
-        if text.is_empty() || text == "-" {
-            None
-        } else {
-            Some(self)
-        }
-    }
-
-    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<T, CustomError> {
-        self.line.line[self.location.clone()]
-            .parse()
-            .map_err(|_| base_error.with_context(self.line.range_context(self.location)))
-    }
-
-    fn get_id(self, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
-        if let Some((start, end)) = self.line.line[self.location.clone()].split_once(':') {
-            Ok((
-                Some(
-                    Self {
-                        line: self.line,
-                        location: self.location.start + 1..self.location.start + start.len(),
-                    }
-                    .parse(base_error)?,
-                ),
-                Self {
-                    line: self.line,
-                    location: self.location.start + start.len() + 1
-                        ..self.location.start + start.len() + 1 + end.len(),
-                }
-                .parse(base_error)?,
-            ))
-        } else {
-            Ok((None, self.parse(base_error)?))
-        }
-    }
-
-    fn get_string(self) -> String {
-        self.line.line[self.location].to_string()
-    }
-}
-
-trait OptionalLocation<'a> {
-    fn or_empty(self) -> Option<Location<'a>>;
-    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError>;
-    fn get_id(
-        self,
-        base_error: &CustomError,
-    ) -> Result<Option<(Option<usize>, usize)>, CustomError>;
-    fn get_string(self) -> Option<String>;
-}
-
-impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
-    fn or_empty(self) -> Self {
-        self.and_then(Location::or_empty)
-    }
-    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError> {
-        self.map(|l| l.parse(base_error)).invert()
-    }
-    fn get_id(
-        self,
-        base_error: &CustomError,
-    ) -> Result<Option<(Option<usize>, usize)>, CustomError> {
-        self.map(|l| l.get_id(base_error)).invert()
-    }
-    fn get_string(self) -> Option<String> {
-        self.map(Location::get_string)
     }
 }
