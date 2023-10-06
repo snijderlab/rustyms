@@ -7,6 +7,7 @@ use super::{
 };
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NovorFormat {
     scan: usize,
     mz: usize,
@@ -50,7 +51,7 @@ impl NovorFormat {
 }
 
 /// All available Novor versions
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NovorVersion {
     /// An older version for the denovo file
     OldDenovo,

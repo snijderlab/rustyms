@@ -1,6 +1,6 @@
 use std::io::BufReader;
 
-use crate::identifications::IdentifiedPeptideSource;
+use crate::identifications::{csv::parse_csv, IdentifiedPeptideSource};
 
 use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 
@@ -35,6 +35,7 @@ fn peaks_11() {
         let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::XI).unwrap().into();
     }
 }
+
 #[test]
 fn peaks_ab() {
     let reader = BufReader::new(DATA_AB.as_bytes());
@@ -42,6 +43,16 @@ fn peaks_ab() {
     for line in lines.iter().skip(1) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::AB).unwrap().into();
+    }
+}
+
+#[test]
+fn full_peaks_file() {
+    let file = parse_csv("data/200305_HER_test_04_DENOVO.csv").unwrap();
+    for pep in PeaksData::parse_many(file.into_iter().skip(1)) {
+        if let Err(e) = pep {
+            panic!("{}", e);
+        }
     }
 }
 

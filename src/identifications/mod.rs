@@ -65,25 +65,3 @@ impl CsvLine {
         }
     }
 }
-
-/// The required methods for any source of identified peptides
-pub trait IdentifiedPeptideSource
-where
-    Self: std::marker::Sized,
-{
-    /// The source data where the peptides are parsed form eg [`CsvLine`]
-    type Source;
-    /// The format type eg [`PeaksFormat`]
-    type Format;
-    /// Parse a single identified peptide from its source and return the detected format
-    /// # Errors
-    /// When the source is not a valid peptide
-    fn parse(source: &Self::Source) -> Result<(Self, &'static Self::Format), CustomError>;
-    /// Parse a single identified peptide with the given format
-    /// # Errors
-    /// When the source is not a valid peptide
-    fn parse_specific(
-        source: &Self::Source,
-        format: &'static Self::Format,
-    ) -> Result<Self, CustomError>;
-}

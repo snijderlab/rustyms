@@ -7,6 +7,7 @@ use super::{
 };
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
+#[derive(Clone)]
 pub struct PeaksFormat {
     fraction: Option<usize>,
     source_file: Option<usize>,
@@ -212,8 +213,8 @@ pub const XI: PeaksFormat = PeaksFormat {
 pub struct PeaksData {
     pub fraction: Option<usize>,
     pub source_file: Option<String>,
-    pub feature: Option<(Option<usize>, usize)>,
-    pub scan: Vec<(Option<usize>, usize)>,
+    pub feature: Option<PeaksId>,
+    pub scan: Vec<PeaksId>,
     pub peptide: LinearPeptide,
     pub tag_length: usize,
     pub de_novo_score: Option<usize>,
@@ -234,6 +235,33 @@ pub struct PeaksData {
     pub mode: String,
     pub accession: Option<String>,
     pub version: PeaksVersion,
+}
+
+/// The scans identifier for a peaks identification
+pub struct PeaksId {
+    file: Option<usize>,
+    scans: Vec<usize>,
+}
+
+impl std::str::FromStr for PeaksId {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((start, end)) = s.split_once(':') {
+            Ok(Self {
+                file: Some(start[1..].parse().map_err(|_| ())?),
+                scans: end
+                    .split(' ')
+                    .map(str::parse)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| ())?,
+            })
+        } else {
+            Ok(Self {
+                file: None,
+                scans: vec![s.parse().map_err(|_| ())?],
+            })
+        }
+    }
 }
 
 impl IdentifiedPeptideSource for PeaksData {
@@ -263,15 +291,20 @@ impl IdentifiedPeptideSource for PeaksData {
             format!("This column is not a number but it is required to be a number in this peaks format ({})", format.version),
             source.full_context(),
         );
+        let id_error = CustomError::error(
+            "Invalid Peaks line",
+            format!("This column is not a valid peaks ID but it is required to be in this peaks format ({})\nExamples of valid IDs: '1234', 'F2:1234', 'F2:1234 12345'", format.version),
+            source.full_context(),
+        );
         Ok(Self {
             fraction: Location::optional_column(format.fraction, source).parse(&number_error)?,
             source_file: Location::optional_column(format.source_file, source).get_string(),
             feature: Location::optional_column(format.feature, source)
                 .or_empty()
-                .get_id(&number_error)?,
+                .parse(&id_error)?,
             scan: Location::column(format.scan, source)
                 .or_empty()
-                .map(|l| l.array(';').map(|v| v.get_id(&number_error)).collect())
+                .map(|l| l.array(';').map(|v| v.parse(&id_error)).collect())
                 .invert()?
                 .unwrap_or_default(),
             peptide: ComplexPeptide::sloppy_pro_forma(

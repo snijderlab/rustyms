@@ -40,6 +40,18 @@ fn novor_new_psm() {
     }
 }
 
+#[test]
+fn novor_detect() {
+    let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
+    let lines = parse_csv_raw(reader).unwrap();
+    for line in lines.iter().skip(1) {
+        println!("{line}");
+        let result = NovorData::parse(line).unwrap();
+        let _read: IdentifiedPeptide = result.0.into();
+        assert_eq!(result.1, &novor::OLD_DENOVO);
+    }
+}
+
 const DATA_OLD_DENOVO: &str = r"Fraction,Scan #,m/z,z,Score,Peptide Mass,Error (ppm),Length,De Novo Peptide,DB Sequence
 F1,18017,553.821533203125,2,97.9,1105.6284,0.1,9,LLLFWASTR,
 F1,16407,561.81787109375,2,97.8,1121.6233,-1.9,9,LLLYWASTR,LLIYWASTR

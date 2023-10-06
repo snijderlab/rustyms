@@ -53,6 +53,13 @@ impl<'a> Location<'a> {
             .map_err(|_| base_error.with_context(self.line.range_context(self.location)))
     }
 
+    pub fn parse_with<T>(
+        self,
+        f: impl Fn(Self) -> Result<T, CustomError>,
+    ) -> Result<T, CustomError> {
+        f(self)
+    }
+
     pub fn get_id(self, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
         if let Some((start, end)) = self.line.line[self.location.clone()].split_once(':') {
             Ok((
@@ -87,6 +94,10 @@ impl<'a> Location<'a> {
 pub trait OptionalLocation<'a> {
     fn or_empty(self) -> Option<Location<'a>>;
     fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError>;
+    fn parse_with<T>(
+        self,
+        f: impl Fn(Location<'a>) -> Result<T, CustomError>,
+    ) -> Result<Option<T>, CustomError>;
     fn get_id(
         self,
         base_error: &CustomError,
@@ -101,6 +112,12 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     }
     fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError> {
         self.map(|l| l.parse(base_error)).invert()
+    }
+    fn parse_with<T>(
+        self,
+        f: impl Fn(Location<'a>) -> Result<T, CustomError>,
+    ) -> Result<Option<T>, CustomError> {
+        self.map(f).invert()
     }
     fn get_id(
         self,
