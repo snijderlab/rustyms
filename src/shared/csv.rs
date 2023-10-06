@@ -26,8 +26,10 @@ impl std::ops::Index<usize> for CsvLine {
 /// # Errors
 /// If the file cannot be opened it returns `Err` with the error.
 /// If any single line cannot be read it returns an error for that line.
-pub fn parse_csv(path: &str) -> Result<Box<dyn Iterator<Item = Result<CsvLine, String>>>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
+pub fn parse_csv(
+    path: impl AsRef<std::path::Path>,
+) -> Result<Box<dyn Iterator<Item = Result<CsvLine, String>>>, String> {
+    let file = File::open(path.as_ref()).map_err(|e| e.to_string())?;
     if check_extension(path, "gz") {
         Ok(Box::new(parse_csv_raw(BufReader::new(GzDecoder::new(
             file,

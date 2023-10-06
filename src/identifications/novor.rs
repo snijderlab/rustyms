@@ -2,8 +2,8 @@ use crate::{error::CustomError, helper_functions::InvertResult, ComplexPeptide, 
 
 use super::{
     common_parser::{Location, OptionalLocation},
-    csv::CsvLine,
-    IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
+    csv::{parse_csv, CsvLine},
+    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
@@ -296,6 +296,15 @@ impl IdentifiedPeptideSource for NovorData {
                 })
                 .invert()?,
             version: format.version.clone(),
+        })
+    }
+    fn parse_file(
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
+        parse_csv(path).map(|lines| {
+            Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
+                lines.skip(1).map(Result::unwrap),
+            ))
         })
     }
 }

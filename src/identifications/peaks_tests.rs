@@ -1,6 +1,6 @@
 use std::io::BufReader;
 
-use crate::identifications::{csv::parse_csv, IdentifiedPeptideSource};
+use crate::identifications::IdentifiedPeptideSource;
 
 use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 
@@ -48,8 +48,7 @@ fn peaks_ab() {
 
 #[test]
 fn full_peaks_file() {
-    let file = parse_csv("data/200305_HER_test_04_DENOVO.csv").unwrap();
-    for pep in PeaksData::parse_many(file.skip(1).map(|l| l.unwrap())) {
+    for pep in PeaksData::parse_file("data/200305_HER_test_04_DENOVO.csv").unwrap() {
         if let Err(e) = pep {
             panic!("{}", e);
         }

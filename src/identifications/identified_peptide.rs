@@ -39,22 +39,32 @@ where
     /// Parse a source of multiple peptides automatically determining the format to use by the first item
     /// # Errors
     /// When the source is not a valid peptide
-    fn parse_many<I: Iterator<Item = Self::Source>>(iter: I) -> IdentifiedPeptideIterator<Self, I> {
-        IdentifiedPeptideIterator {
+    fn parse_many<I: Iterator<Item = Self::Source>>(iter: I) -> IdentifiedPeptideIter<Self, I> {
+        IdentifiedPeptideIter {
             iter: Box::new(iter),
             format: None,
         }
     }
+    /// Parse a file with identified peptides.
+    /// # Errors
+    /// Returns Err when the file could not be opened
+    fn parse_file(
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<BoxedIdentifiedPeptideIter<Self>, String>;
 }
 
+/// Convenience type to not have to type out long iterator types
+pub type BoxedIdentifiedPeptideIter<T> =
+    IdentifiedPeptideIter<T, Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>>;
+
 /// An iterator returning parsed identified peptides
-pub struct IdentifiedPeptideIterator<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> {
+pub struct IdentifiedPeptideIter<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> {
     iter: Box<I>,
     format: Option<R::Format>,
 }
 
 impl<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> Iterator
-    for IdentifiedPeptideIterator<R, I>
+    for IdentifiedPeptideIter<R, I>
 where
     R::Format: 'static,
 {
