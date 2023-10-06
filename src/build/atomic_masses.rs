@@ -12,6 +12,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
 
     let table = parse_csv("databases/IUPAC-atomic-masses.csv")?;
     for line in table {
+        let line = line?;
         let (nuclide, mass, _uncertainty, year) = (&line[0], &line[1], &line[2], &line[3]);
         if nuclide.starts_with("AME")
             || nuclide.is_empty()
@@ -35,6 +36,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
     let mut last_element = 0;
     let table = parse_csv("databases/CIAAW-isotopic-abundances.csv")?;
     for line in table {
+        let line = line?;
         let (element, _element, _name, isotope, abundance, _note) =
             (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5]);
         let mut abundance = abundance.to_owned();
@@ -59,6 +61,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
 
     let table = parse_csv("databases/CIAAW-atomic-weights.csv")?;
     for line in table {
+        let line = line?;
         let (element, weight) = (&line[0], &line[3]);
         let mut weight = weight.to_owned();
         weight.retain(|c| !c.is_whitespace()); // Remove any whitespace, including any sneaking non breaking spaces

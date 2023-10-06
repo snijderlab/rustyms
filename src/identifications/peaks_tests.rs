@@ -7,20 +7,20 @@ use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 #[test]
 fn peaks_x() {
     let reader = BufReader::new(DATA_X.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::X).unwrap().into();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::X).unwrap().into();
     }
 }
 
 #[test]
 fn peaks_x_plus() {
     let reader = BufReader::new(DATA_XPLUS.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::XPLUS)
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XPLUS)
             .unwrap()
             .into();
     }
@@ -29,27 +29,27 @@ fn peaks_x_plus() {
 #[test]
 fn peaks_11() {
     let reader = BufReader::new(DATA_11.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::XI).unwrap().into();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XI).unwrap().into();
     }
 }
 
 #[test]
 fn peaks_ab() {
     let reader = BufReader::new(DATA_AB.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(line, &peaks::AB).unwrap().into();
+        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::AB).unwrap().into();
     }
 }
 
 #[test]
 fn full_peaks_file() {
     let file = parse_csv("data/200305_HER_test_04_DENOVO.csv").unwrap();
-    for pep in PeaksData::parse_many(file.into_iter().skip(1)) {
+    for pep in PeaksData::parse_many(file.skip(1).map(|l| l.unwrap())) {
         if let Err(e) = pep {
             panic!("{}", e);
         }

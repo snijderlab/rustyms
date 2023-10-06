@@ -22,68 +22,91 @@ impl std::ops::Index<usize> for CsvLine {
     }
 }
 
-pub fn parse_csv(path: &str) -> Result<Vec<CsvLine>, String> {
+/// Parse a CSV file into an iterator with the parsed lines.
+/// # Errors
+/// If the file cannot be opened it returns `Err` with the error.
+/// If any single line cannot be read it returns an error for that line.
+pub fn parse_csv(path: &str) -> Result<Box<dyn Iterator<Item = Result<CsvLine, String>>>, String> {
     let file = File::open(path).map_err(|e| e.to_string())?;
     if check_extension(path, "gz") {
-        parse_csv_raw(BufReader::new(GzDecoder::new(file)))
+        Ok(Box::new(parse_csv_raw(BufReader::new(GzDecoder::new(
+            file,
+        )))))
     } else {
-        parse_csv_raw(BufReader::new(file))
+        Ok(Box::new(parse_csv_raw(BufReader::new(file))))
     }
 }
 
-pub fn parse_csv_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<CsvLine>, String> {
-    let mut table = Vec::new();
-    for (line_index, line) in reader.lines().enumerate() {
-        let line = line.map_err(|e| e.to_string())?.trim_end().to_string();
-        if line.is_empty() {
-            continue;
-        }
-        let mut enclosed = None;
-        let mut was_enclosed = false;
-        let mut row = Vec::new();
-        let mut start = None;
-        for (index, ch) in line.bytes().enumerate() {
-            match (ch, enclosed, start) {
-                (b'\"' | b'\'', None, None) => {
-                    enclosed = Some(ch);
-                    start = Some(index + 1);
-                }
-                (c, Some(e), Some(s)) if c == e => {
-                    enclosed = None;
-                    row.push(s..index);
-                    start = None;
-                    was_enclosed = true;
-                }
-                (b',', None, Some(s)) => {
-                    row.push(s..index);
-                    start = None;
-                    was_enclosed = false;
-                }
-                (b',', None, None) => {
-                    if !was_enclosed {
-                        // ignore any comma directly after an enclosed field
-                        row.push(index..index);
-                        start = None;
-                    }
-                    was_enclosed = false;
-                }
-                (c, _, _) if c.is_ascii_whitespace() => (), // ignore
-                (_, _, None) => start = Some(index),
-                _ => (),
-            }
-        }
-        if let Some(s) = start {
-            row.push(s..line.len());
-        } else if !was_enclosed {
-            row.push(line.len()..line.len());
-        }
-        table.push(CsvLine {
-            line_index,
-            line,
-            fields: row,
-        });
+/// Parse a CSV file from a raw `BufReader`
+pub fn parse_csv_raw<T: std::io::Read>(reader: BufReader<T>) -> CsvLineIter<T> {
+    CsvLineIter {
+        lines: reader.lines().enumerate(),
     }
-    Ok(table)
+}
+
+/// An iterator returning CSV lines
+pub struct CsvLineIter<T: std::io::Read> {
+    lines: std::iter::Enumerate<std::io::Lines<BufReader<T>>>,
+}
+
+impl<T: std::io::Read> Iterator for CsvLineIter<T> {
+    type Item = Result<CsvLine, String>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.lines.next().map(|(line_index, line)| {
+            let line = if let Ok(line) = line {
+                line.trim_end().to_string()
+            } else {
+                return Err(format!("Could no read line {line_index}"));
+            };
+            if line.is_empty() {
+                return Err("Empty line".to_string());
+            }
+            let mut enclosed = None;
+            let mut was_enclosed = false;
+            let mut row = Vec::new();
+            let mut start = None;
+            for (index, ch) in line.bytes().enumerate() {
+                match (ch, enclosed, start) {
+                    (b'\"' | b'\'', None, None) => {
+                        enclosed = Some(ch);
+                        start = Some(index + 1);
+                    }
+                    (c, Some(e), Some(s)) if c == e => {
+                        enclosed = None;
+                        row.push(s..index);
+                        start = None;
+                        was_enclosed = true;
+                    }
+                    (b',', None, Some(s)) => {
+                        row.push(s..index);
+                        start = None;
+                        was_enclosed = false;
+                    }
+                    (b',', None, None) => {
+                        if !was_enclosed {
+                            // ignore any comma directly after an enclosed field
+                            row.push(index..index);
+                            start = None;
+                        }
+                        was_enclosed = false;
+                    }
+                    (c, _, _) if c.is_ascii_whitespace() => (), // ignore
+                    (_, _, None) => start = Some(index),
+                    _ => (),
+                }
+            }
+            if let Some(s) = start {
+                row.push(s..line.len());
+            } else if !was_enclosed {
+                row.push(line.len()..line.len());
+            }
+            Ok(CsvLine {
+                line_index,
+                line,
+                fields: row,
+            })
+        })
+    }
 }
 
 impl std::fmt::Display for CsvLine {

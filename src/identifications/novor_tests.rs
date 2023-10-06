@@ -7,10 +7,10 @@ use super::{csv::parse_csv_raw, novor, IdentifiedPeptide, NovorData};
 #[test]
 fn novor_old_denovo() {
     let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(line, &novor::OLD_DENOVO)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::OLD_DENOVO)
             .unwrap()
             .into();
     }
@@ -19,10 +19,10 @@ fn novor_old_denovo() {
 #[test]
 fn novor_new_denovo() {
     let reader = BufReader::new(DATA_NEW_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(line, &novor::NEW_DENOVO)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_DENOVO)
             .unwrap()
             .into();
     }
@@ -31,10 +31,10 @@ fn novor_new_denovo() {
 #[test]
 fn novor_new_psm() {
     let reader = BufReader::new(DATA_NEW_PSM.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(line, &novor::NEW_PSM)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_PSM)
             .unwrap()
             .into();
     }
@@ -43,10 +43,10 @@ fn novor_new_psm() {
 #[test]
 fn novor_detect() {
     let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader).unwrap();
-    for line in lines.iter().skip(1) {
+    let lines = parse_csv_raw(reader);
+    for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
-        let result = NovorData::parse(line).unwrap();
+        let result = NovorData::parse(&line).unwrap();
         let _read: IdentifiedPeptide = result.0.into();
         assert_eq!(result.1, &novor::OLD_DENOVO);
     }
