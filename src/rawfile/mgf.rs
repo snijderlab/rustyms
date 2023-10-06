@@ -1,4 +1,4 @@
-//! Handle MGF file reading
+//! Handle MGF reader reading
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -8,9 +8,11 @@ use std::{
 use uom::num_traits::Zero;
 
 use crate::{
+    helper_functions::check_extension,
     spectrum::{RawPeak, RawSpectrum},
     system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
 };
+use flate2::read::GzDecoder;
 
 /// Open a MGF file and return the contained spectra.
 ///
@@ -20,13 +22,30 @@ use crate::{
 /// * Any line in the file could not be read
 /// * When any expected number in the file is not a number
 /// * When there is only one column (separated by space or tab) on a data row
-#[allow(clippy::missing_panics_doc)]
 pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
+    let path = path.as_ref();
     let file =
         BufReader::new(File::open(path).map_err(|err| format!("Could not open file: {err}"))?);
+    if check_extension(path, "gz") {
+        open_raw(BufReader::new(GzDecoder::new(file)))
+    } else {
+        open_raw(BufReader::new(file))
+    }
+}
+
+/// Open a MGF file and return the contained spectra. Open it from a raw buffered reader.
+///
+/// # Errors
+/// It returns an error when:
+/// * The file could not be opened
+/// * Any line in the file could not be read
+/// * When any expected number in the file is not a number
+/// * When there is only one column (separated by space or tab) on a data row
+#[allow(clippy::missing_panics_doc)]
+pub fn open_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<RawSpectrum>, String> {
     let mut current = RawSpectrum::default();
     let mut output = Vec::new();
-    for (linenumber, line) in file.lines().enumerate() {
+    for (linenumber, line) in reader.lines().enumerate() {
         let linenumber = linenumber + 1;
         let line = line.map_err(|_| "Error while reading line")?;
         match line.as_str() {

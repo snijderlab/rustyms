@@ -18,6 +18,8 @@ statrs = "0.16"
 serde = { version = "1.0", features = ["derive"] }
 regex = "1.8"
 itertools = "0.11"
+flate2 = "1.0"
 
 [build-dependencies]
 regex = "1.8"
+flate2 = "1.0"

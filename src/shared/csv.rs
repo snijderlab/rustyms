@@ -4,6 +4,10 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+use flate2::read::GzDecoder;
+
+use crate::helper_functions::check_extension;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CsvLine {
     pub line_index: usize,
@@ -19,8 +23,12 @@ impl std::ops::Index<usize> for CsvLine {
 }
 
 pub fn parse_csv(path: &str) -> Result<Vec<CsvLine>, String> {
-    let reader = BufReader::new(File::open(path).map_err(|e| e.to_string())?);
-    parse_csv_raw(reader)
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    if check_extension(path, "gz") {
+        parse_csv_raw(BufReader::new(GzDecoder::new(file)))
+    } else {
+        parse_csv_raw(BufReader::new(file))
+    }
 }
 
 pub fn parse_csv_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<CsvLine>, String> {

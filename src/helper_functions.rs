@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 pub trait ResultExtensions<T, E> {
     fn flat_err(self) -> Result<T, E>;
@@ -163,6 +165,14 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
         result.add((element, 0, 1));
     }
     Ok(result)
+}
+
+/// Helper function to check extensions in filenames
+pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) -> bool {
+    filename
+        .as_ref()
+        .extension()
+        .map_or(false, |ext| ext.eq_ignore_ascii_case(extension.as_ref()))
 }
 
 /// Implement a binary operator for all ref cases after the implementation for the ref-ref case (assumes deref operator works)
