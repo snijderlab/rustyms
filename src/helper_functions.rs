@@ -27,10 +27,7 @@ pub trait InvertResult<T, E> {
 
 impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
     fn invert(self) -> Result<Option<T>, E> {
-        match self {
-            Some(o) => o.map(|v| Some(v)),
-            None => Ok(None),
-        }
+        self.map_or_else(|| Ok(None), |o| o.map(|v| Some(v)))
     }
 }
 

@@ -55,7 +55,7 @@ impl Display for PlacementRule {
             Self::AminoAcid(aminoacid, position) => {
                 write!(
                     f,
-                    "AminoAcid(vec![{}], Position::{:?})",
+                    "AminoAcid(&[{}], Position::{:?})",
                     aminoacid
                         .chars()
                         .map(|a| format!("AminoAcid::{a},"))

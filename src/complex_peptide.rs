@@ -552,7 +552,7 @@ impl ComplexPeptide {
     pub fn assume_linear(self) -> LinearPeptide {
         match self {
             Self::Singular(pep) => pep,
-            _ => panic!("This ComplexPeptide is not a singular linear peptide"),
+            Self::Multimeric(_) => panic!("This ComplexPeptide is not a singular linear peptide"),
         }
     }
 
@@ -635,12 +635,14 @@ fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(us
     }
 }
 
+/// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
+type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
 fn unknown_position_mods(
     chars: &[u8],
     start: usize,
-) -> Option<Result<(usize, Vec<ReturnModification>, AmbiguousLookup), Vec<CustomError>>> {
+) -> Option<Result<UnknownPositionMods, Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
     let mut errs = Vec::new();

@@ -111,7 +111,7 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     fn get_string(self) -> Option<String> {
         self.map(Location::get_string)
     }
-    fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Option<Location<'a>> {
+    fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Self {
         self.map(|s| s.apply(f))
     }
 }

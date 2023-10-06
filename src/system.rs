@@ -1,6 +1,4 @@
-//pub use charge::*;
-//pub use mass::*;
-//pub use mass_over_charge::*;
+#![allow(clippy::incorrect_clone_impl_on_copy_type)]
 use uom::*;
 
 use crate::{Mass, MassOverCharge};

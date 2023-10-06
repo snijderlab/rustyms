@@ -5,7 +5,7 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum PlacementRule {
-    AminoAcid(Vec<AminoAcid>, Position),
+    AminoAcid(&'static [AminoAcid], Position),
     PsiModification(usize, Position),
     Terminal(Position),
 }
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn place_anywhere() {
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -105,7 +105,7 @@ mod tests {
             "start"
         );
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -118,7 +118,7 @@ mod tests {
             "middle"
         );
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
