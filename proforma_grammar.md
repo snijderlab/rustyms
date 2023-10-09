@@ -111,7 +111,7 @@ These features are independent from each other:
 - Unimod: http://www.unimod.org/obo/unimod.obo
 - RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (RESIDUES.XML)
 - XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo
-- GNO: https://www.ebi.ac.uk/ols/ontologies/gno
+- GNO: http://purl.obolibrary.org/obo/gno.obo structures: https://glycosmos.org/download/glycosmos_glycans_list.csv
 - Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv
 
 # Ontologies
