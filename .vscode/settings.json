@@ -1,14 +1,21 @@
 {
     "cSpell.words": [
+        "acetylated",
         "aminoacids",
         "denovo",
+        "deoxy",
+        "Deoxyhexose",
         "dimeric",
         "Hecklib",
+        "Heptose",
+        "heptoses",
         "itertools",
         "monoisotopic",
         "novor",
         "Psimod",
         "psms",
+        "Tetrose",
+        "tetroses",
         "unimod"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false

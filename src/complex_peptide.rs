@@ -578,63 +578,6 @@ impl ComplexPeptide {
     }
 }
 
-/// Get the index of the next copy of the given char
-pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
-    for (i, ch) in chars[start..].iter().enumerate() {
-        if *ch == char {
-            return Some(start + i);
-        }
-    }
-    None
-}
-
-/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
-pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
-    let mut state = 1;
-    for (i, ch) in chars[start..].iter().enumerate() {
-        if *ch == open {
-            state += 1;
-        } else if *ch == close {
-            state -= 1;
-            if state == 0 {
-                return Some(start + i);
-            }
-        }
-    }
-    None
-}
-
-/// Get the next number, returns length in bytes and the number
-fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(usize, isize)> {
-    let mut sign = 1;
-    let mut sign_set = false;
-    if chars[start] == b'-' {
-        sign = -1;
-        start += 1;
-        sign_set = true;
-    } else if chars[start] == b'+' {
-        start += 1;
-        sign_set = true;
-    }
-    let len = chars[start..]
-        .iter()
-        .take_while(|c| c.is_ascii_digit())
-        .count();
-    if len == 0 {
-        if allow_only_sign && sign_set {
-            Some((1, sign))
-        } else {
-            None
-        }
-    } else {
-        let num: isize = std::str::from_utf8(&chars[start..start + len])
-            .unwrap()
-            .parse()
-            .unwrap();
-        Some((usize::from(sign_set) + len, sign * num))
-    }
-}
-
 /// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
 type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))

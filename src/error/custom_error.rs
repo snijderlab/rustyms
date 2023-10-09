@@ -16,7 +16,7 @@ pub struct CustomError {
     context: Context,
 }
 
-#[allow(clippy::needless_pass_by_value)] // the impl ToString should be passed like this, otherwise &str gives errors
+#[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl CustomError {
     /// Create a new `CustomError`
     ///

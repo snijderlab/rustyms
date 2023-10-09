@@ -175,6 +175,64 @@ pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) 
         .map_or(false, |ext| ext.eq_ignore_ascii_case(extension.as_ref()))
 }
 
+/// Get the index of the next copy of the given char
+pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
+    for (i, ch) in chars[start..].iter().enumerate() {
+        if *ch == char {
+            return Some(start + i);
+        }
+    }
+    None
+}
+
+/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
+pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
+    let mut state = 1;
+    for (i, ch) in chars[start..].iter().enumerate() {
+        if *ch == open {
+            state += 1;
+        } else if *ch == close {
+            state -= 1;
+            if state == 0 {
+                return Some(start + i);
+            }
+        }
+    }
+    None
+}
+
+#[allow(dead_code)]
+/// Get the next number, returns length in bytes and the number
+fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(usize, isize)> {
+    let mut sign = 1;
+    let mut sign_set = false;
+    if chars[start] == b'-' {
+        sign = -1;
+        start += 1;
+        sign_set = true;
+    } else if chars[start] == b'+' {
+        start += 1;
+        sign_set = true;
+    }
+    let len = chars[start..]
+        .iter()
+        .take_while(|c| c.is_ascii_digit())
+        .count();
+    if len == 0 {
+        if allow_only_sign && sign_set {
+            Some((1, sign))
+        } else {
+            None
+        }
+    } else {
+        let num: isize = std::str::from_utf8(&chars[start..start + len])
+            .unwrap()
+            .parse()
+            .unwrap();
+        Some((usize::from(sign_set) + len, sign * num))
+    }
+}
+
 /// Implement a binary operator for all ref cases after the implementation for the ref-ref case (assumes deref operator works)
 macro_rules! impl_binop_ref_cases {
     (impl $imp:ident, $method:ident for $t:ty, $u:ty, $o:ty) => {

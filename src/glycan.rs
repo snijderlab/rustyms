@@ -10,13 +10,6 @@ use crate::{
 
 include!("shared/glycan.rs");
 
-/// Rose tree representation of glycan structure
-#[derive(Eq, PartialEq, Clone, Hash)]
-pub struct GlycanStructure {
-    sugar: MonoSaccharide,
-    branches: Vec<GlycanStructure>,
-}
-
 impl Chemical for GlycanStructure {
     fn formula(&self) -> MolecularFormula {
         self.sugar.formula()
@@ -43,108 +36,6 @@ impl FromStr for GlycanStructure {
 }
 
 impl GlycanStructure {
-    // pub fn from_wurcs(
-    //     line_number: usize,
-    //     line: &str,
-    //     range: Range<usize>,
-    // ) -> Result<Self, CustomError> {
-    //     // WURCS=2.0/3,7,6/[h2122h_2*NCC/3=O][a2122h-1x_1-5_2*NCC/3=O][a1122h-1x_1-5]/1-2-3-3-2-3-3/a?-b1_b?-c1_c?-d1_c?-f1_d?-e1_f?-g1
-    //     if !line[range].starts_with("WURCS=") {
-    //         return Err(CustomError::error(
-    //             "Invalid WURCS glycan structure",
-    //             "The mandatory 'WURCS=' introduction is missing",
-    //             Context::line(line_number, line, range.start, range.len()),
-    //         ));
-    //     }
-    //     let parts = line[range.start + 6..range.end]
-    //         .splitn(5, '/') // TODO: handle slashes used within part 3
-    //         .collect_vec();
-    //     if parts.len() != 5 {
-    //         return Err(CustomError::error(
-    //             "Invalid WURCS glycan structure",
-    //             "Incorrect number of sections, there are supposed to be 5 sections designated by '/'",
-    //             Context::line(line_number, line, range.start+6, range.len()),
-    //         ));
-    //     }
-    //     if parts[0] != "2.0" {
-    //         return Err(CustomError::error(
-    //             "Invalid WURCS glycan structure",
-    //             "Any version other than 2.0 cannot be read",
-    //             Context::line(line_number, line, range.start + 6, parts[0].len()),
-    //         ));
-    //     }
-    //     // part 2: <Unit Count>: <UniqueRES Count>,<RES Count>,<LIN Count> // the last is potentially unknown in which case it is indicated by `<LIN Count>+`
-    //     // part 3: <UniqueRES List>: <UniqueRES #1><UniqueRES #2>...<UniqueRES #n>
-    //     // <UniqueRES>: [<ResidueCode>]
-    //     // <ResidueCode>: <BackboneCode>_<MOD #1>_<MOD #2>_..._<MOD #n>
-    //     // <BackboneCode>: <SkeletonCode>-<Anomeric Information>
-    //     // <MOD>: <LIP #1>-<LIP #2>-...-<LIP #n><MAP>
-    //     // <LIP>: <Position><Direction><Star Index>
-    //     // EXAMPLE: [h2122h_2*NCC/3=O][a2122h-1x_1-5_2*NCC/3=O][a1122h-1x_1-5]
-    //     // skeletoncode: h2122h
-
-    //     Ok(())
-    // }
-
-    /// Parse a short IUPAC glycan structure
-    /// # Panics
-    /// Panics if there is no single sugar found
-    /// # Errors
-    /// Errors when the format is not correct, could be unknown monosaccharide, or a open brace
-    pub fn from_short_iupac(line: &str, range: Range<usize>) -> Result<Self, CustomError> {
-        // GlcNAc(?1-?)Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc-ol
-        let mut offset = range.start;
-        let mut branch: Self = Self {
-            sugar: MonoSaccharide::Dec,
-            branches: Vec::new(),
-        }; // Starting sugar, will be removed
-        let mut last_branch: &mut Self = &mut branch;
-        let bytes = line.as_bytes();
-        while offset < range.end {
-            if bytes[offset] == b'[' {
-                let end = end_of_enclosure(bytes, offset, b'[', b']').ok_or_else(|| {
-                    CustomError::error(
-                        "Invalid IUPC short glycan",
-                        "No closing brace for branch",
-                        Context::line(0, line, offset, range.end - offset),
-                    )
-                })?;
-                let offshoot = Self::from_short_iupac(line, offset + 1..end)?;
-                last_branch.branches.push(offshoot);
-                offset = end + 1;
-            }
-            if let Some((name, sugar)) = GLYCAN_PARSE_LIST
-                .iter()
-                .find(|(name, _)| line[offset..].starts_with(name))
-            {
-                last_branch.branches.push(Self {
-                    sugar: *sugar,
-                    branches: Vec::new(),
-                });
-                last_branch = last_branch.branches.last_mut().unwrap();
-                offset += name.len();
-                if bytes[offset] == b'(' {
-                    let end = next_char(bytes, offset + 1, b')').ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid IUPC short glycan",
-                            "No closing brace for branch linking",
-                            Context::line(0, line, offset, range.end - offset),
-                        )
-                    })?;
-                    offset = end + 1; // just ignore all linking stuff I do not care
-                }
-            } else {
-                // If no monosaccharide could be identified go and report an error
-                return Err(CustomError::error(
-                    "Invalid IUPC short glycan",
-                    "Could not recognise this monosaccharide",
-                    Context::line(0, line, offset, 1),
-                ));
-            }
-        }
-        Ok(branch.branches.pop().unwrap()) // Remove the outer starting sugar
-    }
-
     /// Parse a textual structure representation of a glycan (outside Pro Forma format)
     /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
     /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))

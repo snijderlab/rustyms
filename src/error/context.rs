@@ -62,7 +62,7 @@ pub enum Context {
     },
 }
 
-#[allow(clippy::needless_pass_by_value)] // the impl ToString should be passed like this, otherwise &str gives errors
+#[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl Context {
     // TODO: create a constructor based on a RangeBounds instance, automatically adjusting to all possible cases of the range
 
@@ -187,6 +187,7 @@ impl Context {
 
     /// Display this context, with an optional note after the context.
     fn display(&self, f: &mut fmt::Formatter<'_>, note: Option<&str>) -> fmt::Result {
+        const MAX_COLS: usize = 95;
         let mut tail = true; // End with a tailing line ╵
         #[allow(
             clippy::cast_sign_loss,
@@ -231,21 +232,32 @@ impl Context {
                 line,
                 offset,
                 length,
-            } => write!(
-                f,
-                "\n{:pad$} ╷\n{:<pad$} │ {}\n{:pad$} · {}{}",
-                "",
-                linenumber,
-                line,
-                "",
-                " ".repeat(*offset),
-                if *length == 0 {
-                    "└".to_string()
+            } => {
+                let (start, end) = if line.len() > MAX_COLS {
+                    let pad = MAX_COLS.saturating_sub(*length) / 2;
+                    let start = offset.saturating_sub(pad);
+                    (start, start + MAX_COLS)
                 } else {
-                    "─".repeat(*length)
-                },
-                pad = margin
-            )?,
+                    (0, line.len())
+                };
+                write!(
+                    f,
+                    "\n{:pad$} ╷\n{:<pad$} │ {}{}{}\n{:pad$} · {}{}",
+                    "",
+                    linenumber,
+                    if start == 0 { "" } else { "…" },
+                    &line[start..end],
+                    if end == line.len() { "" } else { "…" },
+                    "",
+                    " ".repeat(*offset - start + usize::from(start != 0)),
+                    if *length == 0 {
+                        "└".to_string()
+                    } else {
+                        "‾".repeat(*length)
+                    },
+                    pad = margin
+                )?
+            }
             Self::Range {
                 start_linenumber,
                 lines,
@@ -294,7 +306,7 @@ impl Context {
                                     f,
                                     "{}{}",
                                     " ".repeat(high.1 - last_offset),
-                                    "─".repeat(high.2)
+                                    "‾".repeat(high.2)
                                 )?;
                                 last_offset = high.1 + high.2;
                             } else {
