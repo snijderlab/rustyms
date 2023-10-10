@@ -25,7 +25,7 @@ pub mod align;
 mod aminoacids;
 mod complex_peptide;
 mod element;
-pub mod error;
+mod error;
 mod fragment;
 mod glycan;
 pub mod identifications;
@@ -43,6 +43,7 @@ mod system;
 
 pub use crate::complex_peptide::*;
 pub use crate::element::*;
+pub use crate::error::*;
 pub use crate::formula::*;
 pub use crate::fragment::*;
 pub use crate::glycan::*;

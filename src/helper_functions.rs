@@ -175,6 +175,7 @@ pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) 
         .map_or(false, |ext| ext.eq_ignore_ascii_case(extension.as_ref()))
 }
 
+#[allow(dead_code)]
 /// Get the index of the next copy of the given char
 pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     for (i, ch) in chars[start..].iter().enumerate() {
@@ -185,6 +186,7 @@ pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     None
 }
 
+#[allow(dead_code)]
 /// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
 pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
     let mut state = 1;
@@ -203,7 +205,7 @@ pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Opti
 
 #[allow(dead_code)]
 /// Get the next number, returns length in bytes and the number
-fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(usize, isize)> {
+pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(usize, isize)> {
     let mut sign = 1;
     let mut sign_set = false;
     if chars[start] == b'-' {

@@ -26,7 +26,7 @@ pub fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
 }
 
 fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
-    let obo = OboOntology::from_file("databases/unimod.obo").expect("Not a valid obo file");
+    let obo = OboOntology::from_file("databases/unimod.obo.gz").expect("Not a valid obo file");
     let mut mods = Vec::new();
 
     for obj in obo.objects {

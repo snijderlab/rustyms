@@ -1,10 +1,9 @@
 use std::ops::Range;
 
 use crate::{
-    build::{Context, CustomError},
     formula::{Chemical, MolecularFormula},
     helper_functions::*,
-    Element,
+    Context, CustomError, Element,
 };
 
 /// All monosaccharides as required by pro forma

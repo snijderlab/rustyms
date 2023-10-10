@@ -23,7 +23,7 @@ fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     build_unimod_ontology(&out_dir, debug);
     build_psi_mod_ontology(&out_dir, debug);
-    build_gnome_ontology(&out_dir, debug);
+    //build_gnome_ontology(&out_dir, debug);
     build_atomic_masses(&out_dir, debug).unwrap();
 
     println!("cargo:rerun-if-changed=databases/unimod.obo");

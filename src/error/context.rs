@@ -256,7 +256,7 @@ impl Context {
                         "‾".repeat(*length)
                     },
                     pad = margin
-                )?
+                )?;
             }
             Self::Range {
                 start_linenumber,

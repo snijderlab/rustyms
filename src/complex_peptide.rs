@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::{
     error::Context,
     error::CustomError,
-    helper_functions::ResultExtensions,
+    helper_functions::*,
     modification::{
         AmbiguousLookup, AmbiguousModification, GlobalModification, Modification,
         ReturnModification,

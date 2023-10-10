@@ -22,7 +22,7 @@ pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
 }
 
 fn parse_gnome(_debug: bool) -> Vec<GNOmeModification> {
-    let obo = OboOntology::from_file("databases/GNOme.obo").expect("Not a valid obo file");
+    let obo = OboOntology::from_file("databases/GNOme.obo.gz").expect("Not a valid obo file");
     let mut mods = Vec::new();
 
     for obj in obo.objects {
@@ -55,7 +55,7 @@ fn parse_gnome(_debug: bool) -> Vec<GNOmeModification> {
 
 fn parse_gnome_structures(_debug: bool) -> Vec<(String, GlycanStructure)> {
     let mut glycans = Vec::new();
-    for line in parse_csv("databases/glycosmos_glycans_list.csv")
+    for line in parse_csv("databases/glycosmos_glycans_list.csv.gz")
         .unwrap()
         .skip(1)
     {

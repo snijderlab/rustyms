@@ -25,7 +25,7 @@ pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
 
 fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
     let obo =
-        OboOntology::from_file("databases/PSI-MOD-newstyle.obo").expect("Not a valid obo file");
+        OboOntology::from_file("databases/PSI-MOD-newstyle.obo.gz").expect("Not a valid obo file");
     let mut mods = Vec::new();
 
     for obj in obo.objects {

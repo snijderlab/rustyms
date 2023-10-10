@@ -1,12 +1,13 @@
-use std::{fmt::Display, ops::Range, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use itertools::Itertools;
 
 use crate::{
-    error::{Context, CustomError},
-    molecular_charge::MolecularCharge,
-    Chemical, MolecularFormula,
+    molecular_charge::MolecularCharge, AminoAcid, Charge, Fragment, FragmentType, GlycanBreakPos,
+    GlycanPosition, Model,
 };
+
+use crate::uom::num_traits::Zero;
 
 include!("shared/glycan.rs");
 
@@ -16,7 +17,7 @@ impl Chemical for GlycanStructure {
             + self
                 .branches
                 .iter()
-                .map(formula::Chemical::formula)
+                .map(Chemical::formula)
                 .sum::<MolecularFormula>()
     }
 }
@@ -213,7 +214,7 @@ impl Chemical for PositionedGlycanStructure {
             + self
                 .branches
                 .iter()
-                .map(formula::Chemical::formula)
+                .map(Chemical::formula)
                 .sum::<MolecularFormula>()
     }
 }
@@ -420,9 +421,12 @@ mod test {
     fn mass_glycan() {
         assert_eq!(
             1445.0,
-            (MonoSaccharide::Hex.formula().average_weight().unwrap() * 3.0
+            (MonoSaccharide::Hexose.formula().average_weight().unwrap() * 3.0
                 + MonoSaccharide::HexNAc.formula().average_weight().unwrap() * 4.0
-                + MonoSaccharide::Fuc.formula().average_weight().unwrap())
+                + MonoSaccharide::Deoxyhexose
+                    .formula()
+                    .average_weight()
+                    .unwrap())
             .value
             .round()
         );
@@ -435,7 +439,7 @@ mod test {
             GlycanStructure {
                 sugar: MonoSaccharide::HexNAc,
                 branches: vec![GlycanStructure {
-                    sugar: MonoSaccharide::Hex,
+                    sugar: MonoSaccharide::Hexose,
                     branches: Vec::new()
                 }],
             }
@@ -443,10 +447,10 @@ mod test {
         assert_eq!(
             GlycanStructure::from_str("Hex(Hex,HexNAc)").unwrap(),
             GlycanStructure {
-                sugar: MonoSaccharide::Hex,
+                sugar: MonoSaccharide::Hexose,
                 branches: vec![
                     GlycanStructure {
-                        sugar: MonoSaccharide::Hex,
+                        sugar: MonoSaccharide::Hexose,
                         branches: Vec::new()
                     },
                     GlycanStructure {
@@ -459,12 +463,12 @@ mod test {
         assert_eq!(
             GlycanStructure::from_str("Hex(Hex(Hex),HexNAc)").unwrap(),
             GlycanStructure {
-                sugar: MonoSaccharide::Hex,
+                sugar: MonoSaccharide::Hexose,
                 branches: vec![
                     GlycanStructure {
-                        sugar: MonoSaccharide::Hex,
+                        sugar: MonoSaccharide::Hexose,
                         branches: vec![GlycanStructure {
-                            sugar: MonoSaccharide::Hex,
+                            sugar: MonoSaccharide::Hexose,
                             branches: Vec::new()
                         }]
                     },
@@ -480,19 +484,19 @@ mod test {
             GlycanStructure {
                 sugar: MonoSaccharide::HexNAc,
                 branches: vec![GlycanStructure {
-                    sugar: MonoSaccharide::Hex,
+                    sugar: MonoSaccharide::Hexose,
                     branches: vec![GlycanStructure {
-                        sugar: MonoSaccharide::Hex,
+                        sugar: MonoSaccharide::Hexose,
                         branches: vec![
                             GlycanStructure {
-                                sugar: MonoSaccharide::Hex,
+                                sugar: MonoSaccharide::Hexose,
                                 branches: vec![GlycanStructure {
                                     sugar: MonoSaccharide::HexNAc,
                                     branches: Vec::new(),
                                 }],
                             },
                             GlycanStructure {
-                                sugar: MonoSaccharide::Hex,
+                                sugar: MonoSaccharide::Hexose,
                                 branches: Vec::new(),
                             },
                         ],
