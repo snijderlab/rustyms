@@ -7,7 +7,7 @@ use super::{
 };
 
 /// The file format for any peaks format, determining the existence and location of all possible columns
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PeaksFormat {
     fraction: Option<usize>,
     source_file: Option<usize>,
@@ -210,6 +210,7 @@ pub const XI: PeaksFormat = PeaksFormat {
 
 /// A single parsed line of a peaks file
 #[allow(missing_docs)]
+#[derive(Debug)]
 pub struct PeaksData {
     pub fraction: Option<usize>,
     pub source_file: Option<String>,
@@ -238,6 +239,7 @@ pub struct PeaksData {
 }
 
 /// The scans identifier for a peaks identification
+#[derive(Debug)]
 pub struct PeaksId {
     file: Option<usize>,
     scans: Vec<usize>,

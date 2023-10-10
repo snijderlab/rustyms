@@ -203,6 +203,7 @@ pub const NEW_PSM: NovorFormat = NovorFormat {
 
 /// A single parsed Novor line
 #[allow(missing_docs)]
+#[derive(Debug)]
 pub struct NovorData {
     pub scan: usize,
     pub mz: f64,

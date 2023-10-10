@@ -4,14 +4,16 @@ use crate::error::CustomError;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
+#[derive(Debug)]
 pub struct IdentifiedPeptide {
-    pub(super) peptide: LinearPeptide,
-    pub(super) local_confidence: Option<Vec<f64>>,
-    pub(super) score: Option<f64>,
-    pub(super) metadata: MetaData,
+    pub peptide: LinearPeptide,
+    pub local_confidence: Option<Vec<f64>>,
+    pub score: Option<f64>,
+    pub metadata: MetaData,
 }
 
 /// The definition of all special metadata for all types of identified peptides that can be read
+#[derive(Debug)]
 pub enum MetaData {
     /// Peaks metadata
     Peaks(PeaksData),
