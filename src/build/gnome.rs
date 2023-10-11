@@ -55,7 +55,7 @@ fn parse_gnome(_debug: bool) -> Vec<GNOmeModification> {
 
 fn parse_gnome_structures(_debug: bool) -> Vec<(String, GlycanStructure)> {
     let mut glycans = Vec::new();
-    for line in parse_csv("databases/glycosmos_glycans_list.csv.gz")
+    for line in parse_csv("databases/glycosmos_glycans_list.csv.gz", b',')
         .unwrap()
         .skip(1)
     {

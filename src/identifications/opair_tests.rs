@@ -7,7 +7,7 @@ use super::{csv::parse_csv_raw, opair, IdentifiedPeptide, OpairData};
 #[test]
 fn opair() {
     let reader = BufReader::new(DATA.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b'\t');
     for line in lines.skip(1).map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = OpairData::parse_specific(&line, &opair::O_PAIR)

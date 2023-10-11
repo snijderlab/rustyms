@@ -74,7 +74,7 @@ impl Context {
     /// Creates a new context when only a line (eg filename) can be shown
     pub fn show(line: impl std::string::ToString) -> Self {
         Self::Show {
-            line: line.to_string(),
+            line: line.to_string().replace('\t', "⭾"),
         }
     }
 
@@ -82,7 +82,7 @@ impl Context {
     pub fn full_line(linenumber: usize, line: impl std::string::ToString) -> Self {
         Self::FullLine {
             linenumber,
-            line: line.to_string(),
+            line: line.to_string().replace('\t', "⭾"),
         }
     }
 
@@ -95,7 +95,7 @@ impl Context {
     ) -> Self {
         Self::Line {
             linenumber,
-            line: line.to_string(),
+            line: line.to_string().replace('\t', "⭾"),
             offset,
             length,
         }
@@ -114,7 +114,13 @@ impl Context {
         } else {
             Self::Line {
                 linenumber: pos.line,
-                line: pos.text.lines().next().unwrap().to_string(),
+                line: pos
+                    .text
+                    .lines()
+                    .next()
+                    .unwrap()
+                    .to_string()
+                    .replace('\t', "⭾"),
                 offset: 0,
                 length: 3,
             }

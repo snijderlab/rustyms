@@ -358,7 +358,7 @@ impl IdentifiedPeptideSource for PeaksData {
     fn parse_file(
         path: impl AsRef<std::path::Path>,
     ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
-        parse_csv(path).map(|lines| {
+        parse_csv(path, b',').map(|lines| {
             Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
                 lines.skip(1).map(Result::unwrap),
             ))

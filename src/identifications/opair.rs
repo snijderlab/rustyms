@@ -37,7 +37,7 @@ pub struct OpairFormat {
     q_value: usize,
     pep: usize,
     pep_q_value: usize,
-    localization_score: usize,
+    localisation_score: usize,
     yion_score: usize,
     diagnostic_ion_score: usize,
     plausible_glycan_number: usize,
@@ -110,7 +110,7 @@ pub const O_PAIR: OpairFormat = OpairFormat {
     q_value: 25,
     pep: 26,
     pep_q_value: 27,
-    localization_score: 28,
+    localisation_score: 28,
     yion_score: 29,
     diagnostic_ion_score: 30,
     plausible_glycan_number: 31,
@@ -161,7 +161,7 @@ pub struct OpairData {
     pub q_value: f64,
     pub pep: f64,
     pub pep_q_value: f64,
-    pub localization_score: f64,
+    pub localisation_score: f64,
     pub yion_score: f64,
     pub diagnostic_ion_score: f64,
     pub plausible_glycan_number: usize,
@@ -185,6 +185,20 @@ pub enum OpairMatchKind {
     Decoy,
     Contamination,
     Target,
+}
+
+impl std::fmt::Display for OpairMatchKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Decoy => "Decoy",
+                Self::Contamination => "Contamination",
+                Self::Target => "Target",
+            }
+        )
+    }
 }
 
 impl IdentifiedPeptideSource for OpairData {
@@ -229,7 +243,7 @@ impl IdentifiedPeptideSource for OpairData {
             protein_location: Location::column(format.protein_location, source).parse_with(
                 |loc| {
                     let bytes =
-                        loc.line.line[loc.location.start + 1..loc.location.end + 1].as_bytes();
+                        loc.line.line[loc.location.start + 1..loc.location.end-1].as_bytes();
                     let start = bytes.iter().take_while(|c| c.is_ascii_digit()).count();
                     let end = bytes
                         .iter()
@@ -241,7 +255,7 @@ impl IdentifiedPeptideSource for OpairData {
                             .parse()
                             .map_err(|_| {
                                 number_error.with_context(Context::line(
-                                    source.line_index,
+                                    source.line_index+1,
                                     source.line.clone(),
                                     loc.location.start + 1,
                                     start,
@@ -251,7 +265,7 @@ impl IdentifiedPeptideSource for OpairData {
                             .parse()
                             .map_err(|_| {
                                 number_error.with_context(Context::line(
-                                    source.line_index,
+                                    source.line_index+1,
                                     source.line.clone(),
                                     loc.location.end - 1 - end,
                                     end,
@@ -270,7 +284,7 @@ impl IdentifiedPeptideSource for OpairData {
                                     "Invalid Opair line",
                                     "The flanking residues could not be parsed as amino acids",
                                     Context::line(
-                                        source.line_index,
+                                        source.line_index+1,
                                         source.line.clone(),
                                         loc.location.start,
                                         1,
@@ -284,7 +298,7 @@ impl IdentifiedPeptideSource for OpairData {
                                     "Invalid Opair line",
                                     "The flanking residues could not be parsed as amino acids",
                                     Context::line(
-                                        source.line_index,
+                                        source.line_index+1,
                                         source.line.clone(),
                                         loc.location.end - 1,
                                         1,
@@ -321,7 +335,7 @@ impl IdentifiedPeptideSource for OpairData {
                         "Invalid Opair line",
                         "The kind column does not contain a valid value (T/C/D)",
                         Context::line(
-                            source.line_index,
+                            source.line_index+1,
                             source.line.clone(),
                             loc.location.start,
                             loc.location.len(),
@@ -332,7 +346,7 @@ impl IdentifiedPeptideSource for OpairData {
             q_value: Location::column(format.q_value, source).parse(&number_error)?,
             pep: Location::column(format.pep, source).parse(&number_error)?,
             pep_q_value: Location::column(format.pep_q_value, source).parse(&number_error)?,
-            localization_score: Location::column(format.localization_score, source)
+            localisation_score: Location::column(format.localisation_score, source)
                 .parse(&number_error)?,
             yion_score: Location::column(format.yion_score, source).parse(&number_error)?,
             diagnostic_ion_score: Location::column(format.diagnostic_ion_score, source)
@@ -355,7 +369,7 @@ impl IdentifiedPeptideSource for OpairData {
                         "Invalid Opair line",
                         "The N glycan motif check column does not contain a valid value (TRUE/FALSE)",
                         Context::line(
-                            source.line_index,
+                            source.line_index+1,
                             source.line.clone(),
                             loc.location.start,
                             loc.location.len(),
@@ -396,7 +410,7 @@ impl IdentifiedPeptideSource for OpairData {
     fn parse_file(
         path: impl AsRef<std::path::Path>,
     ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
-        parse_csv(path).map(|lines| {
+        parse_csv(path, b'\t').map(|lines| {
             Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
                 lines.skip(1).map(Result::unwrap),
             ))

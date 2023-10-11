@@ -7,7 +7,7 @@ use super::{csv::parse_csv_raw, novor, IdentifiedPeptide, NovorData};
 #[test]
 fn novor_old_denovo() {
     let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::OLD_DENOVO)
@@ -19,7 +19,7 @@ fn novor_old_denovo() {
 #[test]
 fn novor_new_denovo() {
     let reader = BufReader::new(DATA_NEW_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_DENOVO)
@@ -31,7 +31,7 @@ fn novor_new_denovo() {
 #[test]
 fn novor_new_psm() {
     let reader = BufReader::new(DATA_NEW_PSM.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_PSM)
@@ -43,7 +43,7 @@ fn novor_new_psm() {
 #[test]
 fn novor_detect() {
     let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(std::result::Result::unwrap) {
         println!("{line}");
         let result = NovorData::parse(&line).unwrap();

@@ -7,7 +7,7 @@ use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 #[test]
 fn peaks_x() {
     let reader = BufReader::new(DATA_X.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::X).unwrap().into();
@@ -17,7 +17,7 @@ fn peaks_x() {
 #[test]
 fn peaks_x_plus() {
     let reader = BufReader::new(DATA_XPLUS.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XPLUS)
@@ -29,7 +29,7 @@ fn peaks_x_plus() {
 #[test]
 fn peaks_11() {
     let reader = BufReader::new(DATA_11.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XI).unwrap().into();
@@ -39,7 +39,7 @@ fn peaks_11() {
 #[test]
 fn peaks_ab() {
     let reader = BufReader::new(DATA_AB.as_bytes());
-    let lines = parse_csv_raw(reader);
+    let lines = parse_csv_raw(reader, b',');
     for line in lines.skip(1).map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::AB).unwrap().into();

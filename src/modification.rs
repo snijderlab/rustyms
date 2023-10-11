@@ -93,10 +93,20 @@ impl Modification {
 
     /// Parse a modification defined by sloppy names
     pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
-        match line[location].to_lowercase().as_str() {
+        match line[location.clone()].to_lowercase().as_str() {
             "o" => find_id_in_ontology(35, UNIMOD_ONTOLOGY), // oxidation
             "cam" => find_id_in_ontology(4, UNIMOD_ONTOLOGY), // carbamidomethyl
-            _ => None,
+            _ => {
+                // Try to detect the Opair format
+                if let Some(capture) = Regex::new(r"[^:]+:(.*) on [A-Z]")
+                    .unwrap()
+                    .captures(&line[location])
+                {
+                    find_name_in_ontology(&capture[1], UNIMOD_ONTOLOGY).ok() // TODO: parse the glycan naming
+                } else {
+                    None
+                }
+            }
         }
     }
 

@@ -28,27 +28,31 @@ impl std::ops::Index<usize> for CsvLine {
 /// If any single line cannot be read it returns an error for that line.
 pub fn parse_csv(
     path: impl AsRef<std::path::Path>,
+    separator: u8,
 ) -> Result<Box<dyn Iterator<Item = Result<CsvLine, String>>>, String> {
     let file = File::open(path.as_ref()).map_err(|e| e.to_string())?;
     if check_extension(path, "gz") {
-        Ok(Box::new(parse_csv_raw(BufReader::new(GzDecoder::new(
-            file,
-        )))))
+        Ok(Box::new(parse_csv_raw(
+            BufReader::new(GzDecoder::new(file)),
+            separator,
+        )))
     } else {
-        Ok(Box::new(parse_csv_raw(BufReader::new(file))))
+        Ok(Box::new(parse_csv_raw(BufReader::new(file), separator)))
     }
 }
 
 /// Parse a CSV file from a raw `BufReader`
-pub fn parse_csv_raw<T: std::io::Read>(reader: BufReader<T>) -> CsvLineIter<T> {
+pub fn parse_csv_raw<T: std::io::Read>(reader: BufReader<T>, separator: u8) -> CsvLineIter<T> {
     CsvLineIter {
         lines: reader.lines().enumerate(),
+        separator,
     }
 }
 
 /// An iterator returning CSV lines
 pub struct CsvLineIter<T: std::io::Read> {
     lines: std::iter::Enumerate<std::io::Lines<BufReader<T>>>,
+    separator: u8,
 }
 
 impl<T: std::io::Read> Iterator for CsvLineIter<T> {
@@ -79,12 +83,12 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
                         start = None;
                         was_enclosed = true;
                     }
-                    (b',', None, Some(s)) => {
+                    (sep, None, Some(s)) if sep == self.separator => {
                         row.push(s..index);
                         start = None;
                         was_enclosed = false;
                     }
-                    (b',', None, None) => {
+                    (sep, None, None) if sep == self.separator => {
                         if !was_enclosed {
                             // ignore any comma directly after an enclosed field
                             row.push(index..index);
