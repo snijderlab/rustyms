@@ -1,3 +1,7 @@
+use std::fmt::Display;
+
+use itertools::Itertools;
+
 use crate::{error::CustomError, helper_functions::InvertResult, ComplexPeptide, LinearPeptide};
 
 use super::{
@@ -243,6 +247,17 @@ pub struct PeaksData {
 pub struct PeaksId {
     file: Option<usize>,
     scans: Vec<usize>,
+}
+
+impl Display for PeaksId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            self.file.map_or(String::new(), |f| format!("F{f}:")),
+            self.scans.iter().join(",")
+        )
+    }
 }
 
 impl std::str::FromStr for PeaksId {
