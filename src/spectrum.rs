@@ -25,6 +25,24 @@ pub struct RawSpectrum {
     pub spectrum: Vec<RawPeak>,
     /// MGF: if present the SEQUENCE line
     pub sequence: Option<String>,
+    /// MGF TITLE: if present the raw file where this mgf was made from
+    pub raw_file: Option<String>,
+    /// MGF TITLE: if present the raw file scan number
+    pub raw_scan_number: Option<usize>,
+    /// MGF TITLE: index number
+    pub raw_index: Option<usize>,
+    /// MGF TITLE: sample number
+    pub sample: Option<usize>,
+    /// MGF TITLE: period number
+    pub period: Option<usize>,
+    /// MGF TITLE: cycle number
+    pub cycle: Option<usize>,
+    /// MGF TITLE: experiment number
+    pub experiment: Option<usize>,
+    /// MGF TITLE: controllerType number
+    pub controller_type: Option<usize>,
+    /// MGF TITLE: controllerNumber number
+    pub controller_number: Option<usize>,
 }
 
 impl RawSpectrum {
@@ -108,6 +126,15 @@ impl Default for RawSpectrum {
             spectrum: Vec::new(),
             intensity: None,
             sequence: None,
+            raw_file: None,
+            raw_scan_number: None,
+            raw_index: None,
+            sample: None,
+            period: None,
+            cycle: None,
+            experiment: None,
+            controller_type: None,
+            controller_number: None,
         }
     }
 }

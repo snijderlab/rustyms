@@ -5,6 +5,7 @@ use std::{
     path::Path,
 };
 
+use regex::Regex;
 use uom::num_traits::Zero;
 
 use crate::{
@@ -90,7 +91,7 @@ pub fn open_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<RawSpectru
                                 format!("Not a number {key} for RT on {linenumber}")
                             })?);
                     }
-                    "TITLE" => current.title = value.to_owned(),
+                    "TITLE" => parse_title(value, &mut current),
                     "SEQUENCE" => current.sequence = Some(value.to_owned()),
                     "NUM_SCANS" => {
                         current.num_scans = value.parse().map_err(|_| {
@@ -153,10 +154,285 @@ fn parse_charge(input: &str) -> Result<Charge, ()> {
     }
 }
 
-#[test]
-fn test_open() {
-    let spectra = open(std::env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
-    assert_eq!(spectra.len(), 1);
-    assert_eq!(spectra[0].spectrum.len(), 5);
-    assert!(spectra[0].spectrum[0].mz < spectra[0].spectrum[1].mz);
+fn parse_title(title: &str, spectrum: &mut RawSpectrum) {
+    // basic structure: <name>.<scan>.<scan>.<experiment?>? File:"<name>", NativeID:"(<header>) +"
+    let ms_convert_format: Regex =
+        Regex::new(r#"(.+)\.(\d+)\.\d+\.\d* File:".*", NativeID:"(.+)""#).unwrap();
+    // other structure: <name>.ScanId;v=<num>;d1=<scan>.<scan>.<experiment?>_INDEX<index>
+    let other_format: Regex =
+        Regex::new(r"(.+)\.ScanId;v=\d+;d1=(\d+)\.\d+\.\d*_INDEX(\d+)").unwrap();
+
+    spectrum.title = title.to_string();
+    if let Some(ms_convert) = ms_convert_format.captures(title) {
+        spectrum.raw_file = Some(ms_convert[1].to_string());
+        spectrum.raw_scan_number = ms_convert[2].parse().ok(); // By definition will always work thanks to the regex
+        for header in ms_convert[3].split(' ') {
+            match header.split_once('=') {
+                Some(("sample", n)) => spectrum.sample = n.parse().ok(),
+                Some(("period", n)) => spectrum.period = n.parse().ok(),
+                Some(("cycle", n)) => spectrum.cycle = n.parse().ok(),
+                Some(("experiment", n)) => spectrum.experiment = n.parse().ok(),
+                Some(("controllerType", n)) => spectrum.controller_type = n.parse().ok(),
+                Some(("controllerNumber", n)) => spectrum.controller_number = n.parse().ok(),
+                None | Some(_) => (),
+            }
+        }
+    } else if let Some(other) = other_format.captures(title) {
+        spectrum.raw_file = Some(other[1].to_string());
+        spectrum.raw_scan_number = other[2].parse().ok(); // By definition will always work thanks to the regex
+        spectrum.raw_index = other[3].parse().ok(); // By definition will always work thanks to the regex
+    }
+    // Else just ignore
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_open() {
+        let spectra =
+            open(std::env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
+        assert_eq!(spectra.len(), 1);
+        assert_eq!(spectra[0].spectrum.len(), 5);
+        assert!(spectra[0].spectrum[0].mz < spectra[0].spectrum[1].mz);
+    }
+
+    #[test]
+    fn test_titles() {
+        assert_eq!(
+            test_title_helper(
+                r#"230629 1-Trypsin CID 06.93060.93060. File:"", NativeID:"sample=1 period=1 cycle=2024 experiment=2""#
+            ),
+            (
+                Some("230629 1-Trypsin CID 06".to_string()),
+                Some(93060),
+                Some(1),
+                Some(1),
+                Some(2024),
+                Some(2),
+                None,
+                None,
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"IgAmix_10KE_CE25_02-IgA mix 10KE 7000nA CE 25.130.130. File:"IgAmix_10KE_CE25_02.wiff", NativeID:"sample=1 period=1 cycle=1966 experiment=2""#
+            ),
+            (
+                Some("IgAmix_10KE_CE25_02-IgA mix 10KE 7000nA CE 25".to_string()),
+                Some(130),
+                Some(1),
+                Some(1),
+                Some(1966),
+                Some(2),
+                None,
+                None,
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"230629 1-Trypsin EAD 02.52990.52990. File:"", NativeID:"sample=1 period=1 cycle=2039 experiment=2""#
+            ),
+            (
+                Some("230629 1-Trypsin EAD 02".to_string()),
+                Some(52990),
+                Some(1),
+                Some(1),
+                Some(2039),
+                Some(2),
+                None,
+                None,
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"26072023_MS2_TZB_1µm_HiRes_Isol1284mzNarrow_ETD_RT10ms_1e5_IT200 Scan[1].1.1.3 File:"26072023_MS2_TZB_1µm_HiRes_Isol1284mzNarrow_ETD_RT10ms_1e5_IT200 Scan[1].raw", NativeID:"controllerType=0 controllerNumber=1 scan=1""#
+            ),
+            (
+                Some(
+                    "26072023_MS2_TZB_1µm_HiRes_Isol1284mzNarrow_ETD_RT10ms_1e5_IT200 Scan[1]"
+                        .to_string()
+                ),
+                Some(1),
+                None,
+                None,
+                None,
+                None,
+                Some(0),
+                Some(1),
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"20230505_L1_UM3_5858593_SA_EXT00_totalIgAplasma_GT_ETHCD_20230513002852.990.990.2 File:"20230505_L1_UM3_5858593_SA_EXT00_totalIgAplasma_GT_ETHCD_20230513002852.raw", NativeID:"controllerType=0 controllerNumber=1 scan=990""#
+            ),
+            (
+                Some(
+                    "20230505_L1_UM3_5858593_SA_EXT00_totalIgAplasma_GT_ETHCD_20230513002852"
+                        .to_string()
+                ),
+                Some(990),
+                None,
+                None,
+                None,
+                None,
+                Some(0),
+                Some(1),
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"20210728_L1_Vq1_Tamar002_MGUS_Fab_TCEP_ETHCD_22min_rep1_01.36.36.15 File:"20210728_L1_Vq1_Tamar002_MGUS_Fab_TCEP_ETHCD_22min_rep1_01.raw", NativeID:"controllerType=0 controllerNumber=1 scan=36""#
+            ),
+            (
+                Some("20210728_L1_Vq1_Tamar002_MGUS_Fab_TCEP_ETHCD_22min_rep1_01".to_string()),
+                Some(36),
+                None,
+                None,
+                None,
+                None,
+                Some(0),
+                Some(1),
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"20191211_F1_Ag5_peng0013_SA_her_Arg_C.2824.2824.3 File:"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw", NativeID:"controllerType=0 controllerNumber=1 scan=2824""#
+            ),
+            (
+                Some("20191211_F1_Ag5_peng0013_SA_her_Arg_C".to_string()),
+                Some(2824),
+                None,
+                None,
+                None,
+                None,
+                Some(0),
+                Some(1),
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                r#"20190502_F1_Ag5_3117030_SA_Herceptin_tryp_HCD_01.188.188.3 File:"20190502_F1_Ag5_3117030_SA_Herceptin_tryp_HCD_01.raw", NativeID:"controllerType=0 controllerNumber=1 scan=188""#
+            ),
+            (
+                Some("20190502_F1_Ag5_3117030_SA_Herceptin_tryp_HCD_01".to_string()),
+                Some(188),
+                None,
+                None,
+                None,
+                None,
+                Some(0),
+                Some(1),
+                None
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                "20230512_l1_um3_rodri078_sa_ext00_pro1_1_50_4h_tr.ScanId;v=1;d1=782.782.2_INDEX0"
+            ),
+            (
+                Some("20230512_l1_um3_rodri078_sa_ext00_pro1_1_50_4h_tr".to_string()),
+                Some(782),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(0)
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a.ScanId;v=1;d1=3120.3120.3_INDEX0"
+            ),
+            (
+                Some(
+                    "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a"
+                        .to_string()
+                ),
+                Some(3120),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(0)
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a.ScanId;v=1;d1=10287.10287.4_INDEX6510"
+            ),
+            (
+                Some(
+                    "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a"
+                        .to_string()
+                ),
+                Some(10287),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(6510)
+            )
+        );
+        assert_eq!(
+            test_title_helper(
+                "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a.ScanId;v=1;d1=14660.14660.3_INDEX10481"
+            ),
+            (
+                Some(
+                    "20230512_l1_um3_rodri078_sa_ext00_pro1_1_200_1h_a"
+                        .to_string()
+                ),
+                Some(14660),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(10481)
+            )
+        );
+    }
+
+    fn test_title_helper(
+        title: &str,
+    ) -> (
+        Option<String>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+        Option<usize>,
+    ) {
+        let mut spectrum = RawSpectrum::default();
+        parse_title(title, &mut spectrum);
+        (
+            spectrum.raw_file,
+            spectrum.raw_scan_number,
+            spectrum.sample,
+            spectrum.period,
+            spectrum.cycle,
+            spectrum.experiment,
+            spectrum.controller_type,
+            spectrum.controller_number,
+            spectrum.raw_index,
+        )
+    }
 }
