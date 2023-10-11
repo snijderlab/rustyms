@@ -21,6 +21,31 @@ pub enum MetaData {
     Novor(NovorData),
 }
 
+impl MetaData {
+    /// The charge of the precursor, if known
+    pub fn charge(&self) -> Option<usize> {
+        match self {
+            Self::Peaks(PeaksData { z, .. }) | Self::Novor(NovorData { z, .. }) => Some(*z),
+        }
+    }
+    /// Which fragmentation mode was used, if known
+    pub fn mode(&self) -> Option<&str> {
+        match self {
+            Self::Peaks(PeaksData { mode, .. }) => Some(mode),
+            _ => None,
+        }
+    }
+    /// Which fragmentation mode was used, if known
+    pub fn scan_number(&self) -> Option<usize> {
+        match self {
+            Self::Peaks(PeaksData { scan, .. }) => {
+                scan.first().and_then(|i| i.scans.first().copied())
+            }
+            Self::Novor(NovorData { scan, .. }) => Some(*scan),
+        }
+    }
+}
+
 /// The required methods for any source of identified peptides
 pub trait IdentifiedPeptideSource
 where
