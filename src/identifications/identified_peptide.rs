@@ -1,4 +1,5 @@
 use super::novor::NovorData;
+use super::opair::OpairData;
 use super::peaks::PeaksData;
 use crate::error::CustomError;
 use crate::LinearPeptide;
@@ -19,13 +20,17 @@ pub enum MetaData {
     Peaks(PeaksData),
     /// Novor metadata
     Novor(NovorData),
+    /// Novor metadata
+    Opair(OpairData),
 }
 
 impl MetaData {
     /// The charge of the precursor, if known
     pub fn charge(&self) -> Option<usize> {
         match self {
-            Self::Peaks(PeaksData { z, .. }) | Self::Novor(NovorData { z, .. }) => Some(*z),
+            Self::Peaks(PeaksData { z, .. })
+            | Self::Novor(NovorData { z, .. })
+            | Self::Opair(OpairData { z, .. }) => Some(*z),
         }
     }
     /// Which fragmentation mode was used, if known
@@ -41,7 +46,9 @@ impl MetaData {
             Self::Peaks(PeaksData { scan, .. }) => {
                 scan.first().and_then(|i| i.scans.first().copied())
             }
-            Self::Novor(NovorData { scan, .. }) => Some(*scan),
+            Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
+                Some(*scan)
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ mod csv;
 mod fasta;
 mod identified_peptide;
 mod novor;
+mod opair;
 mod peaks;
 
 use self::csv::CsvLine;
@@ -13,10 +14,13 @@ use crate::error::CustomError;
 pub use fasta::*;
 pub use identified_peptide::*;
 pub use novor::*;
+pub use opair::*;
 pub use peaks::*;
 
 #[cfg(test)]
 mod novor_tests;
+#[cfg(test)]
+mod opair_tests;
 #[cfg(test)]
 mod peaks_tests;
 
