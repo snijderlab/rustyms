@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt::Display, ops::Range};
 
 use crate::{
     formula::{Chemical, MolecularFormula},
@@ -46,9 +46,51 @@ pub enum ProFormaMonoSaccharide {
 /// A monosaccharide with all its complexity
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MonoSaccharide {
-    pub base_sugar: BaseSugar,
+    pub base_sugar: Option<BaseSugar>,
     pub substituents: Vec<GlycanSubstituent>,
     pub pro_forma_name: Option<String>,
+}
+
+impl MonoSaccharide {
+    pub const fn new(sugar: BaseSugar, substituents: &[GlycanSubstituent]) -> Self {
+        Self {
+            base_sugar: Some(sugar),
+            substituents: substituents.to_owned(),
+            pro_forma_name: None,
+        }
+    }
+
+    const fn no_sugar(substituents: &[GlycanSubstituent]) -> Self {
+        Self {
+            base_sugar: None,
+            substituents: substituents.to_owned(),
+            pro_forma_name: None,
+        }
+    }
+
+    pub const fn with_name(self, name: impl Into<String>) -> Self {
+        Self {
+            pro_forma_name: Some(name.into()),
+            ..self
+        }
+    }
+}
+
+impl Display for MonoSaccharide {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.pro_forma_name.as_ref().unwrap_or(&format!(
+                "{}{}",
+                self.base_sugar.map_or(String::new(), |s| s.to_string()),
+                self.substituents
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<String>()
+            ))
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,6 +113,26 @@ pub enum BaseSugar {
     Nonose,
     /// 10 carbon base sugar
     Decose,
+}
+
+impl Display for BaseSugar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Sugar => "Sug",
+                Self::Triose => "Tri",
+                Self::Tetrose(_) => "Tet",
+                Self::Pentose(_) => "Pen",
+                Self::Hexose(_) => "Hex",
+                Self::Heptose(_) => "Hep",
+                Self::Octose => "Oct",
+                Self::Nonose => "Non",
+                Self::Decose => "Dec",
+            }
+        )
+    }
 }
 
 impl Chemical for BaseSugar {
@@ -147,6 +209,8 @@ pub enum HeptoseIsomer {
 pub enum GlycanSubstituent {
     ///Ac acetyl
     Acetyl,
+    ///A acid
+    Acid,
     ///Ala D-alanyl
     Alanyl,
     ///Ala2Ac N-acetyl-D-alanyl
@@ -169,6 +233,8 @@ pub enum GlycanSubstituent {
     Glycyl,
     ///Gr glyceryl
     Glyceryl,
+    ///d Deoxy
+    Deoxy,
     ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
     DiMethylGlyceryl,
     ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
@@ -195,20 +261,59 @@ pub enum GlycanSubstituent {
     Tauryl,
 }
 
+impl Display for GlycanSubstituent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Acetyl => "Ac",
+                Self::Acid => "A",
+                Self::Alanyl => "Ala",
+                Self::AcetylAlanyl => "Ala2Ac",
+                Self::Acetimidoyl => "Am",
+                Self::MethylAcetimidoyl => "AmMe",
+                Self::Deoxy => "d",
+                Self::DiMethylAcetimidoyl => "AmMe2",
+                Self::Formyl => "Fo",
+                Self::Glycolyl => "Gc",
+                Self::AcetylGlutaminyl => "Gln2Ac",
+                Self::MethylGlutamyl => "5Glu2Me",
+                Self::Glycyl => "Gly",
+                Self::Glyceryl => "Gr",
+                Self::DiMethylGlyceryl => "Gr2,3Me2",
+                Self::HydroxyButyryl => "Hb",
+                Self::DiHydroxyButyryl => "3,4Hb",
+                Self::Lactyl => "Lt",
+                Self::Methyl => "Me",
+                Self::Amino => "N",
+                Self::NAcetyl => "NAc",
+                Self::Phosphate => "P",
+                Self::Pyruvyl => "Py",
+                Self::CargoxyEthylidene => "Pyr",
+                Self::Sulfate => "S",
+                Self::Tauryl => "Tau",
+            }
+        )
+    }
+}
+
 impl Chemical for GlycanSubstituent {
     fn formula(&self) -> MolecularFormula {
         let side = match self {
             Self::Acetyl => molecular_formula!(H 3 C 2 O 1),
+            Self::Acid => molecular_formula!(H -1 O 2), // Together with the replacement below this is H-2 O+1
             Self::Alanyl => molecular_formula!(H 6 C 3 N 1 O 1),
             Self::AcetylAlanyl => molecular_formula!(H 8 C 5 N 1 O 2),
             Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
             Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
+            Self::Deoxy => molecular_formula!(H 1), // Together with the replacement below this is O-1
             Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
             Self::Formyl => molecular_formula!(H 1 C 1 O 1),
             Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
             Self::AcetylGlutaminyl => molecular_formula!(H 11 C 7 N 2 O 3),
             Self::MethylGlutamyl => molecular_formula!(H 10 C 6 N 1 O 3),
-            Self::Glycyl => molecular_formula!(H 4 C 2 N 1 O 1),
+            Self::Glycyl | Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
             Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
             Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
             Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
@@ -216,10 +321,9 @@ impl Chemical for GlycanSubstituent {
             Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
             Self::Methyl => molecular_formula!(H 3 C 1),
             Self::Amino => molecular_formula!(H 2 N 1),
-            Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
             Self::Phosphate => molecular_formula!(H 2 O 4 P 1),
             Self::Pyruvyl => molecular_formula!(H 3 C 3 O 2),
-            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent?
+            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent? Calculated to work with the additional side chain deletion
             Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
             Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
         };
@@ -235,88 +339,100 @@ impl Chemical for GlycanSubstituent {
 
 /// All monosaccharides ordered to be able to parse glycans by matching them from the top
 #[allow(dead_code)]
-pub const GLYCAN_PARSE_LIST: &[(&str, ProFormaMonoSaccharide)] = &[
-    ("phosphate", ProFormaMonoSaccharide::phosphate),
-    ("sulfate", ProFormaMonoSaccharide::sulfate),
-    ("Sug", ProFormaMonoSaccharide::Sug),
-    ("Tri", ProFormaMonoSaccharide::Tri),
-    ("HexNS", ProFormaMonoSaccharide::HexNS),
-    // hexose amino sugars N acetylated with sulfate TODO: ask to make sure
-    ("HexNAc(S)", ProFormaMonoSaccharide::HexNAcS),
-    ("GlcNAc6S", ProFormaMonoSaccharide::HexNAcS),
-    // hexose amino sugars N acetylated
-    ("HexNAc", ProFormaMonoSaccharide::HexNAc),
-    ("GlcNAc", ProFormaMonoSaccharide::HexNAc),
-    ("GalNAc", ProFormaMonoSaccharide::HexNAc),
-    ("ManNAc", ProFormaMonoSaccharide::HexNAc),
-    ("AllNAc", ProFormaMonoSaccharide::HexNAc),
-    ("LAltNAc", ProFormaMonoSaccharide::HexNAc),
-    ("GulNAc", ProFormaMonoSaccharide::HexNAc),
-    ("LIdoNAc", ProFormaMonoSaccharide::HexNAc),
-    ("TalNAc", ProFormaMonoSaccharide::HexNAc),
-    // hexose amino sugars
-    ("HexN", ProFormaMonoSaccharide::HexN),
-    ("GlcN", ProFormaMonoSaccharide::HexN),
-    ("GalN", ProFormaMonoSaccharide::HexN),
-    ("ManN", ProFormaMonoSaccharide::HexN),
-    ("AllN", ProFormaMonoSaccharide::HexN),
-    ("LAlN", ProFormaMonoSaccharide::HexN),
-    ("GulN", ProFormaMonoSaccharide::HexN),
-    ("LIdN", ProFormaMonoSaccharide::HexN),
-    ("TalN", ProFormaMonoSaccharide::HexN),
-    // tetroses
-    ("Tet", ProFormaMonoSaccharide::Tetrose),
-    ("Ery", ProFormaMonoSaccharide::Tetrose),
-    ("Tho", ProFormaMonoSaccharide::Tetrose),
-    // pentoses
-    ("Pen", ProFormaMonoSaccharide::Pentose),
-    ("Ribf", ProFormaMonoSaccharide::Pentose),
-    ("Rib", ProFormaMonoSaccharide::Pentose),
-    ("Araf", ProFormaMonoSaccharide::Pentose),
-    ("Ara", ProFormaMonoSaccharide::Pentose),
-    ("LAraf", ProFormaMonoSaccharide::Pentose),
-    ("LAra", ProFormaMonoSaccharide::Pentose),
-    ("Xyl", ProFormaMonoSaccharide::Pentose),
-    ("Lyx", ProFormaMonoSaccharide::Pentose),
-    // hexoses with sulfate TODO: ask to make sure
-    ("HexS", ProFormaMonoSaccharide::HexS),
-    ("Gal6S", ProFormaMonoSaccharide::HexS),
-    // hexoses with dual sulfate TODO: ask to make sure
-    ("Gal4,6S2", ProFormaMonoSaccharide::HexS2),
-    // hexoses
-    ("a-Hex", ProFormaMonoSaccharide::a_Hex),
-    ("en,a-Hex", ProFormaMonoSaccharide::en_a_Hex),
-    ("d-Hex", ProFormaMonoSaccharide::d_Hex),
-    ("HexP", ProFormaMonoSaccharide::HexP),
-    ("Hex", ProFormaMonoSaccharide::Hexose),
-    ("Glc", ProFormaMonoSaccharide::Hexose),
-    ("Galf", ProFormaMonoSaccharide::Hexose),
-    ("Gal", ProFormaMonoSaccharide::Hexose),
-    ("LGal", ProFormaMonoSaccharide::Hexose),
-    ("Man", ProFormaMonoSaccharide::Hexose),
-    ("All", ProFormaMonoSaccharide::Hexose),
-    ("LAlt", ProFormaMonoSaccharide::Hexose),
-    ("Gul", ProFormaMonoSaccharide::Hexose),
-    ("LIdo", ProFormaMonoSaccharide::Hexose),
-    ("Tal", ProFormaMonoSaccharide::Hexose),
-    // deoxyhexose
-    ("Fuc", ProFormaMonoSaccharide::Deoxyhexose),
-    ("LFuc", ProFormaMonoSaccharide::Deoxyhexose),
-    ("Rha", ProFormaMonoSaccharide::Deoxyhexose),
-    ("LRha", ProFormaMonoSaccharide::Deoxyhexose),
-    ("Qui", ProFormaMonoSaccharide::Deoxyhexose),
-    ("2dGlc", ProFormaMonoSaccharide::Deoxyhexose),
-    // heptoses
-    ("Hep", ProFormaMonoSaccharide::Heptose),
-    ("Lgro-manHep", ProFormaMonoSaccharide::Heptose),
-    ("gro-manHep", ProFormaMonoSaccharide::Heptose),
-    // other
-    ("Oct", ProFormaMonoSaccharide::Oct),
-    ("Non", ProFormaMonoSaccharide::Non),
-    ("Dec", ProFormaMonoSaccharide::Dec),
-    ("Neu5Ac", ProFormaMonoSaccharide::Neu5Ac),
-    ("Neu5Gc", ProFormaMonoSaccharide::Neu5Gc),
-    ("Neu", ProFormaMonoSaccharide::Neu),
+pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
+    (
+        "phosphate",
+        MonoSaccharide::no_sugar(&[GlycanSubstituent::Phosphate]).with_name("phosphate"),
+    ),
+    (
+        "sulfate",
+        MonoSaccharide::no_sugar(&[GlycanSubstituent::Sulfate]).with_name("sulfate"),
+    ),
+    (
+        "Sug",
+        MonoSaccharide::new(BaseSugar::Sugar, &[]).with_name("Sug"),
+    ),
+    (
+        "Tri",
+        MonoSaccharide::new(BaseSugar::Triose, &[]).with_name("Tri"),
+    ),
+    (
+        "Tet",
+        MonoSaccharide::new(BaseSugar::Tetrose(None), &[]).with_name("Tet"),
+    ),
+    (
+        "Pen",
+        MonoSaccharide::new(BaseSugar::Pentose(None), &[]).with_name("Pen"),
+    ),
+    (
+        "a-Hex",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Acid]).with_name("a-Hex"),
+    ),
+    ("en,a-Hex", todo!()), // TODO: what is `en`
+    (
+        "d-Hex",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Deoxy])
+            .with_name("d-Hex"),
+    ),
+    (
+        "HexNAc(S)",
+        MonoSaccharide::new(
+            BaseSugar::Hexose(None),
+            &[GlycanSubstituent::NAcetyl, GlycanSubstituent::Sulfate],
+        )
+        .with_name("HexNAc(S)"),
+    ),
+    (
+        "HexNAc",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::NAcetyl])
+            .with_name("HexNAc"),
+    ),
+    (
+        "HexNS",
+        MonoSaccharide::new(
+            BaseSugar::Hexose(None),
+            &[GlycanSubstituent::Amino, GlycanSubstituent::Sulfate],
+        )
+        .with_name("HexNS"),
+    ),
+    (
+        "HexN",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Amino]).with_name("HexN"),
+    ),
+    (
+        "HexS",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Sulfate])
+            .with_name("HexS"),
+    ),
+    (
+        "HexP",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Phosphate])
+            .with_name("HexP"),
+    ),
+    (
+        "Hex",
+        MonoSaccharide::new(BaseSugar::Hexose(None), &[]).with_name("Hex"),
+    ),
+    (
+        "Hep",
+        MonoSaccharide::new(BaseSugar::Heptose(None), &[]).with_name("Hep"),
+    ),
+    (
+        "Oct",
+        MonoSaccharide::new(BaseSugar::Octose, &[]).with_name("Oct"),
+    ),
+    (
+        "Non",
+        MonoSaccharide::new(BaseSugar::Nonose, &[]).with_name("Non"),
+    ),
+    (
+        "Dec",
+        MonoSaccharide::new(BaseSugar::Decose, &[]).with_name("Dec"),
+    ),
+    ("Neu5Ac", MonoSaccharide::Neu5Ac),
+    ("Neu5Gc", MonoSaccharide::Neu5Gc),
+    ("Neu", MonoSaccharide::Neu),
+    ("Fuc", MonoSaccharide::Fuc),
 ];
 
 impl TryFrom<&str> for ProFormaMonoSaccharide {
