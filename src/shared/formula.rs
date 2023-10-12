@@ -51,7 +51,7 @@ impl MolecularFormula {
             }
         });
         // Deduplicate
-        let mut max = self.elements.len();
+        let mut max = self.elements.len().saturating_sub(1);
         let mut index = 0;
         while index < max {
             let this = self.elements[index];
@@ -59,7 +59,7 @@ impl MolecularFormula {
             if this.0 == next.0 && this.1 == next.1 {
                 self.elements[index].2 += next.2;
                 self.elements.remove(index + 1);
-                max -= 1;
+                max = max.saturating_sub(1);
             } else {
                 index += 1;
             }
