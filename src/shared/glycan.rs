@@ -9,7 +9,7 @@ use crate::{
 /// All monosaccharides as required by pro forma
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types, missing_docs)]
-pub enum MonoSaccharide {
+pub enum ProFormaMonoSaccharide {
     /// Any general heptose (seven carbon sugar)
     Heptose,
     phosphate,
@@ -43,6 +43,190 @@ pub enum MonoSaccharide {
     Hexose,
 }
 
+/// A monosaccharide with all its complexity
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MonoSaccharide {
+    pub base_sugar: BaseSugar,
+    pub substituents: Vec<GlycanSubstituent>,
+    pub pro_forma_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BaseSugar {
+    /// 2 carbon base sugar
+    Sugar,
+    /// 3 carbon base sugar
+    Triose,
+    /// 4 carbon base sugar
+    Tetrose(Option<TetroseIsomer>),
+    /// 5 carbon base sugar
+    Pentose(Option<PentoseIsomer>),
+    /// 6 carbon base sugar
+    Hexose(Option<HexoseIsomer>),
+    /// 7 carbon base sugar
+    Heptose(Option<HeptoseIsomer>),
+    /// 8 carbon base sugar
+    Octose,
+    /// 9 carbon base sugar
+    Nonose,
+    /// 10 carbon base sugar
+    Decose,
+}
+
+impl Chemical for BaseSugar {
+    fn formula(&self) -> MolecularFormula {
+        match self {
+            Self::Sugar => molecular_formula!(H 2 C 2 O 1),
+            Self::Triose => molecular_formula!(H 4 C 3 O 2),
+            Self::Tetrose(_) => molecular_formula!(H 6 C 4 O 3),
+            Self::Pentose(_) => molecular_formula!(H 8 C 5 O 4),
+            Self::Hexose(_) => molecular_formula!(H 10 C 6 O 5),
+            Self::Heptose(_) => molecular_formula!(H 12 C 7 O 6),
+            Self::Octose => molecular_formula!(H 14 C 8 O 7),
+            Self::Nonose => molecular_formula!(H 16 C 9 O 8),
+            Self::Decose => molecular_formula!(H 18 C 10 O 9),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TetroseIsomer {
+    /// Ery
+    Erythrose,
+    /// Tho
+    Threose,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum PentoseIsomer {
+    /// Ribf
+    Ribofuranose,
+    /// Rib
+    Ribopyranose,
+    /// Araf
+    Arabinofuranose,
+    /// Ara
+    Arabinopyranose,
+    /// Xyl
+    Xylopyranose,
+    /// Lyx
+    Lyxopyranose,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HexoseIsomer {
+    /// glc
+    Glucose,
+    /// Galf
+    Galactofuranose,
+    /// Gal
+    Galactose,
+    /// Man
+    Mannose,
+    /// All
+    Allose,
+    /// Alt
+    Altrose,
+    /// Gul
+    Gulose,
+    /// Ido
+    Idose,
+    /// Tal
+    Talose,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HeptoseIsomer {
+    /// gro-manHep
+    GlyceroMannoHeptopyranose,
+}
+
+/// Any substituent on a monosaccharide.
+/// Source: https://www.ncbi.nlm.nih.gov/glycans/snfg.html table 3.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum GlycanSubstituent {
+    ///Ac acetyl
+    Acetyl,
+    ///Ala D-alanyl
+    Alanyl,
+    ///Ala2Ac N-acetyl-D-alanyl
+    AcetylAlanyl,
+    ///Am N-acetimidoyl
+    Acetimidoyl,
+    ///AmMe N-(N-methyl-acetimidoyl)
+    MethylAcetimidoyl,
+    ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
+    DiMethylAcetimidoyl,
+    ///Fo formyl
+    Formyl,
+    ///Gc glycolyl
+    Glycolyl,
+    ///Gln2Ac N-acetyl-glutaminyl
+    AcetylGlutaminyl,
+    ///5Glu2Me N-methyl-5-glutamyl
+    MethylGlutamyl,
+    ///Gly glycyl
+    Glycyl,
+    ///Gr glyceryl
+    Glyceryl,
+    ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
+    DiMethylGlyceryl,
+    ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
+    HydroxyButyryl,
+    ///3,4Hb 3,4-dihydroxybutyryl
+    DiHydroxyButyryl,
+    ///Lt lactyl
+    Lactyl,
+    ///Me methyl
+    Methyl,
+    ///N amino
+    Amino,
+    ///NAc N-acetyl
+    NAcetyl,
+    ///P phosphate
+    Phosphate,
+    ///Py pyruvyl
+    Pyruvyl,
+    ///Pyr 1-carboxyethylidene
+    CargoxyEthylidene,
+    ///S sulfate
+    Sulfate,
+    ///Tau tauryl
+    Tauryl,
+}
+
+impl Chemical for GlycanSubstituent {
+    fn formula(&self) -> MolecularFormula {
+        let side = match self {
+            Self::Acetyl => molecular_formula!(H 3 C 2 O 1),
+            Self::Alanyl => molecular_formula!(H 6 C 3 N 1 O 1),
+            Self::AcetylAlanyl => molecular_formula!(H 8 C 5 N 1 O 2),
+            Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
+            Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
+            Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
+            Self::Formyl => molecular_formula!(H 1 C 1 O 1),
+            Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
+            Self::AcetylGlutaminyl => molecular_formula!(H 11 C 7 N 2 O 3),
+            Self::MethylGlutamyl => molecular_formula!(H 10 C 6 N 1 O 3),
+            Self::Glycyl => molecular_formula!(H 4 C 2 N 1 O 1),
+            Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
+            Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
+            Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
+            Self::DiHydroxyButyryl => molecular_formula!(H 7 C 4 O 3),
+            Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
+            Self::Methyl => molecular_formula!(H 3 C 1),
+            Self::Amino => molecular_formula!(H 2 N 1),
+            Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
+            Self::Phosphate => molecular_formula!(H 2 O 4 P 1),
+            Self::Pyruvyl => molecular_formula!(H 3 C 3 O 2),
+            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent?
+            Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
+            Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
+        };
+        side - molecular_formula!(O 1 H 1) // substituent so replaces a standard oxygen side chain
+    }
+}
+
 // TODO: think about a better way to save?
 // * Base sugar (Hex, Hep, Oct, etc)
 // * 'Flavour' of the base sugar (Man, Glc, etc for Hexoses)
@@ -51,91 +235,91 @@ pub enum MonoSaccharide {
 
 /// All monosaccharides ordered to be able to parse glycans by matching them from the top
 #[allow(dead_code)]
-pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
-    ("phosphate", MonoSaccharide::phosphate),
-    ("sulfate", MonoSaccharide::sulfate),
-    ("Sug", MonoSaccharide::Sug),
-    ("Tri", MonoSaccharide::Tri),
-    ("HexNS", MonoSaccharide::HexNS),
+pub const GLYCAN_PARSE_LIST: &[(&str, ProFormaMonoSaccharide)] = &[
+    ("phosphate", ProFormaMonoSaccharide::phosphate),
+    ("sulfate", ProFormaMonoSaccharide::sulfate),
+    ("Sug", ProFormaMonoSaccharide::Sug),
+    ("Tri", ProFormaMonoSaccharide::Tri),
+    ("HexNS", ProFormaMonoSaccharide::HexNS),
     // hexose amino sugars N acetylated with sulfate TODO: ask to make sure
-    ("HexNAc(S)", MonoSaccharide::HexNAcS),
-    ("GlcNAc6S", MonoSaccharide::HexNAcS),
+    ("HexNAc(S)", ProFormaMonoSaccharide::HexNAcS),
+    ("GlcNAc6S", ProFormaMonoSaccharide::HexNAcS),
     // hexose amino sugars N acetylated
-    ("HexNAc", MonoSaccharide::HexNAc),
-    ("GlcNAc", MonoSaccharide::HexNAc),
-    ("GalNAc", MonoSaccharide::HexNAc),
-    ("ManNAc", MonoSaccharide::HexNAc),
-    ("AllNAc", MonoSaccharide::HexNAc),
-    ("LAltNAc", MonoSaccharide::HexNAc),
-    ("GulNAc", MonoSaccharide::HexNAc),
-    ("LIdoNAc", MonoSaccharide::HexNAc),
-    ("TalNAc", MonoSaccharide::HexNAc),
+    ("HexNAc", ProFormaMonoSaccharide::HexNAc),
+    ("GlcNAc", ProFormaMonoSaccharide::HexNAc),
+    ("GalNAc", ProFormaMonoSaccharide::HexNAc),
+    ("ManNAc", ProFormaMonoSaccharide::HexNAc),
+    ("AllNAc", ProFormaMonoSaccharide::HexNAc),
+    ("LAltNAc", ProFormaMonoSaccharide::HexNAc),
+    ("GulNAc", ProFormaMonoSaccharide::HexNAc),
+    ("LIdoNAc", ProFormaMonoSaccharide::HexNAc),
+    ("TalNAc", ProFormaMonoSaccharide::HexNAc),
     // hexose amino sugars
-    ("HexN", MonoSaccharide::HexN),
-    ("GlcN", MonoSaccharide::HexN),
-    ("GalN", MonoSaccharide::HexN),
-    ("ManN", MonoSaccharide::HexN),
-    ("AllN", MonoSaccharide::HexN),
-    ("LAlN", MonoSaccharide::HexN),
-    ("GulN", MonoSaccharide::HexN),
-    ("LIdN", MonoSaccharide::HexN),
-    ("TalN", MonoSaccharide::HexN),
+    ("HexN", ProFormaMonoSaccharide::HexN),
+    ("GlcN", ProFormaMonoSaccharide::HexN),
+    ("GalN", ProFormaMonoSaccharide::HexN),
+    ("ManN", ProFormaMonoSaccharide::HexN),
+    ("AllN", ProFormaMonoSaccharide::HexN),
+    ("LAlN", ProFormaMonoSaccharide::HexN),
+    ("GulN", ProFormaMonoSaccharide::HexN),
+    ("LIdN", ProFormaMonoSaccharide::HexN),
+    ("TalN", ProFormaMonoSaccharide::HexN),
     // tetroses
-    ("Tet", MonoSaccharide::Tetrose),
-    ("Ery", MonoSaccharide::Tetrose),
-    ("Tho", MonoSaccharide::Tetrose),
+    ("Tet", ProFormaMonoSaccharide::Tetrose),
+    ("Ery", ProFormaMonoSaccharide::Tetrose),
+    ("Tho", ProFormaMonoSaccharide::Tetrose),
     // pentoses
-    ("Pen", MonoSaccharide::Pentose),
-    ("Ribf", MonoSaccharide::Pentose),
-    ("Rib", MonoSaccharide::Pentose),
-    ("Araf", MonoSaccharide::Pentose),
-    ("Ara", MonoSaccharide::Pentose),
-    ("LAraf", MonoSaccharide::Pentose),
-    ("LAra", MonoSaccharide::Pentose),
-    ("Xyl", MonoSaccharide::Pentose),
-    ("Lyx", MonoSaccharide::Pentose),
+    ("Pen", ProFormaMonoSaccharide::Pentose),
+    ("Ribf", ProFormaMonoSaccharide::Pentose),
+    ("Rib", ProFormaMonoSaccharide::Pentose),
+    ("Araf", ProFormaMonoSaccharide::Pentose),
+    ("Ara", ProFormaMonoSaccharide::Pentose),
+    ("LAraf", ProFormaMonoSaccharide::Pentose),
+    ("LAra", ProFormaMonoSaccharide::Pentose),
+    ("Xyl", ProFormaMonoSaccharide::Pentose),
+    ("Lyx", ProFormaMonoSaccharide::Pentose),
     // hexoses with sulfate TODO: ask to make sure
-    ("HexS", MonoSaccharide::HexS),
-    ("Gal6S", MonoSaccharide::HexS),
+    ("HexS", ProFormaMonoSaccharide::HexS),
+    ("Gal6S", ProFormaMonoSaccharide::HexS),
     // hexoses with dual sulfate TODO: ask to make sure
-    ("Gal4,6S2", MonoSaccharide::HexS2),
+    ("Gal4,6S2", ProFormaMonoSaccharide::HexS2),
     // hexoses
-    ("a-Hex", MonoSaccharide::a_Hex),
-    ("en,a-Hex", MonoSaccharide::en_a_Hex),
-    ("d-Hex", MonoSaccharide::d_Hex),
-    ("HexP", MonoSaccharide::HexP),
-    ("Hex", MonoSaccharide::Hexose),
-    ("Glc", MonoSaccharide::Hexose),
-    ("Galf", MonoSaccharide::Hexose),
-    ("Gal", MonoSaccharide::Hexose),
-    ("LGal", MonoSaccharide::Hexose),
-    ("Man", MonoSaccharide::Hexose),
-    ("All", MonoSaccharide::Hexose),
-    ("LAlt", MonoSaccharide::Hexose),
-    ("Gul", MonoSaccharide::Hexose),
-    ("LIdo", MonoSaccharide::Hexose),
-    ("Tal", MonoSaccharide::Hexose),
+    ("a-Hex", ProFormaMonoSaccharide::a_Hex),
+    ("en,a-Hex", ProFormaMonoSaccharide::en_a_Hex),
+    ("d-Hex", ProFormaMonoSaccharide::d_Hex),
+    ("HexP", ProFormaMonoSaccharide::HexP),
+    ("Hex", ProFormaMonoSaccharide::Hexose),
+    ("Glc", ProFormaMonoSaccharide::Hexose),
+    ("Galf", ProFormaMonoSaccharide::Hexose),
+    ("Gal", ProFormaMonoSaccharide::Hexose),
+    ("LGal", ProFormaMonoSaccharide::Hexose),
+    ("Man", ProFormaMonoSaccharide::Hexose),
+    ("All", ProFormaMonoSaccharide::Hexose),
+    ("LAlt", ProFormaMonoSaccharide::Hexose),
+    ("Gul", ProFormaMonoSaccharide::Hexose),
+    ("LIdo", ProFormaMonoSaccharide::Hexose),
+    ("Tal", ProFormaMonoSaccharide::Hexose),
     // deoxyhexose
-    ("Fuc", MonoSaccharide::Deoxyhexose),
-    ("LFuc", MonoSaccharide::Deoxyhexose),
-    ("Rha", MonoSaccharide::Deoxyhexose),
-    ("LRha", MonoSaccharide::Deoxyhexose),
-    ("Qui", MonoSaccharide::Deoxyhexose),
-    ("2dGlc", MonoSaccharide::Deoxyhexose),
+    ("Fuc", ProFormaMonoSaccharide::Deoxyhexose),
+    ("LFuc", ProFormaMonoSaccharide::Deoxyhexose),
+    ("Rha", ProFormaMonoSaccharide::Deoxyhexose),
+    ("LRha", ProFormaMonoSaccharide::Deoxyhexose),
+    ("Qui", ProFormaMonoSaccharide::Deoxyhexose),
+    ("2dGlc", ProFormaMonoSaccharide::Deoxyhexose),
     // heptoses
-    ("Hep", MonoSaccharide::Heptose),
-    ("Lgro-manHep", MonoSaccharide::Heptose),
-    ("gro-manHep", MonoSaccharide::Heptose),
+    ("Hep", ProFormaMonoSaccharide::Heptose),
+    ("Lgro-manHep", ProFormaMonoSaccharide::Heptose),
+    ("gro-manHep", ProFormaMonoSaccharide::Heptose),
     // other
-    ("Oct", MonoSaccharide::Oct),
-    ("Non", MonoSaccharide::Non),
-    ("Dec", MonoSaccharide::Dec),
-    ("Neu5Ac", MonoSaccharide::Neu5Ac),
-    ("Neu5Gc", MonoSaccharide::Neu5Gc),
-    ("Neu", MonoSaccharide::Neu),
+    ("Oct", ProFormaMonoSaccharide::Oct),
+    ("Non", ProFormaMonoSaccharide::Non),
+    ("Dec", ProFormaMonoSaccharide::Dec),
+    ("Neu5Ac", ProFormaMonoSaccharide::Neu5Ac),
+    ("Neu5Gc", ProFormaMonoSaccharide::Neu5Gc),
+    ("Neu", ProFormaMonoSaccharide::Neu),
 ];
 
-impl TryFrom<&str> for MonoSaccharide {
+impl TryFrom<&str> for ProFormaMonoSaccharide {
     type Error = ();
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
@@ -168,7 +352,7 @@ impl TryFrom<&str> for MonoSaccharide {
     }
 }
 
-impl std::fmt::Display for MonoSaccharide {
+impl std::fmt::Display for ProFormaMonoSaccharide {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -204,7 +388,7 @@ impl std::fmt::Display for MonoSaccharide {
     }
 }
 
-impl MonoSaccharide {
+impl ProFormaMonoSaccharide {
     fn symbol(&self) -> char {
         // ⬠◇♢▭◮⬘
         // ⬟◆♦▬
@@ -219,7 +403,7 @@ impl MonoSaccharide {
     }
 }
 
-impl Chemical for MonoSaccharide {
+impl Chemical for ProFormaMonoSaccharide {
     fn formula(&self) -> MolecularFormula {
         match self {
             Self::Heptose => molecular_formula!(H 12 C 7 O 6),
@@ -253,7 +437,7 @@ impl Chemical for MonoSaccharide {
 /// Rose tree representation of glycan structure
 #[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlycanStructure {
-    sugar: MonoSaccharide,
+    sugar: ProFormaMonoSaccharide,
     branches: Vec<GlycanStructure>,
 }
 
@@ -271,7 +455,7 @@ impl GlycanStructure {
         // GlcNAc(?1-?)Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc-ol
         let mut offset = range.start;
         let mut branch: Self = Self {
-            sugar: MonoSaccharide::Dec,
+            sugar: ProFormaMonoSaccharide::Dec,
             branches: Vec::new(),
         }; // Starting sugar, will be removed
         let mut last_branch: &mut Self = &mut branch;

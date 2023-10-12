@@ -2,7 +2,7 @@ use std::{ffi::OsString, fs, iter, path::Path};
 
 use regex::Regex;
 
-use crate::{formula::MolecularFormula, glycan::MonoSaccharide, Element};
+use crate::{formula::MolecularFormula, glycan::ProFormaMonoSaccharide, Element};
 
 use super::{
     obo::OboOntology,
@@ -103,7 +103,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
 enum Brick {
     Element(Element),
     Formula(MolecularFormula),
-    MonoSaccharide(MonoSaccharide),
+    MonoSaccharide(ProFormaMonoSaccharide),
 }
 
 fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
@@ -130,7 +130,7 @@ fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
         _ => {
             if let Ok(el) = Element::try_from(name) {
                 Ok(Brick::Element(el))
-            } else if let Ok(ms) = MonoSaccharide::try_from(name) {
+            } else if let Ok(ms) = ProFormaMonoSaccharide::try_from(name) {
                 Ok(Brick::MonoSaccharide(ms))
             } else {
                 Err(())

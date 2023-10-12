@@ -2,13 +2,13 @@ use std::fmt::Display;
 
 use crate::{
     formula::{Chemical, MolecularFormula},
-    glycan::MonoSaccharide,
+    glycan::ProFormaMonoSaccharide,
 };
 
 #[derive(Debug, Default)]
 pub struct OntologyModification {
     pub diff_formula: MolecularFormula,
-    pub monosaccharides: Vec<(MonoSaccharide, i16)>,
+    pub monosaccharides: Vec<(ProFormaMonoSaccharide, i16)>,
     pub code_name: String,
     pub full_name: String,
     pub context: String,
