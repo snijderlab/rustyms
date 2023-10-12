@@ -39,7 +39,7 @@ impl MolecularFormula {
             }
         });
         // Deduplicate
-        let mut max = self.elements.len() - 1;
+        let mut max = self.elements.len();
         let mut index = 0;
         while index < max {
             let this = self.elements[index];
