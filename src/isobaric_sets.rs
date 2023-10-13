@@ -170,14 +170,29 @@ impl Iterator for IsobaricSetIterator {
     fn next(&mut self) -> Option<Self::Item> {
         // TODO: no check is done for the N and C terminal options
         while !self.state.2.is_empty() {
-            let level = self.state.2.len() - 1;
-            for n in self.state.2[level] + 1..self.center.len() {
-                self.state.2[level] = n;
+            // Do state + 1 at the highest level where this is still possible and check if that one fits the bounds
+            // until every level is full then pop and try with one fewer number of aminoacids
+            while !self.state.2.iter().all(|s| *s == self.center.len() - 1) {
+                for level in (0..self.state.2.len()).rev() {
+                    if self.state.2[level] != self.center.len() - 1 {
+                        // update this level
+                        self.state.2[level] += 1;
+                        // reset the levels above, has to start at minimal at the index of this level to prevent 'rotations' of the set to show up
+                        for l in level + 1..self.state.2.len() {
+                            self.state.2[l] = self.state.2[level];
+                        }
+                        break;
+                    }
+                }
                 if self.mass_fits() {
                     return Some(self.peptide());
                 }
             }
             self.state.2.pop();
+            // reset the levels to be all 0s again
+            for level in 0..self.state.2.len() {
+                self.state.2[level] = 0;
+            }
         }
         None
     }
