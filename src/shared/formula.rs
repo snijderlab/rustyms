@@ -16,6 +16,18 @@ pub trait Chemical {
     fn formula(&self) -> MolecularFormula;
 }
 
+impl<T: Chemical> Chemical for &[T] {
+    fn formula(&self) -> MolecularFormula {
+        self.iter().map(|i| i.formula()).sum()
+    }
+}
+
+impl<T: Chemical> Chemical for &Vec<T> {
+    fn formula(&self) -> MolecularFormula {
+        self.iter().map(|i| i.formula()).sum()
+    }
+}
+
 impl MolecularFormula {
     /// Create a new molecular formula, the elements will be sorted on element/isotope and deduplicated
     pub fn new(elements: &[(crate::Element, u16, i16)]) -> Self {

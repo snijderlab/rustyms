@@ -22,8 +22,6 @@ pub enum ProFormaMonoSaccharide {
     /// Any general tetrose (four carbon sugar)
     Tetrose,
     HexS,
-    /// Hexose with two sulfates
-    HexS2,
     HexP,
     Neu5Ac,
     Non,
@@ -45,33 +43,48 @@ pub enum ProFormaMonoSaccharide {
 
 /// A monosaccharide with all its complexity
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MonoSaccharide {
-    pub base_sugar: Option<BaseSugar>,
-    pub substituents: Vec<GlycanSubstituent>,
-    pub pro_forma_name: Option<String>,
+pub enum MonoSaccharide {
+    Predefined(PredefinedMonosaccharide),
+    Allocated(AllocatedMonosaccharide),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PredefinedMonosaccharide {
+    base_sugar: Option<BaseSugar>,
+    substituents: &'static [GlycanSubstituent],
+    pro_forma_name: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AllocatedMonosaccharide {
+    base_sugar: BaseSugar,
+    substituents: Vec<GlycanSubstituent>,
 }
 
 impl MonoSaccharide {
-    pub const fn new(sugar: BaseSugar, substituents: &[GlycanSubstituent]) -> Self {
-        Self {
-            base_sugar: Some(sugar),
+    pub fn new(sugar: BaseSugar, substituents: &[GlycanSubstituent]) -> Self {
+        Self::Allocated(AllocatedMonosaccharide {
+            base_sugar: sugar,
             substituents: substituents.to_owned(),
-            pro_forma_name: None,
-        }
+        })
     }
+}
 
-    const fn no_sugar(substituents: &[GlycanSubstituent]) -> Self {
-        Self {
-            base_sugar: None,
-            substituents: substituents.to_owned(),
-            pro_forma_name: None,
-        }
-    }
-
-    pub const fn with_name(self, name: impl Into<String>) -> Self {
-        Self {
-            pro_forma_name: Some(name.into()),
-            ..self
+impl Chemical for MonoSaccharide {
+    fn formula(&self) -> MolecularFormula {
+        match self {
+            Self::Allocated(AllocatedMonosaccharide {
+                base_sugar,
+                substituents,
+            }) => base_sugar.formula() + substituents.formula(),
+            Self::Predefined(PredefinedMonosaccharide {
+                base_sugar,
+                substituents,
+                ..
+            }) => {
+                base_sugar.as_ref().map(|s| s.formula()).unwrap_or_default()
+                    + substituents.formula()
+            }
         }
     }
 }
@@ -81,14 +94,21 @@ impl Display for MonoSaccharide {
         write!(
             f,
             "{}",
-            self.pro_forma_name.as_ref().unwrap_or(&format!(
-                "{}{}",
-                self.base_sugar.map_or(String::new(), |s| s.to_string()),
-                self.substituents
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<String>()
-            ))
+            match self {
+                Self::Allocated(AllocatedMonosaccharide {
+                    base_sugar,
+                    substituents,
+                }) => format!(
+                    "{}{}",
+                    base_sugar,
+                    substituents
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<String>()
+                ),
+                Self::Predefined(PredefinedMonosaccharide { pro_forma_name, .. }) =>
+                    pro_forma_name.to_string(),
+            }
         )
     }
 }
@@ -219,6 +239,10 @@ pub enum GlycanSubstituent {
     Acetimidoyl,
     ///AmMe N-(N-methyl-acetimidoyl)
     MethylAcetimidoyl,
+    ///d Deoxy
+    Deoxy,
+    ///en didehydro an addition of a double bond
+    Didehydro,
     ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
     DiMethylAcetimidoyl,
     ///Fo formyl
@@ -233,8 +257,6 @@ pub enum GlycanSubstituent {
     Glycyl,
     ///Gr glyceryl
     Glyceryl,
-    ///d Deoxy
-    Deoxy,
     ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
     DiMethylGlyceryl,
     ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
@@ -274,6 +296,7 @@ impl Display for GlycanSubstituent {
                 Self::Acetimidoyl => "Am",
                 Self::MethylAcetimidoyl => "AmMe",
                 Self::Deoxy => "d",
+                Self::Didehydro => "en",
                 Self::DiMethylAcetimidoyl => "AmMe2",
                 Self::Formyl => "Fo",
                 Self::Glycolyl => "Gc",
@@ -308,6 +331,7 @@ impl Chemical for GlycanSubstituent {
             Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
             Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
             Self::Deoxy => molecular_formula!(H 1), // Together with the replacement below this is O-1
+            Self::Didehydro => molecular_formula!(H -1 O 1), // Together with the replacement below this is H-2
             Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
             Self::Formyl => molecular_formula!(H 1 C 1 O 1),
             Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
@@ -331,108 +355,213 @@ impl Chemical for GlycanSubstituent {
     }
 }
 
-// TODO: think about a better way to save?
-// * Base sugar (Hex, Hep, Oct, etc)
-// * 'Flavour' of the base sugar (Man, Glc, etc for Hexoses)
-// * Linked amino (N acetylated or not)
-// * Added mods: sulfates, pyruvates, deoxy, phosphates(?), Ac, Gc
-
 /// All monosaccharides ordered to be able to parse glycans by matching them from the top
 #[allow(dead_code)]
 pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
     (
         "phosphate",
-        MonoSaccharide::no_sugar(&[GlycanSubstituent::Phosphate]).with_name("phosphate"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: None,
+            substituents: &[GlycanSubstituent::Phosphate],
+            pro_forma_name: "phosphate",
+        }),
     ),
     (
         "sulfate",
-        MonoSaccharide::no_sugar(&[GlycanSubstituent::Sulfate]).with_name("sulfate"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: None,
+            substituents: &[GlycanSubstituent::Sulfate],
+            pro_forma_name: "sulfate",
+        }),
     ),
     (
         "Sug",
-        MonoSaccharide::new(BaseSugar::Sugar, &[]).with_name("Sug"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Sugar),
+            substituents: &[],
+            pro_forma_name: "Sug",
+        }),
     ),
     (
         "Tri",
-        MonoSaccharide::new(BaseSugar::Triose, &[]).with_name("Tri"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Triose),
+            substituents: &[],
+            pro_forma_name: "Tri",
+        }),
     ),
     (
         "Tet",
-        MonoSaccharide::new(BaseSugar::Tetrose(None), &[]).with_name("Tet"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Tetrose(None)),
+            substituents: &[],
+            pro_forma_name: "Tet",
+        }),
     ),
     (
         "Pen",
-        MonoSaccharide::new(BaseSugar::Pentose(None), &[]).with_name("Pen"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Pentose(None)),
+            substituents: &[],
+            pro_forma_name: "Pen",
+        }),
     ),
     (
         "a-Hex",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Acid]).with_name("a-Hex"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Acid],
+            pro_forma_name: "a-Hex",
+        }),
     ),
-    ("en,a-Hex", todo!()), // TODO: what is `en`
+    (
+        "en,a-Hex",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Acid, GlycanSubstituent::Didehydro],
+            pro_forma_name: "en,a-Hex",
+        }),
+    ), // TODO: what is `en`
     (
         "d-Hex",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Deoxy])
-            .with_name("d-Hex"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Deoxy],
+            pro_forma_name: "d-Hex",
+        }),
     ),
     (
         "HexNAc(S)",
-        MonoSaccharide::new(
-            BaseSugar::Hexose(None),
-            &[GlycanSubstituent::NAcetyl, GlycanSubstituent::Sulfate],
-        )
-        .with_name("HexNAc(S)"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::NAcetyl, GlycanSubstituent::Sulfate],
+            pro_forma_name: "HexNAc(S)",
+        }),
     ),
     (
         "HexNAc",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::NAcetyl])
-            .with_name("HexNAc"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::NAcetyl],
+            pro_forma_name: "HexNAc",
+        }),
     ),
     (
         "HexNS",
-        MonoSaccharide::new(
-            BaseSugar::Hexose(None),
-            &[GlycanSubstituent::Amino, GlycanSubstituent::Sulfate],
-        )
-        .with_name("HexNS"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Amino, GlycanSubstituent::Sulfate],
+            pro_forma_name: "HexNS",
+        }),
     ),
     (
         "HexN",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Amino]).with_name("HexN"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Amino],
+            pro_forma_name: "HexN",
+        }),
     ),
     (
         "HexS",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Sulfate])
-            .with_name("HexS"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Sulfate],
+            pro_forma_name: "HexS",
+        }),
     ),
     (
         "HexP",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[GlycanSubstituent::Phosphate])
-            .with_name("HexP"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::Phosphate],
+            pro_forma_name: "HexP",
+        }),
     ),
     (
         "Hex",
-        MonoSaccharide::new(BaseSugar::Hexose(None), &[]).with_name("Hex"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[],
+            pro_forma_name: "Hex",
+        }),
     ),
     (
         "Hep",
-        MonoSaccharide::new(BaseSugar::Heptose(None), &[]).with_name("Hep"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Heptose(None)),
+            substituents: &[],
+            pro_forma_name: "Hep",
+        }),
     ),
     (
         "Oct",
-        MonoSaccharide::new(BaseSugar::Octose, &[]).with_name("Oct"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Octose),
+            substituents: &[],
+            pro_forma_name: "Oct",
+        }),
     ),
     (
         "Non",
-        MonoSaccharide::new(BaseSugar::Nonose, &[]).with_name("Non"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[],
+            pro_forma_name: "Non",
+        }),
     ),
     (
         "Dec",
-        MonoSaccharide::new(BaseSugar::Decose, &[]).with_name("Dec"),
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Decose),
+            substituents: &[],
+            pro_forma_name: "Dec",
+        }),
     ),
-    ("Neu5Ac", MonoSaccharide::Neu5Ac),
-    ("Neu5Gc", MonoSaccharide::Neu5Gc),
-    ("Neu", MonoSaccharide::Neu),
-    ("Fuc", MonoSaccharide::Fuc),
+    (
+        "Neu5Ac",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Acetyl,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu",
+        }),
+    ),
+    (
+        "Neu5Gc",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Glycolyl,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu",
+        }),
+    ),
+    (
+        "Neu",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Deoxy,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu",
+        }),
+    ),
+    (
+        "Fuc",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(Some(HexoseIsomer::Galactose))),
+            substituents: &[GlycanSubstituent::Deoxy],
+            pro_forma_name: "Fuc",
+        }),
+    ),
 ];
 
 impl TryFrom<&str> for ProFormaMonoSaccharide {
@@ -483,7 +612,6 @@ impl std::fmt::Display for ProFormaMonoSaccharide {
                 Self::Pentose => "Pen",
                 Self::Tetrose => "Tet",
                 Self::HexS => "HexS",
-                Self::HexS2 => "HexS2",
                 Self::HexP => "HexP",
                 Self::Neu5Ac => "Neu5Ac",
                 Self::Non => "Non",
@@ -545,7 +673,6 @@ impl Chemical for ProFormaMonoSaccharide {
             Self::sulfate => molecular_formula!(O 3 S 1),
             Self::d_Hex | Self::Hexose => molecular_formula!(H 10 C 6 O 5),
             Self::HexS => molecular_formula!(H 10 C 6 O 8 S 1),
-            Self::HexS2 => molecular_formula!(H 9 C 6 O 11 S 2), // TODO: ask around
         }
     }
 }
@@ -553,7 +680,7 @@ impl Chemical for ProFormaMonoSaccharide {
 /// Rose tree representation of glycan structure
 #[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlycanStructure {
-    sugar: ProFormaMonoSaccharide,
+    sugar: MonoSaccharide,
     branches: Vec<GlycanStructure>,
 }
 
@@ -571,7 +698,10 @@ impl GlycanStructure {
         // GlcNAc(?1-?)Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc-ol
         let mut offset = range.start;
         let mut branch: Self = Self {
-            sugar: ProFormaMonoSaccharide::Dec,
+            sugar: MonoSaccharide::Allocated(AllocatedMonosaccharide {
+                base_sugar: BaseSugar::Decose,
+                substituents: Vec::new(),
+            }),
             branches: Vec::new(),
         }; // Starting sugar, will be removed
         let mut last_branch: &mut Self = &mut branch;
@@ -594,7 +724,7 @@ impl GlycanStructure {
                 .find(|(name, _)| line[offset..].starts_with(name))
             {
                 last_branch.branches.push(Self {
-                    sugar: *sugar,
+                    sugar: sugar.clone(),
                     branches: Vec::new(),
                 });
                 last_branch = last_branch.branches.last_mut().unwrap();
@@ -617,5 +747,53 @@ impl GlycanStructure {
             }
         }
         Ok(branch.branches.pop().unwrap()) // Remove the outer starting sugar
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pro_forma_compliance() {
+        let cases = &[
+            ("Hep", molecular_formula!(H 12 C 7 O 6)),
+            ("phosphate", molecular_formula!(H 1 O 3 P 1)),
+            ("a_Hex", molecular_formula!(H 8 C 6 O 6)),
+            ("Sug", molecular_formula!(H 2 C 2 O 1)),
+            ("HexN", molecular_formula!(H 11 C 6 N 1 O 4)),
+            ("Pen", molecular_formula!(H 8 C 5 O 4)),
+            ("Tet", molecular_formula!(H 6 C 4 O 3)),
+            ("HexP", molecular_formula!(H 11 C 6 O 8 P 1)),
+            ("Neu5Ac", molecular_formula!(H 17 C 11 N 1 O 8)),
+            ("Non", molecular_formula!(H 16 C 9 O 8)),
+            ("HexNAcS", molecular_formula!(H 13 C 8 N 1 O 8 S 1)),
+            ("Dec", molecular_formula!(H 18 C 10 O 9)),
+            ("en,a-Hex", molecular_formula!(H 6 C 6 O 5)),
+            ("Neu5Gc", molecular_formula!(H 17 C 11 N 1 O 9)),
+            ("Neu", molecular_formula!(H 15 C 9 N 1 O 7)),
+            ("HexNAc", molecular_formula!(H 13 C 8 N 1 O 5)),
+            ("Fuc", molecular_formula!(H 10 C 6 O 4)),
+            ("HexNS", molecular_formula!(H 11 C 6 N 1 O 7 S 1)),
+            ("Tri", molecular_formula!(H 4 C 3 O 2)),
+            ("Oct", molecular_formula!(H 14 C 8 O 7)),
+            ("sulfate", molecular_formula!(O 3 S 1)),
+            ("d_Hex", molecular_formula!(H 10 C 6 O 5)),
+            ("Hex", molecular_formula!(H 10 C 6 O 5)),
+            ("HexS", molecular_formula!(H 10 C 6 O 8 S 1)),
+        ];
+        for (name, formula) in cases {
+            assert_eq!(
+                GLYCAN_PARSE_LIST
+                    .iter()
+                    .find(|p| p.0 == *name)
+                    .unwrap()
+                    .1
+                    .formula(),
+                *formula,
+                "{}",
+                name
+            );
+        }
     }
 }
