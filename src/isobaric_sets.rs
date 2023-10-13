@@ -79,16 +79,8 @@ pub fn find_isobaric_sets(
         })
         .collect();
     c_term.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    let lightest = center.iter().fold(f64::INFINITY, |acc, s| s.1.min(acc));
 
-    dbg!(IsobaricSetIterator {
-        n_term,
-        c_term,
-        center,
-        lightest,
-        bounds,
-        state: (None, None, Vec::new()),
-    })
+    IsobaricSetIterator::new(n_term, c_term, center, bounds)
 }
 
 #[derive(Debug)]
@@ -102,6 +94,27 @@ pub struct IsobaricSetIterator {
 }
 
 impl IsobaricSetIterator {
+    fn new(
+        n_term: Vec<(SequenceElement, f64)>,
+        c_term: Vec<(SequenceElement, f64)>,
+        center: Vec<(SequenceElement, f64)>,
+        bounds: (f64, f64),
+    ) -> Self {
+        let lightest = center.iter().fold(f64::INFINITY, |acc, s| s.1.min(acc));
+        let mut iter = Self {
+            n_term,
+            c_term,
+            center,
+            lightest,
+            bounds,
+            state: (None, None, Vec::new()),
+        };
+        while iter.current_mass() < iter.bounds.0 - iter.lightest {
+            iter.state.2.push(0);
+        }
+        iter
+    }
+
     fn current_mass(&self) -> f64 {
         let mass = self.state.0.map(|i| self.n_term[i].1).unwrap_or_default()
             + self.state.1.map(|i| self.c_term[i].1).unwrap_or_default()
@@ -150,78 +163,23 @@ impl IsobaricSetIterator {
             charge_carriers: None,
         }
     }
-
-    fn scan(&mut self) -> Option<LinearPeptide> {
-        println!("Scan");
-        let last = self.state.2.last().copied().unwrap_or(0); // Be sure to not retry combination that where already tried
-        let prev = self.state.2.len();
-        while self.current_mass() < self.bounds.0 - self.lightest {
-            self.state.2.push(last);
-        }
-        if self.state.2.len() > prev {
-            println!("Scan added until {} aas", self.state.2.len());
-        }
-        //dbg!(&self.state.2);
-        // See if the naive addition of the first elements worked
-        if self.current_mass() <= self.bounds.1 {
-            return Some(self.peptide());
-        }
-
-        // Now loop over the last elements to see if any SequenceElements fits the mass
-        let last = self.state.2.len() - 1;
-        let start = self.state.2[last] + 1;
-        for n in start..self.center.len() {
-            self.state.2[last] = n;
-            let mass = self.current_mass();
-            if mass < self.bounds.0 - self.lightest {
-                return self.scan(); // Too light try to add more AAs
-            }
-
-            if mass > self.bounds.0 && mass < self.bounds.1 {
-                return Some(self.peptide());
-            }
-        }
-        println!("Scanned last level");
-        None
-    }
 }
 
 impl Iterator for IsobaricSetIterator {
     type Item = LinearPeptide;
     fn next(&mut self) -> Option<Self::Item> {
-        println!(
-            "{:?}[{}]{:?}",
-            self.state.0,
-            self.state.2.iter().map(ToString::to_string).join(","),
-            self.state.1,
-        );
-        println!("Whole new element");
-        loop {
-            // Check the state (a list of selected pieces)
-            if let Some(pep) = self.scan() {
-                return Some(pep);
+        // TODO: no check is done for the N and C terminal options
+        while !self.state.2.is_empty() {
+            let level = self.state.2.len() - 1;
+            for n in self.state.2[level] + 1..self.center.len() {
+                self.state.2[level] = n;
+                if self.mass_fits() {
+                    return Some(self.peptide());
+                }
             }
-            //dbg!(&self.state.2);
-            // No match was found do a prune back as many levels as needed and do the scan again
             self.state.2.pop();
-            // If we reach rock bottom give up (not sure this works we might need to have tried all options for this level first)
-            if self.state.2.is_empty() {
-                return None;
-            }
-            let last = self.state.2.len() - 1;
-            self.state.2[last] += 1;
-            println!("Pop");
-            while self.state.2[self.state.2.len() - 1] <= self.center.len() {
-                self.state.2.pop();
-                println!("Pop one more");
-                let last = self.state.2.len() - 1;
-                self.state.2[last] += 1;
-            }
-            // If we reach rock bottom give up (not sure this works we might need to have tried all options for this level first)
-            if self.state.2.is_empty() {
-                return None;
-            }
         }
+        None
     }
 }
 
@@ -287,7 +245,7 @@ mod tests {
         assert_eq!(
             &sets,
             &[
-                ComplexPeptide::pro_forma("AG").unwrap().assume_linear(),
+                ComplexPeptide::pro_forma("GA").unwrap().assume_linear(),
                 ComplexPeptide::pro_forma("Q").unwrap().assume_linear(),
             ]
         );

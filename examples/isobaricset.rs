@@ -8,10 +8,13 @@ fn main() {
         &[],
     )
     .collect();
+    for set in &sets {
+        println!("{set}");
+    }
     assert_eq!(
         &sets,
         &[
-            ComplexPeptide::pro_forma("AG").unwrap().assume_linear(),
+            ComplexPeptide::pro_forma("GA").unwrap().assume_linear(),
             ComplexPeptide::pro_forma("Q").unwrap().assume_linear(),
         ]
     );
