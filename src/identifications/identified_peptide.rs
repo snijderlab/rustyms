@@ -1,17 +1,50 @@
+use super::fasta::FastaData;
 use super::novor::NovorData;
 use super::opair::OpairData;
 use super::peaks::PeaksData;
 use crate::error::CustomError;
+use crate::helper_functions::check_extension;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Debug)]
 pub struct IdentifiedPeptide {
+    /// The peptide sequence
     pub peptide: LinearPeptide,
+    /// The local confidence of this peptide (same length as the peptide)
     pub local_confidence: Option<Vec<f64>>,
+    /// The score [0-1] if available in the original format
     pub score: Option<f64>,
+    /// The full metadata of this peptide
     pub metadata: MetaData,
 }
+
+// impl IdentifiedPeptide {
+//     pub fn parse_file(
+//         path: impl AsRef<std::path::Path>,
+//     ) -> Result<Box<impl Iterator<Item = Result<IdentifiedPeptide, CustomError>>>, String> {
+//         let path = path.as_ref();
+//         let actual_extension = path
+//             .extension()
+//             .map(|ex: &std::ffi::OsStr| {
+//                 (ex == "gz")
+//                     .then(|| path.to_str().and_then(|p| p.rsplitn(3, '.').nth(1)))
+//                     .unwrap_or(ex.to_str())
+//             })
+//             .flatten()
+//             .map(|ex| ex.to_lowercase());
+//         match actual_extension.as_deref() {
+//             Some("csv") => PeaksData::parse_file(path).map(|p| Box::new(p.generalise())),
+//             Some("psmtsv") => OpairData::parse_file(path).map(|p| Box::new(p.generalise())),
+//             Some("fasta") => {
+//                 FastaData::parse_reads(path).map(|p| Box::new(p.into_iter().map(|f| Ok(f.into()))))
+//             }
+//             _ => Err(
+//                 "Could not detect file format for the given identified peptides file".to_string(),
+//             ),
+//         }
+//     }
+// }
 
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Debug)]
@@ -22,15 +55,18 @@ pub enum MetaData {
     Novor(NovorData),
     /// Novor metadata
     Opair(OpairData),
+    /// Novor metadata
+    Fasta(FastaData),
 }
 
 impl MetaData {
     /// The charge of the precursor, if known
-    pub fn charge(&self) -> Option<usize> {
+    pub const fn charge(&self) -> Option<usize> {
         match self {
             Self::Peaks(PeaksData { z, .. })
             | Self::Novor(NovorData { z, .. })
             | Self::Opair(OpairData { z, .. }) => Some(*z),
+            Self::Fasta(_) => None,
         }
     }
     /// Which fragmentation mode was used, if known
@@ -49,6 +85,7 @@ impl MetaData {
             Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
                 Some(*scan)
             }
+            Self::Fasta(_) => None,
         }
     }
 }
@@ -90,6 +127,12 @@ where
 /// Convenience type to not have to type out long iterator types
 pub type BoxedIdentifiedPeptideIter<T> =
     IdentifiedPeptideIter<T, Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>>;
+
+// impl<T: Into<IdentifiedPeptide> + IdentifiedPeptideSource> BoxedIdentifiedPeptideIter<T> {
+//     fn generalise(self) -> impl Iterator<Item = Result<IdentifiedPeptide, CustomError>> {
+//         self.into_iter().map(|element| element.map(|p| p.into()))
+//     }
+// }
 
 /// An iterator returning parsed identified peptides
 pub struct IdentifiedPeptideIter<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> {

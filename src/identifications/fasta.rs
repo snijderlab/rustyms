@@ -5,19 +5,22 @@ use crate::{
     ComplexPeptide, LinearPeptide, SequenceElement,
 };
 
+use super::{IdentifiedPeptide, MetaData};
+
 /// A single parsed line of a fasta file
 #[allow(missing_docs)]
+#[derive(Debug)]
 pub struct FastaData {
     pub id: String,
     pub full_header: String,
-    pub sequence: LinearPeptide,
+    pub peptide: LinearPeptide,
 }
 
 impl FastaData {
     /// Parse a single fasta file
     /// # Errors
     /// A custom error when it is not a valid fasta file
-    pub fn parse_reads(path: &str) -> Result<Vec<Self>, CustomError> {
+    pub fn parse_file(path: &str) -> Result<Vec<Self>, CustomError> {
         let file = std::fs::File::open(path).map_err(|_| {
             CustomError::error(
                 "Failed reading fasta file",
@@ -44,7 +47,7 @@ impl FastaData {
                     sequences.push(Self {
                         id,
                         full_header,
-                        sequence: LinearPeptide {
+                        peptide: LinearPeptide {
                             global: Vec::new(),
                             labile: Vec::new(),
                             n_term: None,
@@ -72,7 +75,7 @@ impl FastaData {
             sequences.push(Self {
                 id,
                 full_header,
-                sequence: LinearPeptide {
+                peptide: LinearPeptide {
                     global: Vec::new(),
                     labile: Vec::new(),
                     n_term: None,
@@ -85,5 +88,16 @@ impl FastaData {
         }
 
         Ok(sequences)
+    }
+}
+
+impl From<FastaData> for IdentifiedPeptide {
+    fn from(value: FastaData) -> Self {
+        Self {
+            peptide: value.peptide.clone(),
+            local_confidence: None,
+            score: None,
+            metadata: MetaData::Fasta(value),
+        }
     }
 }

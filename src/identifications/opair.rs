@@ -242,6 +242,18 @@ impl IdentifiedPeptideSource for OpairData {
             protein_name: Location::column(format.protein_name, source).get_string(),
             protein_location: Location::column(format.protein_location, source).parse_with(
                 |loc| {
+                    if loc.location.len() < 3 {
+                        return Err(CustomError::error(
+                            "Invalid Opair line",
+                            "The location is not defined, it should be defined like this [<start> to <end>]",
+                            Context::line(
+                                source.line_index+1,
+                                source.line.clone(),
+                                loc.location.start,
+                                loc.location.len(),
+                            ),
+                        ))
+                    }
                     let bytes =
                         loc.line.line[loc.location.start + 1..loc.location.end-1].as_bytes();
                     let start = bytes.iter().take_while(|c| c.is_ascii_digit()).count();

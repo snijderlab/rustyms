@@ -98,14 +98,25 @@ impl Modification {
             "cam" => find_id_in_ontology(4, UNIMOD_ONTOLOGY), // carbamidomethyl
             _ => {
                 // Try to detect the Opair format
-                if let Some(capture) = Regex::new(r"[^:]+:(.*) on [A-Z]")
+                Regex::new(r"[^:]+:(.*) on [A-Z]")
                     .unwrap()
                     .captures(&line[location])
-                {
-                    find_name_in_ontology(&capture[1], UNIMOD_ONTOLOGY).ok() // TODO: parse the glycan naming
-                } else {
-                    None
-                }
+                    .and_then(|capture| {
+                        find_name_in_ontology(&capture[1], UNIMOD_ONTOLOGY)
+                            .or_else(|()| {
+                                parse_named_counter(&capture[1], crate::GLYCAN_PARSE_LIST, false)
+                                    .map(Modification::Glycan)
+                            })
+                            .or_else(|_| {
+                                match &capture[1] {
+                                    "Deamidation" => {
+                                        Ok(find_id_in_ontology(7, UNIMOD_ONTOLOGY).unwrap())
+                                    } // deamidated
+                                    _ => Err(()),
+                                }
+                            })
+                            .ok() // TODO: parse the glycan naming
+                    })
             }
         }
     }

@@ -572,7 +572,7 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
                 GlycanSubstituent::Acetyl,
                 GlycanSubstituent::Acid,
             ],
-            pro_forma_name: "Neu",
+            pro_forma_name: "Neu5Ac",
         }),
     ),
     (
@@ -584,7 +584,7 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
                 GlycanSubstituent::Glycolyl,
                 GlycanSubstituent::Acid,
             ],
-            pro_forma_name: "Neu",
+            pro_forma_name: "Neu5Gc",
         }),
     ),
     (
@@ -605,6 +605,75 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
             base_sugar: Some(BaseSugar::Hexose(Some(HexoseIsomer::Galactose))),
             substituents: &[GlycanSubstituent::Deoxy],
             pro_forma_name: "Fuc",
+        }),
+    ),
+    // Single letter codes, by defining them like this they will be read but exported to the standard ProForma codes
+    (
+        "P",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(Some(HexoseIsomer::Mannose))),
+            substituents: &[GlycanSubstituent::Phosphate],
+            pro_forma_name: "Hexphosphate", // TODO: technically maybe not working when multiple are in there, think it through
+        }),
+    ),
+    (
+        "H",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[],
+            pro_forma_name: "Hex",
+        }),
+    ),
+    (
+        "N",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(None)),
+            substituents: &[GlycanSubstituent::NAcetyl],
+            pro_forma_name: "HexNAc",
+        }),
+    ),
+    (
+        "F",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Hexose(Some(HexoseIsomer::Galactose))),
+            substituents: &[GlycanSubstituent::Deoxy],
+            pro_forma_name: "Fuc",
+        }),
+    ),
+    (
+        "S",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Acetyl,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu5Ac",
+        }),
+    ),
+    (
+        "A",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Acetyl,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu5Ac",
+        }),
+    ),
+    (
+        "G",
+        MonoSaccharide::Predefined(PredefinedMonosaccharide {
+            base_sugar: Some(BaseSugar::Nonose),
+            substituents: &[
+                GlycanSubstituent::Amino,
+                GlycanSubstituent::Glycolyl,
+                GlycanSubstituent::Acid,
+            ],
+            pro_forma_name: "Neu5Gc",
         }),
     ),
 ];
