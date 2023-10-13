@@ -64,6 +64,7 @@ impl MolecularFormula {
                 index += 1;
             }
         }
+        self.elements.retain(|el| el.2 != 0);
         self
     }
 
@@ -159,6 +160,7 @@ impl Add<&MolecularFormula> for &MolecularFormula {
                 index_rhs += 1;
             }
         }
+        result.elements.retain(|el| el.2 != 0);
         result
     }
 }
@@ -188,6 +190,7 @@ impl Sub<&MolecularFormula> for &MolecularFormula {
                 index_rhs += 1;
             }
         }
+        result.elements.retain(|el| el.2 != 0);
         result
     }
 }

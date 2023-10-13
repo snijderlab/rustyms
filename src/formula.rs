@@ -149,6 +149,19 @@ mod tests {
     }
 
     #[test]
+    fn simplified() {
+        assert_eq!(molecular_formula!(H 2 O 1 O 1), molecular_formula!(O 2 H 2));
+        assert_eq!(
+            molecular_formula!(H 2 O 1 O 1 H 1 H -2 H 0 H -1 H 2),
+            molecular_formula!(O 2 H 2)
+        );
+        assert_eq!(
+            molecular_formula!(H 2 Sb 0 O 1 O 1 H 1 H -2 H 0 H -1 N 0 P 0 Na 0 H 2),
+            molecular_formula!(O 2 H 2)
+        );
+    }
+
+    #[test]
     fn add() {
         assert_eq!(
             molecular_formula!(H 2 O 2),

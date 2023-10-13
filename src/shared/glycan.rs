@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Range};
+use std::{fmt::Display, hash::Hash, ops::Range};
 
 use crate::{
     formula::{Chemical, MolecularFormula},
@@ -42,10 +42,51 @@ pub enum ProFormaMonoSaccharide {
 }
 
 /// A monosaccharide with all its complexity
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub enum MonoSaccharide {
     Predefined(PredefinedMonosaccharide),
     Allocated(AllocatedMonosaccharide),
+}
+
+impl PartialEq for MonoSaccharide {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Allocated(a), Self::Predefined(p)) => {
+                p.base_sugar
+                    .as_ref()
+                    .map(|s| *s == a.base_sugar)
+                    .unwrap_or_default()
+                    && p.substituents == a.substituents
+            }
+            (Self::Predefined(p), Self::Allocated(a)) => {
+                p.base_sugar
+                    .as_ref()
+                    .map(|s| *s == a.base_sugar)
+                    .unwrap_or_default()
+                    && p.substituents == a.substituents
+            }
+            (Self::Allocated(a), Self::Allocated(b)) => a == b,
+            (Self::Predefined(a), Self::Predefined(b)) => a == b,
+        }
+    }
+}
+
+impl Hash for MonoSaccharide {
+    /// Hash implementation to try and give a predefined mono sacc with the same composition as a allocated mono sacc the same value
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Allocated(a) => {
+                a.base_sugar.hash(state);
+                a.substituents.hash(state);
+            }
+            Self::Predefined(p) => {
+                if let Some(s) = &p.base_sugar {
+                    s.hash(state);
+                }
+                p.substituents.hash(state);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -418,15 +459,19 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
         "en,a-Hex",
         MonoSaccharide::Predefined(PredefinedMonosaccharide {
             base_sugar: Some(BaseSugar::Hexose(None)),
-            substituents: &[GlycanSubstituent::Acid, GlycanSubstituent::Didehydro],
+            substituents: &[
+                GlycanSubstituent::Acid,
+                GlycanSubstituent::Didehydro,
+                GlycanSubstituent::Deoxy,
+            ],
             pro_forma_name: "en,a-Hex",
         }),
-    ), // TODO: what is `en`
+    ),
     (
         "d-Hex",
         MonoSaccharide::Predefined(PredefinedMonosaccharide {
             base_sugar: Some(BaseSugar::Hexose(None)),
-            substituents: &[GlycanSubstituent::Deoxy],
+            substituents: &[],
             pro_forma_name: "d-Hex",
         }),
     ),
@@ -759,7 +804,7 @@ mod tests {
         let cases = &[
             ("Hep", molecular_formula!(H 12 C 7 O 6)),
             ("phosphate", molecular_formula!(H 1 O 3 P 1)),
-            ("a_Hex", molecular_formula!(H 8 C 6 O 6)),
+            ("a-Hex", molecular_formula!(H 8 C 6 O 6)),
             ("Sug", molecular_formula!(H 2 C 2 O 1)),
             ("HexN", molecular_formula!(H 11 C 6 N 1 O 4)),
             ("Pen", molecular_formula!(H 8 C 5 O 4)),
@@ -767,7 +812,7 @@ mod tests {
             ("HexP", molecular_formula!(H 11 C 6 O 8 P 1)),
             ("Neu5Ac", molecular_formula!(H 17 C 11 N 1 O 8)),
             ("Non", molecular_formula!(H 16 C 9 O 8)),
-            ("HexNAcS", molecular_formula!(H 13 C 8 N 1 O 8 S 1)),
+            ("HexNAc(S)", molecular_formula!(H 13 C 8 N 1 O 8 S 1)),
             ("Dec", molecular_formula!(H 18 C 10 O 9)),
             ("en,a-Hex", molecular_formula!(H 6 C 6 O 5)),
             ("Neu5Gc", molecular_formula!(H 17 C 11 N 1 O 9)),
@@ -778,7 +823,7 @@ mod tests {
             ("Tri", molecular_formula!(H 4 C 3 O 2)),
             ("Oct", molecular_formula!(H 14 C 8 O 7)),
             ("sulfate", molecular_formula!(O 3 S 1)),
-            ("d_Hex", molecular_formula!(H 10 C 6 O 5)),
+            ("d-Hex", molecular_formula!(H 10 C 6 O 5)),
             ("Hex", molecular_formula!(H 10 C 6 O 5)),
             ("HexS", molecular_formula!(H 10 C 6 O 8 S 1)),
         ];
@@ -787,12 +832,11 @@ mod tests {
                 GLYCAN_PARSE_LIST
                     .iter()
                     .find(|p| p.0 == *name)
-                    .unwrap()
+                    .unwrap_or_else(|| panic!("Assumed {name} would be defined"))
                     .1
                     .formula(),
                 *formula,
-                "{}",
-                name
+                "{name}",
             );
         }
     }

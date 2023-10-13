@@ -34,7 +34,7 @@ impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
 }
 
 #[allow(dead_code)]
-pub fn parse_named_counter<T: Copy>(
+pub fn parse_named_counter<T: Clone>(
     value: &str,
     names: &[(&str, T)],
     allow_negative: bool,
@@ -57,9 +57,9 @@ pub fn parse_named_counter<T: Copy>(
                         .trim()
                         .to_string();
                     if num.is_empty() {
-                        output.push((name.1, 1));
+                        output.push((name.1.clone(), 1));
                     } else {
-                        output.push((name.1, num.parse().unwrap()));
+                        output.push((name.1.clone(), num.parse().unwrap()));
                         index += num.len()
                             + value[index..]
                                 .chars()
