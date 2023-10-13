@@ -28,7 +28,6 @@ mod element;
 mod error;
 mod fragment;
 mod glycan;
-mod helper_functions;
 pub mod identifications;
 mod isobaric_sets;
 mod isotopes;

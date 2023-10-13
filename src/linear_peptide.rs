@@ -181,6 +181,17 @@ impl LinearPeptide {
         Some(formula.with_global_isotope_modifications(&self.global))
     }
 
+    /// Gives the formula for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
+    pub fn bare_formula(&self) -> Option<MolecularFormula> {
+        let mut formula = MolecularFormula::default();
+        let mut placed = vec![false; self.ambiguous_modifications.len()];
+        for (_, pos) in self.sequence.iter().enumerate() {
+            formula += pos.formula_greedy(&mut placed)?;
+        }
+
+        Some(formula.with_global_isotope_modifications(&self.global))
+    }
+
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
     /// With the global isotope modifications applied.
     ///
