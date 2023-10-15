@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use itertools::Itertools;
 
 use crate::{modification::Modification, AminoAcid, LinearPeptide, Mass, SequenceElement};
@@ -88,7 +90,7 @@ pub struct IsobaricSetIterator {
     n_term: Vec<(SequenceElement, f64)>,
     c_term: Vec<(SequenceElement, f64)>,
     center: Vec<(SequenceElement, f64)>,
-    lightest: f64,
+    sizes: (f64, f64),
     bounds: (f64, f64),
     state: (Option<usize>, Option<usize>, Vec<usize>),
 }
@@ -100,16 +102,16 @@ impl IsobaricSetIterator {
         center: Vec<(SequenceElement, f64)>,
         bounds: (f64, f64),
     ) -> Self {
-        let lightest = center.iter().fold(f64::INFINITY, |acc, s| s.1.min(acc));
+        let sizes = (center.first().unwrap().1, center.last().unwrap().1);
         let mut iter = Self {
             n_term,
             c_term,
             center,
-            lightest,
+            sizes,
             bounds,
             state: (None, None, Vec::new()),
         };
-        while iter.current_mass() < iter.bounds.0 - iter.lightest {
+        while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
             iter.state.2.push(0);
         }
         iter
@@ -129,9 +131,15 @@ impl IsobaricSetIterator {
         mass
     }
 
-    fn mass_fits(&self) -> bool {
+    fn mass_fits(&self) -> Ordering {
         let mass = self.current_mass();
-        mass > self.bounds.0 && mass < self.bounds.1
+        if mass < self.bounds.0 {
+            Ordering::Less
+        } else if mass > self.bounds.1 {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
     }
 
     fn peptide(&self) -> LinearPeptide {
@@ -171,25 +179,56 @@ impl Iterator for IsobaricSetIterator {
         // TODO: no check is done for the N and C terminal options
         while !self.state.2.is_empty() {
             // Do state + 1 at the highest level where this is still possible and check if that one fits the bounds
-            // until every level is full then pop and try with one fewer number of aminoacids
+            // Until every level is full then pop and try with one fewer number of aminoacids
             while !self.state.2.iter().all(|s| *s == self.center.len() - 1) {
-                for level in (0..self.state.2.len()).rev() {
-                    if self.state.2[level] != self.center.len() - 1 {
-                        // update this level
+                let mut level = self.state.2.len() - 1;
+                loop {
+                    if self.state.2[level] == self.center.len() - 1 {
+                        if level == 0 {
+                            break;
+                        }
+                        level -= 1;
+                    } else {
+                        // Update this level
                         self.state.2[level] += 1;
-                        // reset the levels above, has to start at minimal at the index of this level to prevent 'rotations' of the set to show up
+                        // Reset the levels above, has to start at minimal at the index of this level to prevent 'rotations' of the set to show up
                         for l in level + 1..self.state.2.len() {
                             self.state.2[l] = self.state.2[level];
                         }
-                        break;
+                        match self.mass_fits() {
+                            Ordering::Greater => {
+                                // If the mass is too great the level below will have the be changed, otherwise it could only be getting heavier with the next iteration(s)
+                                if level == 0 {
+                                    break;
+                                }
+                                level -= 1;
+                            }
+                            Ordering::Equal => {
+                                return Some(self.peptide());
+                            }
+                            Ordering::Less => {
+                                // If there a way to reach at least the lower limit by having all the heaviest options selected try and reach them.
+                                // Otherwise this will increase this level again next iteration.
+                                if self.state.2[0..level]
+                                    .iter()
+                                    .map(|i| self.center[*i].1)
+                                    .sum::<f64>()
+                                    + (self.state.2.len() - level) as f64 * self.sizes.1
+                                    > self.bounds.0
+                                {
+                                    level = self.state.2.len() - 1;
+                                }
+                            }
+                        }
                     }
-                }
-                if self.mass_fits() {
-                    return Some(self.peptide());
                 }
             }
             self.state.2.pop();
-            // reset the levels to be all 0s again
+            // Stop the search when there is no possibility for a fitting answer
+            if self.state.2.len() as f64 * self.sizes.1 < self.bounds.0 {
+                return None;
+            }
+            // Reset the levels to be all 0s again
             for level in 0..self.state.2.len() {
                 self.state.2[level] = 0;
             }
