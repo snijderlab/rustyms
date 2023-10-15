@@ -245,7 +245,9 @@ pub struct PeaksData {
 /// The scans identifier for a peaks identification
 #[derive(Debug)]
 pub struct PeaksId {
+    /// The file, if defined
     pub file: Option<usize>,
+    /// The scan(s)
     pub scans: Vec<usize>,
 }
 

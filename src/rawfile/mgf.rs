@@ -408,6 +408,7 @@ mod tests {
         );
     }
 
+    #[allow(clippy::type_complexity)]
     fn test_title_helper(
         title: &str,
     ) -> (

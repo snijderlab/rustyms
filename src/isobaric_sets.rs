@@ -1,9 +1,12 @@
 use std::cmp::Ordering;
 
-use itertools::Itertools;
-
 use crate::{modification::Modification, AminoAcid, LinearPeptide, Mass, SequenceElement};
 
+/// Find the isobaric sets for the given mass with the given modifications and ppm error.
+/// The modifications are placed on any location they are allowed based on the given placement
+/// rules, so using any modifications which provide those is advised.
+/// # Panics
+/// Panics if any of the modifications does not have a defined mass.
 pub fn find_isobaric_sets(
     mass: Mass,
     tolerance_ppm: f64,
@@ -85,6 +88,7 @@ pub fn find_isobaric_sets(
     IsobaricSetIterator::new(n_term, c_term, center, bounds)
 }
 
+/// Iteratively generate isobaric sets based on the given settings.
 #[derive(Debug)]
 pub struct IsobaricSetIterator {
     n_term: Vec<(SequenceElement, f64)>,

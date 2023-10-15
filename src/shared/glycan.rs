@@ -72,7 +72,7 @@ impl PartialEq for MonoSaccharide {
 }
 
 impl Hash for MonoSaccharide {
-    /// Hash implementation to try and give a predefined mono sacc with the same composition as a allocated mono sacc the same value
+    /// Hash implementation to try and give a predefined mono saccharide with the same composition as a allocated mono saccharide the same value
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Self::Allocated(a) => {
@@ -89,6 +89,7 @@ impl Hash for MonoSaccharide {
     }
 }
 
+/// A predefined monosaccharide which can be used in const contexts
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PredefinedMonosaccharide {
     base_sugar: Option<BaseSugar>,
@@ -96,6 +97,7 @@ pub struct PredefinedMonosaccharide {
     pro_forma_name: &'static str,
 }
 
+/// An allocated monosaccharide which can be made during runtime
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AllocatedMonosaccharide {
     base_sugar: BaseSugar,
@@ -123,7 +125,10 @@ impl Chemical for MonoSaccharide {
                 substituents,
                 ..
             }) => {
-                base_sugar.as_ref().map(|s| s.formula()).unwrap_or_default()
+                base_sugar
+                    .as_ref()
+                    .map(Chemical::formula)
+                    .unwrap_or_default()
                     + substituents.formula()
             }
         }
@@ -148,7 +153,7 @@ impl Display for MonoSaccharide {
                         .collect::<String>()
                 ),
                 Self::Predefined(PredefinedMonosaccharide { pro_forma_name, .. }) =>
-                    pro_forma_name.to_string(),
+                    (*pro_forma_name).to_string(),
             }
         )
     }
@@ -212,6 +217,8 @@ impl Chemical for BaseSugar {
     }
 }
 
+/// Any 4 carbon glycan
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TetroseIsomer {
     /// Ery
@@ -220,6 +227,8 @@ pub enum TetroseIsomer {
     Threose,
 }
 
+/// Any 5 carbon glycan
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PentoseIsomer {
     /// Ribf
@@ -236,6 +245,8 @@ pub enum PentoseIsomer {
     Lyxopyranose,
 }
 
+/// Any 6 carbon glycan
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HexoseIsomer {
     /// glc
@@ -258,6 +269,8 @@ pub enum HexoseIsomer {
     Talose,
 }
 
+/// Any 7 carbon glycan
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HeptoseIsomer {
     /// gro-manHep
@@ -266,6 +279,7 @@ pub enum HeptoseIsomer {
 
 /// Any substituent on a monosaccharide.
 /// Source: https://www.ncbi.nlm.nih.gov/glycans/snfg.html table 3.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GlycanSubstituent {
     ///Ac acetyl

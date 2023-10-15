@@ -92,6 +92,7 @@ impl Modification {
     }
 
     /// Parse a modification defined by sloppy names
+    #[allow(clippy::missing_panics_doc)]
     pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
         match line[location.clone()].to_lowercase().as_str() {
             "o" => find_id_in_ontology(35, UNIMOD_ONTOLOGY), // oxidation

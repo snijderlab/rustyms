@@ -3,7 +3,6 @@ use super::novor::NovorData;
 use super::opair::OpairData;
 use super::peaks::PeaksData;
 use crate::error::CustomError;
-use crate::helper_functions::check_extension;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
