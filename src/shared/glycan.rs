@@ -6,41 +6,6 @@ use crate::{
     Context, CustomError, Element,
 };
 
-/// All monosaccharides as required by pro forma
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(non_camel_case_types, missing_docs)]
-pub enum ProFormaMonoSaccharide {
-    /// Any general heptose (seven carbon sugar)
-    Heptose,
-    phosphate,
-    a_Hex,
-    Sug,
-    d_Hex,
-    HexN,
-    /// Any general pentose (five carbon sugar)
-    Pentose,
-    /// Any general tetrose (four carbon sugar)
-    Tetrose,
-    HexS,
-    HexP,
-    Neu5Ac,
-    Non,
-    HexNAcS,
-    Dec,
-    en_a_Hex,
-    Neu5Gc,
-    Neu,
-    /// Any amino sugar (hexose with N acetylated amino group)
-    HexNAc,
-    Deoxyhexose,
-    HexNS,
-    Tri,
-    Oct,
-    sulfate,
-    /// Any general hexose (six carbon sugar)
-    Hexose,
-}
-
 /// A monosaccharide with all its complexity
 #[derive(Debug, Clone, Eq)]
 pub enum MonoSaccharide {
@@ -102,6 +67,7 @@ pub struct PredefinedMonosaccharide {
 pub struct AllocatedMonosaccharide {
     base_sugar: BaseSugar,
     substituents: Vec<GlycanSubstituent>,
+    furanose: bool,
 }
 
 impl MonoSaccharide {
@@ -109,8 +75,140 @@ impl MonoSaccharide {
         Self::Allocated(AllocatedMonosaccharide {
             base_sugar: sugar,
             substituents: substituents.to_owned(),
+            furanose: false,
         })
     }
+
+    /// Set this saccharide up as to be a furanose
+    #[must_use]
+    pub fn furanose(self) -> Self {
+        match self {
+            Self::Predefined(pre) => Self::Predefined(pre),
+            Self::Allocated(alo) => Self::Allocated(AllocatedMonosaccharide {
+                furanose: true,
+                ..alo
+            }),
+        }
+    }
+
+    /// Parse a short iupac name from this string starting at `start` and returning,
+    /// if successful, a monosaccharide and the offset in the string where parsing ended.
+    pub fn from_short_iupac(
+        line: &str,
+        start: usize,
+        line_number: usize,
+    ) -> Result<(Self, usize), CustomError> {
+        let mut index = start;
+        let bytes = line.as_bytes();
+        let mut substituents = Vec::new();
+
+        // Prefix mods
+        for substituent in PREFIX_SUBSTITUENTS {
+            if line[index..].starts_with(substituent.0) {
+                index += substituent.0.len();
+                substituents.push(substituent.1.clone());
+                break;
+            }
+        }
+        // Isomeric state
+        if line[index..].starts_with("D-")
+            || line[index..].starts_with("L-")
+            || line[index..].starts_with("?-")
+        {
+            index += 2; // Ignore the isomeric state otherwise
+        }
+        // Base sugar
+        let mut sugar = None;
+        for sug in BASE_SUGARS {
+            if line[index..].starts_with(sug.0) {
+                index += sug.0.len();
+                sugar = Some((sug.1.clone(), sug.2));
+                break;
+            }
+        }
+        let mut sugar = sugar
+            .map(|(b, s)| {
+                let mut alo = AllocatedMonosaccharide {
+                    base_sugar: b,
+                    substituents,
+                    furanose: false,
+                };
+                alo.substituents.extend(s.iter().cloned());
+                alo
+            })
+            .ok_or_else(|| {
+                CustomError::error(
+                    "Invalid iupac monosaccharide name",
+                    "This name could not be recognised as a standard iupac glycan name",
+                    Context::Line {
+                        linenumber: line_number,
+                        line: line.to_string(),
+                        offset: index,
+                        length: 3,
+                    },
+                )
+            })?;
+        // Furanose
+        if index < bytes.len() - 1 && bytes[index] == b'f' {
+            index += 1;
+            sugar.furanose = true;
+        }
+        // Postfix mods
+        while index < bytes.len() - 1 {
+            // Location
+            if bytes[index].is_ascii_digit() {
+                match bytes[index + 1] {
+                    b',' => index += 3, // X,X{mod}
+                    b'-' => {
+                        if &line[index + 7..index + 9] != "Py" {
+                            return Err(CustomError::error(
+                                "Invalid iupac monosaccharide name",
+                                "The pattern for Pyruvyl was not correct, should be `X-X,X-XPy`",
+                                Context::Line {
+                                    linenumber: line_number,
+                                    line: line.to_string(),
+                                    offset: index,
+                                    length: 9,
+                                },
+                            ));
+                        }
+                        sugar.substituents.push(GlycanSubstituent::Pyruvyl);
+                        index += 9;
+                        continue;
+                    } // X-X,X-X (Py)
+                    _ => index += 1,    // X{mod}
+                }
+            }
+            // Mod
+            let mut found = false;
+            for substituent in POSTFIX_SUBSTITUENTS {
+                if line[index..].starts_with(substituent.0) {
+                    index += substituent.0.len();
+                    sugar.substituents.push(substituent.1.clone());
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                break;
+            }
+            // TODO: Amount
+        }
+        Ok((Self::Allocated(sugar), index))
+    }
+
+    // fn symbol(&self) -> char {
+    //     // ⬠◇♢▭◮⬘
+    //     // ⬟◆♦▬
+    //     match self {
+    //         Self::Hexose => '○',      //●
+    //         Self::HexNAc => '□',      // ■
+    //         Self::Deoxyhexose => '△', // ▲
+    //         Self::Pentose => '☆',     // ★
+    //         Self::HexN => '⬔',
+    //         _ => '⬡', // ⬢
+    //     }
+    // }
 }
 
 impl Chemical for MonoSaccharide {
@@ -119,6 +217,7 @@ impl Chemical for MonoSaccharide {
             Self::Allocated(AllocatedMonosaccharide {
                 base_sugar,
                 substituents,
+                ..
             }) => base_sugar.formula() + substituents.formula(),
             Self::Predefined(PredefinedMonosaccharide {
                 base_sugar,
@@ -144,9 +243,11 @@ impl Display for MonoSaccharide {
                 Self::Allocated(AllocatedMonosaccharide {
                     base_sugar,
                     substituents,
+                    furanose,
                 }) => format!(
-                    "{}{}",
+                    "{}{}{}",
                     base_sugar,
+                    if *furanose { "f" } else { "" },
                     substituents
                         .iter()
                         .map(ToString::to_string)
@@ -159,6 +260,7 @@ impl Display for MonoSaccharide {
     }
 }
 
+/// The base sugar of a monosaccharide, optionally with the isomeric state saved as well.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BaseSugar {
     /// 2 carbon base sugar
@@ -231,18 +333,14 @@ pub enum TetroseIsomer {
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PentoseIsomer {
-    /// Ribf
-    Ribofuranose,
     /// Rib
-    Ribopyranose,
-    /// Araf
-    Arabinofuranose,
+    Ribose,
     /// Ara
-    Arabinopyranose,
+    Arabinose,
     /// Xyl
-    Xylopyranose,
+    Xylose,
     /// Lyx
-    Lyxopyranose,
+    Lyxose,
 }
 
 /// Any 6 carbon glycan
@@ -251,8 +349,6 @@ pub enum PentoseIsomer {
 pub enum HexoseIsomer {
     /// glc
     Glucose,
-    /// Galf
-    Galactofuranose,
     /// Gal
     Galactose,
     /// Man
@@ -274,11 +370,56 @@ pub enum HexoseIsomer {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HeptoseIsomer {
     /// gro-manHep
-    GlyceroMannoHeptopyranose,
+    GlyceroMannoHeptopyranose, // TODO: Does this indicate some mods?
 }
 
+const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
+    ("Sug", BaseSugar::Sugar, &[]),
+    ("Tri", BaseSugar::Triose, &[]),
+    ("Tet", BaseSugar::Tetrose(None), &[]),
+    (
+        "Ery",
+        BaseSugar::Tetrose(Some(TetroseIsomer::Erythrose)),
+        &[],
+    ),
+    ("Tho", BaseSugar::Tetrose(Some(TetroseIsomer::Threose)), &[]),
+    ("Pen", BaseSugar::Pentose(None), &[]),
+    ("Rib", BaseSugar::Pentose(Some(PentoseIsomer::Ribose)), &[]),
+    (
+        "Ara",
+        BaseSugar::Pentose(Some(PentoseIsomer::Arabinose)),
+        &[],
+    ),
+    ("Xyl", BaseSugar::Pentose(Some(PentoseIsomer::Xylose)), &[]),
+    ("Lyx", BaseSugar::Pentose(Some(PentoseIsomer::Lyxose)), &[]),
+    ("Hex", BaseSugar::Hexose(None), &[]),
+    ("Glc", BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), &[]),
+    ("Gal", BaseSugar::Hexose(Some(HexoseIsomer::Galactose)), &[]),
+    ("Man", BaseSugar::Hexose(Some(HexoseIsomer::Mannose)), &[]),
+    ("All", BaseSugar::Hexose(Some(HexoseIsomer::Allose)), &[]),
+    ("Alt", BaseSugar::Hexose(Some(HexoseIsomer::Altrose)), &[]),
+    ("Gul", BaseSugar::Hexose(Some(HexoseIsomer::Gulose)), &[]),
+    ("Ido", BaseSugar::Hexose(Some(HexoseIsomer::Idose)), &[]),
+    ("Tal", BaseSugar::Hexose(Some(HexoseIsomer::Talose)), &[]),
+    ("Hep", BaseSugar::Heptose(None), &[]),
+    (
+        "gro-manHep",
+        BaseSugar::Heptose(Some(HeptoseIsomer::GlyceroMannoHeptopyranose)),
+        &[],
+    ),
+    (
+        "Neu",
+        BaseSugar::Nonose,
+        &[
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Acid,
+        ],
+    ),
+];
+
 /// Any substituent on a monosaccharide.
-/// Source: https://www.ncbi.nlm.nih.gov/glycans/snfg.html table 3.
+/// Source: <https://www.ncbi.nlm.nih.gov/glycans/snfg.html> table 3.
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GlycanSubstituent {
@@ -337,6 +478,38 @@ pub enum GlycanSubstituent {
     ///Tau tauryl
     Tauryl,
 }
+
+const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
+    ("Ac", GlycanSubstituent::Acetyl),
+    ("Ala2Ac", GlycanSubstituent::AcetylAlanyl),
+    ("Ala", GlycanSubstituent::Alanyl),
+    ("AmMe2", GlycanSubstituent::DiMethylAcetimidoyl),
+    ("AmMe", GlycanSubstituent::MethylAcetimidoyl),
+    ("Am", GlycanSubstituent::Acetimidoyl),
+    ("en", GlycanSubstituent::Didehydro),
+    ("Fo", GlycanSubstituent::Formyl),
+    ("Gc", GlycanSubstituent::Glycolyl),
+    ("Gln2Ac", GlycanSubstituent::AcetylGlutaminyl),
+    ("5Glu2Me", GlycanSubstituent::MethylGlutamyl), // TODO: Does this number has to be there? (Not found in the glycosmos data)
+    ("Gly", GlycanSubstituent::Glycyl),
+    ("Gr", GlycanSubstituent::Glyceryl),
+    ("Gr2,3Me2", GlycanSubstituent::DiMethylGlyceryl),
+    ("4Hb", GlycanSubstituent::HydroxyButyryl),
+    ("3RHb", GlycanSubstituent::HydroxyButyryl),
+    ("3SHb", GlycanSubstituent::HydroxyButyryl),
+    ("3,4Hb", GlycanSubstituent::DiHydroxyButyryl),
+    ("Lt", GlycanSubstituent::Lactyl),
+    ("Me", GlycanSubstituent::Methyl),
+    ("NAc", GlycanSubstituent::NAcetyl),
+    ("Pyr", GlycanSubstituent::CargoxyEthylidene),
+    ("Tau", GlycanSubstituent::Tauryl),
+    ("A", GlycanSubstituent::Acid),
+    ("P", GlycanSubstituent::Phosphate),
+    ("S", GlycanSubstituent::Sulfate),
+    ("N", GlycanSubstituent::Amino),
+];
+
+const PREFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[("d", GlycanSubstituent::Deoxy)];
 
 impl Display for GlycanSubstituent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -692,119 +865,6 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
     ),
 ];
 
-impl TryFrom<&str> for ProFormaMonoSaccharide {
-    type Error = ();
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "Hep" => Ok(Self::Heptose),
-            "phosphate" => Ok(Self::phosphate),
-            "aHex" | "a-Hex" | "HexA" => Ok(Self::a_Hex),
-            "Sug" => Ok(Self::Sug),
-            "dHex" | "d-Hex" => Ok(Self::d_Hex),
-            "HexN" => Ok(Self::HexN),
-            "Pent" | "Pen" => Ok(Self::Pentose),
-            "Tet" => Ok(Self::Tetrose),
-            "HexS" => Ok(Self::HexS),
-            "HexP" => Ok(Self::HexP),
-            "NeuAc" | "Neu5Ac" => Ok(Self::Neu5Ac),
-            "Non" => Ok(Self::Non),
-            "HexNAc(S)" => Ok(Self::HexNAcS),
-            "Dec" => Ok(Self::Dec),
-            "en,a-Hex" => Ok(Self::en_a_Hex),
-            "NeuGc" | "Neu5Gc" => Ok(Self::Neu5Gc),
-            "Neu" => Ok(Self::Neu),
-            "HexNAc" => Ok(Self::HexNAc),
-            "Fuc" => Ok(Self::Deoxyhexose),
-            "HexNS" => Ok(Self::HexNS),
-            "Tri" => Ok(Self::Tri),
-            "Oct" => Ok(Self::Oct),
-            "Sulf" | "sulfate" => Ok(Self::sulfate),
-            "Hex" => Ok(Self::Hexose),
-            _ => Err(()),
-        }
-    }
-}
-
-impl std::fmt::Display for ProFormaMonoSaccharide {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Heptose => "Hep",
-                Self::phosphate => "phosphate",
-                Self::a_Hex => "a-Hex",
-                Self::Sug => "Sug",
-                Self::d_Hex => "d-Hex",
-                Self::HexN => "HexN",
-                Self::Pentose => "Pen",
-                Self::Tetrose => "Tet",
-                Self::HexS => "HexS",
-                Self::HexP => "HexP",
-                Self::Neu5Ac => "Neu5Ac",
-                Self::Non => "Non",
-                Self::HexNAcS => "HexNAc(S)",
-                Self::Dec => "Dec",
-                Self::en_a_Hex => "en,a-Hex",
-                Self::Neu5Gc => "Neu5Gc",
-                Self::Neu => "Neu",
-                Self::HexNAc => "HexNAc",
-                Self::Deoxyhexose => "Fuc",
-                Self::HexNS => "HexNS",
-                Self::Tri => "Tri",
-                Self::Oct => "Oct",
-                Self::sulfate => "sulfate",
-                Self::Hexose => "Hex",
-            }
-        )
-    }
-}
-
-impl ProFormaMonoSaccharide {
-    fn symbol(&self) -> char {
-        // ⬠◇♢▭◮⬘
-        // ⬟◆♦▬
-        match self {
-            Self::Hexose => '○',      //●
-            Self::HexNAc => '□',      // ■
-            Self::Deoxyhexose => '△', // ▲
-            Self::Pentose => '☆',     // ★
-            Self::HexN => '⬔',
-            _ => '⬡', // ⬢
-        }
-    }
-}
-
-impl Chemical for ProFormaMonoSaccharide {
-    fn formula(&self) -> MolecularFormula {
-        match self {
-            Self::Heptose => molecular_formula!(H 12 C 7 O 6),
-            Self::phosphate => molecular_formula!(H 1 O 3 P 1),
-            Self::a_Hex => molecular_formula!(H 8 C 6 O 6),
-            Self::Sug => molecular_formula!(H 2 C 2 O 1),
-            Self::HexN => molecular_formula!(H 11 C 6 N 1 O 4),
-            Self::Pentose => molecular_formula!(H 8 C 5 O 4),
-            Self::Tetrose => molecular_formula!(H 6 C 4 O 3),
-            Self::HexP => molecular_formula!(H 11 C 6 O 8 P 1),
-            Self::Neu5Ac => molecular_formula!(H 17 C 11 N 1 O 8),
-            Self::Non => molecular_formula!(H 16 C 9 O 8),
-            Self::HexNAcS => molecular_formula!(H 13 C 8 N 1 O 8 S 1),
-            Self::Dec => molecular_formula!(H 18 C 10 O 9),
-            Self::en_a_Hex => molecular_formula!(H 6 C 6 O 5),
-            Self::Neu5Gc => molecular_formula!(H 17 C 11 N 1 O 9),
-            Self::Neu => molecular_formula!(H 15 C 9 N 1 O 7),
-            Self::HexNAc => molecular_formula!(H 13 C 8 N 1 O 5),
-            Self::Deoxyhexose => molecular_formula!(H 10 C 6 O 4),
-            Self::HexNS => molecular_formula!(H 11 C 6 N 1 O 7 S 1),
-            Self::Tri => molecular_formula!(H 4 C 3 O 2),
-            Self::Oct => molecular_formula!(H 14 C 8 O 7),
-            Self::sulfate => molecular_formula!(O 3 S 1),
-            Self::d_Hex | Self::Hexose => molecular_formula!(H 10 C 6 O 5),
-            Self::HexS => molecular_formula!(H 10 C 6 O 8 S 1),
-        }
-    }
-}
-
 /// Rose tree representation of glycan structure
 #[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlycanStructure {
@@ -826,10 +886,7 @@ impl GlycanStructure {
         // GlcNAc(?1-?)Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc-ol
         let mut offset = range.start;
         let mut branch: Self = Self {
-            sugar: MonoSaccharide::Allocated(AllocatedMonosaccharide {
-                base_sugar: BaseSugar::Decose,
-                substituents: Vec::new(),
-            }),
+            sugar: MonoSaccharide::new(BaseSugar::Decose, &[]),
             branches: Vec::new(),
         }; // Starting sugar, will be removed
         let mut last_branch: &mut Self = &mut branch;
@@ -847,31 +904,21 @@ impl GlycanStructure {
                 last_branch.branches.push(offshoot);
                 offset = end + 1;
             }
-            if let Some((name, sugar)) = GLYCAN_PARSE_LIST
-                .iter()
-                .find(|(name, _)| line[offset..].starts_with(name))
-            {
-                last_branch.branches.push(Self {
-                    sugar: sugar.clone(),
-                    branches: Vec::new(),
-                });
-                last_branch = last_branch.branches.last_mut().unwrap();
-                offset += name.len();
-                if bytes[offset] == b'(' {
-                    if let Some(end) = next_char(bytes, offset + 1, b')') {
-                        offset = end + 1; // just ignore all linking stuff I do not care
-                    } else {
-                        assert!(range.end - offset < 10); // make sure it is the last part
-                        offset = range.end; // assume it is the last not closed brace
-                    }
+            let (sugar, new_offset) = MonoSaccharide::from_short_iupac(line, offset, line_number)?;
+            offset = new_offset;
+
+            last_branch.branches.push(Self {
+                sugar: sugar.clone(),
+                branches: Vec::new(),
+            });
+            last_branch = last_branch.branches.last_mut().unwrap();
+            if bytes[offset] == b'(' {
+                if let Some(end) = next_char(bytes, offset + 1, b')') {
+                    offset = end + 1; // just ignore all linking stuff I do not care
+                } else {
+                    assert!(range.end - offset < 10); // make sure it is the last part
+                    offset = range.end; // assume it is the last not closed brace
                 }
-            } else {
-                // If no monosaccharide could be identified go and report an error
-                return Err(CustomError::error(
-                    "Invalid IUPC short glycan",
-                    "Could not recognise this monosaccharide",
-                    Context::line(line_number, line, offset, 1),
-                ));
             }
         }
         Ok(branch.branches.pop().unwrap()) // Remove the outer starting sugar
@@ -922,5 +969,107 @@ mod tests {
                 "{name}",
             );
         }
+    }
+
+    #[test]
+    fn iupac_short_names() {
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcNAc", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[GlycanSubstituent::NAcetyl]
+                ),
+                6
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal6S", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[GlycanSubstituent::Sulfate]
+                ),
+                5
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcN2Gc", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[GlycanSubstituent::Amino, GlycanSubstituent::Glycolyl,]
+                ),
+                7
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GalNAc3S", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[GlycanSubstituent::NAcetyl, GlycanSubstituent::Sulfate]
+                ),
+                8
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcN2,6S2", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Sulfate,
+                        GlycanSubstituent::Sulfate
+                    ]
+                ),
+                9
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Tagf1,6P2", 0, 0), // TODO: Tag:  	D-Tagatose 	D-lyxo-Hex-2-ulopyranose
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Talose)),
+                    &[
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Sulfate,
+                        GlycanSubstituent::Sulfate
+                    ]
+                ),
+                9
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal2,3Ac24-1,6-1Py", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Pyruvyl,
+                    ]
+                ),
+                18
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("D-Araf", 0, 0),
+            Ok((
+                MonoSaccharide::new(BaseSugar::Pentose(Some(PentoseIsomer::Arabinose)), &[])
+                    .furanose(),
+                6
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Xyl-onic", 0, 0), // TODO: onic?
+            Ok((
+                MonoSaccharide::new(BaseSugar::Pentose(Some(PentoseIsomer::Arabinose)), &[])
+                    .furanose(),
+                8
+            ))
+        );
     }
 }
