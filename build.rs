@@ -26,11 +26,7 @@ fn main() {
     //build_gnome_ontology(&out_dir, debug);
     build_atomic_masses(&out_dir, debug).unwrap();
 
-    println!("cargo:rerun-if-changed=databases/unimod.obo");
-    println!("cargo:rerun-if-changed=databases/PSI-MOD-newstyle.obo");
-    println!("cargo:rerun-if-changed=databases/IUPAC-atomic-masses.csv");
-    println!("cargo:rerun-if-changed=databases/CIAAW-atomic-weights.csv");
-    println!("cargo:rerun-if-changed=databases/CIAAW-isotopic-abundances.csv");
+    println!("cargo:rerun-if-changed=databases/*");
     println!("cargo:rerun-if-changed=src/build/*");
     println!("cargo:rerun-if-changed=build.rs");
     print(out_dir.as_os_str().to_str().unwrap(), debug);

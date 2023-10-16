@@ -60,15 +60,17 @@ fn parse_gnome_structures(_debug: bool) -> Vec<(String, GlycanStructure)> {
         .skip(1)
     {
         let line = line.unwrap();
-        glycans.push((
-            line[0].to_string(),
-            GlycanStructure::from_short_iupac(
-                &line.line,
-                line.fields[1].clone(),
-                line.line_index + 1,
-            )
-            .unwrap(),
-        ));
+        if !line[1].is_empty() {
+            glycans.push((
+                line[0].to_string(),
+                GlycanStructure::from_short_iupac(
+                    &line.line,
+                    line.fields[1].clone(),
+                    line.line_index + 1,
+                )
+                .unwrap(),
+            ));
+        }
     }
     glycans
 }

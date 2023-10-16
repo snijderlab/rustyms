@@ -20,6 +20,7 @@
         "dihydroxybutyryl",
         "dimeric",
         "Erythrose",
+        "Ethanolamine",
         "Ethylidene",
         "Formyl",
         "furanose",
@@ -48,12 +49,16 @@
         "Nonose",
         "novor",
         "Opair",
+        "Psicose",
         "Psimod",
         "psms",
         "Pyruvyl",
         "Ribf",
         "Ribofuranose",
         "Ribopyranose",
+        "Sedoheptulose",
+        "Sorbose",
+        "Tagatose",
         "Talose",
         "Tauryl",
         "Tetrose",
@@ -61,7 +66,8 @@
         "Threose",
         "Triose",
         "unimod",
-        "Xylopyranose"
+        "Xylopyranose",
+        "Xylulose"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false
 }
