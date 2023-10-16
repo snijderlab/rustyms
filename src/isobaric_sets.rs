@@ -1,6 +1,73 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
-use crate::{modification::Modification, AminoAcid, LinearPeptide, Mass, SequenceElement};
+use crate::{da, modification::Modification, AminoAcid, LinearPeptide, Mass, SequenceElement};
+
+/// A tolerance around a given mass for searching purposes
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum MassTolerance {
+    /// A relative search tolerance in parts per million
+    Ppm(f64),
+    /// An absolute tolerance defined by a constant offset from the mass (bounds are mass - tolerance, mass + tolerance)
+    Absolute(Mass),
+}
+
+impl MassTolerance {
+    /// Find the bounds around a given mass for this tolerance
+    pub fn bounds(&self, mass: Mass) -> (Mass, Mass) {
+        match self {
+            Self::Ppm(ppm) => (
+                da(mass.value * (1.0 - ppm / 1e6)),
+                da(mass.value * (1.0 + ppm / 1e6)),
+            ),
+            Self::Absolute(tolerance) => (mass - *tolerance, mass + *tolerance),
+        }
+    }
+}
+
+impl Display for MassTolerance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Absolute(mass) => format!("{} da", mass.value),
+                Self::Ppm(ppm) => format!("{ppm} ppm"),
+            }
+        )
+    }
+}
+
+impl FromStr for MassTolerance {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let num_str = String::from_utf8(
+            s.bytes()
+                .take_while(|c| {
+                    c.is_ascii_digit()
+                        || *c == b'.'
+                        || *c == b'-'
+                        || *c == b'+'
+                        || *c == b'e'
+                        || *c == b'E'
+                })
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|_| ())?;
+        let num = num_str.parse::<f64>().map_err(|_| ())?;
+        match s[num_str.len()..].trim() {
+            "ppm" => Ok(Self::Ppm(num)),
+            "da" => Ok(Self::Absolute(da(num))),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&str> for MassTolerance {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, ()> {
+        value.parse()
+    }
+}
 
 /// Find the isobaric sets for the given mass with the given modifications and ppm error.
 /// The modifications are placed on any location they are allowed based on the given placement
@@ -9,13 +76,10 @@ use crate::{modification::Modification, AminoAcid, LinearPeptide, Mass, Sequence
 /// Panics if any of the modifications does not have a defined mass.
 pub fn find_isobaric_sets(
     mass: Mass,
-    tolerance_ppm: f64,
+    tolerance: MassTolerance,
     modifications: &[Modification],
 ) -> IsobaricSetIterator {
-    let bounds = (
-        mass.value * (1.0 - tolerance_ppm / 1e6),
-        mass.value * (1.0 + tolerance_ppm / 1e6),
-    );
+    let bounds = tolerance.bounds(mass);
 
     // Create the building blocks
     let mut n_term: Vec<(SequenceElement, f64)> = AA
@@ -95,7 +159,7 @@ pub struct IsobaricSetIterator {
     c_term: Vec<(SequenceElement, f64)>,
     center: Vec<(SequenceElement, f64)>,
     sizes: (f64, f64),
-    bounds: (f64, f64),
+    bounds: (Mass, Mass),
     state: (Option<usize>, Option<usize>, Vec<usize>),
 }
 
@@ -104,7 +168,7 @@ impl IsobaricSetIterator {
         n_term: Vec<(SequenceElement, f64)>,
         c_term: Vec<(SequenceElement, f64)>,
         center: Vec<(SequenceElement, f64)>,
-        bounds: (f64, f64),
+        bounds: (Mass, Mass),
     ) -> Self {
         let sizes = (center.first().unwrap().1, center.last().unwrap().1);
         let mut iter = Self {
@@ -115,7 +179,7 @@ impl IsobaricSetIterator {
             bounds,
             state: (None, None, Vec::new()),
         };
-        while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
+        while iter.current_mass() < iter.bounds.0.value - iter.sizes.0 {
             iter.state.2.push(0);
         }
         iter
@@ -137,9 +201,9 @@ impl IsobaricSetIterator {
 
     fn mass_fits(&self) -> Ordering {
         let mass = self.current_mass();
-        if mass < self.bounds.0 {
+        if mass < self.bounds.0.value {
             Ordering::Less
-        } else if mass > self.bounds.1 {
+        } else if mass > self.bounds.1.value {
             Ordering::Greater
         } else {
             Ordering::Equal
@@ -218,7 +282,7 @@ impl Iterator for IsobaricSetIterator {
                                     .map(|i| self.center[*i].1)
                                     .sum::<f64>()
                                     + (self.state.2.len() - level) as f64 * self.sizes.1
-                                    > self.bounds.0
+                                    > self.bounds.0.value
                                 {
                                     level = self.state.2.len() - 1;
                                 }
@@ -229,7 +293,7 @@ impl Iterator for IsobaricSetIterator {
             }
             self.state.2.pop();
             // Stop the search when there is no possibility for a fitting answer
-            if self.state.2.len() as f64 * self.sizes.1 < self.bounds.0 {
+            if self.state.2.len() as f64 * self.sizes.1 < self.bounds.0.value {
                 return None;
             }
             // Reset the levels to be all 0s again
@@ -296,7 +360,7 @@ mod tests {
         let pep = ComplexPeptide::pro_forma("AG").unwrap().assume_linear();
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
-            10.0,
+            MassTolerance::Ppm(10.0),
             &[],
         )
         .collect();
