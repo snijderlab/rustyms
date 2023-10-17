@@ -107,6 +107,13 @@ impl MonoSaccharide {
         if line[index..].starts_with("keto-") {
             index += 5;
         }
+        // Isomeric state
+        if line[index..].starts_with("D-")
+            || line[index..].starts_with("L-")
+            || line[index..].starts_with("?-")
+        {
+            index += 2; // Ignore the isomeric state otherwise
+        }
         // Prefix mods
         let mut amount = 1;
         if bytes[index].is_ascii_digit() {
@@ -114,7 +121,13 @@ impl MonoSaccharide {
                 b',' => {
                     index += 3;
                     amount = 2;
-                } // X,X{mod}
+                    // X,X{mod}2
+                    if bytes[index] == b',' {
+                        // X,X,X{mod}3
+                        index += 2;
+                        amount = 3;
+                    }
+                }
                 _ => index += 1, // X{mod}
             }
             if bytes[index] == b'-' {
@@ -133,7 +146,7 @@ impl MonoSaccharide {
                 break;
             }
         }
-        // Isomeric state
+        // Another optional isomeric state
         if line[index..].starts_with("D-")
             || line[index..].starts_with("L-")
             || line[index..].starts_with("?-")
@@ -188,7 +201,13 @@ impl MonoSaccharide {
                     b',' => {
                         index += 3;
                         amount = 2;
-                    } // X,X{mod}
+                        // X,X{mod}2
+                        if bytes[index] == b',' {
+                            // X,X,X{mod}3
+                            index += 2;
+                            amount = 3;
+                        }
+                    }
                     b'-' => {
                         if &line[index + 7..index + 9] != "Py" {
                             return Err(CustomError::error(
@@ -317,6 +336,8 @@ pub enum BaseSugar {
     Nonose,
     /// 10 carbon base sugar
     Decose,
+    /// A disaccharide
+    Disaccharide(&'static BaseSugar, &'static BaseSugar),
 }
 
 impl Display for BaseSugar {
@@ -325,15 +346,16 @@ impl Display for BaseSugar {
             f,
             "{}",
             match self {
-                Self::Sugar => "Sug",
-                Self::Triose => "Tri",
-                Self::Tetrose(_) => "Tet",
-                Self::Pentose(_) => "Pen",
-                Self::Hexose(_) => "Hex",
-                Self::Heptose(_) => "Hep",
-                Self::Octose => "Oct",
-                Self::Nonose => "Non",
-                Self::Decose => "Dec",
+                Self::Sugar => "Sug".to_string(),
+                Self::Triose => "Tri".to_string(),
+                Self::Tetrose(_) => "Tet".to_string(),
+                Self::Pentose(_) => "Pen".to_string(),
+                Self::Hexose(_) => "Hex".to_string(),
+                Self::Heptose(_) => "Hep".to_string(),
+                Self::Octose => "Oct".to_string(),
+                Self::Nonose => "Non".to_string(),
+                Self::Decose => "Dec".to_string(),
+                Self::Disaccharide(a, b) => format!("{a}-{b}"),
             }
         )
     }
@@ -351,6 +373,7 @@ impl Chemical for BaseSugar {
             Self::Octose => molecular_formula!(H 14 C 8 O 7),
             Self::Nonose => molecular_formula!(H 16 C 9 O 8),
             Self::Decose => molecular_formula!(H 18 C 10 O 9),
+            Self::Disaccharide(a, b) => a.formula() + b.formula() + molecular_formula!(H 1), // Both plus the missing H for finishing one bond TODO: check if correct
         }
     }
 }
@@ -551,6 +574,32 @@ const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
         BaseSugar::Heptose(Some(HeptoseIsomer::Sedoheptulose)),
         &[],
     ),
+    (
+        "MurNAc",
+        BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+        &[GlycanSubstituent::NAcetyl, GlycanSubstituent::OCarboxyEthyl],
+    ),
+    (
+        "MurNGc",
+        BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+        &[
+            GlycanSubstituent::NGlycolyl,
+            GlycanSubstituent::OCarboxyEthyl,
+        ],
+    ),
+    (
+        "Mur",
+        BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+        &[GlycanSubstituent::Amino, GlycanSubstituent::OCarboxyEthyl],
+    ),
+    (
+        "Lac",
+        BaseSugar::Disaccharide(
+            &BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+            &BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+        ),
+        &[],
+    ),
 ];
 
 /// Any substituent on a monosaccharide.
@@ -558,68 +607,76 @@ const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GlycanSubstituent {
+    ///Am N-acetimidoyl
+    Acetimidoyl,
     ///Ac acetyl
     Acetyl,
+    ///Ala2Ac N-acetyl-D-alanyl
+    AcetylAlanyl,
+    ///Gln2Ac N-acetyl-glutaminyl
+    AcetylGlutaminyl,
     ///A acid
     Acid,
     ///Ala D-alanyl
     Alanyl,
     ///ol alcohol
     Alcohol,
-    ///Ala2Ac N-acetyl-D-alanyl
-    AcetylAlanyl,
-    ///Am N-acetimidoyl
-    Acetimidoyl,
-    ///AmMe N-(N-methyl-acetimidoyl)
-    MethylAcetimidoyl,
-    ///d Deoxy
-    Deoxy,
-    ///en didehydro an addition of a double bond
-    Didehydro,
-    ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
-    DiMethylAcetimidoyl,
-    ///Fo formyl
-    Formyl,
-    ///Gc glycolyl
-    Glycolyl,
-    ///Gln2Ac N-acetyl-glutaminyl
-    AcetylGlutaminyl,
-    ///5Glu2Me N-methyl-5-glutamyl
-    MethylGlutamyl,
-    ///Gly glycyl
-    Glycyl,
-    ///Gr glyceryl
-    Glyceryl,
-    ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
-    DiMethylGlyceryl,
-    ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
-    HydroxyButyryl,
-    ///3,4Hb 3,4-dihydroxybutyryl
-    DiHydroxyButyryl,
-    ///Lt lactyl
-    Lactyl,
-    ///Me methyl
-    Methyl,
     ///N amino
     Amino,
-    ///NAc N-acetyl
-    NAcetyl,
-    ///P phosphate
-    Phosphate,
-    ///Py pyruvyl
-    Pyruvyl,
+    ///aric ??
+    Aric,
     ///Pyr 1-carboxyethylidene
     CargoxyEthylidene,
-    ///S sulfate
-    Sulfate,
-    ///Tau tauryl
-    Tauryl,
+    ///d Deoxy
+    Deoxy,
+    ///3,4Hb 3,4-dihydroxybutyryl
+    DiHydroxyButyryl,
+    ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
+    DiMethylAcetimidoyl,
+    ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
+    DiMethylGlyceryl,
+    ///en didehydro an addition of a double bond
+    Didehydro,
     ///Etn Ethanolamine
     Ethanolamine,
     ///F Fluor
     Fluor,
+    ///Fo formyl
+    Formyl,
+    ///Gr glyceryl
+    Glyceryl,
+    ///Gc glycolyl
+    Glycolyl,
+    ///Gly glycyl
+    Glycyl,
+    ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
+    HydroxyButyryl,
     ///I Iodide
     Iodide,
+    ///Lt lactyl
+    Lactyl,
+    ///Me methyl
+    Methyl,
+    ///AmMe N-(N-methyl-acetimidoyl)
+    MethylAcetimidoyl,
+    ///5Glu2Me N-methyl-5-glutamyl
+    MethylGlutamyl,
+    ///NAc N-acetyl
+    NAcetyl,
+    ///NGc N linked glycolyl
+    NGlycolyl,
+    ///carboxyethyl used in Mur
+    OCarboxyEthyl,
+    ///P phosphate
+    Phosphate,
+    ///Py pyruvyl
+    Pyruvyl,
+    ///S sulfate
+    Sulfate,
+    ///Tau tauryl
+    Tauryl,
+    ///ulo ??
+    Ulo,
 }
 
 const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
@@ -647,8 +704,10 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("Pyr", GlycanSubstituent::CargoxyEthylidene),
     ("Tau", GlycanSubstituent::Tauryl),
     ("onic", GlycanSubstituent::Acid),
+    ("aric", GlycanSubstituent::Aric),
     ("ol", GlycanSubstituent::Alcohol),
     ("Etn", GlycanSubstituent::Ethanolamine),
+    ("ulo", GlycanSubstituent::Ulo),
     ("A", GlycanSubstituent::Acid),
     ("P", GlycanSubstituent::Phosphate),
     ("p", GlycanSubstituent::Phosphate),
@@ -656,8 +715,6 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("N", GlycanSubstituent::Amino),
     ("F", GlycanSubstituent::Fluor),
     ("I", GlycanSubstituent::Iodide),
-    // TODO: these are unclear ask someone else what they mean
-    ("ulo", GlycanSubstituent::Iodide),
 ];
 
 const PREFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
@@ -672,37 +729,41 @@ impl Display for GlycanSubstituent {
             f,
             "{}",
             match self {
+                Self::Acetimidoyl => "Am",
                 Self::Acetyl => "Ac",
+                Self::AcetylAlanyl => "Ala2Ac",
+                Self::AcetylGlutaminyl => "Gln2Ac",
                 Self::Acid => "A",
                 Self::Alanyl => "Ala",
                 Self::Alcohol => "ol",
-                Self::AcetylAlanyl => "Ala2Ac",
-                Self::Acetimidoyl => "Am",
-                Self::MethylAcetimidoyl => "AmMe",
+                Self::Amino => "N",
+                Self::Aric => "aric",
+                Self::CargoxyEthylidene => "Pyr",
                 Self::Deoxy => "d",
                 Self::Didehydro => "en",
-                Self::DiMethylAcetimidoyl => "AmMe2",
-                Self::Formyl => "Fo",
-                Self::Glycolyl => "Gc",
-                Self::AcetylGlutaminyl => "Gln2Ac",
-                Self::MethylGlutamyl => "5Glu2Me",
-                Self::Glycyl => "Gly",
-                Self::Glyceryl => "Gr",
-                Self::DiMethylGlyceryl => "Gr2,3Me2",
-                Self::HydroxyButyryl => "Hb",
                 Self::DiHydroxyButyryl => "3,4Hb",
-                Self::Lactyl => "Lt",
-                Self::Methyl => "Me",
-                Self::Amino => "N",
-                Self::NAcetyl => "NAc",
-                Self::Phosphate => "P",
-                Self::Pyruvyl => "Py",
-                Self::CargoxyEthylidene => "Pyr",
-                Self::Sulfate => "S",
-                Self::Tauryl => "Tau",
+                Self::DiMethylAcetimidoyl => "AmMe2",
+                Self::DiMethylGlyceryl => "Gr2,3Me2",
                 Self::Ethanolamine => "Etn",
                 Self::Fluor => "F",
+                Self::Formyl => "Fo",
+                Self::Glyceryl => "Gr",
+                Self::Glycolyl => "Gc",
+                Self::Glycyl => "Gly",
+                Self::HydroxyButyryl => "Hb",
                 Self::Iodide => "I",
+                Self::Lactyl => "Lt",
+                Self::Methyl => "Me",
+                Self::MethylAcetimidoyl => "AmMe",
+                Self::MethylGlutamyl => "5Glu2Me",
+                Self::NAcetyl => "NAc",
+                Self::NGlycolyl => "NGc",
+                Self::OCarboxyEthyl => "carboxyethyl",
+                Self::Phosphate => "P",
+                Self::Pyruvyl => "Py",
+                Self::Sulfate => "S",
+                Self::Tauryl => "Tau",
+                Self::Ulo => "ulo",
             }
         )
     }
@@ -711,36 +772,40 @@ impl Display for GlycanSubstituent {
 impl Chemical for GlycanSubstituent {
     fn formula(&self) -> MolecularFormula {
         let side = match self {
+            Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
             Self::Acetyl => molecular_formula!(H 3 C 2 O 1),
+            Self::AcetylAlanyl => molecular_formula!(H 8 C 5 N 1 O 2),
+            Self::AcetylGlutaminyl => molecular_formula!(H 11 C 7 N 2 O 3),
             Self::Acid => molecular_formula!(H -1 O 2), // Together with the replacement below this is H-2 O+1
             Self::Alanyl => molecular_formula!(H 6 C 3 N 1 O 1),
             Self::Alcohol => molecular_formula!(H 3 O 1), // Together with the replacement below this is H+2
-            Self::AcetylAlanyl => molecular_formula!(H 8 C 5 N 1 O 2),
-            Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
-            Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
+            Self::Amino => molecular_formula!(H 2 N 1),
+            Self::Aric => molecular_formula!(H 3 O 3), // Together with replacement below this is H2O2
+            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent? Calculated to work with the additional side chain deletion
             Self::Deoxy => molecular_formula!(H 1), // Together with the replacement below this is O-1
             Self::Didehydro => molecular_formula!(H -1 O 1), // Together with the replacement below this is H-2
-            Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
-            Self::Formyl => molecular_formula!(H 1 C 1 O 1),
-            Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
-            Self::AcetylGlutaminyl => molecular_formula!(H 11 C 7 N 2 O 3),
-            Self::MethylGlutamyl => molecular_formula!(H 10 C 6 N 1 O 3),
-            Self::Glycyl | Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
-            Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
-            Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
-            Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
             Self::DiHydroxyButyryl => molecular_formula!(H 7 C 4 O 3),
-            Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
-            Self::Methyl => molecular_formula!(H 3 C 1),
-            Self::Amino => molecular_formula!(H 2 N 1),
-            Self::Phosphate => molecular_formula!(H 2 O 4 P 1),
-            Self::Pyruvyl => molecular_formula!(H 3 C 3 O 2),
-            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent? Calculated to work with the additional side chain deletion
-            Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
-            Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
+            Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
+            Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
             Self::Ethanolamine => molecular_formula!(H 6 C 2 N 1 O 1),
             Self::Fluor => molecular_formula!(F 1),
+            Self::Formyl => molecular_formula!(H 1 C 1 O 1),
+            Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
+            Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
+            Self::Glycyl | Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
+            Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
             Self::Iodide => molecular_formula!(I 1),
+            Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
+            Self::Methyl => molecular_formula!(H 3 C 1),
+            Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
+            Self::MethylGlutamyl => molecular_formula!(H 10 C 6 N 1 O 3),
+            Self::NGlycolyl => molecular_formula!(H 4 C 2 N 1 O 2),
+            Self::OCarboxyEthyl => molecular_formula!(H 6 C 3 O 3), // Replaces H, together with replacement below this is H2C1O1
+            Self::Phosphate => molecular_formula!(H 2 O 4 P 1),
+            Self::Pyruvyl => molecular_formula!(H 3 C 3 O 2),
+            Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
+            Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
+            Self::Ulo => molecular_formula!(H 3 C 1 O 2), // Replaces H, together with replacement below this is H2C1O1
         };
         side - molecular_formula!(O 1 H 1) // substituent so replaces a standard oxygen side chain
     }
