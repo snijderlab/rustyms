@@ -1,4 +1,4 @@
-use crate::{LinearPeptide, Mass, MolecularFormula, SequenceElement};
+use crate::{LinearPeptide, Mass, MassTolerance, MolecularFormula, SequenceElement};
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
 use crate::uom::num_traits::Zero;
@@ -11,6 +11,7 @@ pub fn align(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     alphabet: &[&[i8]],
+    tolerance: MassTolerance,
     ty: Type,
 ) -> Alignment {
     const STEPS: usize = 3; // can at max be i8::MAX / 2 => 64
@@ -64,9 +65,17 @@ pub fn align(
                     let base_score = matrix[index_a - len_a][index_b - len_b].score;
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
+                        // First check the score to be used for affine gaps
+                        let prev = &matrix[index_a - len_a][index_b - len_b];
+                        let score =
+                            if prev.step_a == 0 && len_a == 0 || prev.step_b == 0 && len_b == 0 {
+                                GAP_EXTEND_PENALTY
+                            } else {
+                                GAP_START_PENALTY
+                            };
                         Some(Piece::new(
-                            base_score + GAP_EXTEND_PENALTY as isize, // TODO: Check affine gaps
-                            GAP_EXTEND_PENALTY,
+                            base_score + score as isize,
+                            score,
                             MatchType::Gap,
                             len_a as u8,
                             len_b as u8,
@@ -79,6 +88,7 @@ pub fn align(
                             masses_b[0][index_b],
                             alphabet,
                             base_score,
+                            tolerance,
                         ))
                     } else {
                         score(
@@ -87,6 +97,7 @@ pub fn align(
                             &seq_b.sequence[index_b - len_b..index_b],
                             masses_b[len_b - 1][index_b],
                             base_score,
+                            tolerance,
                         )
                     };
                     if let Some(p) = piece {
@@ -165,8 +176,9 @@ fn score_pair(
     mass_b: Mass,
     alphabet: &[&[i8]],
     score: isize,
+    tolerance: MassTolerance,
 ) -> Piece {
-    match (a == b, mass_similar(mass_a, mass_b)) {
+    match (a == b, tolerance.within(mass_a, mass_b)) {
         (true, true) => {
             let local = alphabet[a.aminoacid as usize][b.aminoacid as usize];
             Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
@@ -201,8 +213,9 @@ fn score(
     b: &[SequenceElement],
     mass_b: Mass,
     score: isize,
+    tolerance: MassTolerance,
 ) -> Option<Piece> {
-    if mass_similar(mass_a, mass_b) {
+    if tolerance.within(mass_a, mass_b) {
         let mut b_copy = b.to_owned();
         let switched = a.len() == b.len()
             && a.iter().all(|el| {
@@ -231,12 +244,6 @@ fn score(
     } else {
         None
     }
-}
-
-/// Determine if two masses are close enough to be considered similar.
-/// This is the case if the two masses are within 10 ppm or 0.1 Da
-fn mass_similar(a: Mass, b: Mass) -> bool {
-    a.ppm(b) < 10.0 || (a.value - b.value).abs() < 0.1
 }
 
 /// Get the masses of all subsets of up to the given number of steps as a lookup table.
@@ -288,7 +295,8 @@ mod tests {
                 .sum::<MolecularFormula>()
                 .monoisotopic_mass()
                 .unwrap(),
-            0
+            0,
+            crate::MassTolerance::Ppm(10.0)
         ));
         assert!(pair.is_some());
     }

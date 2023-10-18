@@ -22,6 +22,14 @@ impl MassTolerance {
             Self::Absolute(tolerance) => (mass - *tolerance, mass + *tolerance),
         }
     }
+
+    /// See if these two masses are within this tolerance of each other
+    pub fn within(&self, a: Mass, b: Mass) -> bool {
+        match self {
+            Self::Absolute(tol) => (a.value - b.value).abs() <= tol.value,
+            Self::Ppm(ppm) => a.ppm(b) <= *ppm,
+        }
+    }
 }
 
 impl Display for MassTolerance {

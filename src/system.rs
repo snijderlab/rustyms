@@ -104,11 +104,13 @@ pub mod f64 {
 }
 
 impl MassOverCharge {
+    /// Absolute ppm error between this number and the given other
     pub fn ppm(self, b: Self) -> f64 {
         ((self - b).abs() / self).value * 1e6
     }
 }
 impl Mass {
+    /// Absolute ppm error between this number and the given other
     pub fn ppm(self, b: Self) -> f64 {
         ((self - b).abs() / self).value * 1e6
     }

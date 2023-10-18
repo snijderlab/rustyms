@@ -39,7 +39,7 @@ pub enum Modification {
 impl Chemical for Modification {
     fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value), // TODO: how to handle single monoisotopic shifts
+            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
             Self::Formula(elements) => elements.clone(),
             Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
@@ -116,7 +116,7 @@ impl Modification {
                                     _ => Err(()),
                                 }
                             })
-                            .ok() // TODO: parse the glycan naming
+                            .ok()
                     })
             }
         }

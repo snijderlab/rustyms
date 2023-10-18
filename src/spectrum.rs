@@ -166,7 +166,7 @@ pub struct RawPeak {
     /// The intensity of this peak
     pub intensity: f64,
     /// The charge of this peak
-    pub charge: Charge, // #TODO: Is this item needed? (mgf has it, not used in rustyms)
+    pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
 }
 
 impl RawPeak {
@@ -184,7 +184,7 @@ pub struct AnnotatedPeak {
     /// The experimental intensity
     pub intensity: f64,
     /// The charge
-    pub charge: Charge, // #TODO: Is this item needed? (mgf has it, not used in rustyms)
+    pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
     /// The annotation, if present
     pub annotation: Vec<Fragment>,
 }

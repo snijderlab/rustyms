@@ -226,7 +226,7 @@ impl ComplexPeptide {
                     .collect::<String>();
                 let el = &line[index + 1 + num.len()..end_index];
                 global_modifications.push(GlobalModification::Isotope(
-                    el.try_into().map_err(|_| {
+                    el.try_into().map_err(|()| {
                         CustomError::error(
                             "Invalid global modification",
                             "Could not determine the element",

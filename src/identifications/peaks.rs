@@ -222,7 +222,8 @@ pub struct PeaksData {
     pub scan: Vec<PeaksId>,
     pub peptide: LinearPeptide,
     pub tag_length: usize,
-    pub de_novo_score: Option<usize>,
+    /// [0-1]
+    pub de_novo_score: Option<f64>,
     /// Average local confidence [0-1]
     pub alc: f64,
     pub length: usize,
@@ -332,7 +333,8 @@ impl IdentifiedPeptideSource for PeaksData {
             )?,
             tag_length: Location::column(format.tag_length, source).parse(&number_error)?,
             de_novo_score: Location::optional_column(format.de_novo_score, source)
-                .parse(&number_error)?,
+                .parse::<f64>(&number_error)
+                .map(|f| f.map(|f| f / 100.0))?,
             alc: Location::column(format.alc, source).parse::<f64>(&number_error)? / 100.0,
             length: Location::column(format.length, source).parse(&number_error)?,
             mz: Location::column(format.mz, source).parse(&number_error)?,
@@ -373,7 +375,7 @@ impl From<PeaksData> for IdentifiedPeptide {
         Self {
             peptide: value.peptide.clone(),
             local_confidence: Some(value.local_confidence.clone()),
-            score: Some(value.de_novo_score.map_or(value.alc, |s| s as f64 / 100.0)),
+            score: Some(value.de_novo_score.unwrap_or(value.alc)),
             metadata: MetaData::Peaks(value),
         }
     }

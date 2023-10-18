@@ -8,7 +8,6 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
     let mut atomic_weights = vec![None; 118];
     let mut isotopic_abundances = vec![Vec::new(); 118];
     let mut atomic_masses = vec![Vec::new(); 118];
-    // TODO: write output, read isotopic abundances, average weights, and determine normal monoisotopic mass
 
     let table = parse_csv("databases/IUPAC-atomic-masses.csv.gz", b',')?;
     for line in table {

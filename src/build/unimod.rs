@@ -112,7 +112,7 @@ fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
             (Element::O, 0, 1),
             (Element::C, 0, 2),
             (Element::H, 0, 2),
-        ]))), // TODO: check formula
+        ]))),
         "me" => Ok(Brick::Formula(MolecularFormula::new(&[
             (Element::C, 0, 1),
             (Element::H, 0, 2),

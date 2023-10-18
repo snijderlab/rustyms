@@ -931,7 +931,7 @@ impl Chemical for GlycanSubstituent {
             Self::Alcohol => molecular_formula!(H 3 O 1), // Together with the replacement below this is H+2
             Self::Amino => molecular_formula!(H 2 N 1),
             Self::Aric => molecular_formula!(H 3 O 3), // Together with replacement below this is H2O2
-            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // TODO: double substituent? Calculated to work with the additional side chain deletion
+            Self::CargoxyEthylidene => molecular_formula!(H 3 C 3 O 3), // double substituent, calculated to work with the additional side chain deletion
             Self::Deoxy => molecular_formula!(H 1), // Together with the replacement below this is O-1
             Self::Didehydro => molecular_formula!(H -1 O 1), // Together with the replacement below this is H-2
             Self::DiHydroxyButyryl => molecular_formula!(H 7 C 4 O 3),
