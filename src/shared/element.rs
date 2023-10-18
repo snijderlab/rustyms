@@ -1,5 +1,5 @@
 /// The elements (and electrons)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Element {
     /// Element Hydrogen (H) atomic number: 1
     H = 1,

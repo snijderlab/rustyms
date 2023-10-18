@@ -3,7 +3,7 @@ use std::{fmt::Display, hash::Hash, ops::Range};
 use crate::{
     formula::{Chemical, MolecularFormula},
     helper_functions::*,
-    Context, CustomError, Element,
+    Context, CustomError, Element, ELEMENT_PARSE_LIST,
 };
 
 /// A monosaccharide with all its complexity
@@ -118,21 +118,49 @@ impl MonoSaccharide {
         let mut amount = 1;
         if bytes[index].is_ascii_digit() {
             match bytes[index + 1] {
-                b',' => {
-                    index += 3;
-                    amount = 2;
-                    // X,X{mod}2
-                    if bytes[index] == b',' {
-                        // X,X,X{mod}3
-                        index += 2;
-                        amount = 3;
+                b',' if bytes[index + 3] == b':' => {
+                    let start_index = index;
+                    index += 7;
+                    if bytes[index] == b'-' {
+                        index += 1;
                     }
+                    if !line[index..].starts_with("Anhydro") {
+                        return Err(CustomError::error(
+                            "Invalid iupac monosaccharide name",
+                            "This internally linked glycan could not be parsed, expected Anhydro as modification",
+                            Context::Line {
+                                linenumber: line_number,
+                                line: line.to_string(),
+                                offset: start_index,
+                                length: index-start_index+5,
+                            },
+                        ));
+                    }
+                    index += 7;
+                    substituents.extend_from_slice(&[
+                        GlycanSubstituent::Didehydro,
+                        GlycanSubstituent::Deoxy,
+                        GlycanSubstituent::Deoxy,
+                    ]);
+                }
+                b',' => {
+                    let num = bytes[index + 1..]
+                        .iter()
+                        .take_while(|c| c.is_ascii_digit() || **c == b',' || **c == b'?')
+                        .count();
+                    index += num + 1;
+                    amount = num / 2;
+                    // X,X{mod} (or 3/4/5/etc mods)
                 }
                 _ => index += 1, // X{mod}
             }
             if bytes[index] == b'-' {
                 index += 1;
             }
+        }
+        // Detect & ignore epi state
+        if bytes[index] == b'e' {
+            index += 1;
         }
         for substituent in PREFIX_SUBSTITUENTS {
             if line[index..].starts_with(substituent.0) {
@@ -199,34 +227,56 @@ impl MonoSaccharide {
             if bytes[index].is_ascii_digit() || bytes[index] == b'?' {
                 match bytes[index + 1] {
                     b',' => {
-                        index += 3;
-                        amount = 2;
-                        // X,X{mod}2
-                        if bytes[index] == b',' {
-                            // X,X,X{mod}3
-                            index += 2;
-                            amount = 3;
-                        }
+                        let num = bytes[index + 1..]
+                            .iter()
+                            .take_while(|c| c.is_ascii_digit() || **c == b',' || **c == b'?')
+                            .count();
+                        index += num + 1;
+                        amount = num / 2 + 1;
+                        // X,X{mod} (or 3/4/5/etc mods)
                     }
                     b'-' => {
-                        if &line[index + 7..index + 9] != "Py" {
-                            return Err(CustomError::error(
-                                "Invalid iupac monosaccharide name",
-                                "The pattern for Pyruvyl was not correct, should be `X-X,X-XPy`",
-                                Context::Line {
-                                    linenumber: line_number,
-                                    line: line.to_string(),
-                                    offset: index,
-                                    length: 9,
-                                },
-                            ));
+                        let mut found = false;
+                        index += 7;
+                        if line[index..].starts_with("(X)")
+                            || line[index..].starts_with("(R)")
+                            || line[index..].starts_with("(S)")
+                        {
+                            index += 3; // Ignore isomeric state
                         }
-                        sugar.substituents.push(GlycanSubstituent::Pyruvyl);
-                        index += 9;
-                        continue;
+                        for substituent in DOUBLE_LINKED_POSTFIX_SUBSTITUENTS {
+                            if line[index..].starts_with(substituent.0) {
+                                index += substituent.0.len();
+                                for _ in 0..amount {
+                                    sugar.substituents.extend(substituent.1.iter().cloned());
+                                }
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            return Err(CustomError::error(
+                            "Invalid iupac monosaccharide name",
+                            "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
+                            Context::Line {
+                                linenumber: line_number,
+                                line: line.to_string(),
+                                offset: index,
+                                length: 2,
+                            },
+                        ));
+                        }
+
+                        continue; // Do not accepts an additional mod immediately
                     } // X-X,X-X (Py)
                     _ => index += 1, // X{mod}
                 }
+            }
+            if line[index..].starts_with("(X)")
+                || line[index..].starts_with("(R)")
+                || line[index..].starts_with("(S)")
+            {
+                index += 3; // Ignore isomeric state
             }
             // Mod
             let mut found = false;
@@ -241,7 +291,22 @@ impl MonoSaccharide {
                 }
             }
             if !found {
-                break;
+                // Parse any element
+                for element in ELEMENT_PARSE_LIST {
+                    if line[index..].starts_with(element.0) {
+                        index += element.0.len();
+                        for _ in 0..amount {
+                            sugar
+                                .substituents
+                                .push(GlycanSubstituent::Element(element.1));
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    break;
+                }
             }
             // Amount
             if amount != 1 {
@@ -336,8 +401,6 @@ pub enum BaseSugar {
     Nonose,
     /// 10 carbon base sugar
     Decose,
-    /// A disaccharide
-    Disaccharide(&'static BaseSugar, &'static BaseSugar),
 }
 
 impl Display for BaseSugar {
@@ -355,7 +418,6 @@ impl Display for BaseSugar {
                 Self::Octose => "Oct".to_string(),
                 Self::Nonose => "Non".to_string(),
                 Self::Decose => "Dec".to_string(),
-                Self::Disaccharide(a, b) => format!("{a}-{b}"),
             }
         )
     }
@@ -373,7 +435,6 @@ impl Chemical for BaseSugar {
             Self::Octose => molecular_formula!(H 14 C 8 O 7),
             Self::Nonose => molecular_formula!(H 16 C 9 O 8),
             Self::Decose => molecular_formula!(H 18 C 10 O 9),
-            Self::Disaccharide(a, b) => a.formula() + b.formula() + molecular_formula!(H 1), // Both plus the missing H for finishing one bond TODO: check if correct
         }
     }
 }
@@ -593,12 +654,60 @@ const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
         &[GlycanSubstituent::Amino, GlycanSubstituent::OCarboxyEthyl],
     ),
     (
-        "Lac",
-        BaseSugar::Disaccharide(
-            &BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
-            &BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
-        ),
-        &[],
+        "Api",
+        BaseSugar::Tetrose(Some(TetroseIsomer::Erythrose)),
+        &[GlycanSubstituent::HydroxyMethyl],
+    ),
+    (
+        "Dha",
+        BaseSugar::Heptose(None),
+        &[
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Acid,
+            GlycanSubstituent::Acid,
+        ],
+    ),
+    (
+        "Bac",
+        BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+        &[
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Amino,
+        ],
+    ),
+    (
+        "Pse",
+        BaseSugar::Nonose,
+        &[
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Acid,
+        ],
+    ),
+    (
+        "Leg",
+        BaseSugar::Nonose,
+        &[
+            GlycanSubstituent::Acid,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Deoxy,
+        ],
+    ),
+    (
+        "Aci",
+        BaseSugar::Nonose,
+        &[
+            GlycanSubstituent::Acid,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Amino,
+            GlycanSubstituent::Deoxy,
+            GlycanSubstituent::Deoxy,
+        ],
     ),
 ];
 
@@ -637,10 +746,12 @@ pub enum GlycanSubstituent {
     DiMethylGlyceryl,
     ///en didehydro an addition of a double bond
     Didehydro,
+    ///An element that replaces a side chain
+    Element(Element),
     ///Etn Ethanolamine
     Ethanolamine,
-    ///F Fluor
-    Fluor,
+    ///EtOH O linked ethanol
+    EtOH,
     ///Fo formyl
     Formyl,
     ///Gr glyceryl
@@ -651,8 +762,10 @@ pub enum GlycanSubstituent {
     Glycyl,
     ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
     HydroxyButyryl,
-    ///I Iodide
-    Iodide,
+    ///HydroxyMethyl
+    HydroxyMethyl,
+    ///Lac
+    Lac,
     ///Lt lactyl
     Lactyl,
     ///Me methyl
@@ -663,20 +776,32 @@ pub enum GlycanSubstituent {
     MethylGlutamyl,
     ///NAc N-acetyl
     NAcetyl,
+    ///N2DiMe N linked double methyl
+    NDiMe,
+    ///NFo N linked formyl
+    NFo,
     ///NGc N linked glycolyl
     NGlycolyl,
     ///carboxyethyl used in Mur
     OCarboxyEthyl,
+    ///PCho phosphate linked choline
+    PCholine,
     ///P phosphate
     Phosphate,
     ///Py pyruvyl
     Pyruvyl,
+    ///Suc ??
+    Suc,
     ///S sulfate
     Sulfate,
     ///Tau tauryl
     Tauryl,
     ///ulo ??
     Ulo,
+    ///ulof ??
+    Ulof,
+    ///water H2O
+    Water,
 }
 
 const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
@@ -699,22 +824,39 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("3SHb", GlycanSubstituent::HydroxyButyryl),
     ("3,4Hb", GlycanSubstituent::DiHydroxyButyryl),
     ("Lt", GlycanSubstituent::Lactyl),
+    ("Lac", GlycanSubstituent::Lac),
     ("Me", GlycanSubstituent::Methyl),
     ("NAc", GlycanSubstituent::NAcetyl),
     ("Pyr", GlycanSubstituent::CargoxyEthylidene),
     ("Tau", GlycanSubstituent::Tauryl),
     ("onic", GlycanSubstituent::Acid),
+    ("uronic", GlycanSubstituent::Acid),
     ("aric", GlycanSubstituent::Aric),
     ("ol", GlycanSubstituent::Alcohol),
     ("Etn", GlycanSubstituent::Ethanolamine),
+    ("EtOH", GlycanSubstituent::Ethanolamine),
+    ("ulof", GlycanSubstituent::Ulof),
     ("ulo", GlycanSubstituent::Ulo),
+    ("N2DiMe", GlycanSubstituent::NDiMe),
+    ("NDiMe", GlycanSubstituent::NDiMe),
+    ("PCho", GlycanSubstituent::PCholine),
+    ("CE", GlycanSubstituent::Glycyl), // Same molecular formula
+    ("Suc", GlycanSubstituent::Suc),
+    ("NFo", GlycanSubstituent::NFo),
     ("A", GlycanSubstituent::Acid),
     ("P", GlycanSubstituent::Phosphate),
     ("p", GlycanSubstituent::Phosphate),
     ("S", GlycanSubstituent::Sulfate),
     ("N", GlycanSubstituent::Amino),
-    ("F", GlycanSubstituent::Fluor),
-    ("I", GlycanSubstituent::Iodide),
+];
+
+const DOUBLE_LINKED_POSTFIX_SUBSTITUENTS: &[(&str, &[GlycanSubstituent])] = &[
+    ("Py", &[GlycanSubstituent::Pyruvyl]),
+    ("N", &[GlycanSubstituent::Water]),
+    (
+        "P",
+        &[GlycanSubstituent::Water, GlycanSubstituent::Phosphate],
+    ),
 ];
 
 const PREFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
@@ -729,41 +871,49 @@ impl Display for GlycanSubstituent {
             f,
             "{}",
             match self {
-                Self::Acetimidoyl => "Am",
-                Self::Acetyl => "Ac",
-                Self::AcetylAlanyl => "Ala2Ac",
-                Self::AcetylGlutaminyl => "Gln2Ac",
-                Self::Acid => "A",
-                Self::Alanyl => "Ala",
-                Self::Alcohol => "ol",
-                Self::Amino => "N",
-                Self::Aric => "aric",
-                Self::CargoxyEthylidene => "Pyr",
-                Self::Deoxy => "d",
-                Self::Didehydro => "en",
-                Self::DiHydroxyButyryl => "3,4Hb",
-                Self::DiMethylAcetimidoyl => "AmMe2",
-                Self::DiMethylGlyceryl => "Gr2,3Me2",
-                Self::Ethanolamine => "Etn",
-                Self::Fluor => "F",
-                Self::Formyl => "Fo",
-                Self::Glyceryl => "Gr",
-                Self::Glycolyl => "Gc",
-                Self::Glycyl => "Gly",
-                Self::HydroxyButyryl => "Hb",
-                Self::Iodide => "I",
-                Self::Lactyl => "Lt",
-                Self::Methyl => "Me",
-                Self::MethylAcetimidoyl => "AmMe",
-                Self::MethylGlutamyl => "5Glu2Me",
-                Self::NAcetyl => "NAc",
-                Self::NGlycolyl => "NGc",
-                Self::OCarboxyEthyl => "carboxyethyl",
-                Self::Phosphate => "P",
-                Self::Pyruvyl => "Py",
-                Self::Sulfate => "S",
-                Self::Tauryl => "Tau",
-                Self::Ulo => "ulo",
+                Self::Acetimidoyl => "Am".to_string(),
+                Self::Acetyl => "Ac".to_string(),
+                Self::AcetylAlanyl => "Ala2Ac".to_string(),
+                Self::AcetylGlutaminyl => "Gln2Ac".to_string(),
+                Self::Acid => "A".to_string(),
+                Self::Alanyl => "Ala".to_string(),
+                Self::Alcohol => "ol".to_string(),
+                Self::Amino => "N".to_string(),
+                Self::Aric => "aric".to_string(),
+                Self::CargoxyEthylidene => "Pyr".to_string(),
+                Self::Deoxy => "d".to_string(),
+                Self::Didehydro => "en".to_string(),
+                Self::DiHydroxyButyryl => "3,4Hb".to_string(),
+                Self::DiMethylAcetimidoyl => "AmMe2".to_string(),
+                Self::DiMethylGlyceryl => "Gr2,3Me2".to_string(),
+                Self::Ethanolamine => "Etn".to_string(),
+                Self::Element(el) => el.to_string(),
+                Self::EtOH => "EtOH".to_string(),
+                Self::Formyl => "Fo".to_string(),
+                Self::Glyceryl => "Gr".to_string(),
+                Self::Glycolyl => "Gc".to_string(),
+                Self::Glycyl => "Gly".to_string(),
+                Self::HydroxyButyryl => "Hb".to_string(),
+                Self::HydroxyMethyl => "HMe".to_string(),
+                Self::Lac => "Lac".to_string(),
+                Self::Lactyl => "Lt".to_string(),
+                Self::Methyl => "Me".to_string(),
+                Self::MethylAcetimidoyl => "AmMe".to_string(),
+                Self::MethylGlutamyl => "5Glu2Me".to_string(),
+                Self::NAcetyl => "NAc".to_string(),
+                Self::NDiMe => "NDiMe".to_string(),
+                Self::NFo => "NFo".to_string(),
+                Self::NGlycolyl => "NGc".to_string(),
+                Self::OCarboxyEthyl => "carboxyethyl".to_string(),
+                Self::PCholine => "PCho".to_string(),
+                Self::Phosphate => "P".to_string(),
+                Self::Pyruvyl => "Py".to_string(),
+                Self::Suc => "Suc".to_string(),
+                Self::Sulfate => "S".to_string(),
+                Self::Tauryl => "Tau".to_string(),
+                Self::Ulo => "ulo".to_string(),
+                Self::Ulof => "ulof".to_string(),
+                Self::Water => "waterloss".to_string(),
             }
         )
     }
@@ -788,24 +938,32 @@ impl Chemical for GlycanSubstituent {
             Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
             Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
             Self::Ethanolamine => molecular_formula!(H 6 C 2 N 1 O 1),
-            Self::Fluor => molecular_formula!(F 1),
+            Self::EtOH => molecular_formula!(H 5 C 2 O 2),
+            Self::Element(el) => MolecularFormula::new(&[(*el, 0, 1)]),
             Self::Formyl => molecular_formula!(H 1 C 1 O 1),
             Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
             Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
             Self::Glycyl | Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
             Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
-            Self::Iodide => molecular_formula!(I 1),
+            Self::HydroxyMethyl => molecular_formula!(H 3 C 1 O 2),
+            Self::Lac => molecular_formula!(H 5 C 3 O 3),
             Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
             Self::Methyl => molecular_formula!(H 3 C 1),
             Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
             Self::MethylGlutamyl => molecular_formula!(H 10 C 6 N 1 O 3),
+            Self::NDiMe => molecular_formula!(H 6 C 2 N 1),
+            Self::NFo => molecular_formula!(H 2 C 1 N 1 O 1),
             Self::NGlycolyl => molecular_formula!(H 4 C 2 N 1 O 2),
-            Self::OCarboxyEthyl => molecular_formula!(H 6 C 3 O 3), // Replaces H, together with replacement below this is H2C1O1
+            Self::OCarboxyEthyl => molecular_formula!(H 6 C 3 O 3), // Replaces H, together with replacement below this is H5C3O2
+            Self::PCholine => molecular_formula!(H 14 C 5 N 1 O 4 P 1),
             Self::Phosphate => molecular_formula!(H 2 O 4 P 1),
             Self::Pyruvyl => molecular_formula!(H 3 C 3 O 2),
+            Self::Suc => molecular_formula!(H 6 C 4 N 1 O 3),
             Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
             Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
             Self::Ulo => molecular_formula!(H 3 C 1 O 2), // Replaces H, together with replacement below this is H2C1O1
+            Self::Ulof => molecular_formula!(H 4 C 1 O 2), // Replaces H, together with replacement below this is H3C1O1
+            Self::Water => molecular_formula!(H - 1),
         };
         side - molecular_formula!(O 1 H 1) // substituent so replaces a standard oxygen side chain
     }
@@ -1028,7 +1186,7 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
         MonoSaccharide::Predefined(PredefinedMonosaccharide {
             base_sugar: Some(BaseSugar::Hexose(Some(HexoseIsomer::Mannose))),
             substituents: &[GlycanSubstituent::Phosphate],
-            pro_forma_name: "Hexphosphate", // TODO: technically maybe not working when multiple are in there, think it through
+            pro_forma_name: "Hexphosphate", // TODO: technically maybe not working when multiple are in there, think it through, should be two different elements, both getting counts after them
         }),
     ),
     (
@@ -1211,6 +1369,20 @@ mod tests {
     #[test]
     fn iupac_short_names() {
         assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal2,3Ac24-1,6-1Py", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Pyruvyl,
+                    ]
+                ),
+                18
+            ))
+        );
+        assert_eq!(
             MonoSaccharide::from_short_iupac("GlcNAc", 0, 0),
             Ok((
                 MonoSaccharide::new(
@@ -1303,9 +1475,23 @@ mod tests {
                 MonoSaccharide::new(
                     BaseSugar::Pentose(Some(PentoseIsomer::Xylose)),
                     &[GlycanSubstituent::Acid]
-                )
-                .furanose(),
+                ),
                 8
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Glc2,3,4,6Ac4", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl
+                    ]
+                ),
+                13
             ))
         );
     }
