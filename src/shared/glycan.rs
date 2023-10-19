@@ -104,16 +104,8 @@ impl MonoSaccharide {
         let mut substituents = Vec::new();
 
         // ignore stuff
-        if line[index..].starts_with("keto-") {
-            index += 5;
-        }
-        // Isomeric state
-        if line[index..].starts_with("D-")
-            || line[index..].starts_with("L-")
-            || line[index..].starts_with("?-")
-        {
-            index += 2; // Ignore the isomeric state otherwise
-        }
+        index += line[index..].ignore(&["keto-"]);
+        index += line[index..].ignore(&["D-", "L-", "?-"]);
         // Prefix mods
         let mut amount = 1;
         if bytes[index].is_ascii_digit() {
@@ -121,9 +113,7 @@ impl MonoSaccharide {
                 b',' if bytes[index + 3] == b':' => {
                     let start_index = index;
                     index += 7;
-                    if bytes[index] == b'-' {
-                        index += 1;
-                    }
+                    index += line[index..].ignore(&["-"]);
                     if !line[index..].starts_with("Anhydro") {
                         return Err(CustomError::error(
                             "Invalid iupac monosaccharide name",
@@ -154,33 +144,19 @@ impl MonoSaccharide {
                 }
                 _ => index += 1, // X{mod}
             }
-            if bytes[index] == b'-' {
-                index += 1;
-            }
+            index += line[index..].ignore(&["-"]);
         }
         // Detect & ignore epi state
-        if bytes[index] == b'e' {
-            index += 1;
+        index += line[index..].ignore(&["e"]);
+        // Get the prefix mods
+        if let Some(o) = line[index..].take_any(PREFIX_SUBSTITUENTS, |e| {
+            substituents.extend(std::iter::repeat(e.clone()).take(amount));
+        }) {
+            index += o;
         }
-        for substituent in PREFIX_SUBSTITUENTS {
-            if line[index..].starts_with(substituent.0) {
-                index += substituent.0.len();
-                for _ in 0..amount {
-                    substituents.push(substituent.1.clone());
-                }
-                if bytes[index] == b'-' {
-                    index += 1;
-                }
-                break;
-            }
-        }
+        index += line[index..].ignore(&["-"]);
         // Another optional isomeric state
-        if line[index..].starts_with("D-")
-            || line[index..].starts_with("L-")
-            || line[index..].starts_with("?-")
-        {
-            index += 2; // Ignore the isomeric state otherwise
-        }
+        index += line[index..].ignore(&["D-", "L-", "?-"]);
         // Base sugar
         let mut sugar = None;
         for sug in BASE_SUGARS {
@@ -219,9 +195,7 @@ impl MonoSaccharide {
         }
         // Postfix mods
         while index < bytes.len() {
-            if bytes[index] == b'-' {
-                index += 1;
-            }
+            index += line[index..].ignore(&["-"]);
             // Location
             let mut amount = 1;
             if bytes[index].is_ascii_digit() || bytes[index] == b'?' {
@@ -236,77 +210,48 @@ impl MonoSaccharide {
                         // X,X{mod} (or 3/4/5/etc mods)
                     }
                     b'-' => {
-                        let mut found = false;
                         index += 7;
-                        if line[index..].starts_with("(X)")
-                            || line[index..].starts_with("(R)")
-                            || line[index..].starts_with("(S)")
-                        {
-                            index += 3; // Ignore isomeric state
-                        }
-                        for substituent in DOUBLE_LINKED_POSTFIX_SUBSTITUENTS {
-                            if line[index..].starts_with(substituent.0) {
-                                index += substituent.0.len();
-                                for _ in 0..amount {
-                                    sugar.substituents.extend(substituent.1.iter().cloned());
-                                }
-                                found = true;
-                                break;
-                            }
-                        }
-                        if !found {
-                            return Err(CustomError::error(
-                            "Invalid iupac monosaccharide name",
-                            "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
-                            Context::Line {
-                                linenumber: line_number,
-                                line: line.to_string(),
-                                offset: index,
-                                length: 2,
-                            },
-                        ));
-                        }
+                        index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
 
+                        if let Some(o) =
+                            line[index..].take_any(DOUBLE_LINKED_POSTFIX_SUBSTITUENTS, |e| {
+                                sugar.substituents.extend(e.iter().cloned());
+                            })
+                        {
+                            index += o;
+                        } else {
+                            return Err(CustomError::error(
+                                "Invalid iupac monosaccharide name",
+                                "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
+                                Context::Line {
+                                    linenumber: line_number,
+                                    line: line.to_string(),
+                                    offset: index,
+                                    length: 2,
+                                },
+                            ));
+                        }
                         continue; // Do not accepts an additional mod immediately
                     } // X-X,X-X (Py)
                     _ => index += 1, // X{mod}
                 }
             }
-            if line[index..].starts_with("(X)")
-                || line[index..].starts_with("(R)")
-                || line[index..].starts_with("(S)")
-            {
-                index += 3; // Ignore isomeric state
-            }
-            // Mod
-            let mut found = false;
-            for substituent in POSTFIX_SUBSTITUENTS {
-                if line[index..].starts_with(substituent.0) {
-                    index += substituent.0.len();
-                    for _ in 0..amount {
-                        sugar.substituents.push(substituent.1.clone());
-                    }
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                // Parse any element
-                for element in ELEMENT_PARSE_LIST {
-                    if line[index..].starts_with(element.0) {
-                        index += element.0.len();
-                        for _ in 0..amount {
-                            sugar
-                                .substituents
-                                .push(GlycanSubstituent::Element(element.1));
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    break;
-                }
+            index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
+            // Mod or an element
+            if let Some(o) = line[index..].take_any(POSTFIX_SUBSTITUENTS, |e| {
+                sugar
+                    .substituents
+                    .extend(std::iter::repeat(e.clone()).take(amount));
+            }) {
+                index += o;
+            } else if let Some(o) = line[index..].take_any(ELEMENT_PARSE_LIST, |e| {
+                sugar
+                    .substituents
+                    .extend(std::iter::repeat(GlycanSubstituent::Element(*e)).take(amount));
+            }) {
+                index += o;
+            } else {
+                break;
             }
             // Amount
             if amount != 1 {
@@ -329,6 +274,35 @@ impl MonoSaccharide {
     //         _ => '⬡', // ⬢
     //     }
     // }
+}
+
+trait ParseHelper {
+    fn ignore(self, ignore: &[&str]) -> usize;
+    fn take_any<T>(self, parse_list: &[(&str, T)], f: impl FnMut(&T)) -> Option<usize>;
+}
+
+impl ParseHelper for &str {
+    /// Ignore any of the given things, greedily ignores the first match
+    fn ignore(self, ignore: &[&str]) -> usize {
+        for i in ignore {
+            if self.starts_with(i) {
+                return i.len();
+            }
+        }
+        0
+    }
+
+    fn take_any<T>(self, parse_list: &[(&str, T)], mut f: impl FnMut(&T)) -> Option<usize> {
+        let mut found = None;
+        for element in parse_list {
+            if self.starts_with(element.0) {
+                found = Some(element.0.len());
+                f(&element.1);
+                break;
+            }
+        }
+        found
+    }
 }
 
 impl Chemical for MonoSaccharide {
