@@ -196,62 +196,77 @@ impl MonoSaccharide {
         // Postfix mods
         while index < bytes.len() {
             index += line[index..].ignore(&["-"]);
+            let mut single_amount = 0;
+            let mut double_amount = 0;
             // Location
-            let mut amount = 1;
-            if bytes[index].is_ascii_digit() || bytes[index] == b'?' {
-                match bytes[index + 1] {
-                    b',' => {
-                        let num = bytes[index + 1..]
-                            .iter()
-                            .take_while(|c| c.is_ascii_digit() || **c == b',' || **c == b'?')
-                            .count();
-                        index += num + 1;
-                        amount = num / 2 + 1;
-                        // X,X{mod} (or 3/4/5/etc mods)
-                    }
-                    b'-' => {
-                        index += 7;
-                        index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
-
-                        if let Some(o) =
-                            line[index..].take_any(DOUBLE_LINKED_POSTFIX_SUBSTITUENTS, |e| {
-                                sugar.substituents.extend(e.iter().cloned());
-                            })
-                        {
-                            index += o;
-                        } else {
-                            return Err(CustomError::error(
-                                "Invalid iupac monosaccharide name",
-                                "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
-                                Context::Line {
-                                    linenumber: line_number,
-                                    line: line.to_string(),
-                                    offset: index,
-                                    length: 2,
-                                },
-                            ));
-                        }
-                        continue; // Do not accepts an additional mod immediately
-                    } // X-X,X-X (Py)
-                    _ => index += 1, // X{mod}
-                }
-            }
-            index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
-            // Mod or an element
-            if let Some(o) = line[index..].take_any(POSTFIX_SUBSTITUENTS, |e| {
-                sugar
-                    .substituents
-                    .extend(std::iter::repeat(e.clone()).take(amount));
-            }) {
-                index += o;
-            } else if let Some(o) = line[index..].take_any(ELEMENT_PARSE_LIST, |e| {
-                sugar
-                    .substituents
-                    .extend(std::iter::repeat(GlycanSubstituent::Element(*e)).take(amount));
-            }) {
-                index += o;
+            let (offset, mut amount, mut double) = line[index..].parse_location();
+            index += offset;
+            if double {
+                double_amount = amount;
             } else {
-                break;
+                single_amount = amount;
+            }
+            if bytes[index] == b':' {
+                // additional place
+                let (offset, amt, dbl) = line[index + 1..].parse_location();
+                index += offset + 1;
+                amount += amt;
+                if double {
+                    double_amount += amount;
+                } else {
+                    single_amount += amount;
+                }
+                double |= dbl; // if any is double
+            }
+
+            index += line[index..].ignore(&["-"]);
+            index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
+            if double {
+                if let Some(o) = line[index..].take_any(DOUBLE_LINKED_POSTFIX_SUBSTITUENTS, |e| {
+                    sugar.substituents.extend(
+                        e.iter()
+                            .flat_map(|s| std::iter::repeat(s).take(double_amount))
+                            .cloned(),
+                    );
+                    if single_amount > 0 {
+                        sugar.substituents.extend(
+                            e.iter()
+                                .filter(|s| **s != GlycanSubstituent::Water)
+                                .flat_map(|s| std::iter::repeat(s).take(single_amount))
+                                .cloned(),
+                        );
+                    }
+                }) {
+                    index += o;
+                } else {
+                    return Err(CustomError::error(
+                        "Invalid iupac monosaccharide name",
+                        "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
+                        Context::Line {
+                            linenumber: line_number,
+                            line: line.to_string(),
+                            offset: index,
+                            length: 2,
+                        },
+                    ));
+                }
+            } else {
+                // Mod or an element
+                if let Some(o) = line[index..].take_any(POSTFIX_SUBSTITUENTS, |e| {
+                    sugar
+                        .substituents
+                        .extend(std::iter::repeat(e.clone()).take(amount));
+                }) {
+                    index += o;
+                } else if let Some(o) = line[index..].take_any(ELEMENT_PARSE_LIST, |e| {
+                    sugar
+                        .substituents
+                        .extend(std::iter::repeat(GlycanSubstituent::Element(*e)).take(amount));
+                }) {
+                    index += o;
+                } else {
+                    break;
+                }
             }
             // Amount
             if amount != 1 {
@@ -279,6 +294,7 @@ impl MonoSaccharide {
 trait ParseHelper {
     fn ignore(self, ignore: &[&str]) -> usize;
     fn take_any<T>(self, parse_list: &[(&str, T)], f: impl FnMut(&T)) -> Option<usize>;
+    fn parse_location(self) -> (usize, usize, bool);
 }
 
 impl ParseHelper for &str {
@@ -302,6 +318,61 @@ impl ParseHelper for &str {
             }
         }
         found
+    }
+
+    // Get a location, return the new index, the amount of the mod to place and if it is doubly linked or not
+    fn parse_location(self) -> (usize, usize, bool) {
+        let bytes = self.as_bytes();
+        let mut index = 0;
+        let mut amount = 1;
+        let mut double = false;
+        if bytes[0].is_ascii_digit() || bytes[0] == b'?' {
+            match bytes[1] {
+                b',' => {
+                    let num = bytes[1..]
+                        .iter()
+                        .take_while(|c| c.is_ascii_digit() || **c == b',' || **c == b'?')
+                        .count();
+                    index += num + 1;
+                    amount = num / 2 + 1;
+                    // X,X{mod} (or 3/4/5/etc mods)
+                }
+                b'-' if bytes[index] != b'?' => {
+                    index += 7;
+                    double = true;
+                } // X-X,X-X (Py)
+                b'/' => {
+                    let num = bytes[2..]
+                        .iter()
+                        .take_while(|c| c.is_ascii_digit() || **c == b'/')
+                        .count();
+                    index += num + 2;
+                    // X/X/X...{mod} multiple possible locations
+                }
+                c if (c.is_ascii_digit() || c == b'?') && bytes[0] == b'?' => {
+                    if bytes[2] == b',' {
+                        let num = bytes[2..]
+                            .iter()
+                            .take_while(|c| c.is_ascii_digit() || **c == b',' || **c == b'?')
+                            .count();
+                        index += num + 2;
+                        amount = num / 2 + 1;
+                        // ?X,X{mod} (or 3/4/5/etc mods)
+                    } else if bytes[2] == b'/' {
+                        let num = bytes[3..]
+                            .iter()
+                            .take_while(|c| c.is_ascii_digit() || **c == b'/')
+                            .count();
+                        index += num + 3;
+                        // ?X/X{mod} multiple possible locations
+                    } else {
+                        index += 2; // ?X{mod}
+                    }
+                }
+                _ => index += 1, // X{mod}
+            }
+        }
+        (index, amount, double)
     }
 }
 
@@ -714,6 +785,8 @@ pub enum GlycanSubstituent {
     Deoxy,
     ///3,4Hb 3,4-dihydroxybutyryl
     DiHydroxyButyryl,
+    ///DiMe two methyl
+    DiMethyl,
     ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
     DiMethylAcetimidoyl,
     ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
@@ -800,6 +873,7 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("Lt", GlycanSubstituent::Lactyl),
     ("Lac", GlycanSubstituent::Lac),
     ("Me", GlycanSubstituent::Methyl),
+    ("CMe", GlycanSubstituent::Methyl), // unsure about the difference with Me
     ("NAc", GlycanSubstituent::NAcetyl),
     ("Pyr", GlycanSubstituent::CargoxyEthylidene),
     ("Tau", GlycanSubstituent::Tauryl),
@@ -817,6 +891,7 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("CE", GlycanSubstituent::Glycyl), // Same molecular formula
     ("Suc", GlycanSubstituent::Suc),
     ("NFo", GlycanSubstituent::NFo),
+    ("DiMe", GlycanSubstituent::DiMethyl),
     ("A", GlycanSubstituent::Acid),
     ("P", GlycanSubstituent::Phosphate),
     ("p", GlycanSubstituent::Phosphate),
@@ -858,6 +933,7 @@ impl Display for GlycanSubstituent {
                 Self::Deoxy => "d".to_string(),
                 Self::Didehydro => "en".to_string(),
                 Self::DiHydroxyButyryl => "3,4Hb".to_string(),
+                Self::DiMethyl => "DiMe".to_string(),
                 Self::DiMethylAcetimidoyl => "AmMe2".to_string(),
                 Self::DiMethylGlyceryl => "Gr2,3Me2".to_string(),
                 Self::Ethanolamine => "Etn".to_string(),
@@ -909,6 +985,7 @@ impl Chemical for GlycanSubstituent {
             Self::Deoxy => molecular_formula!(H 1), // Together with the replacement below this is O-1
             Self::Didehydro => molecular_formula!(H -1 O 1), // Together with the replacement below this is H-2
             Self::DiHydroxyButyryl => molecular_formula!(H 7 C 4 O 3),
+            Self::DiMethyl => molecular_formula!(H 5 C 2), // assumed to replace the both the OH and H on a single carbon
             Self::DiMethylAcetimidoyl => molecular_formula!(H 9 C 4 N 1),
             Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
             Self::Ethanolamine => molecular_formula!(H 6 C 2 N 1 O 1),
@@ -1467,6 +1544,19 @@ mod tests {
                 ),
                 13
             ))
+        );
+    }
+
+    fn iupac_masses() {
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
+                .unwrap()
+                .0
+                .formula()
+                .monoisotopic_mass()
+                .unwrap()
+                .round(),
+            411.0
         );
     }
 }

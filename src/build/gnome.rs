@@ -55,22 +55,33 @@ fn parse_gnome(_debug: bool) -> Vec<GNOmeModification> {
 
 fn parse_gnome_structures(_debug: bool) -> Vec<(String, GlycanStructure)> {
     let mut glycans = Vec::new();
+    let mut errors = 0;
     for line in parse_csv("databases/glycosmos_glycans_list.csv.gz", b',')
         .unwrap()
         .skip(1)
     {
         let line = line.unwrap();
         if !line[1].is_empty() {
-            glycans.push((
-                line[0].to_string(),
-                GlycanStructure::from_short_iupac(
-                    &line.line,
-                    line.fields[1].clone(),
-                    line.line_index + 1,
-                )
-                .unwrap(),
-            ));
+            match GlycanStructure::from_short_iupac(
+                &line.line,
+                line.fields[1].clone(),
+                line.line_index + 1,
+            ) {
+                Ok(glycan) => glycans.push((line[0].to_string(), glycan)),
+                Err(error) => {
+                    if errors < 5 {
+                        println!("{error}");
+                    }
+                    errors += 1;
+                }
+            }
         }
+    }
+    if errors > 0 {
+        panic!(
+            "Total glycan structure reading errors: {errors} total read {}",
+            glycans.len()
+        );
     }
     glycans
 }
