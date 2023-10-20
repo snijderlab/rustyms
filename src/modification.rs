@@ -8,7 +8,7 @@ use crate::{
     error::Context,
     error::CustomError,
     helper_functions::*,
-    ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
+    ontologies::{GNOME_ONTOLOGY, PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
     placement_rules::PlacementRule,
     AminoAcid, Chemical, Element, GlycanStructure, Mass, MolecularFormula, MonoSaccharide,
     SequenceElement,
@@ -34,6 +34,20 @@ pub enum Modification {
         &'static str, // Name
         usize,        // Index
     ),
+    /// A modification from one of the modification ontologies
+    Gno(
+        GnoComposition,
+        &'static str, // Name
+    ),
+}
+
+/// All possible compositions in the GNO ontology
+#[derive(Debug, Clone, PartialEq)]
+pub enum GnoComposition {
+    /// Only the mass is known
+    Mass(f64),
+    /// The (full) structure is known
+    Structure(GlycanStructure),
 }
 
 impl Chemical for Modification {
@@ -48,6 +62,8 @@ impl Chemical for Modification {
                 }),
             Self::GlycanStructure(glycan) => glycan.formula(),
             Self::Predefined(formula, _, _, _, _) => MolecularFormula::new(formula),
+            Self::Gno(GnoComposition::Mass(m), _) => MolecularFormula::with_additional_mass(*m),
+            Self::Gno(GnoComposition::Structure(glycan), _) => glycan.formula(),
         }
     }
 }
@@ -216,6 +232,10 @@ fn parse_single_modification(
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
+                ("gno", tail) => find_name_in_ontology(tail, GNOME_ONTOLOGY)
+                    .map(Some)
+                    .map_err(|_| basic_error
+                        .with_long_description("This modification cannot be read as a GNO name")),
                 ("formula", tail) => Ok(Some(Modification::Formula(
                     parse_molecular_formula_pro_forma(tail).map_err(|e| basic_error
                         .with_long_description(format!("This modification cannot be read as a valid formula: {e}")))?,
@@ -397,10 +417,10 @@ impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Mass(m) => {
-                write!(f, "{:+}", m.value).unwrap();
+                write!(f, "{:+}", m.value)?;
             }
             Self::Formula(elements) => {
-                write!(f, "Formula:{}", elements.hill_notation()).unwrap();
+                write!(f, "Formula:{}", elements.hill_notation())?;
             }
             Self::Glycan(monosaccharides) => write!(
                 f,
@@ -408,12 +428,12 @@ impl Display for Modification {
                 monosaccharides
                     .iter()
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
-            )
-            .unwrap(),
-            Self::GlycanStructure(glycan) => write!(f, "GlycanStructure:{glycan}",).unwrap(),
+            )?,
+            Self::GlycanStructure(glycan) => write!(f, "GlycanStructure:{glycan}",)?,
             Self::Predefined(_, _, context, name, _) => {
-                write!(f, "{}:{name}", context.char()).unwrap();
+                write!(f, "{}:{name}", context.char())?;
             }
+            Self::Gno(_, name) => write!(f, "{name}")?,
         }
         Ok(())
     }

@@ -187,18 +187,18 @@ impl GlycanStructure {
         }
     }
 
-    /// Recursively show the structure of this glycan
-    fn debug_tree(&self) -> String {
-        if self.branches.is_empty() {
-            format!("{:?}", self.sugar)
-        } else {
-            format!(
-                "{:?}({})",
-                self.sugar,
-                self.branches.iter().map(Self::debug_tree).join(",")
-            )
-        }
-    }
+    // Recursively show the structure of this glycan
+    // fn debug_tree(&self) -> String {
+    //     if self.branches.is_empty() {
+    //         format!("{:?}", self.sugar)
+    //     } else {
+    //         format!(
+    //             "{:?}({})",
+    //             self.sugar,
+    //             self.branches.iter().map(Self::debug_tree).join(",")
+    //         )
+    //     }
+    // }
 }
 
 impl Display for GlycanStructure {
@@ -206,11 +206,11 @@ impl Display for GlycanStructure {
         write!(f, "{}", self.display_tree())
     }
 }
-impl std::fmt::Debug for GlycanStructure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.debug_tree())
-    }
-}
+// impl std::fmt::Debug for GlycanStructure {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "{}", self.debug_tree())
+//     }
+// }
 /// Rose tree representation of glycan structure
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct PositionedGlycanStructure {

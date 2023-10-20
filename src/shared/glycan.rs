@@ -9,7 +9,9 @@ use crate::{
 /// A monosaccharide with all its complexity
 #[derive(Debug, Clone, Eq)]
 pub enum MonoSaccharide {
+    /// A predefined mono saccharide able to be generate in const contexts
     Predefined(PredefinedMonosaccharide),
+    /// An allocated mono saccharide able to be made at runtime
     Allocated(AllocatedMonosaccharide),
 }
 
@@ -1303,7 +1305,7 @@ pub const GLYCAN_PARSE_LIST: &[(&str, MonoSaccharide)] = &[
 ];
 
 /// Rose tree representation of glycan structure
-#[derive(Eq, PartialEq, Clone, Hash)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub struct GlycanStructure {
     sugar: MonoSaccharide,
     branches: Vec<GlycanStructure>,
@@ -1555,6 +1557,7 @@ mod tests {
                 .formula()
                 .monoisotopic_mass()
                 .unwrap()
+                .value
                 .round(),
             411.0
         );

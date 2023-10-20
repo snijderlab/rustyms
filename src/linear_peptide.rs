@@ -6,7 +6,7 @@ use crate::{
     error::{Context, CustomError},
     modification::{AmbiguousModification, GlobalModification, ReturnModification},
     molecular_charge::MolecularCharge,
-    Element, MolecularFormula,
+    Element, GnoComposition, MolecularFormula,
 };
 use itertools::Itertools;
 use uom::num_traits::Zero;
@@ -263,6 +263,20 @@ impl LinearPeptide {
         for (sequence_index, position) in self.sequence.iter().enumerate() {
             for modification in &position.modifications {
                 if let Modification::GlycanStructure(glycan) = modification {
+                    output.extend(
+                        glycan
+                            .clone()
+                            .determine_positions()
+                            .generate_theoretical_fragments(
+                                model,
+                                peptide_index,
+                                charge_carriers,
+                                &self.formula()?,
+                                (position.aminoacid, sequence_index),
+                            ),
+                    );
+                } else if let Modification::Gno(GnoComposition::Structure(glycan), _) = modification
+                {
                     output.extend(
                         glycan
                             .clone()
