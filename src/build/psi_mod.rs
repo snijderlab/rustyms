@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs, path::Path};
+use std::{ffi::OsString, io::BufWriter, io::Write, path::Path};
 
 use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 
@@ -9,18 +9,19 @@ use super::{
 
 pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_psi_mod(debug);
+
     let dest_path = Path::new(&out_dir).join("psi-mod.rs");
-    fs::write(
-        dest_path,
-        format!(
-            "pub const PSI_MOD_ONTOLOGY: &[(usize, &str, Modification)] = &[
-                {}
-                ];",
-            mods.iter()
-                .fold(String::new(), |acc, m| format!("{}\n{},", acc, m.to_code()))
-        ),
+    let file = std::fs::File::create(dest_path).unwrap();
+    let mut writer = BufWriter::new(file);
+    writeln!(
+        writer,
+        "pub const PSI_MOD_ONTOLOGY: &[(usize, &str, Modification)] = &["
     )
     .unwrap();
+    for m in mods {
+        writeln!(writer, "{},", m.to_code()).unwrap();
+    }
+    writeln!(writer, "];").unwrap();
 }
 
 fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {

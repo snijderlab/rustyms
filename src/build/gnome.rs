@@ -1,7 +1,6 @@
-use std::{collections::HashMap, ffi::OsString, io::BufWriter, path::Path};
+use std::{collections::HashMap, ffi::OsString, io::BufWriter, io::Write, path::Path};
 
 use crate::{build::csv::parse_csv, glycan::GlycanStructure};
-use std::io::Write;
 
 use super::obo::OboOntology;
 

@@ -221,20 +221,20 @@ fn parse_single_modification(
                             .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
                 }
                 ("u", tail) => find_name_in_ontology(tail, UNIMOD_ONTOLOGY)
-                    .map_err(|_| numerical_mod(tail))
+                    .map_err(|()| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a Unimod name or numerical modification")),
                 ("m", tail) => find_name_in_ontology(tail, PSI_MOD_ONTOLOGY)
-                    .map_err(|_| numerical_mod(tail))
+                    .map_err(|()| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
                 ("gno", tail) => find_name_in_ontology(tail, GNOME_ONTOLOGY)
                     .map(Some)
-                    .map_err(|_| basic_error
+                    .map_err(|()| basic_error
                         .with_long_description("This modification cannot be read as a GNO name")),
                 ("formula", tail) => Ok(Some(Modification::Formula(
                     parse_molecular_formula_pro_forma(tail).map_err(|e| basic_error
@@ -251,10 +251,10 @@ fn parse_single_modification(
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
                     .with_long_description("This modification cannot be read as a numerical modification")),
                 (_, _tail) => find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
-                    .map_err(|_| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
+                    .map_err(|()| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_|
+                    .map_err(|()|
                         CustomError::error(
                             "Invalid modification",
                             "Rustyms does not support these types of modification (yet)",
@@ -265,9 +265,9 @@ fn parse_single_modification(
             Ok(None)
         } else {
             find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
-                .map_err(|_| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
+                .map_err(|()| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
                 .flat_err()
-                .map_err(|_| numerical_mod(full.0))
+                .map_err(|()| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
                 .map_err(|_|

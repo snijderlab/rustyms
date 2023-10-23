@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs, iter, path::Path};
+use std::{ffi::OsString, io::BufWriter, io::Write, iter, path::Path};
 
 use regex::Regex;
 
@@ -11,18 +11,19 @@ use super::{
 
 pub fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_unimod(debug);
+
     let dest_path = Path::new(&out_dir).join("unimod.rs");
-    fs::write(
-        dest_path,
-        format!(
-            "pub const UNIMOD_ONTOLOGY: &[(usize, &str, Modification)] = &[
-                {}
-                ];",
-            mods.iter()
-                .fold(String::new(), |acc, m| format!("{}\n{},", acc, m.to_code()))
-        ),
+    let file = std::fs::File::create(dest_path).unwrap();
+    let mut writer = BufWriter::new(file);
+    writeln!(
+        writer,
+        "pub const UNIMOD_ONTOLOGY: &[(usize, &str, Modification)] = &["
     )
     .unwrap();
+    for m in mods {
+        writeln!(writer, "{},", m.to_code()).unwrap();
+    }
+    writeln!(writer, "];").unwrap();
 }
 
 fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {

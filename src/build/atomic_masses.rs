@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs, path::Path};
+use std::{ffi::OsString, io::BufWriter, io::Write, path::Path};
 
 use crate::Element;
 
@@ -107,25 +107,27 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
         });
 
     let dest_path = Path::new(&out_dir).join("elements.rs");
-    fs::write(
-        dest_path,
-        format!(
-            "#[allow(clippy::all, clippy::pedantic, clippy::nursery)]\n/// The data for all the elements (atomic_mass/monoisotopic mass, atomic_weight, isotopes: (num, mass, abundance))\npub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &[
-                {}
-                ];",
-            combined_data.fold(String::new(), |acc, element| format!(
-                "{}\n({:?}, {:?}, &[{}]),",
-                acc,
-                element.0,
-                element.1,
-                element.2.iter().fold(String::new(), |acc, i| format!(
-                    "{}({},{:.1},{:.1}),",
-                    acc, i.0, i.1, i.2
-                ))
-            ))
-        ),
+    let file = std::fs::File::create(dest_path).unwrap();
+    let mut writer = BufWriter::new(file);
+    writeln!(
+        writer,
+        "#[allow(clippy::all, clippy::pedantic, clippy::nursery)]\n/// The data for all the elements (atomic_mass/monoisotopic mass, atomic_weight, isotopes: (num, mass, abundance))\npub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &["
     )
     .unwrap();
+    for element in combined_data {
+        writeln!(
+            writer,
+            "({:?}, {:?}, &[{}]),",
+            element.0,
+            element.1,
+            element.2.iter().fold(String::new(), |acc, i| format!(
+                "{}({},{:.1},{:.1}),",
+                acc, i.0, i.1, i.2
+            ))
+        )
+        .unwrap();
+    }
+    writeln!(writer, "];").unwrap();
 
     Ok(())
 }
