@@ -121,7 +121,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
             element.0,
             element.1,
             element.2.iter().fold(String::new(), |acc, i| format!(
-                "{}({},{:.1},{:.1}),",
+                "{}({},{:?},{:?}),",
                 acc, i.0, i.1, i.2
             ))
         )

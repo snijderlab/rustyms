@@ -6,6 +6,17 @@ use crate::{
     ComplexPeptide, Model,
 };
 
+/// The mode of mass to use
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum MassMode {
+    /// Monoisotopic mass, use the base isotope to calculate the mass (eg always 12C)
+    Monoisotopic,
+    /// The average weight, the average between all occurring isotopes (eg something in between 12C and 13C depending on the number of C)
+    Average,
+    /// The most abundant mass, the most abundant single isotopic species (eg 12C or 13C depending on the number of C)
+    MostAbundant,
+}
+
 /// A raw spectrum (meaning not annotated yet)
 #[derive(Clone, Debug)]
 pub struct RawSpectrum {
@@ -71,6 +82,7 @@ impl RawSpectrum {
         peptide: ComplexPeptide,
         theoretical_fragments: &[Fragment],
         model: &Model,
+        mode: MassMode,
     ) -> AnnotatedSpectrum {
         let mut annotated = AnnotatedSpectrum {
             title: self.title.clone(),
@@ -90,7 +102,7 @@ impl RawSpectrum {
             // Get the index of the element closest to this value (spectrum is defined to always be sorted)
             let index = self
                 .spectrum
-                .binary_search_by(|p| p.mz.partial_cmp(&fragment.mz().unwrap()).unwrap())
+                .binary_search_by(|p| p.mz.partial_cmp(&fragment.mz(mode).unwrap()).unwrap())
                 .map_or_else(|i| i, |i| i);
 
             // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
@@ -98,7 +110,7 @@ impl RawSpectrum {
             for i in
                 if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1)
             {
-                let ppm = self.spectrum[i].ppm(fragment).unwrap().value;
+                let ppm = self.spectrum[i].ppm(fragment, mode).unwrap().value;
                 if ppm < closest.1 {
                     closest = (i, ppm);
                 }
@@ -171,8 +183,8 @@ pub struct RawPeak {
 
 impl RawPeak {
     /// Determine the ppm error for the given fragment, optional because the mz of a [Fragment] is optional
-    pub fn ppm(&self, fragment: &Fragment) -> Option<MassOverCharge> {
-        Some(MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz()?)))
+    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> Option<MassOverCharge> {
+        Some(MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz(mode)?)))
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{da, Mass};
+use crate::{da, r, Mass, Ratio};
 
 include!("shared/element.rs");
 
@@ -16,6 +16,7 @@ impl Element {
         Some(da(if isotope == 0 {
             crate::element::ELEMENTAL_DATA[*self as usize - 1].0?
         } else {
+            // Specific isotope do not change anything
             crate::element::ELEMENTAL_DATA[*self as usize - 1]
                 .2
                 .iter()
@@ -32,12 +33,40 @@ impl Element {
         Some(da(if isotope == 0 {
             crate::element::ELEMENTAL_DATA[*self as usize - 1].1?
         } else {
+            // Specific isotope do not change anything
             crate::element::ELEMENTAL_DATA[*self as usize - 1]
                 .2
                 .iter()
                 .find(|(ii, _, _)| *ii == isotope)
                 .map(|(_, m, _)| *m)?
         }))
+    }
+
+    /// Gives the most abundant mass based on the number of this isotope
+    pub fn most_abundant_mass(&self, n: i16, isotope: u16) -> Option<Mass> {
+        if *self == Self::Electron {
+            return Some(da(5.485_799_090_65e-4) * Ratio::new::<r>(f64::from(n)));
+        }
+        Some(
+            da(if isotope == 0 {
+                // (mass, chance)
+                let mut max = None;
+                for iso in crate::element::ELEMENTAL_DATA[*self as usize - 1].2 {
+                    let chance = iso.2 * f64::from(n);
+                    if max.map_or(true, |m: (f64, f64)| chance > m.1) {
+                        max = Some((iso.1, chance));
+                    }
+                }
+                max?.0
+            } else {
+                // Specific isotope do not change anything
+                crate::element::ELEMENTAL_DATA[*self as usize - 1]
+                    .2
+                    .iter()
+                    .find(|(ii, _, _)| *ii == isotope)
+                    .map(|(_, m, _)| *m)?
+            }) * Ratio::new::<r>(f64::from(n)),
+        )
     }
 }
 

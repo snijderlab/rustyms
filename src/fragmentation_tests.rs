@@ -348,7 +348,7 @@ fn test(
         this_found = false;
         for fragment in 0..calculated_fragments.len() {
             if calculated_fragments[fragment]
-                .mz()
+                .mz(MassMode::Monoisotopic)
                 .unwrap()
                 .ppm(MassOverCharge::new::<mz>(goal.0))
                 < 20.0

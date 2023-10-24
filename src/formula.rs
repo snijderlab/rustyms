@@ -1,4 +1,4 @@
-use crate::{da, r, Mass, Ratio};
+use crate::{da, r, Mass, MassMode, Ratio};
 use std::fmt::Write;
 
 include!("shared/formula.rs");
@@ -19,6 +19,28 @@ impl MolecularFormula {
             mass += e.average_weight(*i)? * Ratio::new::<r>(f64::from(*n));
         }
         Some(mass)
+    }
+    /// The most abundant mass, meaning the isotope that will have the highest intensity
+    pub fn most_abundant_mass(&self) -> Option<Mass> {
+        let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
+        for (e, i, n) in &self.elements {
+            let mam = e.most_abundant_mass(*n, *i)?;
+            println!(
+                "{i}{e}{n} => {} ({})",
+                mam.value,
+                (e.mass(*i)? * Ratio::new::<r>(f64::from(*n))).value
+            );
+            mass += mam;
+        }
+        Some(mass)
+    }
+    /// Get the mass in the given mode
+    pub fn mass(&self, mode: MassMode) -> Option<Mass> {
+        match mode {
+            MassMode::Monoisotopic => self.monoisotopic_mass(),
+            MassMode::Average => self.average_weight(),
+            MassMode::MostAbundant => self.most_abundant_mass(),
+        }
     }
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes

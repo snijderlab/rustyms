@@ -4,8 +4,8 @@ use itertools::Itertools;
 use uom::num_traits::Zero;
 
 use crate::{
-    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MolecularFormula,
-    NeutralLoss,
+    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MassMode,
+    MolecularFormula, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -27,13 +27,15 @@ pub struct Fragment {
 
 impl Fragment {
     /// Get the mz
-    pub fn mz(&self) -> Option<MassOverCharge> {
-        Some(self.formula.monoisotopic_mass()? / self.charge)
+    pub fn mz(&self, mode: MassMode) -> Option<MassOverCharge> {
+        Some(self.formula.mass(mode)? / self.charge)
     }
 
     /// Get the ppm difference between two fragments
-    pub fn ppm(&self, other: &Self) -> Option<MassOverCharge> {
-        Some(MassOverCharge::new::<mz>(self.mz()?.ppm(other.mz()?)))
+    pub fn ppm(&self, other: &Self, mode: MassMode) -> Option<MassOverCharge> {
+        Some(MassOverCharge::new::<mz>(
+            self.mz(mode)?.ppm(other.mz(mode)?),
+        ))
     }
 
     /// Create a new fragment
@@ -122,7 +124,7 @@ impl Display for Fragment {
             f,
             "{}@{}{:+}{} {}",
             self.ion,
-            self.mz()
+            self.mz(MassMode::Monoisotopic)
                 .map_or("Undefined".to_string(), |m| m.value.to_string()),
             self.charge.value,
             self.neutral_loss

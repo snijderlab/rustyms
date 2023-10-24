@@ -86,7 +86,7 @@ mod test {
         let fragments = peptide
             .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
             .unwrap();
-        let annotated = spectrum[0].annotate(peptide, &fragments, &model);
+        let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
         println!("{annotated:?}");
     }
 }
