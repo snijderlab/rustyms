@@ -26,8 +26,8 @@ fn main() {
     build_gnome_ontology(&out_dir, debug);
     build_atomic_masses(&out_dir, debug).unwrap();
 
-    println!("cargo:rerun-if-changed=databases/*");
-    println!("cargo:rerun-if-changed=src/build/*");
+    println!("cargo:rerun-if-changed=databases");
+    println!("cargo:rerun-if-changed=src/build");
     println!("cargo:rerun-if-changed=build.rs");
     print(out_dir.as_os_str().to_str().unwrap(), debug);
 }
