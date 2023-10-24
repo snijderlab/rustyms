@@ -49,6 +49,71 @@ impl MolecularFormula {
                 }
             }
         }
+        if self.additional_mass != 0.0 {
+            write!(output, "{:+}", self.additional_mass).unwrap();
+        }
+        output
+    }
+
+    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of
+    /// elements merged with the pro forma notation for specific isotopes. Using fancy unicode characters for subscript
+    /// and superscript numbers.
+    pub fn hill_notation_fancy(&self) -> String {
+        let mut output = String::new();
+        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
+            write!(output, "C{}", to_subscript_num(carbon.2 as isize)).unwrap();
+            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
+                write!(output, "H{}", to_subscript_num(hydrogen.2 as isize)).unwrap();
+            }
+            for element in self
+                .elements
+                .iter()
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
+            {
+                if element.1 == 0 {
+                    write!(
+                        output,
+                        "{}{}",
+                        element.0,
+                        to_subscript_num(element.2 as isize)
+                    )
+                    .unwrap();
+                } else {
+                    write!(
+                        output,
+                        "{}{}{}",
+                        to_superscript_num(element.1 as isize),
+                        element.0,
+                        to_subscript_num(element.2 as isize)
+                    )
+                    .unwrap();
+                }
+            }
+        } else {
+            for element in &self.elements {
+                if element.1 == 0 {
+                    write!(
+                        output,
+                        "{}{}",
+                        element.0,
+                        to_subscript_num(element.2 as isize)
+                    )
+                    .unwrap();
+                } else {
+                    write!(
+                        output,
+                        "{}{}{}",
+                        to_superscript_num(element.1 as isize),
+                        element.0,
+                        to_subscript_num(element.2 as isize)
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        if self.additional_mass != 0.0 {
+            write!(output, "{:+}", self.additional_mass).unwrap();
+        }
         output
     }
 
@@ -121,8 +186,43 @@ impl MolecularFormula {
                 .unwrap();
             }
         }
+        if self.additional_mass != 0.0 {
+            write!(output, "{:+}", self.additional_mass).unwrap();
+        }
         output
     }
+}
+
+fn to_subscript_num(input: isize) -> String {
+    let text = input.to_string();
+    let mut output = String::new();
+    for c in text.as_bytes() {
+        if *c == b'-' {
+            output.push('\u{208B}');
+        } else {
+            output.push(char::from_u32(*c as u32 + 0x2080 - 0x30).unwrap());
+        }
+    }
+    output
+}
+
+fn to_superscript_num(input: isize) -> String {
+    let text = input.to_string();
+    let mut output = String::new();
+    for c in text.as_bytes() {
+        if *c == b'-' {
+            output.push('\u{207B}');
+        } else if *c == b'1' {
+            output.push('\u{00B9}');
+        } else if *c == b'2' {
+            output.push('\u{00B2}');
+        } else if *c == b'3' {
+            output.push('\u{00B3}');
+        } else {
+            output.push(char::from_u32(*c as u32 + 0x2070 - 0x30).unwrap());
+        }
+    }
+    output
 }
 
 impl std::fmt::Display for MolecularFormula {
