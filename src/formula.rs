@@ -24,13 +24,7 @@ impl MolecularFormula {
     pub fn most_abundant_mass(&self) -> Option<Mass> {
         let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
-            let mam = e.most_abundant_mass(*n, *i)?;
-            println!(
-                "{i}{e}{n} => {} ({})",
-                mam.value,
-                (e.mass(*i)? * Ratio::new::<r>(f64::from(*n))).value
-            );
-            mass += mam;
+            mass += e.most_abundant_mass(*n, *i)?;
         }
         Some(mass)
     }
