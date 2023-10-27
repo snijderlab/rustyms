@@ -1,7 +1,9 @@
 use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use crate::{
-    modification::Modification, system::da, system::Mass, AminoAcid, LinearPeptide, SequenceElement,
+    modification::Modification,
+    system::{da, r, Mass, Ratio},
+    AminoAcid, LinearPeptide, SequenceElement,
 };
 
 /// A tolerance around a given mass for searching purposes
@@ -79,6 +81,71 @@ impl TryFrom<&str> for MassTolerance {
     }
 }
 
+/// A list of building blocks for a sequence defined by its sequence elements and its mass.
+pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
+/// Get the possible building blocks for sequences based on the given modifications.
+/// Useful for any automated sequence generation, like isobaric set generation or de novo sequencing.
+/// The result is for each location (N term, center, C term) the list of all possible building blocks with its mass, sorted on mass.
+pub fn building_blocks(
+    fixed: &[Modification],
+    variable: &[Modification],
+) -> (BuildingBlocks, BuildingBlocks, BuildingBlocks) {
+    let generate = |index| {
+        let mut options: Vec<(SequenceElement, Mass)> = AA
+            .iter()
+            .flat_map(|aa| {
+                let mut options = Vec::new();
+                options.extend(
+                    fixed
+                        .iter()
+                        .filter(|&m| can_be_placed(m, &SequenceElement::new(*aa, None), 0, 1))
+                        .map(|m| SequenceElement {
+                            aminoacid: *aa,
+                            ambiguous: None,
+                            modifications: vec![m.clone()],
+                            possible_modifications: Vec::new(),
+                        }),
+                );
+                if options.is_empty() {
+                    vec![SequenceElement::new(*aa, None)]
+                } else {
+                    options
+                }
+            })
+            .flat_map(|seq| {
+                let mut options = vec![seq.clone()];
+                options.extend(
+                    variable
+                        .iter()
+                        .filter(|&m| can_be_placed(m, &seq, index, 2))
+                        .map(|m| {
+                            let mut modifications = seq.modifications.clone();
+                            modifications.push(m.clone());
+                            SequenceElement {
+                                aminoacid: seq.aminoacid,
+                                ambiguous: None,
+                                modifications,
+                                possible_modifications: Vec::new(),
+                            }
+                        }),
+                );
+                options
+            })
+            .map(|s| {
+                (
+                    s.clone(),
+                    s.formula_all().unwrap().monoisotopic_mass().unwrap(),
+                )
+            })
+            .collect();
+        options.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        options
+    };
+
+    // Create the building blocks
+    (generate(0), generate(1), generate(2))
+}
+
 /// Find the isobaric sets for the given mass with the given modifications and ppm error.
 /// The modifications are placed on any location they are allowed based on the given placement
 /// rules, so using any modifications which provide those is advised.
@@ -87,106 +154,30 @@ impl TryFrom<&str> for MassTolerance {
 pub fn find_isobaric_sets(
     mass: Mass,
     tolerance: MassTolerance,
-    modifications: &[Modification],
+    fixed: &[Modification],
+    variable: &[Modification],
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
-
-    // Create the building blocks
-    let mut n_term: Vec<(SequenceElement, f64)> = AA
-        .iter()
-        .flat_map(|aa| {
-            let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(
-                modifications
-                    .iter()
-                    .filter(|&m| can_be_placed(m, *aa, 0, 1))
-                    .map(|m| SequenceElement {
-                        aminoacid: *aa,
-                        ambiguous: None,
-                        modifications: vec![m.clone()],
-                        possible_modifications: Vec::new(),
-                    }),
-            );
-            options
-        })
-        .map(|s| {
-            (
-                s.clone(),
-                s.formula_all().unwrap().monoisotopic_mass().unwrap().value,
-            )
-        })
-        .collect();
-    n_term.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    let mut center: Vec<(SequenceElement, f64)> = AA
-        .iter()
-        .flat_map(|aa| {
-            let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(
-                modifications
-                    .iter()
-                    .filter(|&m| can_be_placed(m, *aa, 1, 2))
-                    .map(|m| SequenceElement {
-                        aminoacid: *aa,
-                        ambiguous: None,
-                        modifications: vec![m.clone()],
-                        possible_modifications: Vec::new(),
-                    }),
-            );
-            options
-        })
-        .map(|s| {
-            (
-                s.clone(),
-                s.formula_all().unwrap().monoisotopic_mass().unwrap().value,
-            )
-        })
-        .collect();
-    center.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    let mut c_term: Vec<(SequenceElement, f64)> = AA
-        .iter()
-        .flat_map(|aa| {
-            let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(
-                modifications
-                    .iter()
-                    .filter(|&m| can_be_placed(m, *aa, 1, 1))
-                    .map(|m| SequenceElement {
-                        aminoacid: *aa,
-                        ambiguous: None,
-                        modifications: vec![m.clone()],
-                        possible_modifications: Vec::new(),
-                    }),
-            );
-            options
-        })
-        .map(|s| {
-            (
-                s.clone(),
-                s.formula_all().unwrap().monoisotopic_mass().unwrap().value,
-            )
-        })
-        .collect();
-    c_term.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
+    let (n_term, center, c_term) = building_blocks(fixed, variable);
     IsobaricSetIterator::new(n_term, c_term, center, bounds)
 }
 
 /// Iteratively generate isobaric sets based on the given settings.
 #[derive(Debug)]
 pub struct IsobaricSetIterator {
-    n_term: Vec<(SequenceElement, f64)>,
-    c_term: Vec<(SequenceElement, f64)>,
-    center: Vec<(SequenceElement, f64)>,
-    sizes: (f64, f64),
+    n_term: Vec<(SequenceElement, Mass)>,
+    c_term: Vec<(SequenceElement, Mass)>,
+    center: Vec<(SequenceElement, Mass)>,
+    sizes: (Mass, Mass),
     bounds: (Mass, Mass),
     state: (Option<usize>, Option<usize>, Vec<usize>),
 }
 
 impl IsobaricSetIterator {
     fn new(
-        n_term: Vec<(SequenceElement, f64)>,
-        c_term: Vec<(SequenceElement, f64)>,
-        center: Vec<(SequenceElement, f64)>,
+        n_term: Vec<(SequenceElement, Mass)>,
+        c_term: Vec<(SequenceElement, Mass)>,
+        center: Vec<(SequenceElement, Mass)>,
         bounds: (Mass, Mass),
     ) -> Self {
         let sizes = (center.first().unwrap().1, center.last().unwrap().1);
@@ -198,13 +189,13 @@ impl IsobaricSetIterator {
             bounds,
             state: (None, None, Vec::new()),
         };
-        while iter.current_mass() < iter.bounds.0.value - iter.sizes.0 {
+        while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
             iter.state.2.push(0);
         }
         iter
     }
 
-    fn current_mass(&self) -> f64 {
+    fn current_mass(&self) -> Mass {
         let mass = self.state.0.map(|i| self.n_term[i].1).unwrap_or_default()
             + self.state.1.map(|i| self.c_term[i].1).unwrap_or_default()
             + self
@@ -213,16 +204,16 @@ impl IsobaricSetIterator {
                 .iter()
                 .copied()
                 .map(|i| self.center[i].1)
-                .sum::<f64>();
+                .sum::<Mass>();
         //println!("{}\t{}", mass.value, self.peptide());
         mass
     }
 
     fn mass_fits(&self) -> Ordering {
         let mass = self.current_mass();
-        if mass < self.bounds.0.value {
+        if mass < self.bounds.0 {
             Ordering::Less
-        } else if mass > self.bounds.1.value {
+        } else if mass > self.bounds.1 {
             Ordering::Greater
         } else {
             Ordering::Equal
@@ -299,9 +290,10 @@ impl Iterator for IsobaricSetIterator {
                                 if self.state.2[0..level]
                                     .iter()
                                     .map(|i| self.center[*i].1)
-                                    .sum::<f64>()
-                                    + (self.state.2.len() - level) as f64 * self.sizes.1
-                                    > self.bounds.0.value
+                                    .sum::<Mass>()
+                                    + Ratio::new::<r>((self.state.2.len() - level) as f64)
+                                        * self.sizes.1
+                                    > self.bounds.0
                                 {
                                     level = self.state.2.len() - 1;
                                 }
@@ -312,7 +304,7 @@ impl Iterator for IsobaricSetIterator {
             }
             self.state.2.pop();
             // Stop the search when there is no possibility for a fitting answer
-            if self.state.2.len() as f64 * self.sizes.1 < self.bounds.0.value {
+            if self.sizes.1 * Ratio::new::<r>(self.state.2.len() as f64) < self.bounds.0 {
                 return None;
             }
             // Reset the levels to be all 0s again
@@ -325,21 +317,17 @@ impl Iterator for IsobaricSetIterator {
 }
 
 /// Enforce the placement rules of predefined modifications.
-fn can_be_placed(modification: &Modification, aa: AminoAcid, index: usize, length: usize) -> bool {
+fn can_be_placed(
+    modification: &Modification,
+    seq: &SequenceElement,
+    index: usize,
+    length: usize,
+) -> bool {
     if let Modification::Predefined(_, rules, _, _, _) = modification {
         rules.is_empty()
-            || rules.iter().any(|rule| {
-                rule.is_possible(
-                    &SequenceElement {
-                        aminoacid: aa,
-                        modifications: Vec::new(),
-                        possible_modifications: Vec::new(),
-                        ambiguous: None,
-                    },
-                    index,
-                    length,
-                )
-            })
+            || rules
+                .iter()
+                .any(|rule| rule.is_possible(seq, index, length))
     } else {
         true
     }
@@ -380,6 +368,7 @@ mod tests {
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
             MassTolerance::Ppm(10.0),
+            &[],
             &[],
         )
         .collect();
