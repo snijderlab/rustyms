@@ -3,8 +3,6 @@ mod atomic_masses;
 mod csv;
 #[path = "../error/mod.rs"]
 mod error;
-#[path = "../shared/modification.rs"]
-mod modification;
 mod gnome;
 mod obo;
 mod ontology_modification;
@@ -14,10 +12,16 @@ mod unimod;
 pub use atomic_masses::*;
 pub use error::*;
 pub use gnome::*;
+use ontology_modification::*;
 pub use psi_mod::*;
 pub use unimod::*;
-use modification::*;
 
-trait ToCode {
-    fn to_code(&self) -> String;
-}
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    formula::MolecularFormula,
+    glycan::{GlycanStructure, MonoSaccharide},
+    system::f64::Mass,
+};
+
+include!("../shared/modification.rs");

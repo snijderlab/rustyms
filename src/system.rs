@@ -1,4 +1,5 @@
 #![allow(clippy::incorrect_clone_impl_on_copy_type)]
+#![allow(clippy::ignored_unit_patterns)]
 use uom::*;
 
 use crate::{Mass, MassOverCharge};
@@ -98,6 +99,7 @@ pub mod f64 {
     pub use super::time::s;
 
     /// Annotate the given number as being in Da
+    #[allow(dead_code)]
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)
     }

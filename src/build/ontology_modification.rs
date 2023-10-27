@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{formula::MolecularFormula, glycan::MonoSaccharide};
 
-use super::modification::Modification;
+use super::Modification;
 
 #[derive(Debug, Default)]
 pub struct OntologyModification {
@@ -16,7 +16,7 @@ pub struct OntologyModification {
 }
 
 impl OntologyModification {
-    pub fn to_mod(self) -> Modification {
+    pub fn into_mod(self) -> Modification {
         Modification::Predefined(
             self.diff_formula,
             self.rules,

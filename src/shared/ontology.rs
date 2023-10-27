@@ -10,6 +10,7 @@ pub enum Ontology {
 
 impl Ontology {
     /// Get the prefix character for the ontology (TODO: the full name is needed when the name is used right, lets make sure the output is always valid pro forma)
+    #[allow(dead_code)]
     pub const fn char(self) -> char {
         match self {
             Self::Unimod => 'U',

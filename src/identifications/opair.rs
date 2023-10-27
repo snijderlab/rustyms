@@ -56,9 +56,7 @@ pub struct OpairFormat {
 }
 
 impl OpairFormat {
-    const fn number_of_columns(&self) -> usize {
-        43
-    }
+    const NUMBER_OF_COLUMNS: usize = 43;
 }
 
 /// All possible peaks versions
@@ -217,10 +215,10 @@ impl IdentifiedPeptideSource for OpairData {
         ))
     }
     fn parse_specific(source: &CsvLine, format: &OpairFormat) -> Result<Self, CustomError> {
-        if source.fields.len() != format.number_of_columns() {
+        if source.fields.len() != OpairFormat::NUMBER_OF_COLUMNS {
             return Err(CustomError::error(
                 "Invalid Opair line", 
-                format!("The number of columns ({}) is not equal to the expected number of columns ({})", source.fields.len(), format.number_of_columns()), 
+                format!("The number of columns ({}) is not equal to the expected number of columns ({})", source.fields.len(), OpairFormat::NUMBER_OF_COLUMNS), 
                 source.full_context()));
         }
         let number_error = CustomError::error(
@@ -291,7 +289,7 @@ impl IdentifiedPeptideSource for OpairData {
                 |loc| {
                     Ok((
                         AminoAcid::try_from(loc.line.line.as_bytes()[loc.location.start]).map_err(
-                            |_| {
+                            |()| {
                                 CustomError::error(
                                     "Invalid Opair line",
                                     "The flanking residues could not be parsed as amino acids",
@@ -305,7 +303,7 @@ impl IdentifiedPeptideSource for OpairData {
                             },
                         )?,
                         AminoAcid::try_from(loc.line.line.as_bytes()[loc.location.end - 1])
-                            .map_err(|_| {
+                            .map_err(|()| {
                                 CustomError::error(
                                     "Invalid Opair line",
                                     "The flanking residues could not be parsed as amino acids",

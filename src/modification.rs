@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use std::{fmt::Display, ops::Range};
 
 use regex::Regex;
@@ -7,8 +9,9 @@ use crate::{
     dalton,
     error::Context,
     error::CustomError,
+    glycan_parse_list,
     helper_functions::*,
-    ontologies::{GNOME_ONTOLOGY, PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
+    ontologies::{gnome_ontology, psimod_ontology, unimod_ontology},
     placement_rules::PlacementRule,
     AminoAcid, Chemical, Element, GlycanStructure, Mass, MolecularFormula, MonoSaccharide,
     SequenceElement,
@@ -27,7 +30,7 @@ impl Chemical for Modification {
                     acc + i.0.formula() * i.1 as i16
                 }),
             Self::GlycanStructure(glycan) => glycan.formula(),
-            Self::Predefined(formula, _, _, _, _) => MolecularFormula::new(formula),
+            Self::Predefined(formula, _, _, _, _) => formula.clone(),
             Self::Gno(GnoComposition::Mass(m), _) => MolecularFormula::with_additional_mass(*m),
             Self::Gno(GnoComposition::Structure(glycan), _) => glycan.formula(),
         }
@@ -77,23 +80,23 @@ impl Modification {
     #[allow(clippy::missing_panics_doc)]
     pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
         match line[location.clone()].to_lowercase().as_str() {
-            "o" => find_id_in_ontology(35, UNIMOD_ONTOLOGY), // oxidation
-            "cam" => find_id_in_ontology(4, UNIMOD_ONTOLOGY), // carbamidomethyl
+            "o" => find_id_in_ontology(35, unimod_ontology()), // oxidation
+            "cam" => find_id_in_ontology(4, unimod_ontology()), // carbamidomethyl
             _ => {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
                     .unwrap()
                     .captures(&line[location])
                     .and_then(|capture| {
-                        find_name_in_ontology(&capture[1], UNIMOD_ONTOLOGY)
+                        find_name_in_ontology(&capture[1], unimod_ontology())
                             .or_else(|()| {
-                                parse_named_counter(&capture[1], crate::GLYCAN_PARSE_LIST, false)
+                                parse_named_counter(&capture[1], glycan_parse_list(), false)
                                     .map(Modification::Glycan)
                             })
                             .or_else(|_| {
                                 match &capture[1] {
                                     "Deamidation" => {
-                                        Ok(find_id_in_ontology(7, UNIMOD_ONTOLOGY).unwrap())
+                                        Ok(find_id_in_ontology(7, unimod_ontology()).unwrap())
                                     } // deamidated
                                     _ => Err(()),
                                 }
@@ -172,7 +175,7 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("Unimod accession number should be a number")
                     })?;
-                    find_id_in_ontology(id, UNIMOD_ONTOLOGY)
+                    find_id_in_ontology(id, unimod_ontology())
                         .map(Some)
                         .ok_or_else(||
                             basic_error
@@ -181,24 +184,24 @@ fn parse_single_modification(
                 ("mod", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| basic_error
                         .with_long_description("PSI-MOD accession number should be a number"))?;
-                    find_id_in_ontology(id, PSI_MOD_ONTOLOGY)
+                    find_id_in_ontology(id, psimod_ontology())
                         .map(Some)
                         .ok_or_else(|| basic_error
                             .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
                 }
-                ("u", tail) => find_name_in_ontology(tail, UNIMOD_ONTOLOGY)
+                ("u", tail) => find_name_in_ontology(tail, unimod_ontology())
                     .map_err(|()| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a Unimod name or numerical modification")),
-                ("m", tail) => find_name_in_ontology(tail, PSI_MOD_ONTOLOGY)
+                ("m", tail) => find_name_in_ontology(tail, psimod_ontology())
                     .map_err(|()| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
-                ("gno", tail) => find_name_in_ontology(tail, GNOME_ONTOLOGY)
+                ("gno", tail) => find_name_in_ontology(tail, gnome_ontology())
                     .map(Some)
                     .map_err(|()| basic_error
                         .with_long_description("This modification cannot be read as a GNO name")),
@@ -208,7 +211,7 @@ fn parse_single_modification(
                 ))),
                 ("glycan", tail) => Ok(Some(Modification::Glycan(parse_named_counter(
                     tail,
-                    crate::GLYCAN_PARSE_LIST,
+                    glycan_parse_list(),
                     false,
                 ).map_err(|e| basic_error
                     .with_long_description(format!("This modification cannot be read as a valid glycan: {e}")))?))),
@@ -216,8 +219,8 @@ fn parse_single_modification(
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
                     .with_long_description("This modification cannot be read as a numerical modification")),
-                (_, _tail) => find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
-                    .map_err(|()| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
+                (_, _tail) => find_name_in_ontology(full.0, unimod_ontology())
+                    .map_err(|()| find_name_in_ontology(full.0, psimod_ontology()))
                     .flat_err()
                     .map(Some)
                     .map_err(|()|
@@ -230,8 +233,8 @@ fn parse_single_modification(
         } else if full.0.is_empty() {
             Ok(None)
         } else {
-            find_name_in_ontology(full.0, UNIMOD_ONTOLOGY)
-                .map_err(|()| find_name_in_ontology(full.0, PSI_MOD_ONTOLOGY))
+            find_name_in_ontology(full.0, unimod_ontology())
+                .map_err(|()| find_name_in_ontology(full.0, psimod_ontology()))
                 .flat_err()
                 .map_err(|()| numerical_mod(full.0))
                 .flat_err()
@@ -331,7 +334,7 @@ pub enum GlobalModification {
 
 fn find_name_in_ontology(
     code: &str,
-    ontology: &[(usize, &str, Modification)],
+    ontology: &[(usize, String, Modification)],
 ) -> Result<Modification, ()> {
     let code = code.to_ascii_lowercase();
     for option in ontology {
@@ -345,7 +348,7 @@ fn find_name_in_ontology(
 /// Find the given id in the given ontology
 pub fn find_id_in_ontology(
     id: usize,
-    ontology: &[(usize, &str, Modification)],
+    ontology: &[(usize, String, Modification)],
 ) -> Option<Modification> {
     for option in ontology {
         if option.0 == id {

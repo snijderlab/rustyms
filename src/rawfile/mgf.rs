@@ -75,7 +75,7 @@ pub fn open_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<RawSpectru
                         }
                     },
                     "CHARGE" => {
-                        current.charge = parse_charge(value).map_err(|_| {
+                        current.charge = parse_charge(value).map_err(|()| {
                             format!("Not a number {key} for CHARGE on {linenumber}")
                         })?;
                     }
@@ -123,7 +123,7 @@ pub fn open_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<RawSpectru
                     format!("Not a number {} for INTENSITY on {linenumber}", split[1])
                 })?;
                 if split.len() >= 3 {
-                    peak.charge = parse_charge(split[2]).map_err(|_| {
+                    peak.charge = parse_charge(split[2]).map_err(|()| {
                         format!("Not a number {} for CHARGE on {linenumber}", split[2])
                     })?;
                 }

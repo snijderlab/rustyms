@@ -1,6 +1,9 @@
 use std::env;
 
 #[macro_use]
+extern crate uom;
+
+#[macro_use]
 #[path = "./src/helper_functions.rs"]
 mod helper_functions;
 #[path = "./src/shared/element.rs"]
@@ -10,12 +13,15 @@ mod element;
 mod formula;
 #[path = "./src/shared/glycan.rs"]
 mod glycan;
+#[path = "./src/system.rs"]
+mod system;
 
 #[path = "./src/build/mod.rs"]
 mod build;
 
 use crate::build::*;
 pub use crate::element::*;
+use crate::system::f64::*;
 
 fn main() {
     let debug = env::var("DEBUG_BUILD").map(|v| v == "1").unwrap_or(false);
@@ -26,6 +32,8 @@ fn main() {
     build_gnome_ontology(&out_dir, debug);
     build_atomic_masses(&out_dir, debug).unwrap();
 
+    println!("cargo:rerun-if-changed=src/system.rs");
+    println!("cargo:rerun-if-changed=src/helper_functions.rs");
     println!("cargo:rerun-if-changed=databases");
     println!("cargo:rerun-if-changed=src/build");
     println!("cargo:rerun-if-changed=build.rs");

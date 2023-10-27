@@ -34,16 +34,13 @@ impl GlycanStructure {
     /// # Errors
     /// Return an Err if the format is not correct
     pub fn parse(line: &str, range: Range<usize>) -> Result<Self, CustomError> {
-        Self::parse_internal(line, range).map(|(g, _)| GlycanStructure::Allocated(g))
+        Self::parse_internal(line, range).map(|(g, _)| g)
     }
 
-    fn parse_internal(
-        line: &str,
-        range: Range<usize>,
-    ) -> Result<(AllocatedGlycanStructure, usize), CustomError> {
+    fn parse_internal(line: &str, range: Range<usize>) -> Result<(Self, usize), CustomError> {
         // Parse at the start the first recognised glycan name
-        for name in GLYCAN_PARSE_LIST {
-            if line[range.clone()].starts_with(name.0) {
+        for name in glycan_parse_list() {
+            if line[range.clone()].starts_with(&name.0) {
                 // If the name is followed by a bracket parse a list of branches
                 return if line.as_bytes()[range.start + name.0.len()] == b'(' {
                     // Find the end of this list
@@ -81,7 +78,7 @@ impl GlycanStructure {
                         index = pos;
                     }
                     Ok((
-                        AllocatedGlycanStructure {
+                        Self {
                             sugar: name.1.clone(),
                             branches,
                         },
@@ -89,7 +86,7 @@ impl GlycanStructure {
                     ))
                 } else {
                     Ok((
-                        AllocatedGlycanStructure {
+                        Self {
                             sugar: name.1.clone(),
                             branches: Vec::new(),
                         },
@@ -118,7 +115,7 @@ impl GlycanStructure {
         branch: &[usize],
     ) -> (PositionedGlycanStructure, usize) {
         // Sort the branches on decreasing molecular weight
-        let mut branches = self.branches();
+        let mut branches = self.branches;
         branches.sort_unstable_by(|a, b| {
             b.formula()
                 .monoisotopic_mass()
@@ -148,7 +145,7 @@ impl GlycanStructure {
         let outer_depth = branches.iter().map(|b| b.1).max().unwrap_or(0);
         (
             PositionedGlycanStructure {
-                sugar: self.sugar(),
+                sugar: self.sugar,
                 branches: branches.into_iter().map(|b| b.0).collect(),
                 branch: branch.to_vec(),
                 inner_depth,
@@ -160,7 +157,7 @@ impl GlycanStructure {
 
     /// Get the maximal outer depth of all branches for this location
     fn outer_depth(&self) -> usize {
-        self.branches()
+        self.branches
             .iter()
             .map(Self::outer_depth)
             .max()
@@ -169,13 +166,13 @@ impl GlycanStructure {
 
     /// Recursively show the structure of this glycan
     fn display_tree(&self) -> String {
-        if self.branches().is_empty() {
-            self.sugar().to_string()
+        if self.branches.is_empty() {
+            self.sugar.to_string()
         } else {
             format!(
                 "{}({})",
-                self.sugar(),
-                self.branches().iter().map(Self::display_tree).join(",")
+                self.sugar,
+                self.branches.iter().map(Self::display_tree).join(",")
             )
         }
     }
@@ -426,73 +423,73 @@ mod test {
     fn parse_glycan_structure() {
         assert_eq!(
             GlycanStructure::from_str("Hep(Hex)").unwrap(),
-            GlycanStructure::Allocated(AllocatedGlycanStructure {
+            GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]),
-                branches: vec![AllocatedGlycanStructure {
+                branches: vec![GlycanStructure {
                     sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                     branches: Vec::new()
                 }],
-            })
+            }
         );
         assert_eq!(
             GlycanStructure::from_str("Hex(Hex,Hep)").unwrap(),
-            GlycanStructure::Allocated(AllocatedGlycanStructure {
+            GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                 branches: vec![
-                    AllocatedGlycanStructure {
+                    GlycanStructure {
                         sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                         branches: Vec::new()
                     },
-                    AllocatedGlycanStructure {
+                    GlycanStructure {
                         sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]),
                         branches: Vec::new()
                     }
                 ],
-            })
+            }
         );
         assert_eq!(
             GlycanStructure::from_str("Hex(Hex(Hex),Hep)").unwrap(),
-            GlycanStructure::Allocated(AllocatedGlycanStructure {
+            GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                 branches: vec![
-                    AllocatedGlycanStructure {
+                    GlycanStructure {
                         sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
-                        branches: vec![AllocatedGlycanStructure {
+                        branches: vec![GlycanStructure {
                             sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                             branches: Vec::new()
                         }]
                     },
-                    AllocatedGlycanStructure {
+                    GlycanStructure {
                         sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]),
                         branches: Vec::new()
                     }
                 ],
-            })
+            }
         );
         assert_eq!(
             GlycanStructure::from_str("Hep(Hex(Hex(Hex(Hep),Hex)))").unwrap(),
-            GlycanStructure::Allocated(AllocatedGlycanStructure {
+            GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]),
-                branches: vec![AllocatedGlycanStructure {
+                branches: vec![GlycanStructure {
                     sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
-                    branches: vec![AllocatedGlycanStructure {
+                    branches: vec![GlycanStructure {
                         sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                         branches: vec![
-                            AllocatedGlycanStructure {
+                            GlycanStructure {
                                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
-                                branches: vec![AllocatedGlycanStructure {
+                                branches: vec![GlycanStructure {
                                     sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]),
                                     branches: Vec::new(),
                                 }],
                             },
-                            AllocatedGlycanStructure {
+                            GlycanStructure {
                                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]),
                                 branches: Vec::new(),
                             },
                         ],
                     }],
                 }],
-            })
+            }
         );
     }
 

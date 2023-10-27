@@ -12,7 +12,7 @@ pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
 
     let dest_path = Path::new(&out_dir).join("psimod.dat");
     let mut file = std::fs::File::create(dest_path).unwrap();
-    let final_mods = mods.into_iter().map(|m| m.to_mod()).collect::<Vec<_>>();
+    let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
     file.write_all(&bincode::serialize(&final_mods).unwrap())
         .unwrap();
 }
@@ -69,7 +69,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 if origin.len() == 1 {
                     modification.rules.push(PlacementRule::AminoAcid(
                         vec![(*origin).try_into().unwrap()],
-                        term.unwrap_or(Position::Anywhere),
+                        term.clone().unwrap_or(Position::Anywhere),
                     ));
                 } else {
                     modification.rules.push(PlacementRule::PsiModification(
@@ -79,13 +79,13 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                             .1
                             .parse()
                             .expect("Incorrect psi mod id, should be numerical"),
-                        term.unwrap_or(Position::Anywhere),
+                        term.clone().unwrap_or(Position::Anywhere),
                     ));
                 }
             }
         }
         if origins.is_empty() || all_aminoacids {
-            if let Some(term) = term {
+            if let Some(term) = term.clone() {
                 modification.rules.push(PlacementRule::Terminal(term))
             }
         }

@@ -14,7 +14,7 @@ pub fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
 
     let dest_path = Path::new(&out_dir).join("unimod.dat");
     let mut file = std::fs::File::create(dest_path).unwrap();
-    let final_mods = mods.into_iter().map(|m| m.to_mod()).collect::<Vec<_>>();
+    let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
     file.write_all(&bincode::serialize(&final_mods).unwrap())
         .unwrap();
 }
@@ -80,7 +80,9 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                     ("N-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
                     ("", "") => None,
                     (aa, pos) => Some(PlacementRule::AminoAcid(
-                        vec![aa.try_into().unwrap()],
+                        aa.chars()
+                            .map(|c| c.try_into().unwrap_or_else(|_| panic!("Not an AA: {c}")))
+                            .collect(),
                         pos.try_into().unwrap(),
                     )),
                 })

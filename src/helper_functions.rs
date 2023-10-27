@@ -36,7 +36,7 @@ impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
 #[allow(dead_code)]
 pub fn parse_named_counter<T: Clone>(
     value: &str,
-    names: &[(&str, T)],
+    names: &[(String, T)],
     allow_negative: bool,
 ) -> Result<Vec<(T, isize)>, String> {
     let mut index = 0;
@@ -47,7 +47,7 @@ pub fn parse_named_counter<T: Clone>(
         } else {
             let mut found = false;
             for name in names {
-                if value[index..].starts_with(name.0) {
+                if value[index..].starts_with(&name.0) {
                     index += name.0.len();
                     let num = &value[index..]
                         .chars()

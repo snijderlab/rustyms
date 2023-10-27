@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, fmt::Display, hash::Hash, ops::Range};
+use std::{fmt::Display, hash::Hash, ops::Range, sync::OnceLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -334,19 +334,15 @@ impl Display for MonoSaccharide {
         write!(
             f,
             "{}",
-            if let Some(n) = self.proforma_name {
-                n
-            } else {
-                format!(
-                    "{}{}{}",
-                    self.base_sugar.to_string(),
-                    if self.furanose { "f" } else { "" },
-                    self.substituents
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<String>()
-                )
-            }
+            self.proforma_name.clone().unwrap_or_else(|| format!(
+                "{}{}{}",
+                self.base_sugar,
+                if self.furanose { "f" } else { "" },
+                self.substituents
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<String>()
+            ))
         )
     }
 }
@@ -922,12 +918,11 @@ impl Chemical for GlycanSubstituent {
             Self::EtOH => molecular_formula!(H 5 C 2 O 2),
             Self::Element(el) => MolecularFormula::new(&[(*el, 0, 1)]),
             Self::Formyl => molecular_formula!(H 1 C 1 O 1),
-            Self::Glyceryl => molecular_formula!(H 5 C 3 O 3),
+            Self::Glyceryl | Self::Lac => molecular_formula!(H 5 C 3 O 3),
             Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),
             Self::Glycyl | Self::NAcetyl => molecular_formula!(H 4 C 2 N 1 O 1),
             Self::HydroxyButyryl => molecular_formula!(H 7 C 4 O 2),
-            Self::HydroxyMethyl => molecular_formula!(H 3 C 1 O 2),
-            Self::Lac => molecular_formula!(H 5 C 3 O 3),
+            Self::HydroxyMethyl | Self::Ulo => molecular_formula!(H 3 C 1 O 2), // Ulo: replaces H, together with replacement below this is H2C1O1
             Self::Lactyl => molecular_formula!(H 5 C 3 O 2),
             Self::Methyl => molecular_formula!(H 3 C 1),
             Self::MethylAcetimidoyl => molecular_formula!(H 7 C 3 N 1),
@@ -942,7 +937,6 @@ impl Chemical for GlycanSubstituent {
             Self::Suc => molecular_formula!(H 6 C 4 N 1 O 3),
             Self::Sulfate => molecular_formula!(H 1 O 4 S 1),
             Self::Tauryl => molecular_formula!(H 6 C 2 N 1 O 3 S 1),
-            Self::Ulo => molecular_formula!(H 3 C 1 O 2), // Replaces H, together with replacement below this is H2C1O1
             Self::Ulof => molecular_formula!(H 4 C 1 O 2), // Replaces H, together with replacement below this is H3C1O1
             Self::Water => molecular_formula!(H - 1),
         };
@@ -951,6 +945,7 @@ impl Chemical for GlycanSubstituent {
 }
 
 /// All monosaccharides ordered to be able to parse glycans by matching them from the top
+#[allow(dead_code)]
 pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
     GLYCAN_PARSE_CELL.get_or_init(|| {
         vec![
@@ -1265,7 +1260,8 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
         ]
     })
 }
-const GLYCAN_PARSE_CELL: OnceCell<Vec<(String, MonoSaccharide)>> = OnceCell::new();
+#[allow(dead_code)]
+static GLYCAN_PARSE_CELL: OnceLock<Vec<(String, MonoSaccharide)>> = OnceLock::new();
 
 /// Rose tree representation of glycan structure
 #[allow(dead_code)]
@@ -1288,11 +1284,11 @@ impl GlycanStructure {
     ) -> Result<Self, CustomError> {
         // GlcNAc(?1-?)Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc-ol
         let mut offset = range.start;
-        let mut branch = GlycanStructure {
+        let mut branch = Self {
             sugar: MonoSaccharide::new(BaseSugar::Decose, &[]),
             branches: Vec::new(),
         }; // Starting sugar, will be removed
-        let mut last_branch: &mut GlycanStructure = &mut branch;
+        let mut last_branch: &mut Self = &mut branch;
         let bytes = line.as_bytes();
         while offset < range.end {
             while bytes[offset] == b'[' {
@@ -1314,7 +1310,7 @@ impl GlycanStructure {
             let (sugar, new_offset) = MonoSaccharide::from_short_iupac(line, offset, line_number)?;
             offset = new_offset;
 
-            last_branch.branches.push(GlycanStructure {
+            last_branch.branches.push(Self {
                 sugar: sugar.clone(),
                 branches: Vec::new(),
             });
@@ -1329,15 +1325,16 @@ impl GlycanStructure {
                 }
             }
         }
-        if let Some(glycan) = branch.branches.pop() {
-            Ok(glycan) // Remove the outer starting sugar
-        } else {
-            Err(CustomError::error(
-                "Invalid iupac short glycan",
-                "No glycan found",
-                Context::line(line_number, line.to_string(), range.start, range.len()),
-            ))
-        }
+        branch.branches.pop().map_or_else(
+            || {
+                Err(CustomError::error(
+                    "Invalid iupac short glycan",
+                    "No glycan found",
+                    Context::line(line_number, line.to_string(), range.start, range.len()),
+                ))
+            },
+            Ok,
+        )
     }
 }
 
@@ -1386,7 +1383,7 @@ mod tests {
         ];
         for (name, formula) in cases {
             assert_eq!(
-                GLYCAN_PARSE_LIST
+                glycan_parse_list()
                     .iter()
                     .find(|p| p.0 == *name)
                     .unwrap_or_else(|| panic!("Assumed {name} would be defined"))

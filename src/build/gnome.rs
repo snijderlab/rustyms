@@ -27,7 +27,7 @@ pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
         .into_values()
         .filter(|m| m.mass.is_some())
         .take(10)
-        .map(|m| (0_usize, m.code_name.clone(), m.to_mod()))
+        .map(|m| (0_usize, m.code_name.clone(), m.into_mod()))
         .collect::<Vec<_>>();
     file.write_all(&bincode::serialize(&final_mods).unwrap())
         .unwrap();
@@ -134,7 +134,7 @@ struct GNOmeModification {
 }
 
 impl GNOmeModification {
-    fn to_mod(self) -> Modification {
+    fn into_mod(self) -> Modification {
         if let Some(structure) = self.structure {
             Modification::Gno(GnoComposition::Structure(structure), self.code_name)
         } else if let Some(mass) = self.mass {

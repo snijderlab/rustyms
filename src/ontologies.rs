@@ -1,10 +1,6 @@
-use std::cell::OnceCell;
+use std::sync::OnceLock;
 
-use crate::aminoacids::*;
-use crate::element::*;
-use crate::glycan::*;
-use crate::modification::*;
-use crate::placement_rules::*;
+use crate::modification::Modification;
 
 /// Get the unimod ontology
 pub fn unimod_ontology() -> &'static Vec<(usize, String, Modification)> {
@@ -24,6 +20,6 @@ pub fn gnome_ontology() -> &'static Vec<(usize, String, Modification)> {
         bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/gnome.dat"))).unwrap()
     })
 }
-const UNIMOD_CELL: OnceCell<Vec<(usize, String, Modification)>> = OnceCell::new();
-const PSIMOD_CELL: OnceCell<Vec<(usize, String, Modification)>> = OnceCell::new();
-const GNOME_CELL: OnceCell<Vec<(usize, String, Modification)>> = OnceCell::new();
+static UNIMOD_CELL: OnceLock<Vec<(usize, String, Modification)>> = OnceLock::new();
+static PSIMOD_CELL: OnceLock<Vec<(usize, String, Modification)>> = OnceLock::new();
+static GNOME_CELL: OnceLock<Vec<(usize, String, Modification)>> = OnceLock::new();

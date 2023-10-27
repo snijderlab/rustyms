@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::formula::{Chemical, MolecularFormula};
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;

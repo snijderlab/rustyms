@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     modification::{Modification, Ontology},
     AminoAcid, SequenceElement,
@@ -41,7 +43,7 @@ impl Position {
 mod tests {
     use crate::{
         modification::{self, find_id_in_ontology},
-        ontologies::{PSI_MOD_ONTOLOGY, UNIMOD_ONTOLOGY},
+        ontologies::{psimod_ontology, unimod_ontology},
     };
 
     use super::*;
@@ -64,7 +66,7 @@ mod tests {
             PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Alanine,
-                    modifications: vec![find_id_in_ontology(30, PSI_MOD_ONTOLOGY).unwrap()],
+                    modifications: vec![find_id_in_ontology(30, psimod_ontology()).unwrap()],
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
@@ -78,7 +80,7 @@ mod tests {
     #[test]
     fn place_anywhere() {
         assert!(
-            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -91,7 +93,7 @@ mod tests {
             "start"
         );
         assert!(
-            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -104,7 +106,7 @@ mod tests {
             "middle"
         );
         assert!(
-            PlacementRule::AminoAcid(&[AminoAcid::Q], Position::Anywhere).is_possible(
+            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
@@ -117,7 +119,7 @@ mod tests {
             "end"
         );
         assert!(
-            dbg!(modification::find_id_in_ontology(7, UNIMOD_ONTOLOGY).unwrap()).is_possible(
+            dbg!(modification::find_id_in_ontology(7, unimod_ontology()).unwrap()).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),

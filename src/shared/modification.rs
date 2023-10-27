@@ -1,17 +1,8 @@
-use serde::{Deserialize, Serialize};
-
-use crate::{
-    formula::MolecularFormula,
-    glycan::{GlycanStructure, MonoSaccharide},
-};
-
-use super::ontology_modification::*;
-
 /// A modification on an amino acid
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Modification {
     /// A modification defined with a monoisotopic mass shift
-    Mass(f64),
+    Mass(Mass),
     /// A modification defined with a molecular formula
     #[allow(non_snake_case)]
     Formula(MolecularFormula),
