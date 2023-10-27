@@ -29,7 +29,7 @@ pub enum Modification {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GnoComposition {
     /// Only the mass is known
-    Mass(f64),
+    Mass(Mass),
     /// The (full) structure is known
     Structure(GlycanStructure),
 }

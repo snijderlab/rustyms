@@ -16,13 +16,17 @@ pub struct OntologyModification {
 }
 
 impl OntologyModification {
-    pub fn into_mod(self) -> Modification {
-        Modification::Predefined(
-            self.diff_formula,
-            self.rules,
-            self.ontology,
-            self.code_name,
+    pub fn into_mod(self) -> (usize, String, Modification) {
+        (
             self.id,
+            self.code_name.to_ascii_lowercase(),
+            Modification::Predefined(
+                self.diff_formula,
+                self.rules,
+                self.ontology,
+                self.code_name,
+                self.id,
+            ),
         )
     }
 }

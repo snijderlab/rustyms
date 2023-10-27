@@ -94,14 +94,17 @@ pub fn find_isobaric_sets(
         .iter()
         .flat_map(|aa| {
             let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(modifications.iter().filter_map(|m| {
-                can_be_placed(m, *aa, 0, 1).then(|| SequenceElement {
-                    aminoacid: *aa,
-                    ambiguous: None,
-                    modifications: vec![m.clone()],
-                    possible_modifications: Vec::new(),
-                })
-            }));
+            options.extend(
+                modifications
+                    .iter()
+                    .filter(|&m| can_be_placed(m, *aa, 0, 1))
+                    .map(|m| SequenceElement {
+                        aminoacid: *aa,
+                        ambiguous: None,
+                        modifications: vec![m.clone()],
+                        possible_modifications: Vec::new(),
+                    }),
+            );
             options
         })
         .map(|s| {
@@ -116,14 +119,17 @@ pub fn find_isobaric_sets(
         .iter()
         .flat_map(|aa| {
             let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(modifications.iter().filter_map(|m| {
-                can_be_placed(m, *aa, 1, 2).then(|| SequenceElement {
-                    aminoacid: *aa,
-                    ambiguous: None,
-                    modifications: vec![m.clone()],
-                    possible_modifications: Vec::new(),
-                })
-            }));
+            options.extend(
+                modifications
+                    .iter()
+                    .filter(|&m| can_be_placed(m, *aa, 1, 2))
+                    .map(|m| SequenceElement {
+                        aminoacid: *aa,
+                        ambiguous: None,
+                        modifications: vec![m.clone()],
+                        possible_modifications: Vec::new(),
+                    }),
+            );
             options
         })
         .map(|s| {
@@ -138,14 +144,17 @@ pub fn find_isobaric_sets(
         .iter()
         .flat_map(|aa| {
             let mut options = vec![SequenceElement::new(*aa, None)];
-            options.extend(modifications.iter().filter_map(|m| {
-                can_be_placed(m, *aa, 1, 1).then(|| SequenceElement {
-                    aminoacid: *aa,
-                    ambiguous: None,
-                    modifications: vec![m.clone()],
-                    possible_modifications: Vec::new(),
-                })
-            }));
+            options.extend(
+                modifications
+                    .iter()
+                    .filter(|&m| can_be_placed(m, *aa, 1, 1))
+                    .map(|m| SequenceElement {
+                        aminoacid: *aa,
+                        ambiguous: None,
+                        modifications: vec![m.clone()],
+                        possible_modifications: Vec::new(),
+                    }),
+            );
             options
         })
         .map(|s| {

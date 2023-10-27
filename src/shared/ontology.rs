@@ -18,3 +18,5 @@ impl Ontology {
         }
     }
 }
+
+pub type OntologyList = Vec<(usize, String, Modification)>;

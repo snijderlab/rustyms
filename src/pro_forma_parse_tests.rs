@@ -8,6 +8,10 @@ macro_rules! parse_test {
             let res = ComplexPeptide::pro_forma($case);
             println!("{}\n{:?}", $case, res);
             assert!(res.is_ok());
+            // TODO: when ready activate below and start debugging!
+            // let back = res.as_ref().unwrap().to_string();
+            // let res_back = ComplexPeptide::pro_forma(&back);
+            // assert_eq!(res, res_back, "{} != {back}", $case);
         }
     };
 }

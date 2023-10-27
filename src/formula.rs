@@ -216,7 +216,7 @@ fn to_subscript_num(input: isize) -> String {
         if *c == b'-' {
             output.push('\u{208B}');
         } else {
-            output.push(char::from_u32(*c as u32 + 0x2080 - 0x30).unwrap());
+            output.push(char::from_u32(u32::from(*c) + 0x2080 - 0x30).unwrap());
         }
     }
     output
@@ -235,7 +235,7 @@ fn to_superscript_num(input: isize) -> String {
         } else if *c == b'3' {
             output.push('\u{00B3}');
         } else {
-            output.push(char::from_u32(*c as u32 + 0x2070 - 0x30).unwrap());
+            output.push(char::from_u32(u32::from(*c) + 0x2070 - 0x30).unwrap());
         }
     }
     output

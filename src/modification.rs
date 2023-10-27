@@ -29,10 +29,13 @@ impl Chemical for Modification {
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula() * i.1 as i16
                 }),
-            Self::GlycanStructure(glycan) => glycan.formula(),
+            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
+                glycan.formula()
+            }
             Self::Predefined(formula, _, _, _, _) => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => MolecularFormula::with_additional_mass(*m),
-            Self::Gno(GnoComposition::Structure(glycan), _) => glycan.formula(),
+            Self::Gno(GnoComposition::Mass(m), _) => {
+                MolecularFormula::with_additional_mass(m.value)
+            }
         }
     }
 }

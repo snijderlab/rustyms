@@ -28,6 +28,16 @@ impl MonoSaccharide {
         }
     }
 
+    /// Get this same monosaccharide but now with the given pro forma name
+    #[must_use]
+    #[allow(dead_code)]
+    pub fn with_name(self, name: &str) -> Self {
+        Self {
+            proforma_name: Some(name.to_string()),
+            ..self
+        }
+    }
+
     /// Set this saccharide up as to be a furanose
     #[must_use]
     #[allow(dead_code)]

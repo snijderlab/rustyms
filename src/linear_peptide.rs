@@ -134,11 +134,8 @@ impl LinearPeptide {
                             + self.sequence[index]
                                 .possible_modifications
                                 .iter()
-                                .filter_map(|am| {
-                                    ambiguous_local
-                                        .contains(&&am.id)
-                                        .then(|| am.modification.formula())
-                                })
+                                .filter(|&am| ambiguous_local.contains(&&am.id))
+                                .map(|am| am.modification.formula())
                                 .sum::<MolecularFormula>()
                     })
                     .map(|m| {
@@ -536,11 +533,8 @@ impl SequenceElement {
                     + self
                         .possible_modifications
                         .iter()
-                        .filter_map(|m| {
-                            selected_ambiguous
-                                .contains(&m.id)
-                                .then(|| m.modification.formula())
-                        })
+                        .filter(|&m| selected_ambiguous.contains(&m.id))
+                        .map(|m| m.modification.formula())
                         .sum::<MolecularFormula>(),
             )
         }
@@ -551,6 +545,7 @@ impl SequenceElement {
         if self.aminoacid == AminoAcid::B || self.aminoacid == AminoAcid::Z {
             None
         } else {
+            #[allow(clippy::filter_map_bool_then)] // otherwise crashes
             Some(
                 self.aminoacid.formula()
                     + self

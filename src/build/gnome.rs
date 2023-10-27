@@ -2,7 +2,7 @@ use std::{collections::HashMap, ffi::OsString, io::Write, path::Path};
 
 use crate::{build::csv::parse_csv, glycan::*};
 
-use super::{obo::OboOntology, GnoComposition, Modification};
+use super::{obo::OboOntology, ontology_modification::OntologyList, GnoComposition, Modification};
 
 pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
     // Get all the basic info
@@ -26,21 +26,10 @@ pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
     let final_mods = mods
         .into_values()
         .filter(|m| m.mass.is_some())
-        .take(10)
         .map(|m| (0_usize, m.code_name.clone(), m.into_mod()))
         .collect::<Vec<_>>();
-    file.write_all(&bincode::serialize(&final_mods).unwrap())
+    file.write_all(&bincode::serialize::<OntologyList>(&final_mods).unwrap())
         .unwrap();
-    // let mut writer = BufWriter::new(file);
-    // writeln!(
-    //     writer,
-    //     "pub const GNOME_ONTOLOGY: &[(usize, &str, Modification)] = &["
-    // )
-    // .unwrap();
-    // for modification in mods.values().filter(|m| m.mass.is_some()) {
-    //     writeln!(writer, "{},", modification.to_code()).unwrap();
-    // }
-    // writeln!(writer, "];").unwrap();
 }
 
 fn find_mass(mods: &HashMap<String, GNOmeModification>, mut name: String) -> Option<f64> {
@@ -138,7 +127,10 @@ impl GNOmeModification {
         if let Some(structure) = self.structure {
             Modification::Gno(GnoComposition::Structure(structure), self.code_name)
         } else if let Some(mass) = self.mass {
-            Modification::Gno(GnoComposition::Mass(mass), self.code_name)
+            Modification::Gno(
+                GnoComposition::Mass(crate::system::f64::da(mass)),
+                self.code_name,
+            )
         } else {
             panic!("unreachable")
         }

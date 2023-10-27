@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use itertools::Itertools;
 
 use crate::{
@@ -19,6 +21,25 @@ pub enum ComplexPeptide {
     Singular(LinearPeptide),
     /// A multimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
     Multimeric(Vec<LinearPeptide>),
+}
+
+impl Display for ComplexPeptide {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Singular(s) => write!(f, "{s}"),
+            Self::Multimeric(m) => {
+                let mut first = true;
+                for pep in m {
+                    if !first {
+                        write!(f, "+")?;
+                    }
+                    write!(f, "{pep}")?;
+                    first = false;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 impl ComplexPeptide {
@@ -134,7 +155,7 @@ impl ComplexPeptide {
                 }
                 ch => {
                     peptide.sequence.push(SequenceElement::new(
-                        ch.try_into().map_err(|_| {
+                        ch.try_into().map_err(|()| {
                             CustomError::error(
                                 "Invalid amino acid",
                                 "This character is not a valid amino acid",
@@ -207,7 +228,7 @@ impl ComplexPeptide {
                         .flat_err()?;
                 for aa in line[at_index..end_index].split(',') {
                     global_modifications.push(GlobalModification::Fixed(
-                        aa.try_into().map_err(|_| {
+                        aa.try_into().map_err(|()| {
                             CustomError::error(
                                 "Invalid global modification",
                                 "The location could not be read as an amino acid",
@@ -398,7 +419,7 @@ impl ComplexPeptide {
                                 chars[offset+count_len..].iter()
                                 .take_while(|c| c.is_ascii_alphabetic())
                                 .count();
-                            let element: Element = std::str::from_utf8(&chars[offset+count_len..offset+count_len+element_len]).unwrap().try_into().map_err(|_| CustomError::error(
+                            let element: Element = std::str::from_utf8(&chars[offset+count_len..offset+count_len+element_len]).unwrap().try_into().map_err(|()| CustomError::error(
                                 "Invalid adduct ion",
                                 "Invalid element symbol",
                                 Context::line(0, line, offset+count_len, element_len),
@@ -489,7 +510,7 @@ impl ComplexPeptide {
                 }
                 (false, ch) => {
                     peptide.sequence.push(SequenceElement::new(
-                        ch.try_into().map_err(|_| CustomError::error(
+                        ch.try_into().map_err(|()| CustomError::error(
                             "Invalid amino acid",
                             "This character is not a valid amino acid",
                             Context::line(0, line, index, 1),
