@@ -1,4 +1,4 @@
-use std::{ffi::OsString, io::BufWriter, io::Write, path::Path};
+use std::{ffi::OsString, io::Write, path::Path};
 
 use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 
@@ -10,18 +10,11 @@ use super::{
 pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_psi_mod(debug);
 
-    let dest_path = Path::new(&out_dir).join("psi-mod.rs");
-    let file = std::fs::File::create(dest_path).unwrap();
-    let mut writer = BufWriter::new(file);
-    writeln!(
-        writer,
-        "pub const PSI_MOD_ONTOLOGY: &[(usize, &str, Modification)] = &["
-    )
-    .unwrap();
-    for m in mods {
-        writeln!(writer, "{},", m.to_code()).unwrap();
-    }
-    writeln!(writer, "];").unwrap();
+    let dest_path = Path::new(&out_dir).join("psimod.dat");
+    let mut file = std::fs::File::create(dest_path).unwrap();
+    let final_mods = mods.into_iter().map(|m| m.to_mod()).collect::<Vec<_>>();
+    file.write_all(&bincode::serialize(&final_mods).unwrap())
+        .unwrap();
 }
 
 fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
@@ -41,7 +34,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
-            context: "Psimod".to_string(),
+            ontology: super::ontology_modification::Ontology::Psimod,
             ..Default::default()
         };
 
@@ -75,7 +68,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             for origin in &origins {
                 if origin.len() == 1 {
                     modification.rules.push(PlacementRule::AminoAcid(
-                        origin.to_string(),
+                        vec![(*origin).try_into().unwrap()],
                         term.unwrap_or(Position::Anywhere),
                     ));
                 } else {

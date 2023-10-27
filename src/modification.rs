@@ -14,7 +14,7 @@ use crate::{
     SequenceElement,
 };
 
-include!("shared/modification.rs")
+include!("shared/modification.rs");
 
 impl Chemical for Modification {
     fn formula(&self) -> MolecularFormula {
@@ -293,24 +293,7 @@ fn parse_single_modification(
     }
 }
 
-/// All allowed ontologies for modification names
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Ontology {
-    /// Unimod
-    Unimod,
-    /// PSI-MOD
-    Psimod,
-}
-
-impl Ontology {
-    /// Get the prefix character for the ontology (TODO: the full name is needed when the name is used right, lets make sure the output is always valid pro forma)
-    pub const fn char(self) -> char {
-        match self {
-            Self::Unimod => 'U',
-            Self::Psimod => 'M',
-        }
-    }
-}
+include!("shared/ontology.rs");
 
 /// A modification as returned by the parser
 #[derive(Debug, Clone)]

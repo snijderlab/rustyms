@@ -3,12 +3,7 @@ use crate::{
     AminoAcid, SequenceElement,
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum PlacementRule {
-    AminoAcid(&'static [AminoAcid], Position),
-    PsiModification(usize, Position),
-    Terminal(Position),
-}
+include!("shared/placement_rule.rs");
 
 impl PlacementRule {
     pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
@@ -30,15 +25,6 @@ impl PlacementRule {
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Position {
-    Anywhere,
-    AnyNTerm,
-    AnyCTerm,
-    ProteinNTerm,
-    ProteinCTerm,
 }
 
 impl Position {

@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::Element;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     elements: Vec<(crate::Element, u16, i16)>,

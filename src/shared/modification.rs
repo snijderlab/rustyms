@@ -1,12 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{glycan::GlycanStructure, *};
+use crate::{
+    formula::MolecularFormula,
+    glycan::{GlycanStructure, MonoSaccharide},
+};
+
+use super::ontology_modification::*;
 
 /// A modification on an amino acid
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Modification {
     /// A modification defined with a monoisotopic mass shift
-    Mass(Mass),
+    Mass(f64),
     /// A modification defined with a molecular formula
     #[allow(non_snake_case)]
     Formula(MolecularFormula),
@@ -16,16 +21,16 @@ pub enum Modification {
     GlycanStructure(GlycanStructure),
     /// A modification from one of the modification ontologies
     Predefined(
-        &'static [(Element, u16, i16)],
-        &'static [PlacementRule],
-        Ontology,     // Context
-        &'static str, // Name
-        usize,        // Index
+        MolecularFormula,
+        Vec<PlacementRule>,
+        Ontology, // Context
+        String,   // Name
+        usize,    // Index
     ),
     /// A modification from one of the modification ontologies
     Gno(
         GnoComposition,
-        &'static str, // Name
+        String, // Name
     ),
 }
 

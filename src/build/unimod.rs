@@ -1,4 +1,4 @@
-use std::{ffi::OsString, io::BufWriter, io::Write, iter, path::Path};
+use std::{ffi::OsString, io::Write, iter, path::Path};
 
 use regex::Regex;
 
@@ -12,18 +12,11 @@ use super::{
 pub fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_unimod(debug);
 
-    let dest_path = Path::new(&out_dir).join("unimod.rs");
-    let file = std::fs::File::create(dest_path).unwrap();
-    let mut writer = BufWriter::new(file);
-    writeln!(
-        writer,
-        "pub const UNIMOD_ONTOLOGY: &[(usize, &str, Modification)] = &["
-    )
-    .unwrap();
-    for m in mods {
-        writeln!(writer, "{},", m.to_code()).unwrap();
-    }
-    writeln!(writer, "];").unwrap();
+    let dest_path = Path::new(&out_dir).join("unimod.dat");
+    let mut file = std::fs::File::create(dest_path).unwrap();
+    let final_mods = mods.into_iter().map(|m| m.to_mod()).collect::<Vec<_>>();
+    file.write_all(&bincode::serialize(&final_mods).unwrap())
+        .unwrap();
 }
 
 fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
@@ -43,7 +36,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
             code_name: obj.lines["name"][0].to_string(),
-            context: "Unimod".to_string(),
+            ontology: super::ontology_modification::Ontology::Unimod,
             ..Default::default()
         };
         if let Some(xref) = obj.lines.get("xref") {
@@ -87,7 +80,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                     ("N-term", pos) => Some(PlacementRule::Terminal(pos.try_into().unwrap())),
                     ("", "") => None,
                     (aa, pos) => Some(PlacementRule::AminoAcid(
-                        aa.to_string(),
+                        vec![aa.try_into().unwrap()],
                         pos.try_into().unwrap(),
                     )),
                 })
