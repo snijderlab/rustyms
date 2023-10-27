@@ -112,6 +112,7 @@ These features are independent from each other:
 - RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (RESIDUES.XML)
 - XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo
 - GNO: http://purl.obolibrary.org/obo/gno.obo structures: https://glycosmos.org/download/glycosmos_glycans_list.csv
+    - To save space (crates.io has a hard limit on crate size) the unused columns of the structures csv are remove (only 0 and 1 are kept) and the `gno.obo` is trimmed using the following regex: `(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)` (any matching line is removed)
 - Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv
 
 # Ontologies
