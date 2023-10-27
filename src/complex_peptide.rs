@@ -11,7 +11,9 @@ use crate::{
         ReturnModification,
     },
     molecular_charge::MolecularCharge,
-    Charge, Element, Fragment, LinearPeptide, Mass, Model, MolecularFormula, SequenceElement,
+    system::Charge,
+    system::Mass,
+    Element, Fragment, LinearPeptide, Model, MolecularFormula, SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptides
@@ -652,10 +654,11 @@ fn unknown_position_mods(
 
 #[cfg(test)]
 mod tests {
-    use crate::ComplexPeptide;
-    use crate::Element;
-    use crate::MolecularFormula;
-    use crate::{e, mz, Location, MassOverCharge};
+    use crate::{
+        model::Location,
+        system::{e, mz, MassOverCharge},
+        ComplexPeptide, Element, MolecularFormula,
+    };
 
     use super::*;
 

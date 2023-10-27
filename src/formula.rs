@@ -1,4 +1,7 @@
-use crate::{da, r, Mass, MassMode, Ratio};
+use crate::{
+    system::{da, r, Mass, Ratio},
+    MassMode,
+};
 use std::fmt::Write;
 
 include!("shared/formula.rs");
@@ -98,7 +101,7 @@ impl MolecularFormula {
                     write!(
                         output,
                         "{}{}{}",
-                        to_superscript_num(element.1 as isize),
+                        to_superscript_num(element.1),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -119,7 +122,7 @@ impl MolecularFormula {
                     write!(
                         output,
                         "{}{}{}",
-                        to_superscript_num(element.1 as isize),
+                        to_superscript_num(element.1),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -222,13 +225,12 @@ fn to_subscript_num(input: isize) -> String {
     output
 }
 
-fn to_superscript_num(input: isize) -> String {
+fn to_superscript_num(input: u16) -> String {
     let text = input.to_string();
     let mut output = String::new();
     for c in text.as_bytes() {
-        if *c == b'-' {
-            output.push('\u{207B}');
-        } else if *c == b'1' {
+        // b'-' could be '\u{207B}' but that is useless when using u16
+        if *c == b'1' {
             output.push('\u{00B9}');
         } else if *c == b'2' {
             output.push('\u{00B2}');

@@ -1,3 +1,5 @@
+//! Handle fragment related issues, access provided if you want to dive deeply into fragments in your own code.
+
 use std::fmt::{Debug, Display};
 
 use itertools::Itertools;
@@ -17,7 +19,7 @@ pub struct Fragment {
     pub charge: Charge,
     /// All possible annotations for this fragment saved as a tuple of peptide index and its type
     pub ion: FragmentType,
-    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`ComplexPeptide`] struct
+    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`crate::ComplexPeptide`] struct
     pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,

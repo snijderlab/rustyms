@@ -1,10 +1,14 @@
+//! Handle glycan related issues, access provided if you want to work with glycans on your own.
+
 use std::str::FromStr;
 
 use itertools::Itertools;
 
 use crate::{
-    molecular_charge::MolecularCharge, AminoAcid, Charge, Fragment, FragmentType, GlycanBreakPos,
-    GlycanPosition, Model,
+    fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
+    molecular_charge::MolecularCharge,
+    system::Charge,
+    AminoAcid, Model,
 };
 
 use crate::uom::num_traits::Zero;

@@ -19,4 +19,5 @@ impl Ontology {
     }
 }
 
-pub type OntologyList = Vec<(usize, String, Modification)>;
+/// The shared type for contact between the build and compile steps
+pub(crate) type OntologyList = Vec<(usize, String, Modification)>;

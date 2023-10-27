@@ -1,6 +1,8 @@
 use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
-use crate::{da, modification::Modification, AminoAcid, LinearPeptide, Mass, SequenceElement};
+use crate::{
+    modification::Modification, system::da, system::Mass, AminoAcid, LinearPeptide, SequenceElement,
+};
 
 /// A tolerance around a given mass for searching purposes
 #[derive(Clone, Copy, PartialEq, Debug)]

@@ -1,4 +1,4 @@
-use crate::{LinearPeptide, Mass, MassTolerance, MolecularFormula, SequenceElement};
+use crate::{system::Mass, LinearPeptide, MassTolerance, MolecularFormula, SequenceElement};
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
 use crate::uom::num_traits::Zero;

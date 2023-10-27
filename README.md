@@ -7,6 +7,7 @@ A peptide fragmentation matching library for rust.
 
 ```rust
 use rustyms::*;
+use rustyms::system::*;
 // Parse a peptide
 let peptide = ComplexPeptide::pro_forma("VAEINPSNGGTTFNEKFKGGKATJ").unwrap();
 // Get the theoretical fragmentation for EThcD
@@ -14,11 +15,11 @@ let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(4.0), &M
 // Load the raw file
 let spectra = rawfile::mgf::open("data/annotated_example.mgf").unwrap();
 // Annotate the spectrum with this peptide
-let matched = spectra[0].annotate(peptide, &fragments, &Model::ethcd());
+let matched = spectra[0].annotate(peptide, &fragments, &Model::ethcd(), MassMode::Monoisotopic);
 ```
 
 ## Features
- - Read pro forma sequences ('level 2-ProForma + mass spectrum compliant', with the intention to fully support the whole spec)
+ - Read pro forma sequences ('level 2-ProForma + mass spectrum compliant + glycans compliant', with the intention to fully support the whole spec)
  - Generate theoretical fragments with control over the fragmentation model from any supported pro forma peptide
    - Generate fragments from satellite ions (w, d, and v)
    - Generate glycan fragments

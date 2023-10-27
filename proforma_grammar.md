@@ -73,7 +73,7 @@ These features are independent from each other:
 1) Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
 - [ ] 4.2.1/4.2.3 Cross-linked peptides (using the XL-MOD CV/ontology, the prefix X MUST be used for XL-MOD CV/ontology term names).
 1) Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
-- [ ] 4.2.5 Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
+- [x] 4.2.5 Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
 - [x] 4.2.9 Glycan composition.
 - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 1) Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
@@ -95,8 +95,8 @@ These features are independent from each other:
 - [x] Handle multiple possible backbone masses (fragmenting modifications eg glycans, poorly localised modifications, ..)
 - [x] Enforce ontology modification placement rules
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
+- [x] Better error data, allowing the construction of rust-like error messages
 - [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Better error data, allowing the construction of rust-like error messages
 - [ ] Modification specific neutral losses, phospho: fully deleted
 - [ ] Modification diagnostic peaks
 - [ ] Match isotope patterns in fragmentation matching
@@ -122,4 +122,4 @@ These features are independent from each other:
 | PSI-MOD | Yes           | Yes      | Yes   |
 | RESID   | -             | -        | -     |
 | XL-MOD  | -             | -        | -     |
-| GNO     | -             | -        | -     |
+| GNO     | Yes           | NA       | NA    |

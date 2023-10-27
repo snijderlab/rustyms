@@ -18,33 +18,6 @@ pub struct IdentifiedPeptide {
     pub metadata: MetaData,
 }
 
-// impl IdentifiedPeptide {
-//     pub fn parse_file(
-//         path: impl AsRef<std::path::Path>,
-//     ) -> Result<Box<impl Iterator<Item = Result<IdentifiedPeptide, CustomError>>>, String> {
-//         let path = path.as_ref();
-//         let actual_extension = path
-//             .extension()
-//             .map(|ex: &std::ffi::OsStr| {
-//                 (ex == "gz")
-//                     .then(|| path.to_str().and_then(|p| p.rsplitn(3, '.').nth(1)))
-//                     .unwrap_or(ex.to_str())
-//             })
-//             .flatten()
-//             .map(|ex| ex.to_lowercase());
-//         match actual_extension.as_deref() {
-//             Some("csv") => PeaksData::parse_file(path).map(|p| Box::new(p.generalise())),
-//             Some("psmtsv") => OpairData::parse_file(path).map(|p| Box::new(p.generalise())),
-//             Some("fasta") => {
-//                 FastaData::parse_reads(path).map(|p| Box::new(p.into_iter().map(|f| Ok(f.into()))))
-//             }
-//             _ => Err(
-//                 "Could not detect file format for the given identified peptides file".to_string(),
-//             ),
-//         }
-//     }
-// }
-
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Debug)]
 pub enum MetaData {
@@ -94,9 +67,9 @@ pub trait IdentifiedPeptideSource
 where
     Self: std::marker::Sized,
 {
-    /// The source data where the peptides are parsed form eg [`CsvLine`]
+    /// The source data where the peptides are parsed form
     type Source;
-    /// The format type eg [`PeaksFormat`]
+    /// The format type
     type Format: Clone;
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors
@@ -126,12 +99,6 @@ where
 /// Convenience type to not have to type out long iterator types
 pub type BoxedIdentifiedPeptideIter<T> =
     IdentifiedPeptideIter<T, Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>>;
-
-// impl<T: Into<IdentifiedPeptide> + IdentifiedPeptideSource> BoxedIdentifiedPeptideIter<T> {
-//     fn generalise(self) -> impl Iterator<Item = Result<IdentifiedPeptide, CustomError>> {
-//         self.into_iter().map(|element| element.map(|p| p.into()))
-//     }
-// }
 
 /// An iterator returning parsed identified peptides
 pub struct IdentifiedPeptideIter<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> {

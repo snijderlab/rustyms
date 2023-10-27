@@ -25,41 +25,34 @@ pub mod align;
 mod aminoacids;
 mod complex_peptide;
 mod element;
-mod error;
-mod fragment;
-mod glycan;
+pub mod error;
+pub mod fragment;
+pub mod glycan;
 pub mod identifications;
 mod isobaric_sets;
 mod isotopes;
 mod linear_peptide;
-mod model;
-mod modification;
+pub mod model;
+pub mod modification;
 mod molecular_charge;
 mod neutral_loss;
 mod ontologies;
 mod placement_rules;
 pub mod rawfile;
-mod spectrum;
-mod system;
+pub mod spectrum;
+pub mod system;
 
-pub use crate::complex_peptide::*;
+pub use crate::complex_peptide::ComplexPeptide;
 pub use crate::element::*;
-pub use crate::error::*;
 pub use crate::formula::*;
-pub use crate::fragment::*;
-pub use crate::glycan::*;
-pub use crate::isobaric_sets::*;
-pub use crate::linear_peptide::*;
-pub use crate::model::*;
-pub use crate::modification::*;
+pub use crate::isobaric_sets::{find_isobaric_sets, MassTolerance};
+pub use crate::linear_peptide::{LinearPeptide, SequenceElement};
+pub use crate::model::Model;
+pub use crate::modification::Modification;
 pub use crate::neutral_loss::*;
-pub use crate::spectrum::*;
-pub use crate::system::f64::*;
+pub use crate::spectrum::{AnnotatedSpectrum, MassMode, RawSpectrum};
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;
-pub use linear_peptide::LinearPeptide;
-pub use model::Model;
-pub use uom::num_traits::Zero;
 
 #[macro_use]
 extern crate uom;
@@ -72,7 +65,7 @@ mod test {
     fn simple_fragments() {
         let peptide = ComplexPeptide::pro_forma("WFWF").unwrap().assume_linear();
         let fragments = peptide
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &Model::all(), 0)
+            .generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &Model::all(), 0)
             .unwrap();
         println!("{}", fragments.len());
         println!("{fragments:?}");
@@ -84,7 +77,7 @@ mod test {
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
         let peptide = ComplexPeptide::pro_forma("WFWF").unwrap();
         let fragments = peptide
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &model)
+            .generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &model)
             .unwrap();
         let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
         println!("{annotated:?}");

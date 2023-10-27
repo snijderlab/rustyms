@@ -1,4 +1,4 @@
-use crate::{da, element::Element, Mass, MolecularFormula};
+use crate::{element::Element, system::da, system::Mass, MolecularFormula};
 use statrs::distribution::{Binomial, Discrete};
 use std::collections::HashMap;
 

@@ -3,6 +3,8 @@ use std::env;
 #[macro_use]
 extern crate uom;
 
+#[path = "./src/system.rs"]
+mod system;
 #[macro_use]
 #[path = "./src/helper_functions.rs"]
 mod helper_functions;
@@ -13,15 +15,12 @@ mod element;
 mod formula;
 #[path = "./src/shared/glycan.rs"]
 mod glycan;
-#[path = "./src/system.rs"]
-mod system;
 
 #[path = "./src/build/mod.rs"]
 mod build;
 
 use crate::build::*;
 pub use crate::element::*;
-use crate::system::f64::*;
 
 fn main() {
     let debug = env::var("DEBUG_BUILD").map(|v| v == "1").unwrap_or(false);

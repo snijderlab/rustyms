@@ -5,6 +5,7 @@ use std::fmt::Write;
 use super::align_type::*;
 use super::piece::*;
 use crate::align::scoring::*;
+use crate::system::Mass;
 use crate::{LinearPeptide, MolecularFormula};
 
 /// An alignment of two reads.
@@ -104,7 +105,7 @@ impl Alignment {
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn mass_difference(&self) -> Option<crate::Mass> {
+    pub fn mass_difference(&self) -> Option<Mass> {
         Some(self.mass_a()?.monoisotopic_mass()? - self.mass_b()?.monoisotopic_mass()?)
     }
 

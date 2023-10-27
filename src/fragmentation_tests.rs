@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{model::*, system::*, *};
 
 #[test]
 fn triple_a() {

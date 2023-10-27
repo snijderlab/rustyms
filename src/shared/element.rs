@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::system::f64::Mass;
+
 /// The elements (and electrons)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Element {
@@ -626,3 +628,6 @@ pub const ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
     ("H", Element::H),
     ("P", Element::P),
 ];
+
+/// The shared type to send the data from all the elements from build time to compile time
+pub(crate) type ElementalData = Vec<(Option<Mass>, Option<Mass>, Vec<(u16, Mass, f64)>)>;

@@ -1,3 +1,5 @@
+//! Spectrum related code
+
 use uom::num_traits::Zero;
 
 use crate::{
@@ -73,7 +75,7 @@ impl RawSpectrum {
         self.spectrum.shrink_to_fit();
     }
 
-    /// Annotate this spectrum with the given peptide and given fragments see [`Peptide::generate_theoretical_fragments`].
+    /// Annotate this spectrum with the given peptide and given fragments see [`crate::ComplexPeptide::generate_theoretical_fragments`].
     ///
     /// # Panics
     /// If any fragment does not have a defined m/z

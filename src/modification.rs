@@ -1,3 +1,5 @@
+//! Handle modification related issues, access provided if you want to dive deeply into modifications in your own code.
+
 use serde::{Deserialize, Serialize};
 
 use std::{fmt::Display, ops::Range};
@@ -6,15 +8,15 @@ use regex::Regex;
 use uom::num_traits::Zero;
 
 use crate::{
-    dalton,
     error::Context,
     error::CustomError,
-    glycan_parse_list,
+    glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::{gnome_ontology, psimod_ontology, unimod_ontology},
     placement_rules::PlacementRule,
-    AminoAcid, Chemical, Element, GlycanStructure, Mass, MolecularFormula, MonoSaccharide,
-    SequenceElement,
+    system::dalton,
+    system::Mass,
+    AminoAcid, Chemical, Element, MolecularFormula, SequenceElement,
 };
 
 include!("shared/modification.rs");
@@ -335,10 +337,7 @@ pub enum GlobalModification {
     Free(Modification),
 }
 
-fn find_name_in_ontology(
-    code: &str,
-    ontology: &[(usize, String, Modification)],
-) -> Result<Modification, ()> {
+fn find_name_in_ontology(code: &str, ontology: &OntologyList) -> Result<Modification, ()> {
     let code = code.to_ascii_lowercase();
     for option in ontology {
         if option.1 == code {
@@ -349,10 +348,7 @@ fn find_name_in_ontology(
 }
 
 /// Find the given id in the given ontology
-pub fn find_id_in_ontology(
-    id: usize,
-    ontology: &[(usize, String, Modification)],
-) -> Option<Modification> {
+pub fn find_id_in_ontology(id: usize, ontology: &OntologyList) -> Option<Modification> {
     for option in ontology {
         if option.0 == id {
             return Some(option.2.clone());

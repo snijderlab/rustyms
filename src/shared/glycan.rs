@@ -3,9 +3,10 @@ use std::{fmt::Display, hash::Hash, ops::Range, sync::OnceLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    error::{Context, CustomError},
     formula::{Chemical, MolecularFormula},
     helper_functions::*,
-    Context, CustomError, Element, ELEMENT_PARSE_LIST,
+    Element, ELEMENT_PARSE_LIST,
 };
 
 /// A monosaccharide with all its complexity
@@ -48,8 +49,10 @@ impl MonoSaccharide {
         }
     }
 
-    /// Parse a short iupac name from this string starting at `start` and returning,
+    /// Parse a short IUPAC name from this string starting at `start` and returning,
     /// if successful, a monosaccharide and the offset in the string where parsing ended.
+    /// # Errors
+    /// Fails if it finds a structure that does not fit the IUPAC glycan name.
     pub fn from_short_iupac(
         line: &str,
         start: usize,
@@ -1535,6 +1538,7 @@ mod tests {
         );
     }
 
+    #[allow(clippy::float_cmp)] // Handled in a different way
     fn iupac_masses() {
         assert_eq!(
             MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)

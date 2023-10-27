@@ -1,11 +1,13 @@
-use crate::{da, r, Mass, Ratio};
+use std::sync::OnceLock;
+
+use crate::system::{da, r, Ratio};
 
 include!("shared/element.rs");
 
 impl Element {
     /// Get all available isotopes (N, mass, abundance)
-    pub const fn isotopes(self) -> &'static [(u16, f64, f64)] {
-        ELEMENTAL_DATA[self as usize].2
+    pub fn isotopes(self) -> &'static [(u16, Mass, f64)] {
+        &elemental_data()[self as usize].2
     }
 
     /// The mass of the specified isotope of this element (if that isotope exists)
@@ -13,16 +15,16 @@ impl Element {
         if *self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        Some(da(if isotope == 0 {
-            crate::element::ELEMENTAL_DATA[*self as usize - 1].0?
+        Some(if isotope == 0 {
+            elemental_data()[*self as usize - 1].0?
         } else {
             // Specific isotope do not change anything
-            crate::element::ELEMENTAL_DATA[*self as usize - 1]
+            elemental_data()[*self as usize - 1]
                 .2
                 .iter()
                 .find(|(ii, _, _)| *ii == isotope)
                 .map(|(_, m, _)| *m)?
-        }))
+        })
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists)
@@ -30,16 +32,16 @@ impl Element {
         if *self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        Some(da(if isotope == 0 {
-            crate::element::ELEMENTAL_DATA[*self as usize - 1].1?
+        Some(if isotope == 0 {
+            elemental_data()[*self as usize - 1].1?
         } else {
             // Specific isotope do not change anything
-            crate::element::ELEMENTAL_DATA[*self as usize - 1]
+            elemental_data()[*self as usize - 1]
                 .2
                 .iter()
                 .find(|(ii, _, _)| *ii == isotope)
                 .map(|(_, m, _)| *m)?
-        }))
+        })
     }
 
     /// Gives the most abundant mass based on the number of this isotope
@@ -48,29 +50,37 @@ impl Element {
             return Some(da(5.485_799_090_65e-4) * Ratio::new::<r>(f64::from(n)));
         }
         Some(
-            da(if isotope == 0 {
+            if isotope == 0 {
                 // (mass, chance)
                 let mut max = None;
-                for iso in crate::element::ELEMENTAL_DATA[*self as usize - 1].2 {
+                for iso in &elemental_data()[*self as usize - 1].2 {
                     let chance = iso.2 * f64::from(n);
-                    if max.map_or(true, |m: (f64, f64)| chance > m.1) {
+                    if max.map_or(true, |m: (Mass, f64)| chance > m.1) {
                         max = Some((iso.1, chance));
                     }
                 }
                 max?.0
             } else {
                 // Specific isotope do not change anything
-                crate::element::ELEMENTAL_DATA[*self as usize - 1]
+                elemental_data()[*self as usize - 1]
                     .2
                     .iter()
                     .find(|(ii, _, _)| *ii == isotope)
                     .map(|(_, m, _)| *m)?
-            }) * Ratio::new::<r>(f64::from(n)),
+            } * Ratio::new::<r>(f64::from(n)),
         )
     }
 }
 
-include!(concat!(env!("OUT_DIR"), "/elements.rs"));
+/// Get the elemental data
+/// # Panics
+/// It panics if the elemental data that is passed at compile time is not formatted correctly.
+pub fn elemental_data() -> &'static ElementalData {
+    ELEMENTAL_DATA_CELL.get_or_init(|| {
+        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/elements.dat"))).unwrap()
+    })
+}
+static ELEMENTAL_DATA_CELL: OnceLock<ElementalData> = OnceLock::new();
 
 #[cfg(test)]
 mod test {

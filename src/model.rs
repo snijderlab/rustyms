@@ -1,3 +1,5 @@
+//! Handle model instantiation.
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -5,7 +7,7 @@ use crate::{
     Element, MolecularFormula, NeutralLoss,
 };
 
-/// A model for the fragmentation, allowing control over what theoretical fragment to generate.
+/// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[derive(PartialEq, Debug, Clone)]
 pub struct Model {
     /// a series ions

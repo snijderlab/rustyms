@@ -256,12 +256,20 @@ impl std::iter::Sum<Self> for MolecularFormula {
     }
 }
 
+#[macro_export]
+/// Easily define molecular formulas using the following syntax: `<element> <num>` or `(<isotope>)<element> <num>`
+/// ```
+/// # use rustyms::*;
+/// molecular_formula!(C 12 (13)C 1 H 24);
+/// ```
 macro_rules! molecular_formula {
     ($($tail:tt)*) => {
         formula_internal!([$($tail)*] -> [])
     };
 }
 
+#[macro_export]
+/// Internal code for the [`molecular_formula`] macro.
 macro_rules! formula_internal {
     ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
         formula_internal!([$($tail)*] -> [$($output)*(Element::$e, 0, $n),])

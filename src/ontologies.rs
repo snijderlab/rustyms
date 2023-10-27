@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use crate::OntologyList;
+use crate::modification::OntologyList;
 
 /// Get the unimod ontology
 pub fn unimod_ontology() -> &'static OntologyList {

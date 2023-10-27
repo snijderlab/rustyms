@@ -1,4 +1,4 @@
-use crate::{error::CustomError, AminoAcid, ComplexPeptide, Context, LinearPeptide};
+use crate::{error::Context, error::CustomError, AminoAcid, ComplexPeptide, LinearPeptide};
 
 use super::{
     common_parser::Location,

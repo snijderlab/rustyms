@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::formula::{Chemical, MolecularFormula};
+use crate::fragment::Position;
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
 use crate::molecular_charge::MolecularCharge;
 use crate::Element;
-use crate::Position;
 
 include!("shared/aminoacid.rs");
 

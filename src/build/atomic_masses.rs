@@ -1,6 +1,6 @@
-use std::{ffi::OsString, io::BufWriter, io::Write, path::Path};
+use std::{ffi::OsString, io::Write, path::Path};
 
-use crate::Element;
+use crate::{system::f64::da, Element, ElementalData};
 
 use super::csv::parse_csv;
 
@@ -106,28 +106,23 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
             )
         });
 
-    let dest_path = Path::new(&out_dir).join("elements.rs");
-    let file = std::fs::File::create(dest_path).unwrap();
-    let mut writer = BufWriter::new(file);
-    writeln!(
-        writer,
-        "#[allow(clippy::all, clippy::pedantic, clippy::nursery)]\n/// The data for all the elements (atomic_mass/monoisotopic mass, atomic_weight, isotopes: (num, mass, abundance))\npub const ELEMENTAL_DATA: &[(Option<f64>, Option<f64>, &[(u16, f64, f64)])] = &["
-    )
-    .unwrap();
-    for element in combined_data {
-        writeln!(
-            writer,
-            "({:?}, {:?}, &[{}]),",
-            element.0,
-            element.1,
-            element.2.iter().fold(String::new(), |acc, i| format!(
-                "{}({},{:?},{:?}),",
-                acc, i.0, i.1, i.2
-            ))
-        )
+    // Write out the data
+    let dest_path = Path::new(&out_dir).join("elements.dat");
+    let mut file = std::fs::File::create(dest_path).unwrap();
+    let elements = combined_data
+        .into_iter()
+        .map(|(m, a, i)| {
+            (
+                m.map(da),
+                a.map(da),
+                i.into_iter()
+                    .map(|(n, m, i)| (n as u16, da(m), i))
+                    .collect(),
+            )
+        })
+        .collect();
+    file.write_all(&bincode::serialize::<ElementalData>(&elements).unwrap())
         .unwrap();
-    }
-    writeln!(writer, "];").unwrap();
 
     Ok(())
 }
