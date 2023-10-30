@@ -13,7 +13,7 @@ use crate::{
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::{gnome_ontology, psimod_ontology, unimod_ontology},
-    placement_rules::PlacementRule,
+    placement_rule::PlacementRule,
     system::dalton,
     system::Mass,
     AminoAcid, Chemical, Element, MolecularFormula, SequenceElement,
@@ -85,24 +85,24 @@ impl Modification {
     #[allow(clippy::missing_panics_doc)]
     pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
         match line[location.clone()].to_lowercase().as_str() {
-            "o" => find_id_in_ontology(35, unimod_ontology()), // oxidation
-            "cam" => find_id_in_ontology(4, unimod_ontology()), // carbamidomethyl
+            "o" => unimod_ontology().find_id(35),  // oxidation
+            "cam" => unimod_ontology().find_id(4), // carbamidomethyl
             _ => {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
                     .unwrap()
                     .captures(&line[location])
                     .and_then(|capture| {
-                        find_name_in_ontology(&capture[1], unimod_ontology())
-                            .or_else(|()| {
+                        unimod_ontology()
+                            .find_name(&capture[1])
+                            .ok_or_else(|| {
                                 parse_named_counter(&capture[1], glycan_parse_list(), false)
                                     .map(Modification::Glycan)
                             })
+                            .flat_err()
                             .or_else(|_| {
                                 match &capture[1] {
-                                    "Deamidation" => {
-                                        Ok(find_id_in_ontology(7, unimod_ontology()).unwrap())
-                                    } // deamidated
+                                    "Deamidation" => Ok(unimod_ontology().find_id(7).unwrap()), // deamidated
                                     _ => Err(()),
                                 }
                             })
@@ -180,7 +180,7 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("Unimod accession number should be a number")
                     })?;
-                    find_id_in_ontology(id, unimod_ontology())
+                    unimod_ontology().find_id(id)
                         .map(Some)
                         .ok_or_else(||
                             basic_error
@@ -189,26 +189,26 @@ fn parse_single_modification(
                 ("mod", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| basic_error
                         .with_long_description("PSI-MOD accession number should be a number"))?;
-                    find_id_in_ontology(id, psimod_ontology())
+                    psimod_ontology().find_id(id)
                         .map(Some)
                         .ok_or_else(|| basic_error
                             .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
                 }
-                ("u", tail) => find_name_in_ontology(tail, unimod_ontology())
-                    .map_err(|()| numerical_mod(tail))
+                ("u", tail) => unimod_ontology().find_name(tail)
+                    .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a Unimod name or numerical modification")),
-                ("m", tail) => find_name_in_ontology(tail, psimod_ontology())
-                    .map_err(|()| numerical_mod(tail))
+                ("m", tail) => psimod_ontology().find_name(tail)
+                    .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
-                ("gno", tail) => find_name_in_ontology(tail, gnome_ontology())
+                ("gno", tail) => gnome_ontology().find_name(tail)
                     .map(Some)
-                    .map_err(|()| basic_error
+                    .ok_or_else(|| basic_error
                         .with_long_description("This modification cannot be read as a GNO name")),
                 ("formula", tail) => Ok(Some(Modification::Formula(
                     parse_molecular_formula_pro_forma(tail).map_err(|e| basic_error
@@ -224,11 +224,10 @@ fn parse_single_modification(
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
                     .with_long_description("This modification cannot be read as a numerical modification")),
-                (_, _tail) => find_name_in_ontology(full.0, unimod_ontology())
-                    .map_err(|()| find_name_in_ontology(full.0, psimod_ontology()))
-                    .flat_err()
+                (_, _tail) => unimod_ontology().find_name(full.0)
+                    .or_else(|| psimod_ontology().find_name(full.0 ))
                     .map(Some)
-                    .map_err(|()|
+                    .ok_or_else(||
                         CustomError::error(
                             "Invalid modification",
                             "Rustyms does not support these types of modification (yet)",
@@ -238,10 +237,9 @@ fn parse_single_modification(
         } else if full.0.is_empty() {
             Ok(None)
         } else {
-            find_name_in_ontology(full.0, unimod_ontology())
-                .map_err(|()| find_name_in_ontology(full.0, psimod_ontology()))
-                .flat_err()
-                .map_err(|()| numerical_mod(full.0))
+            unimod_ontology().find_name(full.0 )
+                .or_else(|| psimod_ontology().find_name(full.0))
+                .ok_or_else(|| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
                 .map_err(|_|
@@ -335,26 +333,6 @@ pub enum GlobalModification {
     Fixed(AminoAcid, Modification),
     /// Can be placed on any place where it can fit (according to the placement rules of the modification itself)
     Free(Modification),
-}
-
-fn find_name_in_ontology(code: &str, ontology: &OntologyList) -> Result<Modification, ()> {
-    let code = code.to_ascii_lowercase();
-    for option in ontology {
-        if option.1 == code {
-            return Ok(option.2.clone());
-        }
-    }
-    Err(())
-}
-
-/// Find the given id in the given ontology
-pub fn find_id_in_ontology(id: usize, ontology: &OntologyList) -> Option<Modification> {
-    for option in ontology {
-        if option.0 == id {
-            return Some(option.2.clone());
-        }
-    }
-    None
 }
 
 fn numerical_mod(text: &str) -> Result<Modification, String> {

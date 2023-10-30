@@ -16,7 +16,38 @@ pub struct OntologyModification {
 }
 
 impl OntologyModification {
-    pub fn into_mod(self) -> (usize, String, Modification) {
+    /// Simplify the placement rules
+    pub fn simplify_rules(&mut self) {
+        let mut new = Vec::new();
+        for rule in &self.rules {
+            if new.is_empty() {
+                new.push(rule.clone());
+            } else {
+                let mut found = false;
+                for new_rule in &mut new {
+                    if let (
+                        PlacementRule::AminoAcid(aa, pos),
+                        PlacementRule::AminoAcid(new_aa, new_pos),
+                    ) = (rule, new_rule)
+                    {
+                        if *pos == *new_pos {
+                            new_aa.extend(aa);
+                            new_aa.sort_unstable();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if !found {
+                    new.push(rule.clone());
+                }
+            }
+        }
+        self.rules = new;
+    }
+
+    pub fn into_mod(mut self) -> (usize, String, Modification) {
+        self.simplify_rules();
         (
             self.id,
             self.code_name.to_ascii_lowercase(),

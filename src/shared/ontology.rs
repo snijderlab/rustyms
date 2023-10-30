@@ -9,7 +9,7 @@ pub enum Ontology {
 }
 
 impl Ontology {
-    /// Get the prefix character for the ontology (TODO: the full name is needed when the name is used right, lets make sure the output is always valid pro forma)
+    /// Get the prefix character for the ontology
     #[allow(dead_code)]
     pub const fn char(self) -> char {
         match self {
@@ -19,5 +19,47 @@ impl Ontology {
     }
 }
 
+impl std::fmt::Display for Ontology {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Unimod => "Unimod",
+                Self::Psimod => "PSI-MOD",
+            },
+        )
+    }
+}
+
 /// The shared type for contact between the build and compile steps
-pub(crate) type OntologyList = Vec<(usize, String, Modification)>;
+pub type OntologyList = Vec<(usize, String, Modification)>;
+
+/// Any ontology you can lookup modification in
+pub trait OntologyLookup {
+    /// Find the given name in this ontology
+    fn find_name(&self, code: &str) -> Option<Modification>;
+    /// Find the given id in this ontology
+    fn find_id(&self, id: usize) -> Option<Modification>;
+}
+
+impl OntologyLookup for OntologyList {
+    fn find_name(&self, code: &str) -> Option<Modification> {
+        let code = code.to_ascii_lowercase();
+        for option in self {
+            if option.1 == code {
+                return Some(option.2.clone());
+            }
+        }
+        None
+    }
+
+    fn find_id(&self, id: usize) -> Option<Modification> {
+        for option in self {
+            if option.0 == id {
+                return Some(option.2.clone());
+            }
+        }
+        None
+    }
+}

@@ -1,3 +1,5 @@
+//! Rules regarding the placement of modifications
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,6 +10,7 @@ use crate::{
 include!("shared/placement_rule.rs");
 
 impl PlacementRule {
+    /// Check if this rule fits with the given location
     pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
         match self {
             Self::AminoAcid(aa, r_pos) => {
@@ -41,10 +44,7 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        modification::{self, find_id_in_ontology},
-        ontologies::{psimod_ontology, unimod_ontology},
-    };
+    use crate::ontologies::*;
 
     use super::*;
     #[test]
@@ -66,7 +66,7 @@ mod tests {
             PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Alanine,
-                    modifications: vec![find_id_in_ontology(30, psimod_ontology()).unwrap()],
+                    modifications: vec![psimod_ontology().find_id(30).unwrap()],
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
@@ -119,7 +119,7 @@ mod tests {
             "end"
         );
         assert!(
-            dbg!(modification::find_id_in_ontology(7, unimod_ontology()).unwrap()).is_possible(
+            dbg!(unimod_ontology().find_id(7).unwrap()).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),
