@@ -86,6 +86,8 @@ pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
 /// Get the possible building blocks for sequences based on the given modifications.
 /// Useful for any automated sequence generation, like isobaric set generation or de novo sequencing.
 /// The result is for each location (N term, center, C term) the list of all possible building blocks with its mass, sorted on mass.
+/// # Panics
+/// Panics if any of the modifications does not have a defined mass.
 pub fn building_blocks(
     fixed: &[Modification],
     variable: &[Modification],
@@ -98,7 +100,7 @@ pub fn building_blocks(
                 options.extend(
                     fixed
                         .iter()
-                        .filter(|&m| can_be_placed(m, &SequenceElement::new(*aa, None), 0, 1))
+                        .filter(|&m| can_be_placed(m, &SequenceElement::new(*aa, None), index, 2))
                         .map(|m| SequenceElement {
                             aminoacid: *aa,
                             ambiguous: None,
