@@ -124,10 +124,8 @@ impl ComplexPeptide {
                         &mut ambiguous_lookup,
                     )
                     .map(|m| {
-                        if let ReturnModification::Defined(m) = m {
-                            Ok(m)
-                        } else {
-                            Err(CustomError::error(
+                        m.defined().ok_or_else(|| {
+                            CustomError::error(
                                 "Invalid modification",
                                 "A modification in the sloppy peptide format cannot be ambiguous",
                                 Context::line(
@@ -136,8 +134,8 @@ impl ComplexPeptide {
                                     location.start + index + 1,
                                     end_index - 1 - index,
                                 ),
-                            ))
-                        }
+                            )
+                        })
                     })
                     .flat_err()
                     .map_err(|err| {
@@ -217,15 +215,13 @@ impl ComplexPeptide {
                 let modification =
                     Modification::try_from(line, index + 2..at_index - 2, &mut ambiguous_lookup)
                         .map(|m| {
-                            if let ReturnModification::Defined(m) = m {
-                                Ok(m)
-                            } else {
-                                Err(CustomError::error(
+                            m.defined().ok_or_else(|| {
+                                CustomError::error(
                                     "Invalid global modification",
                                     "A global modification cannot be ambiguous",
                                     Context::line(0, line, index + 2, at_index - index - 4),
-                                ))
-                            }
+                                )
+                            })
                         })
                         .flat_err()?;
                 for aa in line[at_index..end_index].split(',') {
@@ -282,15 +278,13 @@ impl ComplexPeptide {
             unknown_position_modifications = mods
                 .into_iter()
                 .map(|m| {
-                    if let ReturnModification::Defined(def) = m {
-                        Ok(def)
-                    } else {
-                        Err(CustomError::error(
+                    m.defined().ok_or_else(|| {
+                        CustomError::error(
                             "Invalid unknown position modification",
                             "An invalid position modification cannot be ambiguous",
                             Context::full_line(0, line),
-                        ))
-                    }
+                        )
+                    })
                 })
                 .collect::<Result<_, CustomError>>()?;
             ambiguous_lookup.extend(ambiguous_mods);
@@ -308,18 +302,15 @@ impl ComplexPeptide {
 
             peptide.labile.push(
                 Modification::try_from(line, index + 1..end_index, &mut ambiguous_lookup)
-                    .map(|m| {
-                        if let ReturnModification::Defined(m) = m {
-                            Ok(m)
-                        } else {
-                            Err(CustomError::error(
+                    .and_then(|m| {
+                        m.defined().ok_or_else(|| {
+                            CustomError::error(
                                 "Invalid labile modification",
                                 "A labile modification cannot be ambiguous",
                                 Context::line(0, line, index + 1, end_index - 1 - index),
-                            ))
-                        }
-                    })
-                    .flat_err()?,
+                            )
+                        })
+                    })?,
             );
             index = end_index + 1;
         }
@@ -342,15 +333,13 @@ impl ComplexPeptide {
             peptide.n_term = Some(
                 Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup)
                     .map(|m| {
-                        if let ReturnModification::Defined(m) = m {
-                            Ok(m)
-                        } else {
-                            Err(CustomError::error(
+                        m.defined().ok_or_else(|| {
+                            CustomError::error(
                                 "Invalid N terminal modification",
                                 "An N terminal modification cannot be ambiguous",
                                 Context::line(0, line, index + 1, end_index - 2 - index),
-                            ))
-                        }
+                            )
+                        })
                     })
                     .flat_err()?,
             );
@@ -466,15 +455,11 @@ impl ComplexPeptide {
                     index = end_index + 1;
                     if c_term {
                         peptide.c_term =
-                            Some(if let ReturnModification::Defined(m) = modification {
-                                Ok(m)
-                            } else {
-                                Err(CustomError::error(
-                                    "Invalid C terminal modification",
-                                    "A C terminal modification cannot be ambiguous",
-                                    Context::line(0, line, start_index, start_index - index - 1),
-                                ))
-                            }?);
+                            Some(modification.defined().ok_or_else(|| CustomError::error(
+                                "Invalid C terminal modification",
+                                "A C terminal modification cannot be ambiguous",
+                                Context::line(0, line, start_index, start_index - index - 1),
+                            ))?);
                             if index < chars.len() && chars[index] == b'+' {
                                 index+=1; // If a peptide in a multimeric definition contains a C terminal modification
                             }

@@ -5,7 +5,7 @@
 #![allow(clippy::ignored_unit_patterns)]
 use uom::*;
 
-pub use f64::*;
+pub use self::f64::*;
 
 /// The mass quantity in dalton
 #[macro_use]

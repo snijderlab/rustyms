@@ -6,6 +6,8 @@ pub enum Ontology {
     Unimod,
     /// PSI-MOD
     Psimod,
+    /// GNOme
+    Gnome,
 }
 
 impl Ontology {
@@ -15,6 +17,17 @@ impl Ontology {
         match self {
             Self::Unimod => 'U',
             Self::Psimod => 'M',
+            Self::Gnome => 'G',
+        }
+    }
+
+    /// Get the accession number name for the ontology
+    #[allow(dead_code)]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Unimod => "UNIMOD",
+            Self::Psimod => "MOD",
+            Self::Gnome => "GNO",
         }
     }
 }
@@ -27,6 +40,7 @@ impl std::fmt::Display for Ontology {
             match self {
                 Self::Unimod => "Unimod",
                 Self::Psimod => "PSI-MOD",
+                Self::Gnome => "GNOme",
             },
         )
     }

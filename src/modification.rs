@@ -206,7 +206,7 @@ fn parse_single_modification(
                     .map(Some)
                     .map_err(|_| basic_error
                         .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
-                ("gno", tail) => gnome_ontology().find_name(tail)
+                ("gno" | "g", tail) => gnome_ontology().find_name(tail)
                     .map(Some)
                     .ok_or_else(|| basic_error
                         .with_long_description("This modification cannot be read as a GNO name")),
@@ -312,6 +312,17 @@ pub enum ReturnModification {
     Preferred(usize, Option<f64>),
 }
 
+impl ReturnModification {
+    /// Force this modification to be defined
+    #[must_use]
+    pub fn defined(self) -> Option<Modification> {
+        match self {
+            Self::Defined(modification) => Some(modification),
+            _ => None,
+        }
+    }
+}
+
 /// An ambiguous modification which could be placed on any of a set of locations
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbiguousModification {
@@ -362,7 +373,7 @@ impl Display for Modification {
             Self::Predefined(_, _, context, name, _) => {
                 write!(f, "{}:{name}", context.char())?;
             }
-            Self::Gno(_, name) => write!(f, "{name}")?,
+            Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
         }
         Ok(())
     }
