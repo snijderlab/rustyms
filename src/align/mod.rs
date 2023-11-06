@@ -3,6 +3,7 @@
 mod align_type;
 mod alignment;
 mod mass_alignment;
+mod multiple_sequence_alignment;
 mod piece;
 mod scoring;
 

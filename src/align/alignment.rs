@@ -8,7 +8,7 @@ use crate::align::scoring::*;
 use crate::system::Mass;
 use crate::{LinearPeptide, MolecularFormula};
 
-/// An alignment of two reads.
+/// An alignment of two peptides.
 #[derive(Debug, Clone)]
 pub struct Alignment {
     /// The absolute score of this alignment
