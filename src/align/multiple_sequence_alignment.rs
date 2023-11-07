@@ -44,8 +44,52 @@ pub enum MSAPosition {
 impl MultipleSequenceAlignment {
     /// Normalise the alignment by making sure all steps are expanded (no steps that squish any piece)
     /// and that any location that is expanded for every sequence is squished back.
-    fn normalise(&mut self) {
-        todo!();
+    pub(super) fn normalise(&mut self) {
+        fn fix(
+            msa: &mut MultipleSequenceAlignment,
+            search_index: usize,
+            expand: usize,
+            except: usize,
+        ) {
+            for sequence_index in (0..msa.sequences.len()).filter(|i| *i != except) {
+                let mut index = msa.sequences[sequence_index].start;
+                for path_index in 0..msa.sequences[sequence_index].path.len() {
+                    if let MSAPosition::Placed(_, b) =
+                        &mut msa.sequences[sequence_index].path[path_index]
+                    {
+                        if index + *b >= search_index {
+                            *b += expand;
+                            break;
+                        }
+                        index += *b;
+                    } else {
+                        if index + 1 >= search_index {
+                            for _ in 0..expand {
+                                msa.sequences[sequence_index]
+                                    .path
+                                    .insert(path_index, MSAPosition::Gap);
+                            }
+                            break;
+                        }
+                        index += 1;
+                    }
+                }
+            }
+        }
+
+        for sequence_index in 0..self.sequences.len() {
+            let mut index = self.sequences[sequence_index].start;
+            for path_index in 0..self.sequences[sequence_index].path.len() {
+                if let MSAPosition::Placed(a, b) = self.sequences[sequence_index].path[path_index] {
+                    if a > b {
+                        fix(self, index, a - b, sequence_index);
+                    }
+                    index += b;
+                } else {
+                    index += 1;
+                }
+            }
+        }
     }
 
     /// If this multiple sequence alignment consists of only a single pair, create a pairwise mass alignment struct.

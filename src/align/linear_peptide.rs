@@ -9,11 +9,17 @@ use super::{
 
 impl MassAlignable for LinearPeptide {
     // TODO: any location can have multiple masses, so ambiguous modifications and ambiguous amino acids can be taken into account right?
-    fn index(&self, index: usize) -> Cow<'_, [SequenceElement]> {
-        Cow::from(vec![self.sequence[index].clone()])
+    fn index(&self, index: usize, sequence_index: usize) -> &SequenceElement {
+        debug_assert!(sequence_index == 0);
+        &self.sequence[index]
     }
-    fn index_slice(&self, index: Range<usize>) -> Cow<'_, [Cow<'_, [SequenceElement]>]> {
-        Cow::from(vec![Cow::from(&self.sequence[index])])
+    fn index_slice(
+        &self,
+        index: Range<usize>,
+        sequence_index: usize,
+    ) -> Cow<'_, [SequenceElement]> {
+        debug_assert!(sequence_index == 0);
+        Cow::from(&self.sequence[index])
     }
     fn total_length(&self) -> usize {
         self.sequence.len()

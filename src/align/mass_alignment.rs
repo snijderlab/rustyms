@@ -16,9 +16,13 @@ pub trait MassAlignable {
     const SWITCHED: i8 = 3;
 
     /// Index the underlying structure on one location
-    fn index(&self, index: usize) -> Cow<'_, [SequenceElement]>;
+    fn index(&self, index: usize, sequence_index: usize) -> &SequenceElement;
     /// Get a slice of the underlying structure
-    fn index_slice(&self, index: std::ops::Range<usize>) -> Cow<[Cow<[SequenceElement]>]>;
+    fn index_slice(
+        &self,
+        index: std::ops::Range<usize>,
+        sequence_index: usize,
+    ) -> Cow<[SequenceElement]>;
 
     /// Total length of the structure (number of AA for single, length from start to end for multiple)
     fn total_length(&self) -> usize;
@@ -143,9 +147,9 @@ pub trait MassAlignable {
                                     masses_a[sequence_index_a][index_a][0].and_then(|mass_a| {
                                         masses_b[sequence_index_b][index_b][0].map(|mass_b| {
                                             Self::score_pair(
-                                                &seq_a.index(index_a)[sequence_index_a],
+                                                seq_a.index(index_a, sequence_index_a),
                                                 mass_a,
-                                                &seq_b.index(index_b)[sequence_index_b],
+                                                seq_b.index(index_b, sequence_index_b),
                                                 mass_b,
                                                 alphabet,
                                                 base_score,
@@ -159,13 +163,15 @@ pub trait MassAlignable {
                                             masses_b[sequence_index_b][index_a][len_b - 1].and_then(
                                                 |mass_b| {
                                                     Self::score(
-                                                        &seq_a
-                                                            .index_slice(index_a - len_a..index_a)
-                                                            [sequence_index_a],
+                                                        &seq_a.index_slice(
+                                                            index_a - len_a..index_a,
+                                                            sequence_index_a,
+                                                        ),
                                                         mass_a,
-                                                        &seq_b
-                                                            .index_slice(index_b - len_b..index_b)
-                                                            [sequence_index_a],
+                                                        &seq_b.index_slice(
+                                                            index_b - len_b..index_b,
+                                                            sequence_index_b,
+                                                        ),
                                                         mass_b,
                                                         base_score,
                                                         tolerance,
@@ -239,7 +245,9 @@ pub trait MassAlignable {
         let path: Vec<Piece> = path.into_iter().rev().collect();
         let mut sequences = seq_a.sequences_with_path(true, target.1, &path);
         sequences.extend(seq_b.sequences_with_path(false, target.2, &path));
-        MultipleSequenceAlignment { sequences, ty }
+        let mut msa = MultipleSequenceAlignment { sequences, ty };
+        msa.normalise();
+        msa
     }
 
     fn score_pair(
