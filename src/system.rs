@@ -142,6 +142,6 @@ impl MassOverCharge {
 impl Mass {
     /// Absolute ppm error between this number and the given other
     pub fn ppm(self, b: Self) -> f64 {
-        ((self - b).abs() / self).value * 1e6
+        ((self - b).abs() / self.abs()).value * 1e6
     }
 }
