@@ -2,6 +2,7 @@ use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use crate::{
     modification::Modification,
+    placement_rule::PlacementRule,
     system::{da, r, Mass, Ratio},
     AminoAcid, LinearPeptide, SequenceElement,
 };
@@ -89,9 +90,26 @@ pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
 /// # Panics
 /// Panics if any of the modifications does not have a defined mass.
 pub fn building_blocks(
-    fixed: &[Modification],
-    variable: &[Modification],
+    fixed: &[(Modification, Option<PlacementRule>)],
+    variable: &[(Modification, Option<PlacementRule>)],
 ) -> (BuildingBlocks, BuildingBlocks, BuildingBlocks) {
+    /// Enforce the placement rules of predefined modifications.
+    fn can_be_placed(
+        modification: &Modification,
+        seq: &SequenceElement,
+        index: usize,
+        length: usize,
+    ) -> bool {
+        if let Modification::Predefined(_, rules, _, _, _) = modification {
+            rules.is_empty()
+                || rules
+                    .iter()
+                    .any(|rule| rule.is_possible(seq, index, length))
+        } else {
+            true
+        }
+    }
+
     let generate = |index| {
         let mut options: Vec<(SequenceElement, Mass)> = AA
             .iter()
@@ -100,11 +118,16 @@ pub fn building_blocks(
                 options.extend(
                     fixed
                         .iter()
-                        .filter(|&m| can_be_placed(m, &SequenceElement::new(*aa, None), index, 2))
+                        .filter(|&m| {
+                            m.1.as_ref().map_or_else(
+                                || can_be_placed(&m.0, &SequenceElement::new(*aa, None), index, 2),
+                                |rule| rule.is_possible(&SequenceElement::new(*aa, None), index, 2),
+                            )
+                        })
                         .map(|m| SequenceElement {
                             aminoacid: *aa,
                             ambiguous: None,
-                            modifications: vec![m.clone()],
+                            modifications: vec![m.0.clone()],
                             possible_modifications: Vec::new(),
                         }),
                 );
@@ -119,10 +142,15 @@ pub fn building_blocks(
                 options.extend(
                     variable
                         .iter()
-                        .filter(|&m| can_be_placed(m, &seq, index, 2))
+                        .filter(|&m| {
+                            m.1.as_ref().map_or_else(
+                                || can_be_placed(&m.0, &seq, index, 2),
+                                |rule| rule.is_possible(&seq, index, 2),
+                            )
+                        })
                         .map(|m| {
                             let mut modifications = seq.modifications.clone();
-                            modifications.push(m.clone());
+                            modifications.push(m.0.clone());
                             SequenceElement {
                                 aminoacid: seq.aminoacid,
                                 ambiguous: None,
@@ -156,8 +184,8 @@ pub fn building_blocks(
 pub fn find_isobaric_sets(
     mass: Mass,
     tolerance: MassTolerance,
-    fixed: &[Modification],
-    variable: &[Modification],
+    fixed: &[(Modification, Option<PlacementRule>)],
+    variable: &[(Modification, Option<PlacementRule>)],
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
     let (n_term, center, c_term) = building_blocks(fixed, variable);
@@ -315,23 +343,6 @@ impl Iterator for IsobaricSetIterator {
             }
         }
         None
-    }
-}
-
-/// Enforce the placement rules of predefined modifications.
-fn can_be_placed(
-    modification: &Modification,
-    seq: &SequenceElement,
-    index: usize,
-    length: usize,
-) -> bool {
-    if let Modification::Predefined(_, rules, _, _, _) = modification {
-        rules.is_empty()
-            || rules
-                .iter()
-                .any(|rule| rule.is_possible(seq, index, length))
-    } else {
-        true
     }
 }
 
