@@ -1,10 +1,12 @@
 use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
+use itertools::Itertools;
+
 use crate::{
     modification::Modification,
-    placement_rule::PlacementRule,
+    placement_rule::{PlacementRule, Position},
     system::{da, r, Mass, Ratio},
-    AminoAcid, LinearPeptide, SequenceElement,
+    AminoAcid, Chemical, LinearPeptide, SequenceElement,
 };
 
 /// A tolerance around a given mass for searching purposes
@@ -187,16 +189,109 @@ pub fn find_isobaric_sets(
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
 ) -> IsobaricSetIterator {
+    fn n_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+        match rule {
+            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => {
+                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
+            }
+            PlacementRule::Terminal(Position::AnyNTerm | Position::ProteinNTerm) => {
+                AA.iter().copied().collect_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+    fn c_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+        match rule {
+            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => {
+                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
+            }
+            PlacementRule::Terminal(Position::AnyCTerm | Position::ProteinCTerm) => {
+                AA.iter().copied().collect_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+
     let bounds = tolerance.bounds(mass);
-    let (n_term, center, c_term) = building_blocks(fixed, variable);
+    let (_, center, _) = building_blocks(fixed, variable);
+    let n_term = fixed
+        .iter()
+        .chain(variable.iter())
+        .flat_map(|(modification, rule)| {
+            rule.as_ref().map_or_else(
+                || {
+                    if let Modification::Predefined(_, rules, _, _, _) = modification {
+                        rules
+                            .iter()
+                            .flat_map(n_term_options)
+                            .unique()
+                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                            .collect_vec()
+                    } else {
+                        Vec::new()
+                    }
+                },
+                |rule| {
+                    n_term_options(rule)
+                        .into_iter()
+                        .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                        .collect_vec()
+                },
+            )
+        })
+        .map(|(a, m)| {
+            let mass = a
+                .formula_all()
+                .unwrap()
+                .monoisotopic_mass()
+                .unwrap_or_default()
+                + m.formula().monoisotopic_mass().unwrap_or_default();
+            (a, m, mass)
+        })
+        .collect_vec();
+    let c_term = fixed
+        .iter()
+        .chain(variable.iter())
+        .flat_map(|(modification, rule)| {
+            rule.as_ref().map_or_else(
+                || {
+                    if let Modification::Predefined(_, rules, _, _, _) = modification {
+                        rules
+                            .iter()
+                            .flat_map(c_term_options)
+                            .unique()
+                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                            .collect_vec()
+                    } else {
+                        Vec::new()
+                    }
+                },
+                |rule| {
+                    c_term_options(rule)
+                        .into_iter()
+                        .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                        .collect_vec()
+                },
+            )
+        })
+        .map(|(a, m)| {
+            let mass = a
+                .formula_all()
+                .unwrap()
+                .monoisotopic_mass()
+                .unwrap_or_default()
+                + m.formula().monoisotopic_mass().unwrap_or_default();
+            (a, m, mass)
+        })
+        .collect_vec();
     IsobaricSetIterator::new(n_term, c_term, center, bounds)
 }
 
 /// Iteratively generate isobaric sets based on the given settings.
 #[derive(Debug)]
 pub struct IsobaricSetIterator {
-    n_term: Vec<(SequenceElement, Mass)>,
-    c_term: Vec<(SequenceElement, Mass)>,
+    n_term: Vec<(SequenceElement, Modification, Mass)>,
+    c_term: Vec<(SequenceElement, Modification, Mass)>,
     center: Vec<(SequenceElement, Mass)>,
     sizes: (Mass, Mass),
     bounds: (Mass, Mass),
@@ -204,9 +299,10 @@ pub struct IsobaricSetIterator {
 }
 
 impl IsobaricSetIterator {
+    /// `n_term` & `c_term` are the possible combinations of terminal modifications with their valid placements and the full mass of this combo
     fn new(
-        n_term: Vec<(SequenceElement, Mass)>,
-        c_term: Vec<(SequenceElement, Mass)>,
+        n_term: Vec<(SequenceElement, Modification, Mass)>,
+        c_term: Vec<(SequenceElement, Modification, Mass)>,
         center: Vec<(SequenceElement, Mass)>,
         bounds: (Mass, Mass),
     ) -> Self {
@@ -226,17 +322,15 @@ impl IsobaricSetIterator {
     }
 
     fn current_mass(&self) -> Mass {
-        let mass = self.state.0.map(|i| self.n_term[i].1).unwrap_or_default()
-            + self.state.1.map(|i| self.c_term[i].1).unwrap_or_default()
+        self.state.0.map(|i| self.n_term[i].2).unwrap_or_default()
+            + self.state.1.map(|i| self.c_term[i].2).unwrap_or_default()
             + self
                 .state
                 .2
                 .iter()
                 .copied()
                 .map(|i| self.center[i].1)
-                .sum::<Mass>();
-        //println!("{}\t{}", mass.value, self.peptide());
-        mass
+                .sum::<Mass>()
     }
 
     fn mass_fits(&self) -> Ordering {
@@ -272,11 +366,19 @@ impl IsobaricSetIterator {
         LinearPeptide {
             global: Vec::new(),
             labile: Vec::new(),
-            n_term: None,
-            c_term: None,
+            n_term: self.state.0.map(|i| self.n_term[i].1.clone()),
+            c_term: self.state.1.map(|i| self.c_term[i].1.clone()),
             sequence,
             ambiguous_modifications: Vec::new(),
             charge_carriers: None,
+        }
+    }
+
+    /// Reset the state for the center selection
+    fn reset_center_state(&mut self) {
+        self.state.2.clear();
+        while self.current_mass() < self.bounds.0 - self.sizes.0 {
+            self.state.2.push(0);
         }
     }
 }
@@ -284,63 +386,95 @@ impl IsobaricSetIterator {
 impl Iterator for IsobaricSetIterator {
     type Item = LinearPeptide;
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: no check is done for the N and C terminal options
-        while !self.state.2.is_empty() {
-            // Do state + 1 at the highest level where this is still possible and check if that one fits the bounds
-            // Until every level is full then pop and try with one fewer number of aminoacids
-            while !self.state.2.iter().all(|s| *s == self.center.len() - 1) {
-                let mut level = self.state.2.len() - 1;
-                loop {
-                    if self.state.2[level] == self.center.len() - 1 {
-                        if level == 0 {
-                            break;
-                        }
-                        level -= 1;
-                    } else {
-                        // Update this level
-                        self.state.2[level] += 1;
-                        // Reset the levels above, has to start at minimal at the index of this level to prevent 'rotations' of the set to show up
-                        for l in level + 1..self.state.2.len() {
-                            self.state.2[l] = self.state.2[level];
-                        }
-                        match self.mass_fits() {
-                            Ordering::Greater => {
-                                // If the mass is too great the level below will have the be changed, otherwise it could only be getting heavier with the next iteration(s)
+        loop {
+            // N terminal loop
+            loop {
+                // C terminal loop
+
+                // Main loop
+                while !self.state.2.is_empty() {
+                    // Do state + 1 at the highest level where this is still possible and check if that one fits the bounds
+                    // Until every level is full then pop and try with one fewer number of aminoacids
+                    while !self.state.2.iter().all(|s| *s == self.center.len() - 1) {
+                        let mut level = self.state.2.len() - 1;
+                        loop {
+                            if self.state.2[level] == self.center.len() - 1 {
                                 if level == 0 {
                                     break;
                                 }
                                 level -= 1;
-                            }
-                            Ordering::Equal => {
-                                return Some(self.peptide());
-                            }
-                            Ordering::Less => {
-                                // If there a way to reach at least the lower limit by having all the heaviest options selected try and reach them.
-                                // Otherwise this will increase this level again next iteration.
-                                if self.state.2[0..level]
-                                    .iter()
-                                    .map(|i| self.center[*i].1)
-                                    .sum::<Mass>()
-                                    + Ratio::new::<r>((self.state.2.len() - level) as f64)
-                                        * self.sizes.1
-                                    > self.bounds.0
-                                {
-                                    level = self.state.2.len() - 1;
+                            } else {
+                                // Update this level
+                                self.state.2[level] += 1;
+                                // Reset the levels above, has to start at minimal at the index of this level to prevent 'rotations' of the set to show up
+                                for l in level + 1..self.state.2.len() {
+                                    self.state.2[l] = self.state.2[level];
+                                }
+                                match self.mass_fits() {
+                                    Ordering::Greater => {
+                                        // If the mass is too great the level below will have the be changed, otherwise it could only be getting heavier with the next iteration(s)
+                                        if level == 0 {
+                                            break;
+                                        }
+                                        level -= 1;
+                                    }
+                                    Ordering::Equal => {
+                                        return Some(self.peptide());
+                                    }
+                                    Ordering::Less => {
+                                        // If there a way to reach at least the lower limit by having all the heaviest options selected try and reach them.
+                                        // Otherwise this will increase this level again next iteration.
+                                        if self.state.2[0..level]
+                                            .iter()
+                                            .map(|i| self.center[*i].1)
+                                            .sum::<Mass>()
+                                            + Ratio::new::<r>((self.state.2.len() - level) as f64)
+                                                * self.sizes.1
+                                            > self.bounds.0
+                                        {
+                                            level = self.state.2.len() - 1;
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                    self.state.2.pop();
+                    // Stop the search when there is no possibility for a fitting answer
+                    if self.sizes.1 * Ratio::new::<r>(self.state.2.len() as f64) < self.bounds.0 {
+                        break;
+                    }
+                    // Reset the levels to be all 0s again
+                    for level in 0..self.state.2.len() {
+                        self.state.2[level] = 0;
+                    }
                 }
+
+                // Try the next C terminal option
+                if let Some(c) = self.state.1 {
+                    if c + 1 >= self.c_term.len() {
+                        break;
+                    }
+                    self.state.1 = Some(c + 1);
+                } else if self.c_term.is_empty() {
+                    break;
+                } else {
+                    self.state.1 = Some(0);
+                }
+                self.reset_center_state();
             }
-            self.state.2.pop();
-            // Stop the search when there is no possibility for a fitting answer
-            if self.sizes.1 * Ratio::new::<r>(self.state.2.len() as f64) < self.bounds.0 {
-                return None;
+            // Try the next N terminal option
+            if let Some(n) = self.state.0 {
+                if n + 1 >= self.n_term.len() {
+                    break;
+                }
+                self.state.0 = Some(n + 1);
+            } else if self.n_term.is_empty() {
+                break;
+            } else {
+                self.state.0 = Some(0);
             }
-            // Reset the levels to be all 0s again
-            for level in 0..self.state.2.len() {
-                self.state.2[level] = 0;
-            }
+            self.reset_center_state();
         }
         None
     }
