@@ -86,6 +86,8 @@ impl TryFrom<&str> for MassTolerance {
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
 pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
+/// A list of all combinations of terminal modifications and their accompanying amino acid
+pub type TerminalBuildingBlocks = Vec<(SequenceElement, Modification, Mass)>;
 /// Get the possible building blocks for sequences based on the given modifications.
 /// Useful for any automated sequence generation, like isobaric set generation or de novo sequencing.
 /// The result is for each location (N term, center, C term) the list of all possible building blocks with its mass, sorted on mass.
@@ -94,7 +96,11 @@ pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
 pub fn building_blocks(
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
-) -> (BuildingBlocks, BuildingBlocks, BuildingBlocks) {
+) -> (
+    TerminalBuildingBlocks,
+    BuildingBlocks,
+    TerminalBuildingBlocks,
+) {
     /// Enforce the placement rules of predefined modifications.
     fn can_be_placed(
         modification: &Modification,
@@ -110,6 +116,71 @@ pub fn building_blocks(
         } else {
             true
         }
+    }
+    fn n_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+        match rule {
+            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => {
+                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
+            }
+            PlacementRule::Terminal(Position::AnyNTerm | Position::ProteinNTerm) => {
+                AA.iter().copied().collect_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+    fn c_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+        match rule {
+            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => {
+                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
+            }
+            PlacementRule::Terminal(Position::AnyCTerm | Position::ProteinCTerm) => {
+                AA.iter().copied().collect_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+    fn generate_terminal(
+        position: &impl Fn(&PlacementRule) -> Vec<AminoAcid>,
+        fixed: &[(Modification, Option<PlacementRule>)],
+        variable: &[(Modification, Option<PlacementRule>)],
+    ) -> TerminalBuildingBlocks {
+        let mut options = fixed
+            .iter()
+            .chain(variable.iter())
+            .flat_map(|(modification, rule)| {
+                rule.as_ref().map_or_else(
+                    || {
+                        if let Modification::Predefined(_, rules, _, _, _) = modification {
+                            rules
+                                .iter()
+                                .flat_map(position)
+                                .unique()
+                                .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                                .collect_vec()
+                        } else {
+                            Vec::new()
+                        }
+                    },
+                    |rule| {
+                        position(rule)
+                            .into_iter()
+                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                            .collect_vec()
+                    },
+                )
+            })
+            .map(|(a, m)| {
+                let mass = a
+                    .formula_all()
+                    .unwrap()
+                    .monoisotopic_mass()
+                    .unwrap_or_default()
+                    + m.formula().monoisotopic_mass().unwrap_or_default();
+                (a, m, mass)
+            })
+            .collect_vec();
+        options.sort_unstable_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        options
     }
 
     let generate = |index| {
@@ -175,7 +246,11 @@ pub fn building_blocks(
     };
 
     // Create the building blocks
-    (generate(0), generate(1), generate(2))
+    (
+        generate_terminal(&n_term_options, fixed, variable),
+        generate(1),
+        generate_terminal(&c_term_options, fixed, variable),
+    )
 }
 
 /// Find the isobaric sets for the given mass with the given modifications and ppm error.
@@ -189,101 +264,9 @@ pub fn find_isobaric_sets(
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
 ) -> IsobaricSetIterator {
-    fn n_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
-        match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => {
-                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
-            }
-            PlacementRule::Terminal(Position::AnyNTerm | Position::ProteinNTerm) => {
-                AA.iter().copied().collect_vec()
-            }
-            _ => Vec::new(),
-        }
-    }
-    fn c_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
-        match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => {
-                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
-            }
-            PlacementRule::Terminal(Position::AnyCTerm | Position::ProteinCTerm) => {
-                AA.iter().copied().collect_vec()
-            }
-            _ => Vec::new(),
-        }
-    }
-
     let bounds = tolerance.bounds(mass);
-    let (_, center, _) = building_blocks(fixed, variable);
-    let n_term = fixed
-        .iter()
-        .chain(variable.iter())
-        .flat_map(|(modification, rule)| {
-            rule.as_ref().map_or_else(
-                || {
-                    if let Modification::Predefined(_, rules, _, _, _) = modification {
-                        rules
-                            .iter()
-                            .flat_map(n_term_options)
-                            .unique()
-                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
-                            .collect_vec()
-                    } else {
-                        Vec::new()
-                    }
-                },
-                |rule| {
-                    n_term_options(rule)
-                        .into_iter()
-                        .map(|a| (SequenceElement::new(a, None), modification.clone()))
-                        .collect_vec()
-                },
-            )
-        })
-        .map(|(a, m)| {
-            let mass = a
-                .formula_all()
-                .unwrap()
-                .monoisotopic_mass()
-                .unwrap_or_default()
-                + m.formula().monoisotopic_mass().unwrap_or_default();
-            (a, m, mass)
-        })
-        .collect_vec();
-    let c_term = fixed
-        .iter()
-        .chain(variable.iter())
-        .flat_map(|(modification, rule)| {
-            rule.as_ref().map_or_else(
-                || {
-                    if let Modification::Predefined(_, rules, _, _, _) = modification {
-                        rules
-                            .iter()
-                            .flat_map(c_term_options)
-                            .unique()
-                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
-                            .collect_vec()
-                    } else {
-                        Vec::new()
-                    }
-                },
-                |rule| {
-                    c_term_options(rule)
-                        .into_iter()
-                        .map(|a| (SequenceElement::new(a, None), modification.clone()))
-                        .collect_vec()
-                },
-            )
-        })
-        .map(|(a, m)| {
-            let mass = a
-                .formula_all()
-                .unwrap()
-                .monoisotopic_mass()
-                .unwrap_or_default()
-                + m.formula().monoisotopic_mass().unwrap_or_default();
-            (a, m, mass)
-        })
-        .collect_vec();
+    let (n_term, center, c_term) = building_blocks(fixed, variable);
+
     IsobaricSetIterator::new(n_term, c_term, center, bounds)
 }
 
