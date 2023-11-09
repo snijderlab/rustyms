@@ -94,6 +94,7 @@ pub type TerminalBuildingBlocks = Vec<(SequenceElement, Modification, Mass)>;
 /// # Panics
 /// Panics if any of the modifications does not have a defined mass.
 pub fn building_blocks(
+    aminoacids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
 ) -> (
@@ -117,24 +118,28 @@ pub fn building_blocks(
             true
         }
     }
-    fn n_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+    fn n_term_options(aminoacids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
         match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => {
-                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
-            }
+            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => aminoacids
+                .iter()
+                .filter(|a| aa.contains(a))
+                .copied()
+                .collect_vec(),
             PlacementRule::Terminal(Position::AnyNTerm | Position::ProteinNTerm) => {
-                AA.iter().copied().collect_vec()
+                aminoacids.iter().copied().collect_vec()
             }
             _ => Vec::new(),
         }
     }
-    fn c_term_options(rule: &PlacementRule) -> Vec<AminoAcid> {
+    fn c_term_options(aminoacids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
         match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => {
-                AA.iter().filter(|a| aa.contains(a)).copied().collect_vec()
-            }
+            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => aminoacids
+                .iter()
+                .filter(|a| aa.contains(a))
+                .copied()
+                .collect_vec(),
             PlacementRule::Terminal(Position::AnyCTerm | Position::ProteinCTerm) => {
-                AA.iter().copied().collect_vec()
+                aminoacids.iter().copied().collect_vec()
             }
             _ => Vec::new(),
         }
@@ -184,7 +189,7 @@ pub fn building_blocks(
     }
 
     let generate = |index| {
-        let mut options: Vec<(SequenceElement, Mass)> = AA
+        let mut options: Vec<(SequenceElement, Mass)> = aminoacids
             .iter()
             .flat_map(|aa| {
                 let mut options = Vec::new();
@@ -247,9 +252,9 @@ pub fn building_blocks(
 
     // Create the building blocks
     (
-        generate_terminal(&n_term_options, fixed, variable),
+        generate_terminal(&|rule| n_term_options(aminoacids, rule), fixed, variable),
         generate(1),
-        generate_terminal(&c_term_options, fixed, variable),
+        generate_terminal(&|rule| c_term_options(aminoacids, rule), fixed, variable),
     )
 }
 
@@ -257,17 +262,25 @@ pub fn building_blocks(
 /// The modifications are placed on any location they are allowed based on the given placement
 /// rules, so using any modifications which provide those is advised.
 /// # Panics
-/// Panics if any of the modifications does not have a defined mass.
+/// Panics if any of the modifications does not have a defined mass. Or if the weight of the
+/// base selection is already in the tolerance of the given mass.
 pub fn find_isobaric_sets(
     mass: Mass,
     tolerance: MassTolerance,
+    aminoacids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
+    base: Option<&LinearPeptide>,
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
-    let (n_term, center, c_term) = building_blocks(fixed, variable);
+    let base_mass = base
+        .and_then(|b| b.formula().and_then(|b| b.monoisotopic_mass()))
+        .unwrap_or_default();
+    let bounds = (bounds.0 - base_mass, bounds.1 - base_mass);
+    assert!(bounds.0.value > 0.0, "Cannot have a base selection that has a weight within the tolerance of the intended final mass for isobaric search.");
+    let (n_term, center, c_term) = building_blocks(aminoacids, fixed, variable);
 
-    IsobaricSetIterator::new(n_term, c_term, center, bounds)
+    IsobaricSetIterator::new(n_term, c_term, center, bounds, base)
 }
 
 /// Iteratively generate isobaric sets based on the given settings.
@@ -279,6 +292,7 @@ pub struct IsobaricSetIterator {
     sizes: (Mass, Mass),
     bounds: (Mass, Mass),
     state: (Option<usize>, Option<usize>, Vec<usize>),
+    base: Option<LinearPeptide>,
 }
 
 impl IsobaricSetIterator {
@@ -288,6 +302,7 @@ impl IsobaricSetIterator {
         c_term: Vec<(SequenceElement, Modification, Mass)>,
         center: Vec<(SequenceElement, Mass)>,
         bounds: (Mass, Mass),
+        base: Option<&LinearPeptide>,
     ) -> Self {
         let sizes = (center.first().unwrap().1, center.last().unwrap().1);
         let mut iter = Self {
@@ -297,6 +312,7 @@ impl IsobaricSetIterator {
             sizes,
             bounds,
             state: (None, None, Vec::new()),
+            base: base.cloned(),
         };
         while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
             iter.state.2.push(0);
@@ -439,7 +455,14 @@ impl Iterator for IsobaricSetIterator {
                         break;
                     }
                     self.state.1 = Some(c + 1);
-                } else if self.c_term.is_empty() {
+                } else if self.c_term.is_empty()
+                    || self
+                        .base
+                        .as_ref()
+                        .map(|b| b.c_term.is_some())
+                        .unwrap_or_default()
+                {
+                    // If the base piece has a defined C term mod do not try possible C term mods in the isobaric generation
                     break;
                 } else {
                     self.state.1 = Some(0);
@@ -452,10 +475,17 @@ impl Iterator for IsobaricSetIterator {
                     break;
                 }
                 self.state.0 = Some(n + 1);
-            } else if self.n_term.is_empty() {
+            } else if self.n_term.is_empty()
+                || self
+                    .base
+                    .as_ref()
+                    .map(|b| b.n_term.is_some())
+                    .unwrap_or_default()
+            {
+                // If the base piece has a defined N term mod do not try possible N term mods in the isobaric generation
                 break;
             } else {
-                self.state.0 = Some(0);
+                self.state.1 = Some(0);
             }
             self.reset_center_state();
         }
@@ -463,7 +493,8 @@ impl Iterator for IsobaricSetIterator {
     }
 }
 
-const AA: &[AminoAcid] = &[
+/// All amino acids with a unique mass (no I/L in favour of J, no B, no Z, and no X)
+pub const UNIQUE_MASS_AMINOACIDS: &[AminoAcid] = &[
     AminoAcid::Glycine,
     AminoAcid::Alanine,
     AminoAcid::Arginine,
@@ -498,8 +529,10 @@ mod tests {
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
             MassTolerance::Ppm(10.0),
+            UNIQUE_MASS_AMINOACIDS,
             &[],
             &[],
+            None,
         )
         .collect();
         assert_eq!(
