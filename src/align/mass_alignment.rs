@@ -8,12 +8,13 @@ use crate::{
 use super::{align_type::*, multiple_sequence_alignment::MSAPlacement, piece::*, scoring::*};
 
 pub trait MassAlignable {
-    const GAP_EXTEND: i8 = -5;
-    const GAP_START: i8 = -1;
+    const GAP_EXTEND: i8 = -1;
+    const GAP_START: i8 = -5;
     const MASS_MISMATCH: i8 = -1;
     const ISOMASS: i8 = 2;
     const MISMATCH: i8 = -1;
     const SWITCHED: i8 = 3;
+    const IDENTITY: i8 = 0;
 
     /// Index the underlying structure on one location
     fn index(&self, index: usize, sequence_index: usize) -> &SequenceElement;
@@ -124,8 +125,7 @@ pub trait MassAlignable {
                                 {
                                     continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                                 }
-                                let base_score =
-                                    matrix[index_a - len_a + 1][index_b - len_b + 1].score;
+                                let base_score = matrix[index_a - len_a][index_b - len_b].score;
                                 let piece = if len_a == 0 || len_b == 0 {
                                     // First check the score to be used for affine gaps
                                     let prev = &matrix[index_a - len_a + 1][index_b - len_b + 1];
@@ -242,9 +242,12 @@ pub trait MassAlignable {
             path.push(value);
         }
 
-        let path: Vec<Piece> = path.into_iter().rev().collect();
-        let mut sequences = seq_a.sequences_with_path(true, target.1, &path);
-        sequences.extend(seq_b.sequences_with_path(false, target.2, &path));
+        let path: Vec<Piece> = dbg!(path.into_iter().rev().collect());
+        dbg!(target);
+        // dbg!(matrix);
+        let mut sequences = seq_a.sequences_with_path(true, target.1 - 1, &path);
+        sequences.extend(seq_b.sequences_with_path(false, target.2 - 1, &path));
+        dbg!(&sequences);
         let mut msa = MultipleSequenceAlignment { sequences, ty };
         msa.normalise();
         msa
@@ -261,7 +264,7 @@ pub trait MassAlignable {
     ) -> Piece {
         match (a == b, tolerance.within(mass_a, mass_b)) {
             (true, true) => {
-                let local = alphabet[a.aminoacid as usize][b.aminoacid as usize];
+                let local = Self::IDENTITY + alphabet[a.aminoacid as usize][b.aminoacid as usize];
                 Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
             }
             (true, false) => {

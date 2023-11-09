@@ -31,7 +31,7 @@ impl MassAlignable for LinearPeptide {
         vec![(0, self.sequence.len())]
     }
     fn calculate_masses<const STEPS: usize>(&self) -> Vec<Vec<Vec<Option<Mass>>>> {
-        vec![(0..=self.sequence.len())
+        vec![(1..=self.sequence.len())
             .map(|index| {
                 (1..=STEPS)
                     .map(|size| {
@@ -68,12 +68,15 @@ impl MassAlignable for LinearPeptide {
                         if piece.step_a == 0 {
                             MSAPosition::Gap
                         } else {
-                            MSAPosition::Placed(piece.step_a as usize, piece.step_b as usize)
+                            MSAPosition::Placed(
+                                piece.step_a as usize,
+                                (piece.step_b as usize).min(1),
+                            )
                         }
                     } else if piece.step_b == 0 {
                         MSAPosition::Gap
                     } else {
-                        MSAPosition::Placed(piece.step_b as usize, piece.step_a as usize)
+                        MSAPosition::Placed(piece.step_b as usize, (piece.step_a as usize).min(1))
                     }
                 })
                 .collect(),
