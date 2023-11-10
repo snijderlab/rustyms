@@ -368,7 +368,9 @@ impl IsobaricSetIterator {
             sequence.push(n.0);
         }
         if let Some(base) = &self.base {
-            sequence.extend(base.sequence.iter().cloned());
+            let n = usize::from(base.n_term.is_some());
+            let c = usize::from(base.c_term.is_some());
+            sequence.extend(base.sequence[n..base.len() - n - c].iter().cloned());
         }
         sequence.extend(
             self.state
@@ -397,7 +399,7 @@ impl IsobaricSetIterator {
             c_term: self
                 .base
                 .as_ref()
-                .and_then(|b| b.n_term.clone())
+                .and_then(|b| b.c_term.clone())
                 .or_else(|| self.state.1.map(|i| self.c_term[i].1.clone())),
             sequence,
             ambiguous_modifications: Vec::new(),
