@@ -94,7 +94,7 @@ pub type TerminalBuildingBlocks = Vec<(SequenceElement, Modification, Mass)>;
 /// # Panics
 /// Panics if any of the modifications does not have a defined mass.
 pub fn building_blocks(
-    aminoacids: &[AminoAcid],
+    amino_acids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
 ) -> (
@@ -118,28 +118,32 @@ pub fn building_blocks(
             true
         }
     }
-    fn n_term_options(aminoacids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
+    fn n_term_options(amino_acids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
         match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => aminoacids
-                .iter()
-                .filter(|a| aa.contains(a))
-                .copied()
-                .collect_vec(),
+            PlacementRule::AminoAcid(aa, Position::AnyNTerm | Position::ProteinNTerm) => {
+                amino_acids
+                    .iter()
+                    .filter(|a| aa.contains(a))
+                    .copied()
+                    .collect_vec()
+            }
             PlacementRule::Terminal(Position::AnyNTerm | Position::ProteinNTerm) => {
-                aminoacids.iter().copied().collect_vec()
+                amino_acids.iter().copied().collect_vec()
             }
             _ => Vec::new(),
         }
     }
-    fn c_term_options(aminoacids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
+    fn c_term_options(amino_acids: &[AminoAcid], rule: &PlacementRule) -> Vec<AminoAcid> {
         match rule {
-            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => aminoacids
-                .iter()
-                .filter(|a| aa.contains(a))
-                .copied()
-                .collect_vec(),
+            PlacementRule::AminoAcid(aa, Position::AnyCTerm | Position::ProteinCTerm) => {
+                amino_acids
+                    .iter()
+                    .filter(|a| aa.contains(a))
+                    .copied()
+                    .collect_vec()
+            }
             PlacementRule::Terminal(Position::AnyCTerm | Position::ProteinCTerm) => {
-                aminoacids.iter().copied().collect_vec()
+                amino_acids.iter().copied().collect_vec()
             }
             _ => Vec::new(),
         }
@@ -189,7 +193,7 @@ pub fn building_blocks(
     }
 
     let generate = |index| {
-        let mut options: Vec<(SequenceElement, Mass)> = aminoacids
+        let mut options: Vec<(SequenceElement, Mass)> = amino_acids
             .iter()
             .flat_map(|aa| {
                 let mut options = Vec::new();
@@ -252,9 +256,9 @@ pub fn building_blocks(
 
     // Create the building blocks
     (
-        generate_terminal(&|rule| n_term_options(aminoacids, rule), fixed, variable),
+        generate_terminal(&|rule| n_term_options(amino_acids, rule), fixed, variable),
         generate(1),
-        generate_terminal(&|rule| c_term_options(aminoacids, rule), fixed, variable),
+        generate_terminal(&|rule| c_term_options(amino_acids, rule), fixed, variable),
     )
 }
 
@@ -267,7 +271,7 @@ pub fn building_blocks(
 pub fn find_isobaric_sets(
     mass: Mass,
     tolerance: MassTolerance,
-    aminoacids: &[AminoAcid],
+    amino_acids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
     base: Option<&LinearPeptide>,
@@ -278,7 +282,7 @@ pub fn find_isobaric_sets(
         .unwrap_or_default();
     let bounds = (bounds.0 - base_mass, bounds.1 - base_mass);
     assert!(bounds.0.value > 0.0, "Cannot have a base selection that has a weight within the tolerance of the intended final mass for isobaric search.");
-    let (n_term, center, c_term) = building_blocks(aminoacids, fixed, variable);
+    let (n_term, center, c_term) = building_blocks(amino_acids, fixed, variable);
 
     IsobaricSetIterator::new(n_term, c_term, center, bounds, base)
 }
@@ -421,7 +425,7 @@ impl Iterator for IsobaricSetIterator {
                 // Main loop
                 while !self.state.2.is_empty() {
                     // Do state + 1 at the highest level where this is still possible and check if that one fits the bounds
-                    // Until every level is full then pop and try with one fewer number of aminoacids
+                    // Until every level is full then pop and try with one fewer number of amino acids
                     while !self.state.2.iter().all(|s| *s == self.center.len() - 1) {
                         let mut level = self.state.2.len() - 1;
                         loop {
@@ -532,7 +536,7 @@ mod tests {
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
             MassTolerance::Ppm(10.0),
-            AminoAcid::UNIQUE_MASS_AMINOACIDS,
+            AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
             &[],
             &[],
             None,

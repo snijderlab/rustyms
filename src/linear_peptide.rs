@@ -88,8 +88,8 @@ impl LinearPeptide {
     /// * Ambiguous modifications
     /// * Labile modifications
     /// * Global isotope modifications
-    /// * Ambiguous aminoacids (B/Z)
-    /// * Ambiguous aminoacid sequence `(?AA)`
+    /// * Ambiguous amino acids (B/Z)
+    /// * Ambiguous amino acid sequence `(?AA)`
     /// * Charge carriers, use of charged ions apart from protons
     /// or when the sequence is empty.
     #[must_use]
