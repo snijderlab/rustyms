@@ -297,6 +297,7 @@ pub struct IsobaricSetIterator {
 
 impl IsobaricSetIterator {
     /// `n_term` & `c_term` are the possible combinations of terminal modifications with their valid placements and the full mass of this combo
+    /// The base sequence is assumed to be simple, see [`LinearPeptide::assume_simple`].
     fn new(
         n_term: Vec<(SequenceElement, Modification, Mass)>,
         c_term: Vec<(SequenceElement, Modification, Mass)>,
@@ -312,7 +313,7 @@ impl IsobaricSetIterator {
             sizes,
             bounds,
             state: (None, None, Vec::new()),
-            base: base.cloned(),
+            base: base.map(|b| b.clone().assume_simple()),
         };
         while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
             iter.state.2.push(0);
@@ -345,12 +346,25 @@ impl IsobaricSetIterator {
 
     fn peptide(&self) -> LinearPeptide {
         let mut sequence = Vec::with_capacity(
-            self.state.2.len()
+            self.base
+                .as_ref()
+                .map(LinearPeptide::len)
+                .unwrap_or_default()
+                + self.state.2.len()
                 + usize::from(self.state.0.is_some())
                 + usize::from(self.state.1.is_some()),
         );
-        if let Some(n) = self.state.0.map(|i| self.n_term[i].clone()) {
+        if let Some((b, _)) = self
+            .base
+            .as_ref()
+            .and_then(|b| b.n_term.as_ref().map(|n| (b, n)))
+        {
+            sequence.push(b.sequence[0].clone());
+        } else if let Some(n) = self.state.0.map(|i| self.n_term[i].clone()) {
             sequence.push(n.0);
+        }
+        if let Some(base) = &self.base {
+            sequence.extend(base.sequence.iter().cloned());
         }
         sequence.extend(
             self.state
@@ -359,14 +373,28 @@ impl IsobaricSetIterator {
                 .copied()
                 .map(|i| self.center[i].0.clone()),
         );
-        if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
+        if let Some((b, _)) = self
+            .base
+            .as_ref()
+            .and_then(|b| b.c_term.as_ref().map(|c| (b, c)))
+        {
+            sequence.push(b.sequence.last().unwrap().clone());
+        } else if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
             sequence.push(c.0);
         }
         LinearPeptide {
             global: Vec::new(),
             labile: Vec::new(),
-            n_term: self.state.0.map(|i| self.n_term[i].1.clone()),
-            c_term: self.state.1.map(|i| self.c_term[i].1.clone()),
+            n_term: self
+                .base
+                .as_ref()
+                .and_then(|b| b.n_term.clone())
+                .or_else(|| self.state.0.map(|i| self.n_term[i].1.clone())),
+            c_term: self
+                .base
+                .as_ref()
+                .and_then(|b| b.n_term.clone())
+                .or_else(|| self.state.1.map(|i| self.c_term[i].1.clone())),
             sequence,
             ambiguous_modifications: Vec::new(),
             charge_carriers: None,
