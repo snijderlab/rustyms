@@ -31,6 +31,38 @@ pub enum AminoAcid {
     AmbiguousGlutamine,
 }
 
+impl AminoAcid {
+    /// Translate the dna codon into the corresponding amino acid according to the standard DNA codon table.
+    /// It assumes all characters are in lowercase. It returns None for a stop codon.
+    /// <https://en.wikipedia.org/wiki/DNA_and_RNA_codon_tables>
+    pub fn from_dna(dna: &str) -> Result<Option<AminoAcid>, ()> {
+        match dna {
+            "ttt" | "ttc" => Ok(Some(Self::Phenylalanine)),
+            "tta" | "ttg" | "ctt" | "ctc" | "cta" | "ctg" => Ok(Some(Self::Leucine)),
+            "att" | "atc" | "ata" => Ok(Some(Self::Isoleucine)),
+            "atg" => Ok(Some(Self::Methionine)),
+            "gtt" | "gtc" | "gta" | "gtg" => Ok(Some(Self::Valine)),
+            "tct" | "tcc" | "tca" | "tcg" | "agt" | "agc" => Ok(Some(Self::Serine)),
+            "cct" | "ccc" | "cca" | "ccg" => Ok(Some(Self::Proline)),
+            "act" | "acc" | "aca" | "acg" => Ok(Some(Self::Threonine)),
+            "gct" | "gcc" | "gcs" | "gcg" => Ok(Some(Self::Alanine)),
+            "tat" | "tac" => Ok(Some(Self::Tyrosine)),
+            "taa" | "tag" | "tga" => Ok(None),
+            "cat" | "cac" => Ok(Some(Self::Histidine)),
+            "caa" | "cag" => Ok(Some(Self::Glutamine)),
+            "aat" | "aac" | "cgt" | "cgc" | "cga" | "cgg" => Ok(Some(Self::Asparagine)),
+            "aaa" | "aag" => Ok(Some(Self::Lysine)),
+            "gat" | "gac" => Ok(Some(Self::AsparticAcid)),
+            "gaa" | "gag" => Ok(Some(Self::GlutamicAcid)),
+            "tgt" | "tgc" => Ok(Some(Self::Cysteine)),
+            "tgg" => Ok(Some(Self::Tryptophan)),
+            "aga" | "agg" => Ok(Some(Self::Arginine)),
+            "ggt" | "ggc" | "gga" | "ggg" => Ok(Some(Self::Glycine)),
+            _ => Err(()),
+        }
+    }
+}
+
 impl TryFrom<&str> for AminoAcid {
     type Error = ();
     fn try_from(value: &str) -> Result<Self, Self::Error> {
