@@ -101,6 +101,55 @@ impl AminoAcid {
     pub const Tyr: Self = Self::Tyrosine;
     pub const Xaa: Self = Self::Unknown;
 
+    /// All amino acids with a unique mass (no I/L in favour of J, no B, no Z, and no X)
+    pub const UNIQUE_MASS_AMINOACIDS: &[Self] = &[
+        Self::Glycine,
+        Self::Alanine,
+        Self::Arginine,
+        Self::Asparagine,
+        Self::AsparticAcid,
+        Self::Cysteine,
+        Self::Glutamine,
+        Self::GlutamicAcid,
+        Self::Histidine,
+        Self::AmbiguousLeucine,
+        Self::Lysine,
+        Self::Methionine,
+        Self::Phenylalanine,
+        Self::Proline,
+        Self::Serine,
+        Self::Threonine,
+        Self::Tryptophan,
+        Self::Tyrosine,
+        Self::Valine,
+        Self::Selenocysteine,
+        Self::Pyrrolysine,
+    ];
+
+    /// All 20 canonical amino acids
+    pub const CANONICAL_AMINOACIDS: &[Self] = &[
+        Self::Glycine,
+        Self::Alanine,
+        Self::Arginine,
+        Self::Asparagine,
+        Self::AsparticAcid,
+        Self::Cysteine,
+        Self::Glutamine,
+        Self::GlutamicAcid,
+        Self::Histidine,
+        Self::Leucine,
+        Self::Isoleucine,
+        Self::Lysine,
+        Self::Methionine,
+        Self::Phenylalanine,
+        Self::Proline,
+        Self::Serine,
+        Self::Threonine,
+        Self::Tryptophan,
+        Self::Tyrosine,
+        Self::Valine,
+    ];
+
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     pub fn satellite_ion_fragments(&self) -> Vec<MolecularFormula> {
         match self {

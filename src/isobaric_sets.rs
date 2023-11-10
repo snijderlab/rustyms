@@ -521,31 +521,6 @@ impl Iterator for IsobaricSetIterator {
     }
 }
 
-/// All amino acids with a unique mass (no I/L in favour of J, no B, no Z, and no X)
-pub const UNIQUE_MASS_AMINOACIDS: &[AminoAcid] = &[
-    AminoAcid::Glycine,
-    AminoAcid::Alanine,
-    AminoAcid::Arginine,
-    AminoAcid::Asparagine,
-    AminoAcid::AsparticAcid,
-    AminoAcid::Cysteine,
-    AminoAcid::Glutamine,
-    AminoAcid::GlutamicAcid,
-    AminoAcid::Histidine,
-    AminoAcid::AmbiguousLeucine,
-    AminoAcid::Lysine,
-    AminoAcid::Methionine,
-    AminoAcid::Phenylalanine,
-    AminoAcid::Proline,
-    AminoAcid::Serine,
-    AminoAcid::Threonine,
-    AminoAcid::Tryptophan,
-    AminoAcid::Tyrosine,
-    AminoAcid::Valine,
-    AminoAcid::Selenocysteine,
-    AminoAcid::Pyrrolysine,
-];
-
 #[cfg(test)]
 mod tests {
     use crate::ComplexPeptide;
@@ -557,7 +532,7 @@ mod tests {
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
             MassTolerance::Ppm(10.0),
-            UNIQUE_MASS_AMINOACIDS,
+            AminoAcid::UNIQUE_MASS_AMINOACIDS,
             &[],
             &[],
             None,
