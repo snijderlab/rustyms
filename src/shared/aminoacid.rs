@@ -45,7 +45,7 @@ impl AminoAcid {
             "tct" | "tcc" | "tca" | "tcg" | "agt" | "agc" => Ok(Some(Self::Serine)),
             "cct" | "ccc" | "cca" | "ccg" => Ok(Some(Self::Proline)),
             "act" | "acc" | "aca" | "acg" => Ok(Some(Self::Threonine)),
-            "gct" | "gcc" | "gcs" | "gcg" => Ok(Some(Self::Alanine)),
+            "gct" | "gcc" | "gca" | "gcg" => Ok(Some(Self::Alanine)),
             "tat" | "tac" => Ok(Some(Self::Tyrosine)),
             "taa" | "tag" | "tga" => Ok(None),
             "cat" | "cac" => Ok(Some(Self::Histidine)),
