@@ -467,6 +467,24 @@ impl Display for LinearPeptide {
     }
 }
 
+impl<Collection, Item> From<Collection> for LinearPeptide
+where
+    Collection: IntoIterator<Item = Item>,
+    Item: Into<SequenceElement>,
+{
+    fn from(value: Collection) -> Self {
+        Self {
+            global: Vec::new(),
+            labile: Vec::new(),
+            n_term: None,
+            c_term: None,
+            sequence: value.into_iter().map(std::convert::Into::into).collect(),
+            ambiguous_modifications: Vec::new(),
+            charge_carriers: None,
+        }
+    }
+}
+
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SequenceElement {
@@ -621,5 +639,11 @@ impl SequenceElement {
             }
         }
         Ok(())
+    }
+}
+
+impl From<AminoAcid> for SequenceElement {
+    fn from(value: AminoAcid) -> Self {
+        Self::new(value, None)
     }
 }
