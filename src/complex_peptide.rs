@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::Context,
@@ -17,7 +18,7 @@ use crate::{
 };
 
 /// A single pro forma entry, can contain multiple peptides
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),

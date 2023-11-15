@@ -324,7 +324,7 @@ impl ReturnModification {
 }
 
 /// An ambiguous modification which could be placed on any of a set of locations
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AmbiguousModification {
     /// The id to compare be able to find the other locations where this modifications can be placed
     pub id: usize,
