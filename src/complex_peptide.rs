@@ -587,6 +587,24 @@ impl ComplexPeptide {
     }
 }
 
+impl<Item> From<Item> for ComplexPeptide
+where
+    Item: Into<LinearPeptide>,
+{
+    fn from(value: Item) -> Self {
+        Self::Singular(value.into())
+    }
+}
+
+impl<Item> FromIterator<Item> for ComplexPeptide
+where
+    Item: Into<SequenceElement>,
+{
+    fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
+        Self::Singular(LinearPeptide::from(iter))
+    }
+}
+
 /// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
 type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
