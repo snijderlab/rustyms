@@ -485,6 +485,15 @@ where
     }
 }
 
+impl<Item> FromIterator<Item> for LinearPeptide
+where
+    Item: Into<SequenceElement>,
+{
+    fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
+        Self::from(iter)
+    }
+}
+
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SequenceElement {
