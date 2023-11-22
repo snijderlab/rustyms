@@ -391,6 +391,7 @@ mod tests {
             AlignmentType::global(),
         );
         println!("{alignment}");
+        println!("{}", alignment.html());
         todo!();
     }
 
@@ -406,6 +407,7 @@ mod tests {
             AlignmentType::global(),
         );
         println!("{alignment}");
+        println!("{}", alignment.html());
         todo!();
     }
 }

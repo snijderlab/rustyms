@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::{any::TypeId, fmt::Display};
 
+use super::{align_type::AlignmentType, Alignment, MassAlignable, MatchType};
 use crate::LinearPeptide;
-
-use super::{align_type::AlignmentType, Alignment, MatchType};
+use std::fmt::Write;
 
 /// An alignment of multiple peptides
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +26,12 @@ pub struct MSAPlacement {
     pub score: usize,
     /// The normalised score
     pub normalised_score: f64,
+}
+
+impl MSAPlacement {
+    pub fn len(&self) -> usize {
+        self.path.iter().map(|p| p.len()).sum()
+    }
 }
 
 /// A single position in a multiple sequence alignment
@@ -90,6 +96,62 @@ impl MultipleSequenceAlignment {
         }
     }
 
+    /// Generate HTML
+    pub fn html(&self) -> String {
+        let mut res = String::new();
+        write!(
+            &mut res,
+            "<div class='msa alignment' style='--length:{}'>",
+            self.total_length()
+        )
+        .unwrap();
+        for sequence in &self.sequences {
+            write!(&mut res, "<div class='peptide' title='path: {} norm: {:.4} abs: {}' data-normalised-score='{1}' style='--start:{};--length:{};--score:{1}'>", 
+        sequence
+        .path
+        .iter()
+        .map(ToString::to_string)
+        .collect::<String>(),
+        sequence.normalised_score,
+        sequence.score,
+        sequence.start,
+        sequence.len(),
+    ).unwrap();
+            let mut start = sequence.start;
+            for piece in &sequence.path {
+                match piece {
+                    MSAPosition::Gap => write!(&mut res, "<del></del>").unwrap(),
+                    MSAPosition::Placed(ty, a, b) => {
+                        write!(
+                            &mut res,
+                            "<span class='{}' style='--wa:{};--wb:{};'><span>{}</span></span>",
+                            match ty {
+                                MatchType::Switched => "rotation",
+                                MatchType::Mismatch => "mismatch",
+                                MatchType::Isobaric => "isobaric",
+                                MatchType::Gap => "gap",
+                                MatchType::FullIdentity => "identity",
+                                MatchType::IdentityMassMismatch => "massmismatch",
+                            },
+                            a,
+                            b,
+                            render_seq(
+                                &sequence.sequence,
+                                start..(start + b).min(sequence.sequence.len()),
+                                *ty
+                            )
+                        )
+                        .unwrap();
+                        start += a;
+                    }
+                }
+            }
+            write!(&mut res, "</div>").unwrap();
+        }
+        write!(&mut res, "</div>").unwrap();
+        res
+    }
+
     /// If this multiple sequence alignment consists of only a single pair, create a pairwise mass alignment struct.
     fn assume_single(&self) -> Option<Alignment> {
         todo!();
@@ -100,6 +162,29 @@ impl MultipleSequenceAlignment {
         // For each location find the highest score it has for all other sets
         todo!();
     }
+}
+
+fn render_seq(seq: &LinearPeptide, sel: std::ops::Range<usize>, ty: MatchType) -> String {
+    use std::fmt::Write;
+    let mut res = String::new();
+    for s in &seq.sequence[sel] {
+        if s.modifications.is_empty() {
+            write!(&mut res, "{}", s.aminoacid.char()).unwrap();
+        } else {
+            write!(
+                &mut res,
+                "<span class='modified{}'>{}</span>",
+                match ty {
+                    MatchType::IdentityMassMismatch => " massmismatch",
+                    MatchType::Mismatch => " mismatch",
+                    _ => "",
+                },
+                s.aminoacid.char()
+            )
+            .unwrap();
+        }
+    }
+    res
 }
 
 impl Display for MultipleSequenceAlignment {
@@ -137,6 +222,21 @@ impl Display for MultipleSequenceAlignment {
     }
 }
 
+impl MSAPosition {
+    pub const fn len(&self) -> usize {
+        match self {
+            Self::Gap => 1,
+            Self::Placed(_, a, _) => *a,
+        }
+    }
+    pub const fn ty(&self) -> MatchType {
+        match self {
+            Self::Gap => MatchType::Gap,
+            Self::Placed(ty, _, _) => *ty,
+        }
+    }
+}
+
 impl Display for MSAPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -157,6 +257,49 @@ impl Display for MSAPosition {
                 ),
             }
         )
+    }
+}
+
+impl MassAlignable for MultipleSequenceAlignment {
+    fn total_length(&self) -> usize {
+        self.sequences
+            .iter()
+            .map(|s| s.len() + s.start)
+            .max()
+            .unwrap_or(0)
+    }
+    fn number_of_sequences(&self) -> usize {
+        self.sequences.len()
+    }
+    fn index(&self, index: usize, sequence_index: usize) -> &crate::SequenceElement {
+        &self.sequences[sequence_index].sequence.sequence[index]
+    }
+    fn index_slice(
+        &self,
+        index: impl std::ops::RangeBounds<usize>,
+        sequence_index: usize,
+    ) -> std::borrow::Cow<[crate::SequenceElement]> {
+        std::borrow::Cow::Borrowed(
+            &self.sequences[sequence_index].sequence.sequence
+                [(index.start_bound().cloned(), index.end_bound().cloned())],
+        )
+    }
+    fn sequence_bounds(&self) -> Vec<(usize, usize)> {
+        self.sequences
+            .iter()
+            .map(|s| (s.start, s.len() + s.start))
+            .collect()
+    }
+    fn calculate_masses<const STEPS: usize>(&self) -> Vec<Vec<Vec<Option<crate::system::Mass>>>> {
+        todo!();
+    }
+    fn sequences_with_path(
+        &self,
+        is_a: bool,
+        start: usize,
+        path: &[super::Piece],
+    ) -> Vec<MSAPlacement> {
+        todo!();
     }
 }
 
