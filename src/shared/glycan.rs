@@ -790,6 +790,9 @@ pub enum GlycanSubstituent {
     Water,
 }
 
+// TODO: Points from mobiusklein in rusteomics/mzcore/pull/2
+// * Remove the numbers from the names where already covered by the parsing code
+// * Add an additional level which defines the leaving group, to make the chemical formula difference easier
 const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("Ac", GlycanSubstituent::Acetyl),
     ("Ala2Ac", GlycanSubstituent::AcetylAlanyl),
@@ -801,7 +804,7 @@ const POSTFIX_SUBSTITUENTS: &[(&str, GlycanSubstituent)] = &[
     ("Fo", GlycanSubstituent::Formyl),
     ("Gc", GlycanSubstituent::Glycolyl),
     ("Gln2Ac", GlycanSubstituent::AcetylGlutaminyl),
-    ("5Glu2Me", GlycanSubstituent::MethylGlutamyl), // TODO: Does this number has to be there? (Not found in the glycosmos data)
+    ("5Glu2Me", GlycanSubstituent::MethylGlutamyl),
     ("Gly", GlycanSubstituent::Glycyl),
     ("Gr", GlycanSubstituent::Glyceryl),
     ("Gr2,3Me2", GlycanSubstituent::DiMethylGlyceryl),

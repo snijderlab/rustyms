@@ -1,7 +1,8 @@
 use crate::{Chemical, Element, MolecularFormula};
+use serde::{Deserialize, Serialize};
 
 /// A selection of ions that together define the charge of a peptide
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MolecularCharge {
     pub(crate) charge_carriers: Vec<(isize, MolecularFormula)>,
 }

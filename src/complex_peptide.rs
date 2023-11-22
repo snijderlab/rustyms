@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::Context,
@@ -17,7 +18,7 @@ use crate::{
 };
 
 /// A single pro forma entry, can contain multiple peptides
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),
@@ -583,6 +584,24 @@ impl ComplexPeptide {
             base.extend(peptide.generate_theoretical_fragments(max_charge, model, index)?);
         }
         Some(base)
+    }
+}
+
+impl<Item> From<Item> for ComplexPeptide
+where
+    Item: Into<LinearPeptide>,
+{
+    fn from(value: Item) -> Self {
+        Self::Singular(value.into())
+    }
+}
+
+impl<Item> FromIterator<Item> for ComplexPeptide
+where
+    Item: Into<SequenceElement>,
+{
+    fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
+        Self::Singular(LinearPeptide::from(iter))
     }
 }
 
