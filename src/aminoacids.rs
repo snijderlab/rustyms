@@ -102,7 +102,7 @@ impl AminoAcid {
     pub const Xaa: Self = Self::Unknown;
 
     /// All amino acids with a unique mass (no I/L in favour of J, no B, no Z, and no X)
-    pub const UNIQUE_MASS_AMINO_ACIDS: &[Self] = &[
+    pub const UNIQUE_MASS_AMINO_ACIDS: &'static [Self] = &[
         Self::Glycine,
         Self::Alanine,
         Self::Arginine,
@@ -127,7 +127,7 @@ impl AminoAcid {
     ];
 
     /// All 20 canonical amino acids
-    pub const CANONICAL_AMINO_ACIDS: &[Self] = &[
+    pub const CANONICAL_AMINO_ACIDS: &'static [Self] = &[
         Self::Glycine,
         Self::Alanine,
         Self::Arginine,

@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::RangeBounds};
 
 use crate::{
     align::multiple_sequence_alignment::MultipleSequenceAlignment, system::Mass, MassTolerance,
@@ -7,13 +7,21 @@ use crate::{
 
 use super::{align_type::*, multiple_sequence_alignment::MSAPlacement, piece::*, scoring::*};
 
+/// The shared behaviour needed to be mass alignable into a MSA
 pub trait MassAlignable {
+    /// Score for gap extend
     const GAP_EXTEND: i8 = -1;
+    /// Score for gap start
     const GAP_START: i8 = -5;
+    /// Additional score when there is a mass mismatch but AA identity
     const MASS_MISMATCH: i8 = -1;
+    /// Isomass score (per AA)
     const ISOMASS: i8 = 2;
+    /// Additional score on top of the matrix score for mismatch
     const MISMATCH: i8 = -1;
+    /// Set rotation (swap) score (per AA)
     const SWITCHED: i8 = 3;
+    /// Additional score on top of the matrix score for identity
     const IDENTITY: i8 = 0;
 
     /// Index the underlying structure on one location
@@ -21,7 +29,7 @@ pub trait MassAlignable {
     /// Get a slice of the underlying structure
     fn index_slice(
         &self,
-        index: std::ops::Range<usize>,
+        index: impl RangeBounds<usize>,
         sequence_index: usize,
     ) -> Cow<[SequenceElement]>;
 
@@ -41,6 +49,7 @@ pub trait MassAlignable {
     /// Get the [`MSAPlacement`] of the underlying sequences given the path resulting from the alignment
     fn sequences_with_path(&self, is_a: bool, start: usize, path: &[Piece]) -> Vec<MSAPlacement>;
 
+    /// Align two sequences
     fn align<const STEPS: usize, A: MassAlignable, B: MassAlignable>(
         seq_a: &A,
         seq_b: &B,
@@ -120,15 +129,16 @@ pub trait MassAlignable {
                             for len_b in 0..=STEPS {
                                 if len_a == 0 && len_b != 1
                                     || len_a != 1 && len_b == 0
-                                    || len_a > index_a
-                                    || len_b > index_b
+                                    || len_a > index_a + 1
+                                    || len_b > index_b + 1
                                 {
                                     continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                                 }
-                                let base_score = matrix[index_a - len_a][index_b - len_b].score;
+                                let base_score =
+                                    matrix[index_a + 1 - len_a][index_b + 1 - len_b].score;
                                 let piece = if len_a == 0 || len_b == 0 {
                                     // First check the score to be used for affine gaps
-                                    let prev = &matrix[index_a - len_a + 1][index_b - len_b + 1];
+                                    let prev = &matrix[index_a + 1 - len_a][index_b + 1 - len_b];
                                     let score = if prev.step_a == 0 && len_a == 0
                                         || prev.step_b == 0 && len_b == 0
                                     {
@@ -160,16 +170,16 @@ pub trait MassAlignable {
                                 } else {
                                     masses_a[sequence_index_a][index_a][len_a - 1].and_then(
                                         |mass_a| {
-                                            masses_b[sequence_index_b][index_a][len_b - 1].and_then(
+                                            masses_b[sequence_index_b][index_b][len_b - 1].and_then(
                                                 |mass_b| {
                                                     Self::score(
                                                         &seq_a.index_slice(
-                                                            index_a - len_a..index_a,
+                                                            index_a + 1 - len_a..=index_a,
                                                             sequence_index_a,
                                                         ),
                                                         mass_a,
                                                         &seq_b.index_slice(
-                                                            index_b - len_b..index_b,
+                                                            index_b + 1 - len_b..=index_b,
                                                             sequence_index_b,
                                                         ),
                                                         mass_b,
@@ -193,7 +203,7 @@ pub trait MassAlignable {
                     .iter()
                     .max_by(|x, y| x.score.cmp(&y.score))
                     .cloned()
-                    .unwrap_or_default();
+                    .expect("No possible steps recorded");
                 // Keep track of the highest scoring cell
                 if value.score >= high.0 {
                     high = (value.score, index_a + 1, index_b + 1);
@@ -242,17 +252,15 @@ pub trait MassAlignable {
             path.push(value);
         }
 
-        let path: Vec<Piece> = dbg!(path.into_iter().rev().collect());
-        dbg!(target);
-        // dbg!(matrix);
-        let mut sequences = seq_a.sequences_with_path(true, target.1 - 1, &path);
-        sequences.extend(seq_b.sequences_with_path(false, target.2 - 1, &path));
-        dbg!(&sequences);
+        let path: Vec<Piece> = path.into_iter().rev().collect();
+        let mut sequences = seq_a.sequences_with_path(true, target.1, &path);
+        sequences.extend(seq_b.sequences_with_path(false, target.2, &path));
         let mut msa = MultipleSequenceAlignment { sequences, ty };
         msa.normalise();
         msa
     }
 
+    /// Determine the score for an alignment of two AAs (with modifications)
     fn score_pair(
         a: &SequenceElement,
         mass_a: Mass,
@@ -352,7 +360,7 @@ mod tests {
             SequenceElement::new(AminoAcid::G, None),
             SequenceElement::new(AminoAcid::G, None),
         ];
-        let pair = dbg!(LinearPeptide::score(
+        let pair = LinearPeptide::score(
             &a,
             a.iter()
                 .map(|s| s.formula_all().unwrap())
@@ -366,9 +374,24 @@ mod tests {
                 .monoisotopic_mass()
                 .unwrap(),
             0,
-            crate::MassTolerance::Ppm(10.0)
-        ));
+            crate::MassTolerance::Ppm(10.0),
+        );
         assert!(pair.is_some());
+    }
+
+    #[test]
+    fn simple_identical_case() {
+        let a = ComplexPeptide::pro_forma("EVQLN").unwrap().assume_linear();
+        let b = ComplexPeptide::pro_forma("EVQLN").unwrap().assume_linear();
+        let alignment = LinearPeptide::align::<3, LinearPeptide, LinearPeptide>(
+            &a,
+            &b,
+            BLOSUM62,
+            crate::MassTolerance::Ppm(10.0),
+            AlignmentType::global(),
+        );
+        println!("{alignment}");
+        todo!();
     }
 
     #[test]

@@ -1,12 +1,8 @@
-use std::{borrow::Cow, fmt::Display};
+use std::fmt::Display;
 
-use crate::{
-    align::{MatchType, Piece},
-    system::Mass,
-    LinearPeptide, MassTolerance, SequenceElement,
-};
+use crate::LinearPeptide;
 
-use super::{align_type::AlignmentType, Alignment};
+use super::{align_type::AlignmentType, Alignment, MatchType};
 
 /// An alignment of multiple peptides
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +34,7 @@ pub enum MSAPosition {
     /// A gap one sequence position spanning one sequence position
     Gap,
     /// A selection of sequence positions with its width, the maximal number of other sequence positions it spans
-    Placed(usize, usize),
+    Placed(MatchType, usize, usize),
 }
 
 impl MultipleSequenceAlignment {
@@ -54,7 +50,7 @@ impl MultipleSequenceAlignment {
             for sequence_index in (0..msa.sequences.len()).filter(|i| *i != except) {
                 let mut index = msa.sequences[sequence_index].start;
                 for path_index in 0..msa.sequences[sequence_index].path.len() {
-                    if let MSAPosition::Placed(_, b) =
+                    if let MSAPosition::Placed(_, _, b) =
                         &mut msa.sequences[sequence_index].path[path_index]
                     {
                         if index + *b >= search_index {
@@ -80,7 +76,9 @@ impl MultipleSequenceAlignment {
         for sequence_index in 0..self.sequences.len() {
             let mut index = self.sequences[sequence_index].start;
             for path_index in 0..self.sequences[sequence_index].path.len() {
-                if let MSAPosition::Placed(a, b) = self.sequences[sequence_index].path[path_index] {
+                if let MSAPosition::Placed(_, a, b) =
+                    self.sequences[sequence_index].path[path_index]
+                {
                     if a > b {
                         fix(self, index, a - b, sequence_index);
                     }
@@ -112,7 +110,7 @@ impl Display for MultipleSequenceAlignment {
             for step in &sequence.path {
                 match step {
                     MSAPosition::Gap => write!(f, "-")?,
-                    MSAPosition::Placed(steps, width) => write!(
+                    MSAPosition::Placed(_, steps, width) => write!(
                         f,
                         "{}{}",
                         (&mut seq)
@@ -125,11 +123,40 @@ impl Display for MultipleSequenceAlignment {
             }
             writeln!(
                 f,
-                " [Score: {}, Normalised score: {:.3}]",
-                sequence.score, sequence.normalised_score
+                " [Score: {}, Normalised score: {:.3}, Path: {}]",
+                sequence.score,
+                sequence.normalised_score,
+                sequence
+                    .path
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<String>()
             )?;
         }
         Ok(())
+    }
+}
+
+impl Display for MSAPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Gap => "[-]".to_string(),
+                Self::Placed(ty, a, b) => format!(
+                    "[{}{a},{b}]",
+                    match ty {
+                        MatchType::FullIdentity => '=',
+                        MatchType::IdentityMassMismatch => '≅',
+                        MatchType::Isobaric => 'i',
+                        MatchType::Switched => 's',
+                        MatchType::Mismatch => 'x',
+                        MatchType::Gap => 'g',
+                    },
+                ),
+            }
+        )
     }
 }
 
@@ -147,10 +174,10 @@ mod tests {
                     sequence: ComplexPeptide::pro_forma("WGGD").unwrap().assume_linear(),
                     start: 0,
                     path: vec![
-                        MSAPosition::Placed(1, 1),
-                        MSAPosition::Placed(1, 1),
-                        MSAPosition::Placed(1, 1),
-                        MSAPosition::Placed(1, 1),
+                        MSAPosition::Placed(MatchType::FullIdentity, 1, 1),
+                        MSAPosition::Placed(MatchType::Isobaric, 1, 1),
+                        MSAPosition::Placed(MatchType::Isobaric, 1, 1),
+                        MSAPosition::Placed(MatchType::FullIdentity, 1, 1),
                     ],
                     score: 0,
                     normalised_score: 0.0,
@@ -159,9 +186,9 @@ mod tests {
                     sequence: ComplexPeptide::pro_forma("WND").unwrap().assume_linear(),
                     start: 0,
                     path: vec![
-                        MSAPosition::Placed(1, 1),
-                        MSAPosition::Placed(1, 2),
-                        MSAPosition::Placed(1, 1),
+                        MSAPosition::Placed(MatchType::FullIdentity, 1, 1),
+                        MSAPosition::Placed(MatchType::Isobaric, 1, 2),
+                        MSAPosition::Placed(MatchType::FullIdentity, 1, 1),
                     ],
                     score: 0,
                     normalised_score: 0.0,

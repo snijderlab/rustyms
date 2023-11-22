@@ -1,4 +1,7 @@
-use std::{borrow::Cow, ops::Range};
+use std::{
+    borrow::Cow,
+    ops::{Range, RangeBounds},
+};
 
 use crate::{system::Mass, LinearPeptide, MolecularFormula, SequenceElement};
 
@@ -15,11 +18,11 @@ impl MassAlignable for LinearPeptide {
     }
     fn index_slice(
         &self,
-        index: Range<usize>,
+        index: impl RangeBounds<usize>,
         sequence_index: usize,
     ) -> Cow<'_, [SequenceElement]> {
         debug_assert!(sequence_index == 0);
-        Cow::from(&self.sequence[index])
+        Cow::from(&self.sequence[(index.start_bound().cloned(), index.end_bound().cloned())])
     }
     fn total_length(&self) -> usize {
         self.sequence.len()
@@ -69,14 +72,19 @@ impl MassAlignable for LinearPeptide {
                             MSAPosition::Gap
                         } else {
                             MSAPosition::Placed(
+                                piece.match_type,
                                 piece.step_a as usize,
-                                (piece.step_b as usize).min(1),
+                                piece.step_b as usize,
                             )
                         }
                     } else if piece.step_b == 0 {
                         MSAPosition::Gap
                     } else {
-                        MSAPosition::Placed(piece.step_b as usize, (piece.step_a as usize).min(1))
+                        MSAPosition::Placed(
+                            piece.match_type,
+                            piece.step_b as usize,
+                            piece.step_a as usize,
+                        )
                     }
                 })
                 .collect(),

@@ -1,5 +1,5 @@
 /// The type of a single match step
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
 pub enum MatchType {
     /// Aminoacid + Mass identity
     FullIdentity,
