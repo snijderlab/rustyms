@@ -25,7 +25,7 @@ impl<'a> Location<'a> {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn array(self, sep: char) -> impl Iterator<Item = Location<'a>> {
+    pub fn array(self, sep: char) -> std::vec::IntoIter<Location<'a>> {
         let mut offset = 0;
         let mut output = Vec::new();
         for part in self.line.line[self.location.clone()].split(sep) {
@@ -47,8 +47,18 @@ impl<'a> Location<'a> {
         }
     }
 
+    pub fn ignore(self, pattern: &str) -> Option<Self> {
+        let text = &self.line.line[self.location.clone()];
+        if text == pattern {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
     pub fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<T, CustomError> {
         self.line.line[self.location.clone()]
+            .trim()
             .parse()
             .map_err(|_| base_error.with_context(self.line.range_context(self.location)))
     }
@@ -86,6 +96,10 @@ impl<'a> Location<'a> {
         self.line.line[self.location].to_string()
     }
 
+    pub fn as_str(&self) -> &str {
+        &self.line.line[self.location.clone()]
+    }
+
     pub fn apply(self, f: impl FnOnce(Self) -> Self) -> Self {
         f(self)
     }
@@ -104,6 +118,8 @@ pub trait OptionalLocation<'a> {
     ) -> Result<Option<(Option<usize>, usize)>, CustomError>;
     fn get_string(self) -> Option<String>;
     fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Option<Location<'a>>;
+    type ArrayIter: Iterator<Item = Location<'a>>;
+    fn array(self, sep: char) -> Self::ArrayIter;
 }
 
 impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
@@ -130,5 +146,9 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     }
     fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Self {
         self.map(|s| s.apply(f))
+    }
+    type ArrayIter = std::vec::IntoIter<Location<'a>>;
+    fn array(self, sep: char) -> Self::ArrayIter {
+        self.map(|l| l.array(sep)).unwrap_or_default()
     }
 }

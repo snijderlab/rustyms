@@ -2,6 +2,7 @@ use super::fasta::FastaData;
 use super::novor::NovorData;
 use super::opair::OpairData;
 use super::peaks::PeaksData;
+use super::MaxQuantData;
 use crate::error::CustomError;
 use crate::LinearPeptide;
 
@@ -29,6 +30,8 @@ pub enum MetaData {
     Opair(OpairData),
     /// Novor metadata
     Fasta(FastaData),
+    /// Novor metadata
+    MaxQuant(MaxQuantData),
 }
 
 impl MetaData {
@@ -38,6 +41,7 @@ impl MetaData {
             Self::Peaks(PeaksData { z, .. })
             | Self::Novor(NovorData { z, .. })
             | Self::Opair(OpairData { z, .. }) => Some(*z),
+            Self::MaxQuant(MaxQuantData { charge, .. }) => Some(*charge),
             Self::Fasta(_) => None,
         }
     }
@@ -57,6 +61,7 @@ impl MetaData {
             Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
                 Some(*scan)
             }
+            Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
             Self::Fasta(_) => None,
         }
     }
