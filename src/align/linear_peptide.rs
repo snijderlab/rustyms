@@ -33,25 +33,26 @@ impl MassAlignable for LinearPeptide {
     fn sequence_bounds(&self) -> Vec<(usize, usize)> {
         vec![(0, self.sequence.len())]
     }
-    fn calculate_masses<const STEPS: usize>(&self) -> Vec<Vec<Vec<Option<Mass>>>> {
+    fn calculate_masses<const STEPS: usize>(
+        &self,
+    ) -> Vec<Vec<[Option<crate::system::Mass>; STEPS]>> {
         vec![(1..=self.sequence.len())
             .map(|index| {
-                (1..=STEPS)
-                    .map(|size| {
-                        if index < size {
-                            None
-                        } else {
-                            Some(
-                                self.sequence[index - size..index]
-                                    .iter()
-                                    .map(|s| s.formula_all().unwrap())
-                                    .sum::<MolecularFormula>()
-                                    .monoisotopic_mass()
-                                    .unwrap(),
-                            )
-                        }
-                    })
-                    .collect::<Vec<Option<Mass>>>()
+                std::array::from_fn(|i| {
+                    let size = i + 1;
+                    if index < size {
+                        None
+                    } else {
+                        Some(
+                            self.sequence[index - size..index]
+                                .iter()
+                                .map(|s| s.formula_all().unwrap())
+                                .sum::<MolecularFormula>()
+                                .monoisotopic_mass()
+                                .unwrap(),
+                        )
+                    }
+                })
             })
             .collect::<Vec<_>>()]
     }

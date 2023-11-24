@@ -44,7 +44,9 @@ pub trait MassAlignable {
     /// Second dimension is the index into the sequence (offset by the start and the length is the length of this particular sequence, does not have to span to the very end).
     /// Third dimension is the masses for that number of steps - 1 (a step of 1 is at index 0).
     /// Finally the result is None when that selection given you an invalid step (like getting the mass halfway in an aligned aminoacid)
-    fn calculate_masses<const STEPS: usize>(&self) -> Vec<Vec<Vec<Option<Mass>>>>;
+    fn calculate_masses<const STEPS: usize>(
+        &self,
+    ) -> Vec<Vec<[Option<crate::system::Mass>; STEPS]>>;
 
     /// Get the [`MSAPlacement`] of the underlying sequences given the path resulting from the alignment
     fn sequences_with_path(&self, is_a: bool, start: usize, path: &[Piece]) -> Vec<MSAPlacement>;
