@@ -13,7 +13,7 @@ use super::{
 
 // DB:   Raw file	Scan number	Scan index	Sequence	Length	Missed cleavages	Modifications	Modified sequence	Oxidation (M) Probabilities	oxidation(w) Probabilities	Oxidation (M) Score diffs	oxidation(w) Score diffs	Gln->pyro-Glu	Glu->pyro-Glu	Oxidation (M)	oxidation(w)	Proteins	Charge	Fragmentation	Mass analyzer	Type	Scan event number	Isotope index	m/z	Mass	Mass error [ppm]	Mass error [Da]	Simple mass error [ppm]	Retention time	PEP	Score	Delta score	Score diff	Localization prob	Combinatorics	PIF	Fraction of total spectrum	Base peak fraction	Precursor full scan number	Precursor Intensity	Precursor apex fraction	Precursor apex offset	Precursor apex offset time	Matches	Intensities	Mass deviations [Da]	Mass deviations [ppm]	Masses	Number of matches	Intensity coverage	Peak coverage	Unfragmented precursor intensity	Unfragmented precursor fraction	Neutral loss level	ETD identification type	Reverse	All scores	All sequences	All modified sequences	MS3 scan numbers	Reporter PIF	Reporter fraction	id	Protein group IDs	Peptide ID	Mod. peptide ID	Evidence ID	Oxidation (M) site IDs	oxidation(w) site IDs	Mass deficit
 // NOVO: Raw file	Scan number	Scan index	Sequence	Length	Missed cleavages	Modifications	Modified sequence	Oxidation (M) Probabilities	oxidation(w) Probabilities	Oxidation (M) Score diffs	oxidation(w) Score diffs	Gln->pyro-Glu	Glu->pyro-Glu	Oxidation (M)	oxidation(w)	Proteins	Charge	Fragmentation	Mass analyzer	Type	Scan event number	Isotope index	m/z	Mass	Mass error [ppm]	Mass error [Da]	Simple mass error [ppm]	Retention time	PEP	Score	Delta score	Score diff	Localization prob	Combinatorics	PIF	Fraction of total spectrum	Base peak fraction	Precursor full scan number	Precursor Intensity	Precursor apex fraction	Precursor apex offset	Precursor apex offset time	Matches	Intensities	Mass deviations [Da]	Mass deviations [ppm]	Masses	Number of matches	Intensity coverage	Peak coverage	Unfragmented precursor intensity	Unfragmented precursor fraction	Neutral loss level	ETD identification type	Reverse	All scores	All sequences	All modified sequences	MS3 scan numbers	Reporter PIF	Reporter fraction	id	Protein group IDs	Peptide ID	Mod. peptide ID	Evidence ID	Oxidation (M) site IDs	oxidation(w) site IDs	Mass deficit
-//
+//NEW:   Raw file	Scan number	Retention time	Ion injection time	Total ion current	Collision energy	Summations	Base peak intensity	Elapsed time	Identified	Matched	Reverse	MS/MS IDs	Sequence	Length	Filtered peaks	m/z	Mass	Charge	MS2 m/z	Type	Fragmentation	Mass analyzer	Parent intensity fraction	Fraction of total spectrum	Base peak fraction	Precursor full scan number	Precursor intensity	Precursor apex fraction	Precursor apex offset	Precursor apex offset time	Scan event number	Modifications	Modified sequence	Proteins	Score	PEP	MS3 scan numbers	Reporter PIF	Reporter fraction	DN sequence	DN length	DN min levenshtein distance	DN extension sequence	DN extended	DN complete	DN raw score	DN extension score	DN extension norm. score	DN normalized score	DN complete score	DN combined score	DN nterm mass	DN cterm mass	DN missing mass	DN nterm delta score	DN cterm delta score	DN term delta score	DN full length delta score	DN protease score	DN complement score	DN A2 score	DN water loss score	DN ammonia loss score	DN agrees with andromeda	DN agrees with andromeda complete	DN all sequences	DN all scores	DN all agrees	DN any agrees	DN number of steps	DN is dominantly y	Intens Comp Factor	CTCD Comp	RawOvFtT	AGC Fill	Scan index	MS scan index	MS scan number
 
 /// The file format for any max quant format, determining the existence and location of all possible columns
 #[derive(Debug, Clone)]
@@ -254,6 +254,56 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     dn_missing_mass: Some(55),
     version: MaxQuantVersion::NovoMSMSScans,
 };
+/// New format, just missing the experiment column
+pub const NOVO_MSMS_SCANS_NEW: MaxQuantFormat = MaxQuantFormat {
+    raw_file: 0,
+    scan_number: 1,
+    scan_index: 35,
+    missed_cleavages: None,
+    modifications: 32,
+    modified_sequence: 33,
+    proteins: 34,
+    charge: 18,
+    fragmentation: 21,
+    mass_analyzer: 22,
+    ty: 20,
+    scan_event_number: 31,
+    isotope_index: None,
+    mz: None,
+    mass: None,
+    mass_error_da: None,
+    mass_error_ppm: None,
+    simple_mass_error_ppm: None,
+    retention_time: None,
+    pep: 36,
+    score: 35,
+    delta_score: None,
+    score_diff: None,
+    localisation_probability: None,
+    precursor_full_scan_number: 26,
+    precursor_intensity: 27,
+    precursor_apex_function: 28,
+    precursor_apex_offset: 29,
+    precursor_apex_offset_time: 30,
+    number_of_matches: None,
+    intensity_coverage: None,
+    peak_coverage: None,
+    all_modified_sequences: None,
+    id: None,
+    protein_group_ids: None,
+    peptide_id: None,
+    modified_peptide_id: None,
+    evidence_id: None,
+    base_peak_intensity: Some(7),
+    total_ion_current: Some(4),
+    collision_energy: Some(5),
+    dn_sequence: Some(40),
+    dn_combined_score: Some(50),
+    dn_n_mass: Some(52),
+    dn_c_mass: Some(53),
+    dn_missing_mass: Some(54),
+    version: MaxQuantVersion::NovoMSMSScans,
+};
 #[derive(Debug, Clone)]
 pub enum MaxQuantType {
     Peak,
@@ -321,7 +371,7 @@ impl IdentifiedPeptideSource for MaxQuantData {
     type Source = CsvLine;
     type Format = MaxQuantFormat;
     fn parse(source: &CsvLine) -> Result<(Self, &'static MaxQuantFormat), CustomError> {
-        for format in [&MSMS, &MSMS_SCANS, &NOVO_MSMS_SCANS] {
+        for format in [&MSMS, &MSMS_SCANS, &NOVO_MSMS_SCANS, &NOVO_MSMS_SCANS_NEW] {
             if let Ok(peptide) = Self::parse_specific(source, format) {
                 return Ok((peptide, format));
             }
