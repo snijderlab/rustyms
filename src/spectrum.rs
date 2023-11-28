@@ -1,11 +1,13 @@
 //! Spectrum related code
 
+use std::cmp::Ordering;
+
 use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
     system::{f64::*, mass_over_charge::mz},
-    ComplexPeptide, Model,
+    ComplexPeptide, MassTolerance, Model,
 };
 
 /// The mode of mass to use
@@ -126,6 +128,40 @@ impl RawSpectrum {
         }
 
         annotated
+    }
+
+    /// Return the slice of peaks that is within the given tolerance bounds.
+    /// # Panics
+    /// If any of the peaks (or the bounds) is not valid to order.
+    pub fn binary_search(&self, low: MassOverCharge, high: MassOverCharge) -> &[RawPeak] {
+        let left_idx = match self
+            .spectrum
+            .binary_search_by(|a| a.mz.partial_cmp(&low).unwrap())
+        {
+            Result::Ok(idx) | Result::Err(idx) => {
+                let mut idx = idx.saturating_sub(1);
+                while idx > 0 && self.spectrum[idx].mz.partial_cmp(&low).unwrap() != Ordering::Less
+                {
+                    idx -= 1;
+                }
+                idx
+            }
+        };
+
+        let right_idx = match self.spectrum[left_idx..]
+            .binary_search_by(|a| a.mz.partial_cmp(&high).unwrap())
+        {
+            Result::Ok(idx) | Err(idx) => {
+                let mut idx = idx + left_idx;
+                while idx < self.spectrum.len()
+                    && self.spectrum[idx].mz.partial_cmp(&high).unwrap() != Ordering::Greater
+                {
+                    idx = idx.saturating_add(1);
+                }
+                idx.min(self.spectrum.len())
+            }
+        };
+        &self.spectrum[left_idx..=right_idx]
     }
 }
 
