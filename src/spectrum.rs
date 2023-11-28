@@ -161,7 +161,7 @@ impl RawSpectrum {
                 idx.min(self.spectrum.len())
             }
         };
-        &self.spectrum[left_idx..=right_idx]
+        &self.spectrum[left_idx..right_idx]
     }
 }
 
