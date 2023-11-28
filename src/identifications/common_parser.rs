@@ -8,18 +8,20 @@ use super::csv::CsvLine;
 // * XXData
 // * XXParser?
 macro_rules! format_family {
-    ($format:ident, $data:ident, $version:ident, $versions:expr, $separator:expr; $($name:ident: $col:ty, $column:expr, $typ:ty, $f:expr);+;) => {
+    ($format:ident, $data:ident, $version:ident, $versions:expr, $separator:expr; required {$($rname:ident: $rtyp:ty, $rf:expr);+; } optional { $($oname:ident: $otyp:ty, $of:expr);+;}) => {
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Eq, Clone)]
         pub struct $format {
-            $($name: $col),+
+            $($rname: &'static str),+
+            ,$($oname: Option<&'static str>),+
             ,version: $version,
         }
 
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Clone)]
         pub struct $data {
-            $(pub $name: $typ),+
+            $(pub $rname: $rtyp),+
+            ,$(pub $oname: Option<$otyp>),+
             ,version: $version,
         }
 
@@ -49,7 +51,8 @@ macro_rules! format_family {
             }
             fn parse_specific(source: &Self::Source, format: &$format) -> Result<Self, CustomError> {
                 Ok(Self {
-                    $($name: $f(source.column($column))?),+
+                    $($rname: $rf(source.column(format.$rname)?)?),+
+                    ,$($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c))).invert()?),+
                     ,version: format.version.clone(),
                 })
             }
@@ -58,11 +61,10 @@ macro_rules! format_family {
 }
 
 macro_rules! file_format {
-    ($format:ident, $version:ident, $($name:ident, $column: expr),+) => {
-        #[non_exhaustive]
-        #[derive(Debug, PartialEq, Eq, Clone)]
-        pub struct $format {
+    ($format:ident, $version:expr; $($name:ident: $column:expr),+,) => {
+        $format {
             $($name: $column),+
+            ,version: $version,
         }
     };
 }

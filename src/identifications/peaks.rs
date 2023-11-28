@@ -2,7 +2,11 @@ use std::fmt::Display;
 
 use itertools::Itertools;
 
-use crate::{error::CustomError, helper_functions::InvertResult, ComplexPeptide, LinearPeptide};
+use crate::{
+    error::{Context, CustomError},
+    helper_functions::InvertResult,
+    ComplexPeptide, LinearPeptide,
+};
 
 use super::{
     common_parser::{Location, OptionalLocation},
@@ -10,9 +14,27 @@ use super::{
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 
-format_family!(PeaksFormat2, PeaksData2, PeaksVersion, [], b',';
-    fraction: &'static str, "fraction", Option<usize>, |v: Option<&str>| Ok(v.map(|v| v.parse::<usize>().unwrap()));
-    source_file: &'static str, "source file", Option<String>, |v: Option<&str>| Ok(v.map(|v| v.to_owned()));
+format_family!(
+    PeaksFormat, PeaksData, PeaksVersion, [&OLD], b',';
+    required {
+        scan: Vec<PeaksId>, |(value, context): (&str, Context)| value.split(';').map(|c| c.parse::<PeaksId>().map_err(|()| CustomError::error(
+                        "Invalid Peaks line",
+                        "The 'Scan' column is not a valid peaks ID but it is required to be in this peaks format\nExamples of valid IDs: '1234', 'F2:1234', 'F2:1234 12345'",
+                        context,
+                    ))).collect::<Result<_,_>>();
+    }
+    optional {
+        fraction: usize, |(value, context): (&str, Context)| Ok(value.parse::<usize>().unwrap());
+        source_file: String, |(value, context): (&str, Context)| Ok(value.to_owned());
+        feature: usize, |(value, context): (&str, Context)| Ok(value.parse::<usize>().unwrap());
+    }
+);
+
+const OLD: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Old;
+    scan: "scan",
+    fraction: None,
+    source_file: None,
+    feature: None,
 );
 
 // /// The file format for any peaks format, determining the existence and location of all possible columns
@@ -249,7 +271,7 @@ impl std::fmt::Display for PeaksVersion {
 // }
 
 /// The scans identifier for a peaks identification
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PeaksId {
     /// The file, if defined
     pub file: Option<usize>,

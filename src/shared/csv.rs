@@ -7,7 +7,7 @@ use std::{
 
 use flate2::read::GzDecoder;
 
-use crate::helper_functions::check_extension;
+use crate::{error::CustomError, helper_functions::check_extension};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CsvLine {
@@ -48,14 +48,26 @@ impl CsvLine {
     pub fn range(&self, index: usize) -> &Range<usize> {
         &self.fields[index].1
     }
-    pub fn column(&self, name: &str) -> Option<&str> {
+    pub fn column(&self, name: &str) -> Result<(&str, crate::error::Context), CustomError> {
         self.fields
             .iter()
             .find(|f| f.0 == name)
-            .map(|f| &self.line[f.1.clone()])
-    }
-    pub fn optional_column(&self, name: Option<&str>) -> Option<Option<&str>> {
-        name.map(|name| self.column(name))
+            .map(|f| {
+                (
+                    &self.line[f.1.clone()],
+                    crate::error::Context::line(
+                        self.line_index,
+                        self.line.clone(),
+                        f.1.start,
+                        f.1.len(),
+                    ),
+                )
+            })
+            .ok_or(CustomError::error(
+                "Could not find given column",
+                format!("This CSV file does not contain the needed column '{name}'"),
+                self.full_context(),
+            ))
     }
 }
 
