@@ -9,7 +9,7 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
     let mut isotopic_abundances = vec![Vec::new(); 118];
     let mut atomic_masses = vec![Vec::new(); 118];
 
-    let table = parse_csv("databases/IUPAC-atomic-masses.csv.gz", b',')?;
+    let table = parse_csv("databases/IUPAC-atomic-masses.csv.gz", b',', None)?;
     for line in table {
         let line = line?;
         let (nuclide, mass, _uncertainty, year) = (&line[0], &line[1], &line[2], &line[3]);
@@ -33,7 +33,18 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
     }
 
     let mut last_element = 0;
-    let table = parse_csv("databases/CIAAW-isotopic-abundances.csv.gz", b',')?;
+    let table = parse_csv(
+        "databases/CIAAW-isotopic-abundances.csv.gz",
+        b',',
+        Some(vec![
+            "z".to_string(),
+            "symbol".to_string(),
+            "name".to_string(),
+            "isotope".to_string(),
+            "abundance".to_string(),
+            "note".to_string(),
+        ]),
+    )?;
     for line in table {
         let line = line?;
         let (element, _element, _name, isotope, abundance, _note) =
@@ -58,7 +69,17 @@ pub fn build_atomic_masses(out_dir: &OsString, _debug: bool) -> Result<(), Strin
         isotopic_abundances[element - 1].push((isotope, get_ciaaw_number(&abundance)?))
     }
 
-    let table = parse_csv("databases/CIAAW-atomic-weights.csv.gz", b',')?;
+    let table = parse_csv(
+        "databases/CIAAW-atomic-weights.csv.gz",
+        b',',
+        Some(vec![
+            "z".to_string(),
+            "symbol".to_string(),
+            "name".to_string(),
+            "weight".to_string(),
+            "note".to_string(),
+        ]),
+    )?;
     for line in table {
         let line = line?;
         let (element, weight) = (&line[0], &line[3]);

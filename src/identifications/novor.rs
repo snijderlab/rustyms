@@ -247,7 +247,7 @@ impl IdentifiedPeptideSource for NovorData {
         ))
     }
     fn parse_specific(source: &CsvLine, format: &NovorFormat) -> Result<Self, CustomError> {
-        if source.fields.len() != format.number_of_columns() {
+        if source.number_of_columns() != format.number_of_columns() {
             return Err(CustomError::error(
                 "Invalid Novor line", 
                 format!("The number of columns ({}) is not equal to the expected number of columns ({})", source.fields.len(), format.number_of_columns()), 
