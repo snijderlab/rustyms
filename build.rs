@@ -29,7 +29,7 @@ fn main() {
     build_unimod_ontology(&out_dir, debug);
     build_psi_mod_ontology(&out_dir, debug);
     build_gnome_ontology(&out_dir, debug);
-    build_atomic_masses(&out_dir, debug).unwrap();
+    build_atomic_masses(&out_dir, debug);
 
     println!("cargo:rerun-if-changed=src/system.rs");
     println!("cargo:rerun-if-changed=src/helper_functions.rs");

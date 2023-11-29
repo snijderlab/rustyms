@@ -16,6 +16,7 @@ pub struct CsvLine {
     fields: Vec<(String, Range<usize>)>,
 }
 
+#[allow(dead_code)]
 impl CsvLine {
     pub fn line_index(&self) -> usize {
         self.line_index
@@ -48,26 +49,18 @@ impl CsvLine {
     pub fn range(&self, index: usize) -> &Range<usize> {
         &self.fields[index].1
     }
-    pub fn column(&self, name: &str) -> Result<(&str, crate::error::Context), CustomError> {
+    pub fn index_column(&self, name: &str) -> Result<(&str, &Range<usize>), CustomError> {
         self.fields
             .iter()
             .find(|f| f.0 == name)
-            .map(|f| {
-                (
-                    &self.line[f.1.clone()],
-                    crate::error::Context::line(
-                        self.line_index,
-                        self.line.clone(),
-                        f.1.start,
-                        f.1.len(),
-                    ),
+            .map(|f| (&self.line[f.1.clone()], &f.1))
+            .ok_or_else(|| {
+                CustomError::error(
+                    "Could not find given column",
+                    format!("This CSV file does not contain the needed column '{name}'"),
+                    self.full_context(),
                 )
             })
-            .ok_or(CustomError::error(
-                "Could not find given column",
-                format!("This CSV file does not contain the needed column '{name}'"),
-                self.full_context(),
-            ))
     }
 }
 
@@ -117,7 +110,7 @@ pub fn parse_csv_raw<T: std::io::Read>(
             .next()
             .ok_or("Empty CSV file, but it should contain a header")?;
         let header_line = header.map_err(|err| format!("Could not read header line: {err}"))?;
-        csv_separate(&header_line, 0, separator)?
+        csv_separate(&header_line, separator)?
             .into_iter()
             .map(|r| header_line[r].to_lowercase())
             .collect()
@@ -146,16 +139,22 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
             } else {
                 return Err(format!("Could no read line {line_index}"));
             };
-            csv_separate(&line, line_index, self.separator).map(|row| CsvLine {
-                line_index,
-                line,
-                fields: self.header.iter().cloned().zip(row).collect(),
+            csv_separate(&line, self.separator).and_then(|row| {
+                if self.header.len() != row.len() {
+                    Err(format!("Line {line_index} does not have the correct number of columns. {} columns were expected but {} were found.", self.header.len(), row.len()))
+                } else {
+                    Ok(CsvLine {
+                        line_index,
+                        line,
+                        fields: self.header.iter().cloned().zip(row).collect(),
+                    })
+                }
             })
         })
     }
 }
 
-fn csv_separate(line: &str, line_index: usize, separator: u8) -> Result<Vec<Range<usize>>, String> {
+fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> {
     if line.is_empty() {
         return Err("Empty line".to_string());
     }
@@ -223,7 +222,7 @@ impl std::fmt::Display for CsvLine {
         };
         let mut fields = String::new();
         let mut index = 0;
-        for (name, field) in &self.fields {
+        for (_name, field) in &self.fields {
             if field.start >= index {
                 fields = format!(
                     "{fields}{}{}",

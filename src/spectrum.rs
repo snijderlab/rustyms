@@ -7,7 +7,7 @@ use uom::num_traits::Zero;
 use crate::{
     fragment::Fragment,
     system::{f64::*, mass_over_charge::mz},
-    ComplexPeptide, MassTolerance, Model,
+    ComplexPeptide, Model,
 };
 
 /// The mode of mass to use

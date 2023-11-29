@@ -7,8 +7,8 @@ use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 #[test]
 fn peaks_x() {
     let reader = BufReader::new(DATA_X.as_bytes());
-    let lines = parse_csv_raw(reader, b',');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b',', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::X).unwrap().into();
     }
@@ -17,8 +17,8 @@ fn peaks_x() {
 #[test]
 fn peaks_x_plus() {
     let reader = BufReader::new(DATA_XPLUS.as_bytes());
-    let lines = parse_csv_raw(reader, b',');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b',', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XPLUS)
             .unwrap()
@@ -29,8 +29,8 @@ fn peaks_x_plus() {
 #[test]
 fn peaks_11() {
     let reader = BufReader::new(DATA_11.as_bytes());
-    let lines = parse_csv_raw(reader, b',');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b',', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XI).unwrap().into();
     }
@@ -39,8 +39,8 @@ fn peaks_11() {
 #[test]
 fn peaks_ab() {
     let reader = BufReader::new(DATA_AB.as_bytes());
-    let lines = parse_csv_raw(reader, b',');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b',', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         //println!("{line}");
         let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::AB).unwrap().into();
     }
@@ -55,7 +55,7 @@ fn full_peaks_file() {
     }
 }
 
-const DATA_AB: &str = r#"Scan,Peptide,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,Accession,PTM,local confidence (%),tag (>=0%),mode
+const DATA_AB: &str = r"Scan,Peptide,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,Accession,PTM,local confidence (%),tag (>=0%),mode
 F2:10351,MHQN(+.98)WLWL,8,98,8,564.7653,2,23.75,5.73E7,1127.5222,-5.5,,Deamidation (NQ),96 98 98 99 99 100 99 99,MHQN(+.98)WLWL,CID
 F3:3063,M(+15.99)PHNHHTE,8,98,8,509.7123,2,10.99,4.42E6,1017.4087,1.4,,Oxidation (M),98 98 98 98 99 100 100 96,M(+15.99)PHNHHTE,CID
 F3:3534,M(+15.99)PHNHHTE,8,98,8,509.7128,2,11.79,1.82E6,1017.4087,2.4,,Oxidation (M),98 99 99 98 99 99 100 95,M(+15.99)PHNHHTE,CID
@@ -74,7 +74,7 @@ F3:14820,APNTFTCSVLHE,12,96,12,659.8107,2,39.24,6.09E6,1317.6023,3.5,constructed
 F4:9062,SDNYATHYAENK(+72.06),12,96,12,742.8393,2,20.43,5.92E7,1483.6631,0.6,,Carboxymethyl1,84 95 98 99 99 99 99 99 99 100 89 97,SDNYATHYAENK(+72.06),CID
 F4:6305,NHATYYAENK(+72.06),10,96,10,641.8087,2,16.22,2.99E6,1281.6040,-1.0,,Carboxymethyl1,85 96 99 99 99 98 98 100 94 94,NHATYYAENK(+72.06),CID
 F2:8831,VCAAVHGV,8,96,8,378.1942,2,21.04,3.21E6,754.3796,-7.5,,,84 92 98 99 99 100 99 99,VCAAVHGV,CID
-F4:3135,TPVSEHQK(+72.06),8,96,8,499.2701,2,10.87,3.28E7,996.5292,-3.5,,Carboxymethyl1,99 99 99 97 99 94 88 95,TPVSEHQK(+72.06),CID"#;
+F4:3135,TPVSEHQK(+72.06),8,96,8,499.2701,2,10.87,3.28E7,996.5292,-3.5,,Carboxymethyl1,99 99 99 97 99 94 88 95,TPVSEHQK(+72.06),CID";
 
 const DATA_X: &str = r"Fraction,Source File,Feature,Peptide,Scan,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,PTM,local confidence (%),tag (>=0%),mode
 1,20190517_F1_Ag5_3117030_SA_ETHCD_131-2a_Tryp01.raw,F1:5056,LLYLVSK,F1:6994,7,99,7,418.2689,2,39.59,1.47E6,834.5215,2.2,,100 100 100 100 100 100 100,LLYLVSK,ETHCD

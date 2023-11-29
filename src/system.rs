@@ -1,7 +1,7 @@
 //! The measurement system used in this crate.
 //! A redefinition of the important SI units for them to be stored in a more sensible base unit for MS purposes.
 
-#![allow(clippy::incorrect_clone_impl_on_copy_type)]
+#![allow(clippy::non_canonical_clone_impl)]
 #![allow(clippy::ignored_unit_patterns)]
 use uom::*;
 
