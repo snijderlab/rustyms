@@ -42,6 +42,24 @@ impl CustomError {
     /// * `short_desc` - A short description of the error, generally used as title line
     /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
     /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
+    pub(crate) const fn const_error(
+        short_desc: String,
+        long_desc: String,
+        context: Context,
+    ) -> Self {
+        Self {
+            warning: false,
+            short_description: short_desc,
+            long_description: long_desc,
+            context,
+        }
+    }
+    /// Create a new `CustomError`
+    ///
+    /// ## Arguments
+    /// * `short_desc` - A short description of the error, generally used as title line
+    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
+    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
     pub fn warning(
         short_desc: impl std::string::ToString,
         long_desc: impl std::string::ToString,

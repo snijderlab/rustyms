@@ -4,6 +4,7 @@ use super::opair::OpairData;
 use super::peaks::PeaksData;
 use super::MaxQuantData;
 use crate::error::CustomError;
+use crate::system::Charge;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
@@ -36,12 +37,12 @@ pub enum MetaData {
 
 impl MetaData {
     /// The charge of the precursor, if known
-    pub const fn charge(&self) -> Option<usize> {
+    pub const fn charge(&self) -> Option<Charge> {
         match self {
             Self::Peaks(PeaksData { z, .. })
             | Self::Novor(NovorData { z, .. })
-            | Self::Opair(OpairData { z, .. }) => Some(*z),
-            Self::MaxQuant(MaxQuantData { charge, .. }) => Some(*charge),
+            | Self::Opair(OpairData { z, .. })
+            | Self::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
             Self::Fasta(_) => None,
         }
     }

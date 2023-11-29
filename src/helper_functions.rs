@@ -32,6 +32,11 @@ impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
         self.map_or_else(|| Ok(None), |o| o.map(|v| Some(v)))
     }
 }
+impl<T, E> InvertResult<T, E> for Option<Result<Option<T>, E>> {
+    fn invert(self) -> Result<Option<T>, E> {
+        self.map_or_else(|| Ok(None), |o| o)
+    }
+}
 
 #[allow(dead_code)]
 pub fn parse_named_counter<T: Clone>(

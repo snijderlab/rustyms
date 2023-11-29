@@ -3,6 +3,80 @@ use std::{ops::Range, str::FromStr};
 
 use super::csv::CsvLine;
 
+// Create:
+// * XXFormat
+// * XXData
+// * XXParser?
+macro_rules! format_family {
+    (#[doc = $format_doc:expr]
+     $format:ident,
+     #[doc = $data_doc:expr]
+     $data:ident,
+     $version:ident, $versions:expr, $separator:expr;
+     required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
+     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
+        #[non_exhaustive]
+        #[derive(Debug, PartialEq, Eq, Clone)]
+        #[doc = $format_doc]
+        pub struct $format {
+            $($rname: &'static str,)*
+            $($oname: Option<&'static str>,)*
+            version: $version
+        }
+
+        #[non_exhaustive]
+        #[derive(Debug, PartialEq, Clone)]
+        #[doc = $data_doc]
+        pub struct $data {
+            $($(#[doc = $rdoc])? pub $rname: $rtyp,)*
+            $($(#[doc = $odoc])? pub $oname: Option<$otyp>,)*
+            version: $version
+        }
+
+        impl IdentifiedPeptideSource for $data {
+            type Source = CsvLine;
+            type Format = $format;
+            fn parse(source: &Self::Source) -> Result<(Self, &'static Self::Format), CustomError> {
+                for format in $versions {
+                    if let Ok(peptide) = Self::parse_specific(source, format) {
+                        return Ok((peptide, format));
+                    }
+                }
+                Err(CustomError::error(
+                    format!("Invalid {} line", stringify!($format)),
+                    "The correct format could not be determined automatically",
+                    source.full_context(),
+                ))
+            }
+            fn parse_file(
+                path: impl AsRef<std::path::Path>,
+            ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
+                parse_csv(path, $separator, None).map(|lines| {
+                    Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
+                        lines.map(Result::unwrap),
+                    ))
+                })
+            }
+            fn parse_specific(source: &Self::Source, format: &$format) -> Result<Self, CustomError> {
+                Ok(Self {
+                    $($rname: $rf(source.column(format.$rname)?)?,)*
+                    $($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c))).invert()?,)*
+                    version: format.version.clone()
+                })
+            }
+        }
+    };
+}
+
+impl CsvLine {
+    pub fn column<'a>(&'a self, name: &str) -> Result<Location<'a>, CustomError> {
+        self.index_column(name).map(|(_v, c)| Location {
+            line: self,
+            location: c.clone(),
+        })
+    }
+}
+
 /// The base location type to keep track of the location of to be parsed pieces in the monadic parser combinators below
 pub struct Location<'a> {
     pub(super) line: &'a CsvLine,
@@ -13,14 +87,14 @@ impl<'a> Location<'a> {
     pub fn column(column: usize, source: &'a CsvLine) -> Self {
         Location {
             line: source,
-            location: source.fields[column].clone(),
+            location: source.range(column).clone(),
         }
     }
 
     pub fn optional_column(column: Option<usize>, source: &'a CsvLine) -> Option<Self> {
         column.map(|index| Location {
             line: source,
-            location: source.fields[index].clone(),
+            location: source.range(index).clone(),
         })
     }
 
@@ -28,7 +102,7 @@ impl<'a> Location<'a> {
     pub fn array(self, sep: char) -> std::vec::IntoIter<Location<'a>> {
         let mut offset = 0;
         let mut output = Vec::new();
-        for part in self.line.line[self.location.clone()].split(sep) {
+        for part in self.line.line()[self.location.clone()].split(sep) {
             output.push(Location {
                 line: self.line,
                 location: self.location.start + offset..self.location.start + offset + part.len(),
@@ -39,7 +113,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn or_empty(self) -> Option<Self> {
-        let text = &self.line.line[self.location.clone()];
+        let text = &self.line.line()[self.location.clone()];
         if text.is_empty() || text == "-" {
             None
         } else {
@@ -48,7 +122,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn ignore(self, pattern: &str) -> Option<Self> {
-        let text = &self.line.line[self.location.clone()];
+        let text = &self.line.line()[self.location.clone()];
         if text == pattern {
             None
         } else {
@@ -56,11 +130,17 @@ impl<'a> Location<'a> {
         }
     }
 
-    pub fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<T, CustomError> {
-        self.line.line[self.location.clone()]
+    pub fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<T, CustomError> {
+        self.line.line()[self.location.clone()]
             .trim()
             .parse()
-            .map_err(|_| base_error.with_context(self.line.range_context(self.location)))
+            .map_err(|_| {
+                CustomError::error(
+                    base_error.0,
+                    base_error.1,
+                    self.line.range_context(self.location),
+                )
+            })
     }
 
     pub fn parse_with<T>(
@@ -70,8 +150,8 @@ impl<'a> Location<'a> {
         f(self)
     }
 
-    pub fn get_id(self, base_error: &CustomError) -> Result<(Option<usize>, usize), CustomError> {
-        if let Some((start, end)) = self.line.line[self.location.clone()].split_once(':') {
+    pub fn get_id(self, base_error: (&str, &str)) -> Result<(Option<usize>, usize), CustomError> {
+        if let Some((start, end)) = self.line.line()[self.location.clone()].split_once(':') {
             Ok((
                 Some(
                     Self {
@@ -93,11 +173,15 @@ impl<'a> Location<'a> {
     }
 
     pub fn get_string(self) -> String {
-        self.line.line[self.location].to_string()
+        self.line.line()[self.location].to_string()
     }
 
     pub fn as_str(&self) -> &str {
-        &self.line.line[self.location.clone()]
+        &self.line.line()[self.location.clone()]
+    }
+
+    pub fn full_line(&self) -> &str {
+        self.line.line()
     }
 
     pub fn apply(self, f: impl FnOnce(Self) -> Self) -> Self {
@@ -107,14 +191,14 @@ impl<'a> Location<'a> {
 
 pub trait OptionalLocation<'a> {
     fn or_empty(self) -> Option<Location<'a>>;
-    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError>;
+    fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<Option<T>, CustomError>;
     fn parse_with<T>(
         self,
         f: impl Fn(Location<'a>) -> Result<T, CustomError>,
     ) -> Result<Option<T>, CustomError>;
     fn get_id(
         self,
-        base_error: &CustomError,
+        base_error: (&str, &str),
     ) -> Result<Option<(Option<usize>, usize)>, CustomError>;
     fn get_string(self) -> Option<String>;
     fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Option<Location<'a>>;
@@ -126,8 +210,8 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     fn or_empty(self) -> Self {
         self.and_then(Location::or_empty)
     }
-    fn parse<T: FromStr>(self, base_error: &CustomError) -> Result<Option<T>, CustomError> {
-        self.map(|l| l.parse(base_error)).invert()
+    fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<Option<T>, CustomError> {
+        self.map(|l| l.parse::<T>(base_error)).invert()
     }
     fn parse_with<T>(
         self,
@@ -137,7 +221,7 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     }
     fn get_id(
         self,
-        base_error: &CustomError,
+        base_error: (&str, &str),
     ) -> Result<Option<(Option<usize>, usize)>, CustomError> {
         self.map(|l| l.get_id(base_error)).invert()
     }

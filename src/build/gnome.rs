@@ -81,16 +81,16 @@ fn parse_gnome(_debug: bool) -> HashMap<String, GNOmeModification> {
 fn parse_gnome_structures(_debug: bool) -> HashMap<String, GlycanStructure> {
     let mut glycans = HashMap::new();
     let mut errors = 0;
-    for line in parse_csv("databases/glycosmos_glycans_list.csv.gz", b',')
+    for line in parse_csv("databases/glycosmos_glycans_list.csv.gz", b',', None)
         .unwrap()
         .skip(1)
     {
         let line = line.unwrap();
         if !line[1].is_empty() {
             match GlycanStructure::from_short_iupac(
-                &line.line,
-                line.fields[1].clone(),
-                line.line_index + 1,
+                line.line(),
+                line.range(1).clone(),
+                line.line_index() + 1,
             ) {
                 Ok(glycan) => {
                     glycans.insert(line[0].to_lowercase(), glycan);
