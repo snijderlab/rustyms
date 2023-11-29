@@ -28,27 +28,14 @@ format_family!(
         scan_index: usize, |location: Location| location.parse(NUMBER_ERROR);
         modifications: String, |location: Location| Ok(location.get_string());
         proteins: String, |location: Location| Ok(location.get_string());
-        sequence: LinearPeptide, |location: Location| ComplexPeptide::sloppy_pro_forma(
+        sequence: Option<LinearPeptide>, |location: Location| location.or_empty().parse_with(|location| ComplexPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-        );
+        ));
         z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
         fragmentation: String, |location: Location| Ok(location.get_string());
-        mass_analyzer: String, |location: Location| Ok(location.get_string());
-        ty: MaxQuantType, |location: Location| location.parse_with(|l| match l.as_str() {
-            "PEAK" => Ok(MaxQuantType::Peak),
-            "MULTI" => Ok(MaxQuantType::Multi),
-            _ => Err(CustomError::error(
-                "Invalid MaxQuant line",
-                "A MaxQuant type has to be PEAK or MULTI.",
-                Context::line(
-                    l.line.line_index(),
-                    l.line.line(),
-                    l.location.start,
-                    l.location.len(),
-                ),
-            )),
-        });
+        mass_analyser: String, |location: Location| Ok(location.get_string());
+        ty: String, |location: Location| Ok(location.get_string());
         scan_event_number: usize, |location: Location| location.parse(NUMBER_ERROR);
         pep: f64, |location: Location| location.parse(NUMBER_ERROR);
         score: f64, |location: Location| location.parse(NUMBER_ERROR);
@@ -60,7 +47,7 @@ format_family!(
     }
     optional {
         missed_cleavages: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        isotope_index: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        isotope_index: isize, |location: Location| location.or_empty().parse::<isize>(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         mass_error_da: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
@@ -68,24 +55,24 @@ format_family!(
         simple_mass_error_ppm: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         retention_time:Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         number_of_matches: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        intensity_coverage: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        peak_coverage:usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        intensity_coverage: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
+        peak_coverage: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         delta_score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         score_diff: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         localisation_probability: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         all_modified_sequences: Vec<LinearPeptide>,|location: Location| location.array(';')
-                .map(|s| ComplexPeptide::sloppy_pro_forma(&s.line.line(), s.location))
+                .map(|s| ComplexPeptide::sloppy_pro_forma(s.line.line(), s.location))
                 .collect::<Result<Vec<LinearPeptide>, CustomError>>();
         id: usize,|location: Location| location.parse::<usize>(NUMBER_ERROR);
-        protein_group_ids: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
         peptide_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        protein_group_ids: Vec<usize>, |location: Location| location.array(';').map(|p| p.parse::<usize>(NUMBER_ERROR)).collect::<Result<Vec<_>,_>>();
         modified_peptide_id:usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
         evidence_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        base_peak_intensity: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        base_peak_intensity: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         total_ion_current: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        collision_energy: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        collision_energy: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         dn_sequence: String, |location: Location| Ok(location.get_string());
-        dn_combined_score: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
+        dn_combined_score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         dn_n_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         dn_c_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         dn_missing_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
@@ -95,7 +82,7 @@ format_family!(
 impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
-            peptide: value.sequence.clone(),
+            peptide: value.sequence.clone().unwrap_or_default(), // TODO: what to do with empty sequences
             local_confidence: None,
             score: Some(value.score),
             metadata: MetaData::MaxQuant(value),
@@ -139,7 +126,7 @@ pub const MSMS: MaxQuantFormat = MaxQuantFormat {
     sequence: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
-    mass_analyzer: "mass analyzer",
+    mass_analyser: "mass analyzer",
     ty: "type",
     scan_event_number: "scan event number",
     pep: "pep",
@@ -190,7 +177,7 @@ pub const MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     sequence: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
-    mass_analyzer: "mass analyzer",
+    mass_analyser: "mass analyzer",
     ty: "type",
     scan_event_number: "scan event number",
     pep: "pep",
@@ -241,7 +228,7 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     sequence: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
-    mass_analyzer: "mass analyzer",
+    mass_analyser: "mass analyzer",
     ty: "type",
     scan_event_number: "scan event number",
     pep: "pep",
@@ -280,8 +267,3 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     dn_c_mass: Some("dn cterm mass"),
     dn_missing_mass: Some("dn missing mass"),
 };
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MaxQuantType {
-    Peak,
-    Multi,
-}

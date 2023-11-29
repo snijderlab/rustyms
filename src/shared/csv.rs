@@ -140,14 +140,14 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
                 return Err(format!("Could no read line {line_index}"));
             };
             csv_separate(&line, self.separator).and_then(|row| {
-                if self.header.len() != row.len() {
-                    Err(format!("Line {line_index} does not have the correct number of columns. {} columns were expected but {} were found.", self.header.len(), row.len()))
-                } else {
+                if self.header.len() == row.len() {
                     Ok(CsvLine {
                         line_index,
                         line,
                         fields: self.header.iter().cloned().zip(row).collect(),
                     })
+                } else {
+                    Err(format!("Line {line_index} does not have the correct number of columns. {} columns were expected but {} were found.", self.header.len(), row.len()))
                 }
             })
         })
@@ -162,6 +162,7 @@ fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> 
     let mut was_enclosed = false;
     let mut row = Vec::new();
     let mut start = None;
+    let mut last_non_whitespace = None;
     for (index, ch) in line.bytes().enumerate() {
         match (ch, enclosed, start) {
             (b'\"' | b'\'', None, None) => {
@@ -170,13 +171,23 @@ fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> 
             }
             (c, Some(e), Some(s)) if c == e => {
                 enclosed = None;
-                row.push(s..index);
+                if c.is_ascii_whitespace() {
+                    row.push(s..last_non_whitespace.unwrap_or(index));
+                } else {
+                    row.push(s..index);
+                }
                 start = None;
+                last_non_whitespace = None;
                 was_enclosed = true;
             }
             (sep, None, Some(s)) if sep == separator => {
-                row.push(s..index);
+                if sep.is_ascii_whitespace() {
+                    row.push(s..last_non_whitespace.unwrap_or(index));
+                } else {
+                    row.push(s..index);
+                }
                 start = None;
+                last_non_whitespace = None;
                 was_enclosed = false;
             }
             (sep, None, None) if sep == separator => {
@@ -184,16 +195,20 @@ fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> 
                     // ignore any comma directly after an enclosed field
                     row.push(index..index);
                     start = None;
+                    last_non_whitespace = None;
                 }
                 was_enclosed = false;
             }
             (c, _, _) if c.is_ascii_whitespace() => (), // ignore
-            (_, _, None) => start = Some(index),
-            _ => (),
+            (_, _, None) => {
+                start = Some(index);
+                last_non_whitespace = Some(index + 1);
+            }
+            _ => last_non_whitespace = Some(index + 1),
         }
     }
     if let Some(s) = start {
-        row.push(s..line.len());
+        row.push(s..last_non_whitespace.unwrap_or(line.len()));
     } else if !was_enclosed {
         row.push(line.len()..line.len());
     }

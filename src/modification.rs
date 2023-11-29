@@ -110,12 +110,12 @@ impl Modification {
                     })
                     .or_else(|| {
                         // Common sloppy naming: `modification (AAs)`
-                        Regex::new(r"(.*) ([A-Z]+)")
+                        Regex::new(r"(.*)\s*\([a-zA-Z]+\)")
                             .unwrap()
                             .captures(&line[location])
                             .and_then(|capture| {
-                                unimod_ontology().find_name(&capture[1]).or_else(|| {
-                                    match &capture[1] {
+                                unimod_ontology().find_name(capture[1].trim()).or_else(|| {
+                                    match capture[1].trim() {
                                         "Deamidation" => {
                                             Some(unimod_ontology().find_id(7).unwrap())
                                         } // deamidated
@@ -126,6 +126,10 @@ impl Modification {
                     })
             }
         }
+    }
+
+    fn sloppy_modification_internal(line: &str) -> Option<Self> {
+        Self::sloppy_modification(line, 0..line.len())
     }
 
     /// Check to see if this modification can be placed on the specified element
@@ -392,5 +396,18 @@ impl Display for Modification {
             Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sloppy_names() {
+        assert_eq!(
+            Modification::sloppy_modification_internal("Deamidation (NQ)"),
+            Some(unimod_ontology().find_name("deamidated").unwrap())
+        );
     }
 }

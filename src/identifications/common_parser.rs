@@ -102,7 +102,7 @@ impl<'a> Location<'a> {
     pub fn array(self, sep: char) -> std::vec::IntoIter<Location<'a>> {
         let mut offset = 0;
         let mut output = Vec::new();
-        for part in self.line.line()[self.location.clone()].split(sep) {
+        for part in self.as_str().split(sep) {
             output.push(Location {
                 line: self.line,
                 location: self.location.start + offset..self.location.start + offset + part.len(),
@@ -113,7 +113,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn or_empty(self) -> Option<Self> {
-        let text = &self.line.line()[self.location.clone()];
+        let text = self.as_str();
         if text.is_empty() || text == "-" {
             None
         } else {
@@ -122,7 +122,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn ignore(self, pattern: &str) -> Option<Self> {
-        let text = &self.line.line()[self.location.clone()];
+        let text = self.as_str();
         if text == pattern {
             None
         } else {
@@ -131,16 +131,13 @@ impl<'a> Location<'a> {
     }
 
     pub fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<T, CustomError> {
-        self.line.line()[self.location.clone()]
-            .trim()
-            .parse()
-            .map_err(|_| {
-                CustomError::error(
-                    base_error.0,
-                    base_error.1,
-                    self.line.range_context(self.location),
-                )
-            })
+        self.as_str().trim().parse().map_err(|_| {
+            CustomError::error(
+                base_error.0,
+                base_error.1,
+                self.line.range_context(self.location),
+            )
+        })
     }
 
     pub fn parse_with<T>(
@@ -151,7 +148,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn get_id(self, base_error: (&str, &str)) -> Result<(Option<usize>, usize), CustomError> {
-        if let Some((start, end)) = self.line.line()[self.location.clone()].split_once(':') {
+        if let Some((start, end)) = self.as_str().split_once(':') {
             Ok((
                 Some(
                     Self {
@@ -173,7 +170,7 @@ impl<'a> Location<'a> {
     }
 
     pub fn get_string(self) -> String {
-        self.line.line()[self.location].to_string()
+        self.as_str().to_string()
     }
 
     pub fn as_str(&self) -> &str {

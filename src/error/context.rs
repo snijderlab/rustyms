@@ -242,7 +242,7 @@ impl Context {
                 let (start, end) = if line.len() > MAX_COLS {
                     let pad = MAX_COLS.saturating_sub(*length) / 2;
                     let start = offset.saturating_sub(pad);
-                    (start, start + MAX_COLS)
+                    (start.min(line.len()), (start + MAX_COLS).min(line.len()))
                 } else {
                     (0, line.len())
                 };
