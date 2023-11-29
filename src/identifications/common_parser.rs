@@ -8,21 +8,21 @@ use super::csv::CsvLine;
 // * XXData
 // * XXParser?
 macro_rules! format_family {
-    ($format:ident, $data:ident, $version:ident, $versions:expr, $separator:expr; required {$($rname:ident: $rtyp:ty, $rf:expr);+; } optional { $($oname:ident: $otyp:ty, $of:expr);+;}) => {
+    ($format:ident, $data:ident, $version:ident, $versions:expr, $separator:expr; required {$($rname:ident: $rtyp:ty, $rf:expr;)* } optional { $($oname:ident: $otyp:ty, $of:expr;)*}) => {
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Eq, Clone)]
         pub struct $format {
-            $($rname: &'static str),+
-            ,$($oname: Option<&'static str>),+
-            ,version: $version,
+            $($rname: &'static str,)*
+            $($oname: Option<&'static str>,)*
+            version: $version
         }
 
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Clone)]
         pub struct $data {
-            $(pub $rname: $rtyp),+
-            ,$(pub $oname: Option<$otyp>),+
-            ,version: $version,
+            $(pub $rname: $rtyp,)*
+            $(pub $oname: Option<$otyp>,)*
+            version: $version
         }
 
         impl IdentifiedPeptideSource for $data {
@@ -45,15 +45,15 @@ macro_rules! format_family {
             ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
                 parse_csv(path, $separator, None).map(|lines| {
                     Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
-                        lines.skip(1).map(Result::unwrap),
+                        lines.map(Result::unwrap),
                     ))
                 })
             }
             fn parse_specific(source: &Self::Source, format: &$format) -> Result<Self, CustomError> {
                 Ok(Self {
-                    $($rname: $rf(source.column(format.$rname)?)?),+
-                    ,$($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c))).invert()?),+
-                    ,version: format.version.clone(),
+                    $($rname: $rf(source.column(format.$rname)?)?,)*
+                    $($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c))).invert()?,)*
+                    version: format.version.clone()
                 })
             }
         }
