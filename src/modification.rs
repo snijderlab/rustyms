@@ -91,7 +91,7 @@ impl Modification {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
                     .unwrap()
-                    .captures(&line[location])
+                    .captures(&line[location.clone()])
                     .and_then(|capture| {
                         unimod_ontology()
                             .find_name(&capture[1])
@@ -107,6 +107,22 @@ impl Modification {
                                 }
                             })
                             .ok()
+                    })
+                    .or_else(|| {
+                        // Common sloppy naming: `modification (AAs)`
+                        Regex::new(r"(.*) ([A-Z]+)")
+                            .unwrap()
+                            .captures(&line[location])
+                            .and_then(|capture| {
+                                unimod_ontology().find_name(&capture[1]).or_else(|| {
+                                    match &capture[1] {
+                                        "Deamidation" => {
+                                            Some(unimod_ontology().find_id(7).unwrap())
+                                        } // deamidated
+                                        _ => None,
+                                    }
+                                })
+                            })
                     })
             }
         }
