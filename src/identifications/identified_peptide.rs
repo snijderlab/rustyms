@@ -1,5 +1,5 @@
 use super::fasta::FastaData;
-// use super::novor::NovorData;
+use super::novor::NovorData;
 // use super::opair::OpairData;
 use super::peaks::PeaksData;
 // use super::MaxQuantData;
@@ -26,7 +26,7 @@ pub enum MetaData {
     /// Peaks metadata
     Peaks(PeaksData),
     /// Novor metadata
-    // Novor(NovorData),
+    Novor(NovorData),
     /// Novor metadata
     // Opair(OpairData),
     /// Novor metadata
@@ -39,8 +39,7 @@ impl MetaData {
     /// The charge of the precursor, if known
     pub const fn charge(&self) -> Option<Charge> {
         match self {
-            Self::Peaks(PeaksData { z, .. }) => Some(*z),
-            // | Self::Novor(NovorData { z, .. })
+            Self::Peaks(PeaksData { z, .. }) | Self::Novor(NovorData { z, .. }) => Some(*z),
             // | Self::Opair(OpairData { z, .. }) => Some(*z),
             // Self::MaxQuant(MaxQuantData { charge, .. }) => Some(*charge),
             Self::Fasta(_) => None,
@@ -59,9 +58,10 @@ impl MetaData {
             Self::Peaks(PeaksData { scan, .. }) => {
                 scan.first().and_then(|i| i.scans.first().copied())
             }
-            // Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
-            //     Some(*scan)
-            // }
+            Self::Novor(NovorData { scan, .. }) => {
+                //| Self::Opair(OpairData { scan, .. }) => {
+                Some(*scan)
+            }
             // Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
             Self::Fasta(_) => None,
         }
