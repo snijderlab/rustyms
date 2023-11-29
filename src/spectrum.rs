@@ -71,7 +71,7 @@ impl RawSpectrum {
             .iter()
             .map(|p| p.intensity)
             .reduce(f64::max)
-            .unwrap();
+            .unwrap_or(f64::INFINITY);
         self.spectrum
             .retain(|p| p.intensity >= max * filter_threshold);
         self.spectrum.shrink_to_fit();
