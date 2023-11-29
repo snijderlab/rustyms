@@ -6,7 +6,7 @@ mod common_parser;
 mod csv;
 mod fasta;
 mod identified_peptide;
-// mod maxquant;
+mod maxquant;
 mod novor;
 mod opair;
 mod peaks;
@@ -15,13 +15,13 @@ use self::csv::CsvLine;
 use crate::error::CustomError;
 pub use fasta::*;
 pub use identified_peptide::*;
-// pub use maxquant::*;
+pub use maxquant::*;
 pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
 
-// #[cfg(test)]
-// mod maxquant_tests;
+#[cfg(test)]
+mod maxquant_tests;
 #[cfg(test)]
 mod novor_tests;
 #[cfg(test)]

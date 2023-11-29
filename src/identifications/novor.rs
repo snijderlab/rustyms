@@ -17,7 +17,11 @@ static NUMBER_ERROR: (&str, &str) = (
 );
 
 format_family!(
-    NovorFormat, NovorData, NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',';
+    /// The format for Novor data
+    NovorFormat,
+    /// The Novor data
+    NovorData,
+    NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',';
     required {
         scan: usize, |location: Location| location.parse(NUMBER_ERROR);
         mz:MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
@@ -105,7 +109,8 @@ impl std::fmt::Display for NovorVersion {
 /// 9       De Novo Peptide
 /// 10      DB Sequence
 /// <https://github.com/snijderlab/stitch/issues/156#issuecomment-1097862072>
-pub const OLD_DENOVO: NovorFormat = file_format!(NovorFormat, NovorVersion::OldDenovo;
+pub const OLD_DENOVO: NovorFormat = NovorFormat {
+    version: NovorVersion::OldDenovo,
     scan: "scan #",
     mz: "m/z",
     z: "z",
@@ -126,7 +131,7 @@ pub const OLD_DENOVO: NovorFormat = file_format!(NovorFormat, NovorVersion::OldD
     protein_all: None,
     database_sequence: Some("db sequence"),
     local_confidence: None,
-);
+};
 
 /// The older supported format for psms.csv files from Novor
 ///# -
@@ -141,7 +146,8 @@ pub const OLD_DENOVO: NovorFormat = file_format!(NovorFormat, NovorVersion::OldD
 /// 9       # Proteins
 /// 10      Sequence
 /// <https://github.com/snijderlab/stitch/issues/156#issuecomment-1097862072>
-pub const OLD_PSM: NovorFormat = file_format!(NovorFormat, NovorVersion::OldPSM;
+pub const OLD_PSM: NovorFormat = NovorFormat {
+    version: NovorVersion::OldPSM,
     scan: "scan",
     mz: "m/z",
     z: "z",
@@ -162,10 +168,11 @@ pub const OLD_PSM: NovorFormat = file_format!(NovorFormat, NovorVersion::OldPSM;
     protein_all: None,
     database_sequence: None,
     local_confidence: None,
-);
+};
 
 /// denovo: `# id, scanNum, RT, mz(data), z, pepMass(denovo), err(data-denovo), ppm(1e6*err/(mz*z)), score, peptide, aaScore,`
-pub const NEW_DENOVO: NovorFormat = file_format!(NovorFormat, NovorVersion::NewDenovo;
+pub const NEW_DENOVO: NovorFormat = NovorFormat {
+    version: NovorVersion::NewDenovo,
     scan: "scannum",
     mz: "mz(data)",
     z: "z",
@@ -186,10 +193,11 @@ pub const NEW_DENOVO: NovorFormat = file_format!(NovorFormat, NovorVersion::NewD
     protein_all: None,
     database_sequence: None,
     local_confidence: Some("aascore"),
-);
+};
 
 /// PSM: `#id, spectraId, scanNum, RT, mz, z, pepMass, err, ppm, score, protein, start, length, origin, peptide, noPTMPeptide, aac, allProteins`
-pub const NEW_PSM: NovorFormat = file_format!(NovorFormat, NovorVersion::NewPSM;
+pub const NEW_PSM: NovorFormat = NovorFormat {
+    version: NovorVersion::NewPSM,
     scan: "scannum",
     mz: "mz",
     z: "z",
@@ -210,4 +218,4 @@ pub const NEW_PSM: NovorFormat = file_format!(NovorFormat, NovorVersion::NewPSM;
     protein_all: Some("allproteins"),
     database_sequence: None,
     local_confidence: Some("aac"),
-);
+};

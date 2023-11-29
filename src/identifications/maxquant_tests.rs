@@ -7,8 +7,8 @@ use super::csv::parse_csv_raw;
 #[test]
 fn maxquant_msms() {
     let reader = BufReader::new(MAXQUANT_MSMS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS)
             .unwrap()
@@ -18,8 +18,8 @@ fn maxquant_msms() {
 #[test]
 fn maxquant_msms_scans() {
     let reader = BufReader::new(MAXQUANT_MSMS_SCANS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS_SCANS)
             .unwrap()
@@ -29,8 +29,8 @@ fn maxquant_msms_scans() {
 #[test]
 fn maxquant_novo_msms_scans() {
     let reader = BufReader::new(MAXQUANT_NOVO_MSMS_SCANS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide =
             MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS)
@@ -41,11 +41,11 @@ fn maxquant_novo_msms_scans() {
 #[test]
 fn maxquant_novo_msms_scans_new() {
     let reader = BufReader::new(MAXQUANT_NOVO_MSMS_SCANS_NEW.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t');
-    for line in lines.skip(1).map(Result::unwrap) {
+    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
+    for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS_NEW)
+            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS)
                 .unwrap()
                 .into();
     }

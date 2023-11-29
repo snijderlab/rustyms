@@ -16,7 +16,11 @@ static NUMBER_ERROR: (&str, &str) = (
     "This column is not a number but it is required to be a number in this OPair format",
 );
 format_family!(
-    OpairFormat, OpairData, OpairVersion, [&O_PAIR], b'\t';
+    /// The format for OPair data
+    OpairFormat,
+    /// The data for OPair data
+    OpairData,
+    OpairVersion, [&O_PAIR], b'\t';
     required {
         file_name: String, |location: Location| Ok(location.get_string());
         scan: usize, |location: Location| location.parse(NUMBER_ERROR);
@@ -210,7 +214,8 @@ impl std::fmt::Display for OpairVersion {
 }
 
 /// The only supported format for Opair data
-pub const O_PAIR: OpairFormat = file_format!(OpairFormat, OpairVersion::Opair;
+pub const O_PAIR: OpairFormat = OpairFormat {
+    version: OpairVersion::Opair,
     file_name: "file name",
     scan: "scan number",
     rt: "scan retention time",
@@ -254,7 +259,7 @@ pub const O_PAIR: OpairFormat = file_format!(OpairFormat, OpairVersion::Opair;
     glycan_protein_site_specificity: "localized glycans with protein site specific probability",
     all_potential_glycan_localisations: "all potential glycan localizations",
     all_site_specific_localisation_probabilities: "allsitespecificlocalizationprobability",
-);
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(missing_docs)]

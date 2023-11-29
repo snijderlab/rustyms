@@ -8,9 +8,16 @@ use super::csv::CsvLine;
 // * XXData
 // * XXParser?
 macro_rules! format_family {
-    ($format:ident, $data:ident, $version:ident, $versions:expr, $separator:expr; required {$($rname:ident: $rtyp:ty, $rf:expr;)* } optional { $($oname:ident: $otyp:ty, $of:expr;)*}) => {
+    (#[doc = $format_doc:expr]
+     $format:ident,
+     #[doc = $data_doc:expr]
+     $data:ident,
+     $version:ident, $versions:expr, $separator:expr;
+     required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
+     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Eq, Clone)]
+        #[doc = $format_doc]
         pub struct $format {
             $($rname: &'static str,)*
             $($oname: Option<&'static str>,)*
@@ -19,9 +26,10 @@ macro_rules! format_family {
 
         #[non_exhaustive]
         #[derive(Debug, PartialEq, Clone)]
+        #[doc = $data_doc]
         pub struct $data {
-            $(pub $rname: $rtyp,)*
-            $(pub $oname: Option<$otyp>,)*
+            $($(#[doc = $rdoc])? pub $rname: $rtyp,)*
+            $($(#[doc = $odoc])? pub $oname: Option<$otyp>,)*
             version: $version
         }
 
@@ -56,15 +64,6 @@ macro_rules! format_family {
                     version: format.version.clone()
                 })
             }
-        }
-    };
-}
-
-macro_rules! file_format {
-    ($format:ident, $version:expr; $($name:ident: $column:expr),+,) => {
-        $format {
-            $($name: $column),+
-            ,version: $version,
         }
     };
 }

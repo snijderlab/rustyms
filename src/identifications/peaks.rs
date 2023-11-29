@@ -23,7 +23,11 @@ static ID_ERROR: (&str, &str) =  ("Invalid Peaks line",
     "This column is not a valid peaks ID but it is required to be in this peaks format\nExamples of valid IDs: '1234', 'F2:1234', 'F2:1234 12345'");
 
 format_family!(
-    PeaksFormat, PeaksData, PeaksVersion, [&OLD, &X, &XPLUS, &AB], b',';
+    /// The format for any Peaks file
+    PeaksFormat,
+    /// The data from any peaks file
+    PeaksData,
+    PeaksVersion, [&OLD, &X, &XPLUS, &AB], b',';
     required {
         scan: Vec<PeaksId>, |location: Location| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -32,6 +36,7 @@ format_family!(
                             location.location.clone(),
                         );
         tag_length: usize, |location: Location| location.parse(NUMBER_ERROR);
+        /// Range [0-1]
         alc: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         length: usize, |location: Location| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
@@ -72,7 +77,8 @@ impl From<PeaksData> for IdentifiedPeptide {
 }
 
 /// An older version of a PEAKS export
-pub const OLD: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Old;
+pub const OLD: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::Old,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -94,9 +100,10 @@ pub const OLD: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Old;
     de_novo_score: None,
     predicted_rt: None,
     accession: None,
-);
+};
 /// Version X of PEAKS export (made for build 31 january 2019)
-pub const X: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::X;
+pub const X: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::X,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -118,9 +125,10 @@ pub const X: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::X;
     de_novo_score: None,
     predicted_rt: None,
     accession: None,
-);
+};
 /// Version X+ of PEAKS export (made for build 20 november 2019)
-pub const XPLUS: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Xplus;
+pub const XPLUS: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::Xplus,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -142,9 +150,10 @@ pub const XPLUS: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Xplus;
     de_novo_score: Some("denovo score"),
     predicted_rt: Some("predict rt"),
     accession: None,
-);
+};
 /// Version 11 of PEAKS export
-pub const XI: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::XI;
+pub const XI: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::XI,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -166,9 +175,10 @@ pub const XI: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::XI;
     de_novo_score: None,
     predicted_rt: None,
     accession: None,
-);
+};
 /// Version Ab of PEAKS export
-pub const AB: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Ab;
+pub const AB: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::Ab,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -190,7 +200,7 @@ pub const AB: PeaksFormat = file_format!(PeaksFormat, PeaksVersion::Ab;
     de_novo_score: None,
     predicted_rt: None,
     accession: Some("accession"),
-);
+};
 
 /// All possible peaks versions
 #[derive(Clone, Debug, PartialEq, Eq)]
