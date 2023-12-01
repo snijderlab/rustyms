@@ -36,11 +36,13 @@ pub enum AminoAcid {
 
 impl AminoAcid {
     /// Translate the dna codon into the corresponding amino acid according to the standard DNA codon table.
-    /// It assumes all characters are in lowercase. It returns None for a stop codon.
+    /// It returns None for a stop codon.
     /// <https://en.wikipedia.org/wiki/DNA_and_RNA_codon_tables>
+    /// # Errors
+    /// It returns `Err(())` when the given codon is not a valid dna codon.
     #[allow(dead_code)]
-    pub fn from_dna(dna: &str) -> Result<Option<AminoAcid>, ()> {
-        match dna {
+    pub fn from_dna(dna: &str) -> Result<Option<Self>, ()> {
+        match dna.to_lowercase().as_str() {
             "ttt" | "ttc" => Ok(Some(Self::Phenylalanine)),
             "tta" | "ttg" | "ctt" | "ctc" | "cta" | "ctg" => Ok(Some(Self::Leucine)),
             "att" | "atc" | "ata" => Ok(Some(Self::Isoleucine)),

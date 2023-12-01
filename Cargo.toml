@@ -1,12 +1,12 @@
 [package]
 name = "rustyms"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2021"
 license = "MIT"
 authors = ["Douwe Schulte <d.schulte@uu.nl>"]
-description = "A library to match spectra to peptides."
+description = "A library to handle proteomic mass spectrometry data and match peptides to spectra."
 categories = ["science"]
-keywords = ["spectra", "massspectrometry", "ms", "fragmentation", "proforma"]
+keywords = ["spectra", "massspectrometry", "bio", "fragmentation", "proforma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
 include = ["src/**/*", "databases/**/*", "LICENSE", "README.md", "build.rs"]

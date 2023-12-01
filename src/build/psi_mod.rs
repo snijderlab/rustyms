@@ -69,7 +69,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 if origin.len() == 1 {
                     modification.rules.push(PlacementRule::AminoAcid(
                         vec![(*origin).try_into().unwrap()],
-                        term.clone().unwrap_or(Position::Anywhere),
+                        term.unwrap_or(Position::Anywhere),
                     ));
                 } else {
                     modification.rules.push(PlacementRule::PsiModification(
@@ -79,13 +79,13 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                             .1
                             .parse()
                             .expect("Incorrect psi mod id, should be numerical"),
-                        term.clone().unwrap_or(Position::Anywhere),
+                        term.unwrap_or(Position::Anywhere),
                     ));
                 }
             }
         }
         if origins.is_empty() || all_aminoacids {
-            if let Some(term) = term.clone() {
+            if let Some(term) = term {
                 modification.rules.push(PlacementRule::Terminal(term))
             }
         }

@@ -33,7 +33,7 @@ impl PlacementRule {
 }
 
 impl Position {
-    const fn is_possible(&self, index: usize, length: usize) -> bool {
+    const fn is_possible(self, index: usize, length: usize) -> bool {
         match self {
             Self::Anywhere => true,
             Self::AnyNTerm | Self::ProteinNTerm => index == 0,
