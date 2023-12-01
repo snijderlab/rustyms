@@ -1,5 +1,5 @@
 /// A modification on an amino acid
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum Modification {
     /// A modification defined with a monoisotopic mass shift
     Mass(Mass),
@@ -26,7 +26,7 @@ pub enum Modification {
 }
 
 /// All possible compositions in the GNO ontology
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum GnoComposition {
     /// Only the mass is known
     Mass(Mass),

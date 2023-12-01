@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Model {
     /// a series ions
     pub a: (Location, Vec<NeutralLoss>),
@@ -38,6 +38,7 @@ pub struct Model {
 
 /// A struct to handle all possible fragments that could be generated on a single location
 #[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct PossibleIons<'a> {
     /// a series ions
     pub a: (bool, &'a [NeutralLoss]),
@@ -310,7 +311,7 @@ impl Model {
 }
 
 /// A location, or range of locations where an ion can be generated
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug, Serialize, Deserialize)]
 pub enum Location {
     /// Skip the given number from the N terminal side
     SkipN(usize),
@@ -330,6 +331,7 @@ pub enum Location {
     /// All positions (including 0 and len-1)
     All,
     /// Do not allow it anywhere
+    #[default]
     None,
 }
 

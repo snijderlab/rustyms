@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::fasta::FastaData;
 use super::novor::NovorData;
 use super::opair::OpairData;
@@ -8,7 +10,7 @@ use crate::system::Charge;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
     /// The peptide sequence
     pub peptide: LinearPeptide,
@@ -21,8 +23,11 @@ pub struct IdentifiedPeptide {
 }
 
 /// The definition of all special metadata for all types of identified peptides that can be read
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub enum MetaData {
+    /// No metadata
+    #[default]
+    None,
     /// Peaks metadata
     Peaks(PeaksData),
     /// Novor metadata
@@ -43,7 +48,7 @@ impl MetaData {
             | Self::Novor(NovorData { z, .. })
             | Self::Opair(OpairData { z, .. })
             | Self::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
-            Self::Fasta(_) => None,
+            Self::Fasta(_) | Self::None => None,
         }
     }
     /// Which fragmentation mode was used, if known
@@ -63,7 +68,7 @@ impl MetaData {
                 Some(*scan)
             }
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
-            Self::Fasta(_) => None,
+            Self::Fasta(_) | Self::None => None,
         }
     }
 }

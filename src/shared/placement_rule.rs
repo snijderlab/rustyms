@@ -1,5 +1,5 @@
 /// A rule determining the placement of a modification
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum PlacementRule {
     /// Placed on an aminoacid on the given position
     AminoAcid(Vec<AminoAcid>, Position),
@@ -10,9 +10,12 @@ pub enum PlacementRule {
 }
 
 /// A position where a modification can be placed
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub enum Position {
     /// At any location
+    #[default]
     Anywhere,
     /// At the N term of a peptide or protein
     AnyNTerm,

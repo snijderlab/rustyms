@@ -1,8 +1,11 @@
 /// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
 /// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
-#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 #[allow(missing_docs)]
 pub enum AminoAcid {
+    #[default]
     Alanine = 0,
     Arginine,
     Asparagine,

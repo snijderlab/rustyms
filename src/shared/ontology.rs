@@ -1,5 +1,7 @@
 /// All allowed ontologies for modification names
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub enum Ontology {
     #[default]
     /// Unimod

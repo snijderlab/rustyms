@@ -6,10 +6,11 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
+use serde::{Deserialize, Serialize};
 
 use crate::{error::CustomError, helper_functions::check_extension};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct CsvLine {
     line_index: usize,
     line: String,
@@ -18,7 +19,7 @@ pub struct CsvLine {
 
 #[allow(dead_code)]
 impl CsvLine {
-    pub fn line_index(&self) -> usize {
+    pub const fn line_index(&self) -> usize {
         self.line_index
     }
     pub fn line(&self) -> &str {
@@ -83,25 +84,22 @@ pub fn parse_csv(
     let file = File::open(path.as_ref()).map_err(|e| e.to_string())?;
     if check_extension(path, "gz") {
         Ok(Box::new(parse_csv_raw(
-            BufReader::new(GzDecoder::new(file)),
+            GzDecoder::new(file),
             separator,
             provided_header,
         )?))
     } else {
-        Ok(Box::new(parse_csv_raw(
-            BufReader::new(file),
-            separator,
-            provided_header,
-        )?))
+        Ok(Box::new(parse_csv_raw(file, separator, provided_header)?))
     }
 }
 
 /// Parse a CSV file from a raw `BufReader`
 pub fn parse_csv_raw<T: std::io::Read>(
-    reader: BufReader<T>,
+    reader: T,
     separator: u8,
     provided_header: Option<Vec<String>>,
 ) -> Result<CsvLineIter<T>, String> {
+    let reader = BufReader::new(reader);
     let mut lines = reader.lines().enumerate();
     let header = if let Some(header) = provided_header {
         header

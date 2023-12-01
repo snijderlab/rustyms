@@ -1,15 +1,15 @@
+use super::{
+    common_parser::Location,
+    csv::{parse_csv, CsvLine},
+    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
+};
 use crate::{
     error::Context,
     error::CustomError,
     system::{Charge, Mass, MassOverCharge, Time},
     AminoAcid, ComplexPeptide, LinearPeptide,
 };
-
-use super::{
-    common_parser::Location,
-    csv::{parse_csv, CsvLine},
-    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
-};
+use serde::{Deserialize, Serialize};
 
 static NUMBER_ERROR: (&str, &str) = (
     "Invalid OPair line",
@@ -195,9 +195,10 @@ impl From<OpairData> for IdentifiedPeptide {
 }
 
 /// All possible peaks versions
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum OpairVersion {
     /// The single known version
+    #[default]
     Opair,
 }
 
@@ -261,9 +262,10 @@ pub const O_PAIR: OpairFormat = OpairFormat {
     all_site_specific_localisation_probabilities: "allsitespecificlocalizationprobability",
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub enum OpairMatchKind {
+    #[default]
     Decoy,
     Contamination,
     Target,

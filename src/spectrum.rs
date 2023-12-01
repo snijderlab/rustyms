@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 
+use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
@@ -11,9 +12,12 @@ use crate::{
 };
 
 /// The mode of mass to use
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug, Serialize, Deserialize,
+)]
 pub enum MassMode {
     /// Monoisotopic mass, use the base isotope to calculate the mass (eg always 12C)
+    #[default]
     Monoisotopic,
     /// The average weight, the average between all occurring isotopes (eg something in between 12C and 13C depending on the number of C)
     Average,
@@ -22,7 +26,7 @@ pub enum MassMode {
 }
 
 /// A raw spectrum (meaning not annotated yet)
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct RawSpectrum {
     /// The title (as used in MGF)
     pub title: String,
@@ -190,7 +194,7 @@ impl Default for RawSpectrum {
 }
 
 /// An annotated spectrum
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct AnnotatedSpectrum {
     /// The title (as used in MGF)
     pub title: String,
@@ -209,7 +213,7 @@ pub struct AnnotatedSpectrum {
 }
 
 /// A raw peak
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct RawPeak {
     /// The mz value of this peak
     pub mz: MassOverCharge,
@@ -227,7 +231,7 @@ impl RawPeak {
 }
 
 /// An annotated peak
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct AnnotatedPeak {
     /// The experimental mz
     pub experimental_mz: MassOverCharge,

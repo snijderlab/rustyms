@@ -1,7 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 /// The type of alignment to perform
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub enum Type {
     /// Global alignment, which tries to find the best alignment to link both sequences fully to each other, like the Needleman Wunsch algorithm
+    #[default]
     Global,
     /// Local alignment, which tries to find the best patch of both sequences to align to each other, this could lead to trailing ends on both sides of both sequences, like the Smith Waterman
     Local,

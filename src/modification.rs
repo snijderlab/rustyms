@@ -322,7 +322,7 @@ fn parse_single_modification(
 include!("shared/ontology.rs");
 
 /// A modification as returned by the parser
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum ReturnModification {
     /// A fully self contained modification
     Defined(Modification),
@@ -344,7 +344,7 @@ impl ReturnModification {
 }
 
 /// An ambiguous modification which could be placed on any of a set of locations
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct AmbiguousModification {
     /// The id to compare be able to find the other locations where this modifications can be placed
     pub id: usize,
@@ -357,6 +357,7 @@ pub struct AmbiguousModification {
 }
 
 /// Intermediate representation of a global modification
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, u16),

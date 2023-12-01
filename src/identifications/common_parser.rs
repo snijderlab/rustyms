@@ -16,7 +16,7 @@ macro_rules! format_family {
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
      optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
         #[non_exhaustive]
-        #[derive(Debug, PartialEq, Eq, Clone)]
+        #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default, Serialize, Deserialize)]
         #[doc = $format_doc]
         pub struct $format {
             $($rname: &'static str,)*
@@ -25,12 +25,14 @@ macro_rules! format_family {
         }
 
         #[non_exhaustive]
-        #[derive(Debug, PartialEq, Clone)]
+        #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
         #[doc = $data_doc]
+        #[allow(missing_docs)]
         pub struct $data {
             $($(#[doc = $rdoc])? pub $rname: $rtyp,)*
             $($(#[doc = $odoc])? pub $oname: Option<$otyp>,)*
-            version: $version
+            /// The version used to read in the data
+            pub version: $version
         }
 
         impl IdentifiedPeptideSource for $data {

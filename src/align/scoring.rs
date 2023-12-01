@@ -1,5 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 /// The type of a single match step
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub enum MatchType {
     /// Aminoacid + Mass identity
     FullIdentity,

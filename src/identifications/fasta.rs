@@ -1,15 +1,15 @@
-use std::io::{BufRead, BufReader};
-
 use crate::{
     error::{Context, CustomError},
     ComplexPeptide, LinearPeptide, SequenceElement,
 };
+use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader};
 
 use super::{IdentifiedPeptide, MetaData};
 
 /// A single parsed line of a fasta file
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct FastaData {
     pub id: String,
     pub full_header: String,

@@ -1,9 +1,10 @@
 use crate::{
-    error::{Context, CustomError},
+    error::CustomError,
     helper_functions::InvertResult,
     system::{Charge, Mass, MassOverCharge, Time},
     ComplexPeptide, LinearPeptide,
 };
+use serde::{Deserialize, Serialize};
 
 use super::{
     common_parser::{Location, OptionalLocation},
@@ -91,9 +92,10 @@ impl From<MaxQuantData> for IdentifiedPeptide {
 }
 
 /// All possible MaxQuant versions
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum MaxQuantVersion {
     /// msms.txt
+    #[default]
     MSMS,
     /// msmsScans.txt
     MSMSScans,

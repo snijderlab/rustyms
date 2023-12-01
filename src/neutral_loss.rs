@@ -1,5 +1,7 @@
 use std::{fmt::Display, ops::Add, str::FromStr};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     error::{Context, CustomError},
     formula::MolecularFormula,
@@ -7,7 +9,7 @@ use crate::{
 };
 
 /// All possible neutral losses
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum NeutralLoss {
     /// Gain of a specific formula
     Gain(MolecularFormula),

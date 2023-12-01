@@ -3,6 +3,7 @@
 use std::fmt::{Debug, Display};
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
 };
 
 /// A theoretical fragment of a peptide
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Fragment {
     /// The theoretical composition
     pub formula: MolecularFormula,
@@ -139,7 +140,9 @@ impl Display for Fragment {
 }
 
 /// The definition of the position of an ion
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug, Serialize, Deserialize,
+)]
 pub struct Position {
     /// The sequence index (0 based into the peptide sequence)
     pub sequence_index: usize,
@@ -165,7 +168,7 @@ impl Position {
 }
 
 /// The definition of the position of an ion inside a glycan
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub struct GlycanPosition {
     /// The depth starting at the amino acid
     pub inner_depth: usize,
@@ -216,7 +219,7 @@ impl GlycanPosition {
 }
 
 /// The possible types of fragments
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     /// a
@@ -367,7 +370,7 @@ impl Display for FragmentType {
 }
 
 /// All positions where a glycan can break
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum GlycanBreakPos {
     /// No breaks just until the end of a chain
     End(GlycanPosition),

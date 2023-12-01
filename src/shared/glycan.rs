@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A monosaccharide with all its complexity
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub struct MonoSaccharide {
     pub(super) base_sugar: BaseSugar,
     pub(super) substituents: Vec<GlycanSubstituent>,
@@ -361,7 +361,7 @@ impl Display for MonoSaccharide {
 }
 
 /// The base sugar of a monosaccharide, optionally with the isomeric state saved as well.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum BaseSugar {
     /// Edge case, no sugar at all, because ProForma enforces that a separate phosphate and sulphate have to be handled.
     None,
@@ -425,7 +425,7 @@ impl Chemical for BaseSugar {
 
 /// Any 4 carbon glycan
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum TetroseIsomer {
     /// Ery
     Erythrose,
@@ -435,7 +435,7 @@ pub enum TetroseIsomer {
 
 /// Any 5 carbon glycan
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum PentoseIsomer {
     /// Rib
     Ribose,
@@ -451,7 +451,7 @@ pub enum PentoseIsomer {
 
 /// Any 6 carbon glycan
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum HexoseIsomer {
     /// glc
     Glucose,
@@ -481,7 +481,7 @@ pub enum HexoseIsomer {
 
 /// Any 7 carbon glycan
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum HeptoseIsomer {
     /// gro-manHep
     GlyceroMannoHeptopyranose, // TODO: Does this indicate some mods?
@@ -698,7 +698,7 @@ const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
 /// Any substituent on a monosaccharide.
 /// Source: <https://www.ncbi.nlm.nih.gov/glycans/snfg.html> table 3.
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum GlycanSubstituent {
     ///Am N-acetimidoyl
     Acetimidoyl,
@@ -1281,7 +1281,7 @@ static GLYCAN_PARSE_CELL: OnceLock<Vec<(String, MonoSaccharide)>> = OnceLock::ne
 
 /// Rose tree representation of glycan structure
 #[allow(dead_code)]
-#[derive(Eq, PartialEq, Clone, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub struct GlycanStructure {
     pub(super) sugar: MonoSaccharide,
     pub(super) branches: Vec<GlycanStructure>,

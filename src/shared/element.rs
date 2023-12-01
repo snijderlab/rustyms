@@ -3,9 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::system::f64::Mass;
 
 /// The elements (and electrons)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub enum Element {
     /// Element Hydrogen (H) atomic number: 1
+    #[default]
     H = 1,
     /// Element Helium (He) atomic number: 2
     He,

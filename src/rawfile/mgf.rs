@@ -25,12 +25,11 @@ use flate2::read::GzDecoder;
 /// * When there is only one column (separated by space or tab) on a data row
 pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
     let path = path.as_ref();
-    let file =
-        BufReader::new(File::open(path).map_err(|err| format!("Could not open file: {err}"))?);
+    let file = File::open(path).map_err(|err| format!("Could not open file: {err}"))?;
     if check_extension(path, "gz") {
-        open_raw(BufReader::new(GzDecoder::new(file)))
+        open_raw(GzDecoder::new(file))
     } else {
-        open_raw(BufReader::new(file))
+        open_raw(file)
     }
 }
 
@@ -43,7 +42,8 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
 /// * When any expected number in the file is not a number
 /// * When there is only one column (separated by space or tab) on a data row
 #[allow(clippy::missing_panics_doc)]
-pub fn open_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Vec<RawSpectrum>, String> {
+pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String> {
+    let reader = BufReader::new(reader);
     let mut current = RawSpectrum::default();
     let mut output = Vec::new();
     for (linenumber, line) in reader.lines().enumerate() {

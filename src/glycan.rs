@@ -206,7 +206,7 @@ impl Display for GlycanStructure {
 //     }
 // }
 /// Rose tree representation of glycan structure
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
 pub struct PositionedGlycanStructure {
     sugar: MonoSaccharide,
     branches: Vec<PositionedGlycanStructure>,

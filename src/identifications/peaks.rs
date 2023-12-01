@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
-use itertools::Itertools;
-
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     system::{Charge, Mass, MassOverCharge, Time},
     ComplexPeptide, LinearPeptide,
 };
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use super::{
     common_parser::{Location, OptionalLocation},
@@ -203,10 +203,8 @@ pub const AB: PeaksFormat = PeaksFormat {
 };
 
 /// All possible peaks versions
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum PeaksVersion {
-    /// A custom version of a PEAKS file forma
-    Custom,
     /// An older version of a PEAKS export
     Old,
     /// Version X of PEAKS export (made for build 31 january 2019)
@@ -216,6 +214,7 @@ pub enum PeaksVersion {
     /// Version Ab of PEAKS export
     Ab,
     /// Version 11
+    #[default]
     XI,
 }
 
@@ -225,7 +224,6 @@ impl std::fmt::Display for PeaksVersion {
             f,
             "{}",
             match self {
-                Self::Custom => "Custom",
                 Self::Old => "Old",
                 Self::X => "X",
                 Self::Xplus => "X+",
@@ -236,7 +234,7 @@ impl std::fmt::Display for PeaksVersion {
     }
 }
 /// The scans identifier for a peaks identification
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub struct PeaksId {
     /// The file, if defined
     pub file: Option<usize>,

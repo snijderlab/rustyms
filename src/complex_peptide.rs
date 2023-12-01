@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// A single pro forma entry, can contain multiple peptides
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),

@@ -1,15 +1,15 @@
+use super::{
+    common_parser::Location,
+    csv::{parse_csv, CsvLine},
+    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
+};
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     system::{Charge, Mass, MassOverCharge, Time},
     ComplexPeptide, LinearPeptide,
 };
-
-use super::{
-    common_parser::Location,
-    csv::{parse_csv, CsvLine},
-    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
-};
+use serde::{Deserialize, Serialize};
 
 static NUMBER_ERROR: (&str, &str) = (
     "Invalid Novor line",
@@ -70,9 +70,10 @@ impl From<NovorData> for IdentifiedPeptide {
 }
 
 /// All available Novor versions
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum NovorVersion {
     /// An older version for the denovo file
+    #[default]
     OldDenovo,
     /// An older version for the psms file
     OldPSM,

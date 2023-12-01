@@ -2,6 +2,8 @@
 
 use std::fmt::Write;
 
+use serde::{Deserialize, Serialize};
+
 use super::align_type::*;
 use super::piece::*;
 use crate::align::scoring::*;
@@ -9,7 +11,7 @@ use crate::system::Mass;
 use crate::{LinearPeptide, MolecularFormula};
 
 /// An alignment of two reads.
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Alignment {
     /// The absolute score of this alignment
     pub absolute_score: isize,

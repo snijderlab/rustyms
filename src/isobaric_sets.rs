@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     modification::Modification,
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// A tolerance around a given mass for searching purposes
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum MassTolerance {
     /// A relative search tolerance in parts per million
     Ppm(f64),
