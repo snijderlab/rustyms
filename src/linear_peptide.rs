@@ -83,6 +83,52 @@ impl LinearPeptide {
         }
     }
 
+    /// Assume that the underlying peptide does not use fancy parts of the Pro Forma spec.
+    /// # Panics
+    /// When any of these functions are used:
+    /// * Ambiguous modifications
+    /// * Labile modifications
+    /// * Global isotope modifications
+    /// * Ambiguous amino acids (B/Z)
+    /// * Ambiguous amino acid sequence `(?AA)`
+    /// * Charge carriers, use of charged ions apart from protons
+    /// or when the sequence is empty.
+    #[must_use]
+    pub fn assume_simple(self) -> Self {
+        assert!(
+            self.ambiguous_modifications.is_empty(),
+            "A simple linear peptide was assumed, but it has ambiguous modifications"
+        );
+        assert!(
+            self.labile.is_empty(),
+            "A simple linear peptide was assumed, but it has labile modifications"
+        );
+        assert!(
+            self.global.is_empty(),
+            "A simple linear peptide was assumed, but it has global isotope modifications"
+        );
+        assert!(
+            !self
+                .sequence
+                .iter()
+                .any(|seq| seq.aminoacid == AminoAcid::B || seq.aminoacid == AminoAcid::Z),
+            "A simple linear peptide was assumed, but it has ambiguous amino acids (B/Z)"
+        );
+        assert!(
+            !self.sequence.iter().any(|seq| seq.ambiguous.is_some()),
+            "A simple linear peptide was assumed, but it has ambiguous amino acids `(?AA)`"
+        );
+        assert!(
+            self.charge_carriers.is_none(),
+            "A simple linear peptide was assumed, but it has specified charged ions"
+        );
+        assert!(
+            !self.sequence.is_empty(),
+            "A simple linear peptide was assumed, but it has no sequence"
+        );
+        self
+    }
+
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
         for (index, element) in self.sequence.iter().enumerate() {
             element.enforce_modification_rules(index, self.sequence.len())?;
