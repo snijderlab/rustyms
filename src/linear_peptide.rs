@@ -697,8 +697,11 @@ impl SequenceElement {
     }
 }
 
-impl From<AminoAcid> for SequenceElement {
-    fn from(value: AminoAcid) -> Self {
-        Self::new(value, None)
+impl<T> From<T> for SequenceElement
+where
+    T: Into<AminoAcid>,
+{
+    fn from(value: T) -> Self {
+        Self::new(value.into(), None)
     }
 }
