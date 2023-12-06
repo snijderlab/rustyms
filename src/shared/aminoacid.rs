@@ -69,6 +69,13 @@ impl AminoAcid {
     }
 }
 
+impl std::str::FromStr for AminoAcid {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
 impl TryFrom<&str> for AminoAcid {
     type Error = ();
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -93,9 +100,9 @@ impl TryFrom<char> for AminoAcid {
     }
 }
 
-impl TryFrom<u8> for AminoAcid {
+impl TryFrom<&u8> for AminoAcid {
     type Error = ();
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: &u8) -> Result<Self, Self::Error> {
         match value {
             b'A' | b'a' => Ok(Self::Alanine),
             b'B' | b'b' => Ok(Self::AmbiguousAsparagine),
@@ -125,5 +132,12 @@ impl TryFrom<u8> for AminoAcid {
             b'Z' | b'z' => Ok(Self::AmbiguousGlutamine),
             _ => Err(()),
         }
+    }
+}
+
+impl TryFrom<u8> for AminoAcid {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::try_from(&value)
     }
 }
