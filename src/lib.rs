@@ -22,6 +22,7 @@ mod helper_functions;
 mod formula;
 
 pub mod align;
+pub mod aminoacid_properties;
 mod aminoacids;
 mod complex_peptide;
 mod element;
