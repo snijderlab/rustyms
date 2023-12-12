@@ -12,6 +12,8 @@ pub enum Type {
     Local,
     /// Hybrid alignment, the second sequence will be fully aligned to the first sequence, this could lead to trailing ends on the first sequence but not on the second.
     GlobalForB,
+    /// Hybrid alignment, the first sequence will be fully aligned to the second sequence, this could lead to trailing ends on the second sequence but not on the first.
+    GlobalForA,
 }
 
 impl Type {

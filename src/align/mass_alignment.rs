@@ -7,14 +7,13 @@ use crate::uom::num_traits::Zero;
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
-pub fn align(
+pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     alphabet: &[&[i8]],
     tolerance: MassTolerance,
     ty: Type,
 ) -> Alignment {
-    const STEPS: usize = 3; // can at max be i8::MAX / 2 => 64
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
     let mut matrix = vec![vec![Piece::default(); seq_b.len() + 1]; seq_a.len() + 1];
@@ -22,7 +21,7 @@ pub fn align(
     let masses_a = calculate_masses(STEPS, &seq_a);
     let masses_b = calculate_masses(STEPS, &seq_b);
 
-    if ty.global() {
+    if ty == Type::Global || ty == Type::GlobalForB {
         #[allow(clippy::cast_possible_wrap)]
         // b is always less than seq_b
         for index_b in 0..=seq_b.len() {
@@ -35,7 +34,7 @@ pub fn align(
             );
         }
     }
-    if ty == Type::Global {
+    if ty == Type::Global || ty == Type::GlobalForA {
         #[allow(clippy::cast_possible_wrap)]
         // a is always less than seq_a
         for (index_a, row) in matrix.iter_mut().enumerate() {
@@ -130,6 +129,12 @@ pub fn align(
             .max_by(|a, b| a.1.cmp(&b.1))
             .unwrap_or_default();
         high = (value.1, value.0, seq_b.len());
+    } else if ty == Type::GlobalForA {
+        let value = (0..=seq_b.len())
+            .map(|v| (v, matrix[seq_a.len()][v].score))
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .unwrap_or_default();
+        high = (value.1, seq_a.len(), value.0);
     }
     let mut path = Vec::new();
     let high_score = high.0;
