@@ -15,9 +15,11 @@ use crate::{LinearPeptide, MolecularFormula};
 pub struct Alignment {
     /// The absolute score of this alignment
     pub absolute_score: isize,
+    /// The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
+    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
+    pub maximal_score: isize,
     /// The normalised score, normalised for the alignment length and for the used alphabet.
-    /// The normalisation is as follows `score / max_score` where max score is the average score of the sequence slices on sequence a and b if they were aligned to themself.
-    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`
+    /// The normalisation is as follows `absolute_score / max_score`.
     pub normalised_score: f64,
     /// The path or steps taken for the alignment
     pub path: Vec<Piece>,

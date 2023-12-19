@@ -22,8 +22,9 @@ pub enum MatchType {
 
 pub const MISMATCH: i8 = -1;
 pub const MASS_MISMATCH_PENALTY: i8 = -1;
-pub const SWITCHED: i8 = 3;
-pub const ISOMASS: i8 = 2;
+pub const BASE_SPECIAL: i8 = 1;
+pub const ROTATED: i8 = 3;
+pub const ISOBARIC: i8 = 2;
 pub const GAP_START_PENALTY: i8 = -5;
 pub const GAP_EXTEND_PENALTY: i8 = -1;
 

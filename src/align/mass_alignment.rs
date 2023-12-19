@@ -140,7 +140,7 @@ pub fn align<const STEPS: usize>(
     let high_score = high.0;
     while ty == Type::Global || !(high.1 == 0 && high.2 == 0) {
         let value = matrix[high.1][high.2].clone();
-        if value.step_a == 0 && value.step_b == 0 {
+        if value.step_a == 0 && value.step_b == 0 || ty == Type::Local && value.score < 0 {
             break;
         }
         high = (
@@ -152,7 +152,7 @@ pub fn align<const STEPS: usize>(
     }
 
     let path: Vec<Piece> = path.into_iter().rev().collect();
-    let max_score = seq_a.sequence
+    let max_score = (seq_a.sequence
         [high.1..high.1 + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
         .iter()
         .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
@@ -160,10 +160,12 @@ pub fn align<const STEPS: usize>(
         + seq_b.sequence[high.2..high.2 + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
             .iter()
             .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
-            .sum::<isize>();
+            .sum::<isize>())
+        / 2;
     Alignment {
         absolute_score: high_score,
-        normalised_score: high_score as f64 / max_score as f64 * 2.0,
+        normalised_score: high_score as f64 / max_score as f64,
+        maximal_score: max_score,
         path,
         start_a: high.1,
         start_b: high.2,
@@ -199,7 +201,13 @@ fn score_pair(
                 1,
             )
         }
-        (false, true) => Piece::new(score + ISOMASS as isize, ISOMASS, MatchType::Isobaric, 1, 1), // TODO: I/L/J is now also scored as isobaric, which is correct but the score is considerably lower then in previous iterations
+        (false, true) => Piece::new(
+            score + ISOBARIC as isize,
+            ISOBARIC,
+            MatchType::Isobaric,
+            1,
+            1,
+        ), // TODO: I/L/J is now also scored as isobaric, which is correct but the score is considerably lower then in previous iterations
         (false, false) => Piece::new(
             score + MISMATCH as isize,
             MISMATCH,
@@ -231,9 +239,9 @@ fn score(
             });
         #[allow(clippy::cast_possible_wrap)]
         let local = if rotated {
-            SWITCHED * a.len() as i8
+            BASE_SPECIAL + ROTATED * a.len() as i8
         } else {
-            ISOMASS * (a.len() + b.len()) as i8 / 2
+            BASE_SPECIAL + ISOBARIC * (a.len() + b.len()) as i8 / 2
         };
         Some(Piece::new(
             score + local as isize,
