@@ -15,7 +15,7 @@ pub enum MatchType {
     /// Set of aminoacids + mods with the same mass but different sequence
     Isobaric,
     /// Set of aminoacids + mods in a different order in the two sequences
-    Switched,
+    Rotation,
     /// A gap
     Gap,
 }

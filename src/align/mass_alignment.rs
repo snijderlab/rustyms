@@ -222,7 +222,7 @@ fn score(
 ) -> Option<Piece> {
     if tolerance.within(mass_a, mass_b) {
         let mut b_copy = b.to_owned();
-        let switched = a.len() == b.len()
+        let rotated = a.len() == b.len()
             && a.iter().all(|el| {
                 b_copy.iter().position(|x| x == el).map_or(false, |pos| {
                     b_copy.remove(pos);
@@ -230,7 +230,7 @@ fn score(
                 })
             });
         #[allow(clippy::cast_possible_wrap)]
-        let local = if switched {
+        let local = if rotated {
             SWITCHED * a.len() as i8
         } else {
             ISOMASS * (a.len() + b.len()) as i8 / 2
@@ -238,8 +238,8 @@ fn score(
         Some(Piece::new(
             score + local as isize,
             local,
-            if switched {
-                MatchType::Switched
+            if rotated {
+                MatchType::Rotation
             } else {
                 MatchType::Isobaric
             },

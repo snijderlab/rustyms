@@ -34,7 +34,7 @@ pub struct Alignment {
 }
 
 impl Alignment {
-    /// Get a short representation of the alignment in CIGAR like format. It has one additional class `s[a,b]` denoting any special step with the given a and b step size.
+    /// Get a short representation of the alignment in CIGAR like format. It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
     pub fn short(&self) -> String {
         #[derive(PartialEq, Eq)]
         enum StepType {
@@ -54,8 +54,10 @@ impl Alignment {
                         Self::Deletion => String::from("D"),
                         Self::Match => String::from("="),
                         Self::Mismatch => String::from("X"),
-                        Self::Special(MatchType::Switched, a, b) => format!("s[{a}, {b}]"),
-                        Self::Special(MatchType::Isobaric, a, b) => format!("i[{a}, {b}]"),
+                        Self::Special(MatchType::Rotation, a, b) if a == b => format!("{a}r"),
+                        Self::Special(MatchType::Rotation, a, b) => format!("{a}:{b}r"),
+                        Self::Special(MatchType::Isobaric, a, b) if a == b => format!("{a}i"),
+                        Self::Special(MatchType::Isobaric, a, b) => format!("{a}:{b}i"),
                         Self::Special(..) => panic!("A special match cannot be of this match type"),
                     }
                 )
@@ -151,7 +153,7 @@ impl Alignment {
                     + usize::from(
                         m == MatchType::FullIdentity
                             || m == MatchType::Isobaric
-                            || m == MatchType::Switched,
+                            || m == MatchType::Rotation,
                     ) * p.step_a as usize,
                 acc.2 + usize::from(m == MatchType::Gap),
             )
