@@ -116,7 +116,7 @@ impl Alignment {
     }
 
     fn mass_a(&self) -> Option<MolecularFormula> {
-        if self.ty == Type::Global {
+        if self.ty.left_a() && self.ty.right_a() {
             self.seq_a.formula()
         } else {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
@@ -129,7 +129,7 @@ impl Alignment {
     }
 
     fn mass_b(&self) -> Option<MolecularFormula> {
-        if self.ty == Type::Global {
+        if self.ty.left_b() && self.ty.right_b() {
             self.seq_b.formula()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];

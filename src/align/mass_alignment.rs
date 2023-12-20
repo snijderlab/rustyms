@@ -21,7 +21,7 @@ pub fn align<const STEPS: usize>(
     let masses_a = calculate_masses(STEPS, &seq_a);
     let masses_b = calculate_masses(STEPS, &seq_b);
 
-    if ty == Type::Global || ty == Type::GlobalForB {
+    if ty.left_b() {
         #[allow(clippy::cast_possible_wrap)]
         // b is always less than seq_b
         for index_b in 0..=seq_b.len() {
@@ -34,7 +34,7 @@ pub fn align<const STEPS: usize>(
             );
         }
     }
-    if ty == Type::Global || ty == Type::GlobalForA {
+    if ty.left_a() {
         #[allow(clippy::cast_possible_wrap)]
         // a is always less than seq_a
         for (index_a, row) in matrix.iter_mut().enumerate() {
@@ -116,31 +116,35 @@ pub fn align<const STEPS: usize>(
         }
     }
 
-    // loop back
-    if ty == Type::Global {
+    // Find end spot on right side
+    if ty.right_a() && ty.right_b() {
         high = (
             matrix[seq_a.len()][seq_b.len()].score,
             seq_a.len(),
             seq_b.len(),
         );
-    } else if ty == Type::GlobalForB {
+    } else if ty.right_b() {
         let value = (0..=seq_a.len())
             .map(|v| (v, matrix[v][seq_b.len()].score))
             .max_by(|a, b| a.1.cmp(&b.1))
             .unwrap_or_default();
         high = (value.1, value.0, seq_b.len());
-    } else if ty == Type::GlobalForA {
+    } else if ty.right_a() {
         let value = (0..=seq_b.len())
             .map(|v| (v, matrix[seq_a.len()][v].score))
             .max_by(|a, b| a.1.cmp(&b.1))
             .unwrap_or_default();
         high = (value.1, seq_a.len(), value.0);
     }
+
     let mut path = Vec::new();
     let high_score = high.0;
-    while ty == Type::Global || !(high.1 == 0 && high.2 == 0) {
+
+    // Loop back to left side
+    while ty.left_a() && ty.left_b() || !(high.1 == 0 && high.2 == 0) {
         let value = matrix[high.1][high.2].clone();
-        if value.step_a == 0 && value.step_b == 0 || ty == Type::Local && value.score < 0 {
+        if value.step_a == 0 && value.step_b == 0 || !ty.left_a() && !ty.left_b() && value.score < 0
+        {
             break;
         }
         high = (
