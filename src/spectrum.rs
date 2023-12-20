@@ -1,6 +1,6 @@
 //! Spectrum related code
 
-use std::cmp::Ordering;
+use std::{cmp::Ordering, iter::FusedIterator};
 
 use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
@@ -25,6 +25,59 @@ pub enum MassMode {
     MostAbundant,
 }
 
+// TODO: Trace Trait to generate the correct time points
+// Add optional traces to raw and annotated, plus display nicely in annotator
+// Future: add centroiding to build a raw from a trace
+
+/// A trace, generic over the second dimension (eg time (ms1) or mz (ms2))
+pub struct Trace<T> {
+    data: Vec<f64>,
+    step: T,
+}
+
+impl<T> Trace<T> {
+    /// Create a new trace
+    pub fn new(data: &[f64], step: T) -> Self {
+        Self {
+            data: data.to_owned(),
+            step,
+        }
+    }
+}
+
+impl<T> Trace<T>
+where
+    T: std::ops::Mul<usize, Output = T> + Copy,
+{
+    /// Get the data of this trace, alongside the value in the second dimension
+    pub fn data(&self) -> impl Iterator<Item = (T, f64)> + '_ {
+        self.data
+            .iter()
+            .enumerate()
+            .map(|(i, v)| (self.step * (i + 1), *v)) // TODO: Does it start at 1 or at 0?
+    }
+}
+
+/// The trait for all spectra that contain peaks.
+pub trait PeakSpectrum:
+    Extend<Self::PeakType>
+    + IntoIterator<Item = Self::PeakType>
+    + std::ops::Index<usize, Output = Self::PeakType>
+{
+    /// The type of peaks this spectrum contains
+    type PeakType;
+    /// The type of spectrum iterator this spectrum generates
+    type Iter<'a>: DoubleEndedIterator + ExactSizeIterator + FusedIterator
+    where
+        Self: 'a;
+    /// Return the slice of peaks that is within the given tolerance bounds.
+    fn binary_search(&self, low: MassOverCharge, high: MassOverCharge) -> &[Self::PeakType];
+    /// Get the full spectrum
+    fn spectrum(&self) -> Self::Iter<'_>;
+    /// Add a single peak
+    fn add_peak(&mut self, item: Self::PeakType);
+}
+
 /// A raw spectrum (meaning not annotated yet)
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct RawSpectrum {
@@ -41,7 +94,7 @@ pub struct RawSpectrum {
     /// The found precursor intensity
     pub intensity: Option<f64>,
     /// The peaks of which this spectrum consists
-    pub spectrum: Vec<RawPeak>,
+    spectrum: Vec<RawPeak>,
     /// MGF: if present the SEQUENCE line
     pub sequence: Option<String>,
     /// MGF TITLE: if present the raw file where this mgf was made from
@@ -110,7 +163,7 @@ impl RawSpectrum {
             // Get the index of the element closest to this value (spectrum is defined to always be sorted)
             let index = self
                 .spectrum
-                .binary_search_by(|p| p.mz.partial_cmp(&fragment.mz(mode).unwrap()).unwrap())
+                .binary_search_by(|p| p.mz.value.total_cmp(&fragment.mz(mode).unwrap().value))
                 .map_or_else(|i| i, |i| i);
 
             // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
@@ -133,18 +186,43 @@ impl RawSpectrum {
 
         annotated
     }
+}
+
+impl Extend<RawPeak> for RawSpectrum {
+    fn extend<T: IntoIterator<Item = RawPeak>>(&mut self, iter: T) {
+        self.spectrum.extend(iter);
+        self.spectrum.sort_unstable();
+    }
+}
+
+impl IntoIterator for RawSpectrum {
+    type Item = RawPeak;
+    type IntoIter = std::vec::IntoIter<RawPeak>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.spectrum.into_iter()
+    }
+}
+
+impl std::ops::Index<usize> for RawSpectrum {
+    type Output = RawPeak;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.spectrum[index]
+    }
+}
+
+impl PeakSpectrum for RawSpectrum {
+    type PeakType = RawPeak;
+    type Iter<'a> = std::slice::Iter<'a, Self::PeakType>;
 
     /// Return the slice of peaks that is within the given tolerance bounds.
-    /// # Panics
-    /// If any of the peaks (or the bounds) is not valid to order.
-    pub fn binary_search(&self, low: MassOverCharge, high: MassOverCharge) -> &[RawPeak] {
+    fn binary_search(&self, low: MassOverCharge, high: MassOverCharge) -> &[RawPeak] {
         let left_idx = match self
             .spectrum
-            .binary_search_by(|a| a.mz.partial_cmp(&low).unwrap())
+            .binary_search_by(|a| a.mz.value.total_cmp(&low.value))
         {
             Result::Ok(idx) | Result::Err(idx) => {
                 let mut idx = idx.saturating_sub(1);
-                while idx > 0 && self.spectrum[idx].mz.partial_cmp(&low).unwrap() != Ordering::Less
+                while idx > 0 && self.spectrum[idx].mz.value.total_cmp(&low.value) != Ordering::Less
                 {
                     idx -= 1;
                 }
@@ -153,12 +231,12 @@ impl RawSpectrum {
         };
 
         let right_idx = match self.spectrum[left_idx..]
-            .binary_search_by(|a| a.mz.partial_cmp(&high).unwrap())
+            .binary_search_by(|a| a.mz.value.total_cmp(&high.value))
         {
             Result::Ok(idx) | Err(idx) => {
                 let mut idx = idx + left_idx;
                 while idx < self.spectrum.len()
-                    && self.spectrum[idx].mz.partial_cmp(&high).unwrap() != Ordering::Greater
+                    && self.spectrum[idx].mz.value.total_cmp(&high.value) != Ordering::Greater
                 {
                     idx = idx.saturating_add(1);
                 }
@@ -166,6 +244,15 @@ impl RawSpectrum {
             }
         };
         &self.spectrum[left_idx..right_idx]
+    }
+
+    fn spectrum(&self) -> Self::Iter<'_> {
+        self.spectrum.iter()
+    }
+
+    fn add_peak(&mut self, item: Self::PeakType) {
+        let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
+        self.spectrum.insert(index, item);
     }
 }
 
@@ -209,11 +296,88 @@ pub struct AnnotatedSpectrum {
     /// The peptide with which this spectrum was annotated
     pub peptide: ComplexPeptide,
     /// The spectrum
-    pub spectrum: Vec<AnnotatedPeak>,
+    spectrum: Vec<AnnotatedPeak>,
+}
+
+impl Extend<AnnotatedPeak> for AnnotatedSpectrum {
+    fn extend<T: IntoIterator<Item = AnnotatedPeak>>(&mut self, iter: T) {
+        self.spectrum.extend(iter);
+        self.spectrum.sort_unstable();
+    }
+}
+
+impl IntoIterator for AnnotatedSpectrum {
+    type Item = AnnotatedPeak;
+    type IntoIter = std::vec::IntoIter<AnnotatedPeak>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.spectrum.into_iter()
+    }
+}
+
+impl std::ops::Index<usize> for AnnotatedSpectrum {
+    type Output = AnnotatedPeak;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.spectrum[index]
+    }
+}
+
+impl PeakSpectrum for AnnotatedSpectrum {
+    type PeakType = AnnotatedPeak;
+    type Iter<'a> = std::slice::Iter<'a, Self::PeakType>;
+
+    /// Return the slice of peaks that have experimental mz values within the given tolerance bounds.
+    fn binary_search(&self, low: MassOverCharge, high: MassOverCharge) -> &[AnnotatedPeak] {
+        let left_idx = match self
+            .spectrum
+            .binary_search_by(|a| a.experimental_mz.value.total_cmp(&low.value))
+        {
+            Result::Ok(idx) | Result::Err(idx) => {
+                let mut idx = idx.saturating_sub(1);
+                while idx > 0
+                    && self.spectrum[idx]
+                        .experimental_mz
+                        .value
+                        .total_cmp(&low.value)
+                        != Ordering::Less
+                {
+                    idx -= 1;
+                }
+                idx
+            }
+        };
+
+        let right_idx = match self.spectrum[left_idx..]
+            .binary_search_by(|a| a.experimental_mz.value.total_cmp(&high.value))
+        {
+            Result::Ok(idx) | Err(idx) => {
+                let mut idx = idx + left_idx;
+                while idx < self.spectrum.len()
+                    && self.spectrum[idx]
+                        .experimental_mz
+                        .value
+                        .total_cmp(&high.value)
+                        != Ordering::Greater
+                {
+                    idx = idx.saturating_add(1);
+                }
+                idx.min(self.spectrum.len())
+            }
+        };
+        &self.spectrum[left_idx..right_idx]
+    }
+
+    fn spectrum(&self) -> Self::Iter<'_> {
+        self.spectrum.iter()
+    }
+
+    fn add_peak(&mut self, item: Self::PeakType) {
+        let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
+        self.spectrum.insert(index, item)
+    }
 }
 
 /// A raw peak
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RawPeak {
     /// The mz value of this peak
     pub mz: MassOverCharge,
@@ -223,6 +387,30 @@ pub struct RawPeak {
     pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
 }
 
+impl PartialOrd for RawPeak {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RawPeak {
+    /// Use `f64::total_cmp` on `self.mz`
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.mz.value.total_cmp(&other.mz.value)
+    }
+}
+
+impl PartialEq for RawPeak {
+    /// Use `f64::total_cmp` on all fields to detect total equality
+    fn eq(&self, other: &Self) -> bool {
+        self.mz.value.total_cmp(&other.mz.value) == Ordering::Equal
+            && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
+            && self.charge.value.total_cmp(&other.charge.value) == Ordering::Equal
+    }
+}
+
+impl Eq for RawPeak {}
+
 impl RawPeak {
     /// Determine the ppm error for the given fragment, optional because the mz of a [Fragment] is optional
     pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> Option<MassOverCharge> {
@@ -231,7 +419,7 @@ impl RawPeak {
 }
 
 /// An annotated peak
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnnotatedPeak {
     /// The experimental mz
     pub experimental_mz: MassOverCharge,
@@ -264,3 +452,33 @@ impl AnnotatedPeak {
         }
     }
 }
+
+impl PartialOrd for AnnotatedPeak {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AnnotatedPeak {
+    /// Use `f64::total_cmp` on `self.mz`
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.experimental_mz
+            .value
+            .total_cmp(&other.experimental_mz.value)
+    }
+}
+
+impl PartialEq for AnnotatedPeak {
+    /// Use `f64::total_cmp` on all fields to detect total equality
+    fn eq(&self, other: &Self) -> bool {
+        self.experimental_mz
+            .value
+            .total_cmp(&other.experimental_mz.value)
+            == Ordering::Equal
+            && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
+            && self.charge.value.total_cmp(&other.charge.value) == Ordering::Equal
+            && self.annotation == other.annotation
+    }
+}
+
+impl Eq for AnnotatedPeak {}

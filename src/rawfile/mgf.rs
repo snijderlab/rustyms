@@ -10,7 +10,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     helper_functions::check_extension,
-    spectrum::{RawPeak, RawSpectrum},
+    spectrum::{PeakSpectrum, RawPeak, RawSpectrum},
     system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
 };
 use flate2::read::GzDecoder;
@@ -127,15 +127,10 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String>
                         format!("Not a number {} for CHARGE on {linenumber}", split[2])
                     })?;
                 }
-                current.spectrum.push(peak);
+                current.add_peak(peak);
             }
             _ => {}
         }
-    }
-    for current in &mut output {
-        current
-            .spectrum
-            .sort_unstable_by(|a, b| a.mz.value.partial_cmp(&b.mz.value).unwrap());
     }
     Ok(output)
 }
@@ -193,8 +188,8 @@ mod tests {
         let spectra =
             open(std::env::var("CARGO_MANIFEST_DIR").unwrap() + "/data/example.mgf").unwrap();
         assert_eq!(spectra.len(), 1);
-        assert_eq!(spectra[0].spectrum.len(), 5);
-        assert!(spectra[0].spectrum[0].mz < spectra[0].spectrum[1].mz);
+        assert_eq!(spectra[0].spectrum().len(), 5);
+        assert!(spectra[0][0].mz < spectra[0][1].mz);
     }
 
     #[test]
