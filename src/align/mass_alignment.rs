@@ -1,23 +1,33 @@
-use crate::{system::Mass, LinearPeptide, MassTolerance, MolecularFormula, SequenceElement};
+use crate::{
+    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, SequenceElement,
+};
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
 use crate::uom::num_traits::Zero;
 
 /// Create an alignment of two peptides based on mass and homology.
+/// The alphabet is a substitution matrix in the exact same order as the definition of [`AminoAcid`].
+/// The [`MassTolerance`] sets the tolerance for two sets of amino acids to be regarded as the same mass.
+/// The [`Type`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
-/// It also panics is STEPS > 64. It cannot store the local scores in an i8 otherwise.
+/// It also panics if `STEPS > 32`, it cannot store the local scores in an i8 otherwise.
+/// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
 pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
-    alphabet: &[&[i8]],
+    alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: MassTolerance,
     ty: Type,
 ) -> Alignment {
+    // Enforce some assumptions
+    let seq_a = seq_a.assume_simple();
+    let seq_b = seq_b.assume_simple();
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
-    assert!(STEPS <= 64);
+    assert!(STEPS <= 32);
+
     let mut matrix = vec![vec![Piece::default(); seq_b.len() + 1]; seq_a.len() + 1];
     let mut high = (0, 0, 0);
     let masses_a = calculate_masses(STEPS, &seq_a);
@@ -178,6 +188,7 @@ pub fn align<const STEPS: usize>(
         seq_a,
         seq_b,
         ty,
+        maximal_step: STEPS,
     }
 }
 
@@ -187,7 +198,7 @@ fn score_pair(
     mass_a: Mass,
     b: &SequenceElement,
     mass_b: Mass,
-    alphabet: &[&[i8]],
+    alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     score: isize,
     tolerance: MassTolerance,
 ) -> Piece {

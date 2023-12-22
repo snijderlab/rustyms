@@ -1,4 +1,4 @@
-/// An amino acid, alongside the standard ones some ambiguous (J/X) and non-standard (U/O) are included.
+/// An amino acid, alongside the standard ones some ambiguous (B/J/Z/X) and non-standard (U/O) are included.
 /// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
@@ -17,7 +17,6 @@ pub enum AminoAcid {
     Histidine,
     Isoleucine,
     Leucine,
-    AmbiguousLeucine,
     Lysine,
     Methionine,
     Phenylalanine,
@@ -27,14 +26,19 @@ pub enum AminoAcid {
     Tryptophan,
     Tyrosine,
     Valine,
+    AmbiguousAsparagine,
+    AmbiguousLeucine,
+    AmbiguousGlutamine,
     Selenocysteine,
     Pyrrolysine,
     Unknown,
-    AmbiguousAsparagine,
-    AmbiguousGlutamine,
 }
+//ARNDCQEGHILKMFPSTWYVBJZUOX
 
+#[allow(dead_code)]
 impl AminoAcid {
+    /// The total number of amino acids
+    pub const TOTAL_NUMBER: usize = Self::Unknown as usize + 1;
     /// Translate the dna codon into the corresponding amino acid according to the standard DNA codon table.
     /// It returns None for a stop codon.
     /// <https://en.wikipedia.org/wiki/DNA_and_RNA_codon_tables>

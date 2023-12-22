@@ -28,5 +28,34 @@ pub const ISOBARIC: i8 = 2;
 pub const GAP_START_PENALTY: i8 = -5;
 pub const GAP_EXTEND_PENALTY: i8 = -1;
 
-/// The (slightly modified) blosum62 matrix for aminoacid homology scoring
-pub const BLOSUM62: &[&[i8]] = include!("blosum62.txt");
+/// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>
+/// The UO columns are added by me (see top left for the original matrix used by me) (B/J/Z is the rounded down average of the corresponding non ambiguous AAs) (All these are exactly the same for all matrices)
+pub mod matrices {
+    /// BLOSUM45 matrix
+    pub const BLOSUM45: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/blosum45.txt");
+    /// BLOSUM50 matrix
+    pub const BLOSUM50: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/blosum50.txt");
+    /// BLOSUM62 matrix
+    pub const BLOSUM62: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/blosum62.txt");
+    /// BLOSUM80 matrix
+    pub const BLOSUM80: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/blosum80.txt");
+    /// BLOSUM90 matrix
+    pub const BLOSUM90: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/blosum90.txt");
+    /// Identity matrix (9 for equal, -5 for not equal)
+    pub const IDENTITY: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/identity.txt");
+    /// PAM30 matrix
+    pub const PAM30: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/pam30.txt");
+    /// PAM70 matrix
+    pub const PAM70: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/pam70.txt");
+    /// PAM250 matrix
+    pub const PAM250: &[[i8; crate::AminoAcid::TOTAL_NUMBER]; crate::AminoAcid::TOTAL_NUMBER] =
+        include!("matrices/pam250.txt");
+}

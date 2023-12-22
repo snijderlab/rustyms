@@ -33,6 +33,8 @@ pub struct Alignment {
     pub seq_b: LinearPeptide,
     /// The alignment type
     pub ty: Type,
+    /// The maximal step size (the const generic STEPS)
+    pub maximal_step: usize,
 }
 
 impl Alignment {
