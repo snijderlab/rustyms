@@ -6,6 +6,7 @@ use crate::uom::num_traits::Zero;
 /// Create an alignment of two peptides based on mass and homology.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger then [`isize::MAX`].
+/// It also panics is STEPS > 64. It cannot store the local scores in an i8 otherwise.
 #[allow(clippy::too_many_lines)]
 pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
@@ -16,6 +17,7 @@ pub fn align<const STEPS: usize>(
 ) -> Alignment {
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
+    assert!(STEPS <= 64);
     let mut matrix = vec![vec![Piece::default(); seq_b.len() + 1]; seq_a.len() + 1];
     let mut high = (0, 0, 0);
     let masses_a = calculate_masses(STEPS, &seq_a);
