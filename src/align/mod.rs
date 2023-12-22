@@ -14,7 +14,7 @@
 //! AGGA B
 //!  ╶╴
 //! ```
-//!
+//! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
 //! use rustyms::*;
 //! let a = ComplexPeptide::pro_forma("ANA").unwrap().assume_linear();

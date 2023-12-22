@@ -6,7 +6,7 @@ use super::{align_type::*, piece::*, scoring::*, Alignment};
 use crate::uom::num_traits::Zero;
 
 /// Create an alignment of two peptides based on mass and homology.
-/// The alphabet is a substitution matrix in the exact same order as the definition of [`AminoAcid`].
+/// The substitution matrix is in the exact same order as the definition of [`AminoAcid`].
 /// The [`MassTolerance`] sets the tolerance for two sets of amino acids to be regarded as the same mass.
 /// The [`Type`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
@@ -17,7 +17,7 @@ use crate::uom::num_traits::Zero;
 pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
-    alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
+    scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: MassTolerance,
     ty: Type,
 ) -> Alignment {
@@ -97,7 +97,7 @@ pub fn align<const STEPS: usize>(
                             masses_a[0][index_a],
                             &seq_b.sequence[index_b - 1],
                             masses_b[0][index_b],
-                            alphabet,
+                            scoring_matrix,
                             base_score,
                             tolerance,
                         ))
@@ -171,11 +171,11 @@ pub fn align<const STEPS: usize>(
     let max_score = (seq_a.sequence
         [high.1..high.1 + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
         .iter()
-        .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
+        .map(|a| scoring_matrix[a.aminoacid as usize][a.aminoacid as usize] as isize)
         .sum::<isize>()
         + seq_b.sequence[high.2..high.2 + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
             .iter()
-            .map(|a| alphabet[a.aminoacid as usize][a.aminoacid as usize] as isize)
+            .map(|a| scoring_matrix[a.aminoacid as usize][a.aminoacid as usize] as isize)
             .sum::<isize>())
         / 2;
     Alignment {
