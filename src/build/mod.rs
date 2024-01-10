@@ -24,3 +24,9 @@ use crate::{
 };
 
 include!("../shared/modification.rs");
+
+impl crate::Element {
+    pub fn is_valid(self, _isotope: Option<u16>) -> bool {
+        true
+    }
+}

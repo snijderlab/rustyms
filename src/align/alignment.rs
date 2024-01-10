@@ -107,14 +107,14 @@ impl Alignment {
     pub fn ppm(&self) -> Option<f64> {
         Some(
             self.mass_a()?
-                .monoisotopic_mass()?
-                .ppm(self.mass_b()?.monoisotopic_mass()?),
+                .monoisotopic_mass()
+                .ppm(self.mass_b()?.monoisotopic_mass()),
         )
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     pub fn mass_difference(&self) -> Option<Mass> {
-        Some(self.mass_a()?.monoisotopic_mass()? - self.mass_b()?.monoisotopic_mass()?)
+        Some(self.mass_a()?.monoisotopic_mass() - self.mass_b()?.monoisotopic_mass())
     }
 
     fn mass_a(&self) -> Option<MolecularFormula> {

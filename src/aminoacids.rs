@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::formula::{Chemical, MolecularFormula};
+use crate::formula::{Chemical, MolecularFormula, MultiChemical};
 use crate::fragment::Position;
 use crate::fragment::{Fragment, FragmentType};
 use crate::model::*;
@@ -10,38 +10,83 @@ use crate::Element;
 include!("shared/aminoacid.rs");
 
 impl Chemical for AminoAcid {
+    /// Get the formula for an amino acid, it panics on B/Z
     fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1),
-            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4), // One of the H's counts as the charge carrier and is added later
+            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).unwrap(),
+            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).unwrap(), // One of the H's counts as the charge carrier and is added later
             Self::AmbiguousAsparagine => {
                 panic!("Molecular formula of Asx/B ambiguous asparagine is not defined.")
             }
-            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2),
-            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1),
-            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1),
-            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1),
-            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2),
+            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2).unwrap(),
+            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1).unwrap(),
+            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1).unwrap(),
+            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1).unwrap(),
+            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2).unwrap(),
             Self::AmbiguousGlutamine => {
                 panic!("Molecular formula of Glx/Z ambiguous glutamine is not defined.")
             }
-            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1),
-            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3),
+            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1).unwrap(),
+            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3).unwrap(),
             Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
-                molecular_formula!(H 11 C 6 O 1 N 1)
+                molecular_formula!(H 11 C 6 O 1 N 1).unwrap()
             }
-            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2),
-            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1),
-            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1),
-            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1),
-            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3),
-            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1),
-            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1),
-            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1),
-            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2),
-            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1),
-            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1),
-            Self::Unknown => molecular_formula!(),
+            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2).unwrap(),
+            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1).unwrap(),
+            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1).unwrap(),
+            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1).unwrap(),
+            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3).unwrap(),
+            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap(),
+            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1).unwrap(),
+            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1).unwrap(),
+            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2).unwrap(),
+            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1).unwrap(),
+            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1).unwrap(),
+            Self::Unknown => molecular_formula!().unwrap(),
+        }
+    }
+}
+
+impl MultiChemical for AminoAcid {
+    /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
+    fn formulas(&self) -> Vec<MolecularFormula> {
+        match self {
+            Self::Alanine => vec![molecular_formula!(H 5 C 3 O 1 N 1).unwrap()],
+            Self::Arginine => vec![molecular_formula!(H 12 C 6 O 1 N 4).unwrap()], // One of the H's counts as the charge carrier and is added late]r
+            Self::AmbiguousAsparagine => {
+                vec![
+                    molecular_formula!(H 6 C 4 O 2 N 2).unwrap(),
+                    molecular_formula!(H 5 C 4 O 3 N 1).unwrap(),
+                ]
+            }
+            Self::Asparagine => vec![molecular_formula!(H 6 C 4 O 2 N 2).unwrap()],
+            Self::AsparticAcid => vec![molecular_formula!(H 5 C 4 O 3 N 1).unwrap()],
+            Self::Cysteine => vec![molecular_formula!(H 5 C 3 O 1 N 1 S 1).unwrap()],
+            Self::GlutamicAcid => vec![molecular_formula!(H 7 C 5 O 3 N 1).unwrap()],
+            Self::Glutamine => vec![molecular_formula!(H 8 C 5 O 2 N 2).unwrap()],
+            Self::AmbiguousGlutamine => {
+                vec![
+                    molecular_formula!(H 8 C 5 O 2 N 2).unwrap(),
+                    molecular_formula!(H 7 C 5 O 3 N 1).unwrap(),
+                ]
+            }
+            Self::Glycine => vec![molecular_formula!(H 3 C 2 O 1 N 1).unwrap()],
+            Self::Histidine => vec![molecular_formula!(H 7 C 6 O 1 N 3).unwrap()],
+            Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
+                vec![molecular_formula!(H 11 C 6 O 1 N 1).unwrap()]
+            }
+            Self::Lysine => vec![molecular_formula!(H 12 C 6 O 1 N 2).unwrap()],
+            Self::Methionine => vec![molecular_formula!(H 9 C 5 O 1 N 1 S 1).unwrap()],
+            Self::Phenylalanine => vec![molecular_formula!(H 9 C 9 O 1 N 1).unwrap()],
+            Self::Proline => vec![molecular_formula!(H 7 C 5 O 1 N 1).unwrap()],
+            Self::Pyrrolysine => vec![molecular_formula!(H 19 C 11 O 2 N 3).unwrap()],
+            Self::Selenocysteine => vec![molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap()],
+            Self::Serine => vec![molecular_formula!(H 5 C 3 O 2 N 1).unwrap()],
+            Self::Threonine => vec![molecular_formula!(H 7 C 4 O 2 N 1).unwrap()],
+            Self::Tryptophan => vec![molecular_formula!(H 10 C 11 O 1 N 2).unwrap()],
+            Self::Tyrosine => vec![molecular_formula!(H 9 C 9 O 2 N 1).unwrap()],
+            Self::Valine => vec![molecular_formula!(H 9 C 5 O 1 N 1).unwrap()],
+            Self::Unknown => vec![molecular_formula!().unwrap()],
         }
     }
 }
@@ -164,23 +209,29 @@ impl AminoAcid {
             | Self::AmbiguousAsparagine
             | Self::AmbiguousGlutamine
             | Self::Unknown => vec![],
-            Self::Arginine => vec![molecular_formula!(H 9 C 2 N 2)],
-            Self::Asparagine => vec![molecular_formula!(H 2 C 1 N 1 O 1)],
-            Self::AsparticAcid => vec![molecular_formula!(H 1 C 1 O 2)],
-            Self::Cysteine => vec![molecular_formula!(H 1 S 1)],
-            Self::GlutamicAcid => vec![molecular_formula!(H 3 C 2 O 2)],
-            Self::Glutamine => vec![molecular_formula!(H 4 C 2 N 1 O 1)],
-            Self::Isoleucine => vec![molecular_formula!(H 3 C 1), molecular_formula!(H 5 C 2)],
-            Self::Leucine => vec![molecular_formula!(H 7 C 3)],
-            Self::Lysine => vec![molecular_formula!(H 8 C 3 N 1)],
-            Self::Methionine => vec![molecular_formula!(H 5 C 2 S 1)],
+            Self::Arginine => vec![molecular_formula!(H 9 C 2 N 2).unwrap()],
+            Self::Asparagine => vec![molecular_formula!(H 2 C 1 N 1 O 1).unwrap()],
+            Self::AsparticAcid => vec![molecular_formula!(H 1 C 1 O 2).unwrap()],
+            Self::Cysteine => vec![molecular_formula!(H 1 S 1).unwrap()],
+            Self::GlutamicAcid => vec![molecular_formula!(H 3 C 2 O 2).unwrap()],
+            Self::Glutamine => vec![molecular_formula!(H 4 C 2 N 1 O 1).unwrap()],
+            Self::Isoleucine => vec![
+                molecular_formula!(H 3 C 1).unwrap(),
+                molecular_formula!(H 5 C 2).unwrap(),
+            ],
+            Self::Leucine => vec![molecular_formula!(H 7 C 3).unwrap()],
+            Self::Lysine => vec![molecular_formula!(H 8 C 3 N 1).unwrap()],
+            Self::Methionine => vec![molecular_formula!(H 5 C 2 S 1).unwrap()],
             Self::Pyrrolysine => {
-                vec![molecular_formula!(H 15 C 9 N 2 O 1)]
+                vec![molecular_formula!(H 15 C 9 N 2 O 1).unwrap()]
             } // Weird, TODO: figure out what to make of this
-            Self::Selenocysteine => vec![molecular_formula!(Se 1)],
-            Self::Serine => vec![molecular_formula!(H 1 O 1)],
-            Self::Threonine => vec![molecular_formula!(H 1 O 1), molecular_formula!(H 3 C 1)],
-            Self::Valine => vec![molecular_formula!(H 3 C 1)], // Technically two options, but both have the same mass
+            Self::Selenocysteine => vec![molecular_formula!(Se 1).unwrap()],
+            Self::Serine => vec![molecular_formula!(H 1 O 1).unwrap()],
+            Self::Threonine => vec![
+                molecular_formula!(H 1 O 1).unwrap(),
+                molecular_formula!(H 3 C 1).unwrap(),
+            ],
+            Self::Valine => vec![molecular_formula!(H 3 C 1).unwrap()], // Technically two options, but both have the same mass
         }
     }
 
@@ -199,7 +250,7 @@ impl AminoAcid {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         if ions.a.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1)),
+                &(modifications + &self.formula() - molecular_formula!(H 1 C 1 O 1).unwrap()),
                 peptide_index,
                 &FragmentType::a(Position::n(sequence_index, sequence_length)),
                 n_term,
@@ -208,7 +259,7 @@ impl AminoAcid {
         }
         if ions.b.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() - molecular_formula!(H 1)),
+                &(modifications + &self.formula() - molecular_formula!(H 1).unwrap()),
                 peptide_index,
                 &FragmentType::b(Position::n(sequence_index, sequence_length)),
                 n_term,
@@ -217,7 +268,7 @@ impl AminoAcid {
         }
         if ions.c.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() + molecular_formula!(H 2 N 1)),
+                &(modifications + &self.formula() + molecular_formula!(H 2 N 1).unwrap()),
                 peptide_index,
                 &FragmentType::c(Position::n(sequence_index, sequence_length)),
                 n_term,
@@ -229,7 +280,7 @@ impl AminoAcid {
                 base_fragments.extend(Fragment::generate_all(
                     &(modifications + &self.formula()
                         - satellite
-                        - molecular_formula!(H 1 C 1 O 1)),
+                        - molecular_formula!(H 1 C 1 O 1).unwrap()),
                     peptide_index,
                     &FragmentType::d(Position::n(sequence_index, sequence_length)),
                     n_term,
@@ -239,7 +290,7 @@ impl AminoAcid {
         }
         if ions.v.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1)), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
+                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1).unwrap()), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
                 peptide_index,
                 &FragmentType::v(Position::n(sequence_index, sequence_length)),
                 c_term,
@@ -249,7 +300,9 @@ impl AminoAcid {
         if ions.w.0 {
             for satellite in self.satellite_ion_fragments() {
                 base_fragments.extend(Fragment::generate_all(
-                    &(modifications + &self.formula() - satellite - molecular_formula!(H 2 N 1)),
+                    &(modifications + &self.formula()
+                        - satellite
+                        - molecular_formula!(H 2 N 1).unwrap()),
                     peptide_index,
                     &FragmentType::w(Position::c(sequence_index, sequence_length)),
                     c_term,
@@ -259,8 +312,8 @@ impl AminoAcid {
         }
         if ions.x.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() + molecular_formula!(C 1 O 1)
-                    - molecular_formula!(H 1)),
+                &(modifications + &self.formula() + molecular_formula!(C 1 O 1).unwrap()
+                    - molecular_formula!(H 1).unwrap()),
                 peptide_index,
                 &FragmentType::x(Position::c(sequence_index, sequence_length)),
                 c_term,
@@ -269,7 +322,7 @@ impl AminoAcid {
         }
         if ions.y.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() + molecular_formula!(H 1)),
+                &(modifications + &self.formula() + molecular_formula!(H 1).unwrap()),
                 peptide_index,
                 &FragmentType::y(Position::c(sequence_index, sequence_length)),
                 c_term,
@@ -278,14 +331,14 @@ impl AminoAcid {
         }
         if ions.z.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() - molecular_formula!(H 2 N 1)),
+                &(modifications + &self.formula() - molecular_formula!(H 2 N 1).unwrap()),
                 peptide_index,
                 &FragmentType::z(Position::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &self.formula() - molecular_formula!(H 1 N 1)),
+                &(modifications + &self.formula() - molecular_formula!(H 1 N 1).unwrap()),
                 peptide_index,
                 &FragmentType::z·(Position::c(sequence_index, sequence_length)),
                 c_term,
@@ -341,8 +394,8 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.formula().average_weight().unwrap();
-        let mass_ala = AminoAcid::Ala.formula().monoisotopic_mass().unwrap();
+        let weight_ala = AminoAcid::A.formula().average_weight();
+        let mass_ala = AminoAcid::Ala.formula().monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -350,8 +403,8 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.formula().average_weight().unwrap();
-        let mass_lys = AminoAcid::Lys.formula().monoisotopic_mass().unwrap();
+        let weight_lys = AminoAcid::K.formula().average_weight();
+        let mass_lys = AminoAcid::Lys.formula().monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
@@ -385,8 +438,8 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.formula().monoisotopic_mass().unwrap().value,
-                aa.formula().average_weight().unwrap().value,
+                aa.formula().monoisotopic_mass().value,
+                aa.formula().average_weight().value,
             );
             println!(
                 "{}: {} {} {} {}",

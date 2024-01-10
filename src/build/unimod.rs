@@ -104,26 +104,36 @@ enum Brick {
 
 fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
     match name.to_lowercase().as_str() {
-        "ac" => Ok(Brick::Formula(MolecularFormula::new(&[
-            (Element::O, 0, 1),
-            (Element::C, 0, 2),
-            (Element::H, 0, 2),
-        ]))),
-        "me" => Ok(Brick::Formula(MolecularFormula::new(&[
-            (Element::C, 0, 1),
-            (Element::H, 0, 2),
-        ]))),
-        "kdn" => Ok(Brick::Formula(MolecularFormula::new(&[
-            (Element::C, 0, 9),
-            (Element::H, 0, 14),
-            (Element::O, 0, 8),
-        ]))),
-        "kdo" => Ok(Brick::Formula(MolecularFormula::new(&[
-            (Element::C, 0, 8),
-            (Element::H, 0, 12),
-            (Element::O, 0, 7),
-        ]))),
-        "sulf" => Ok(Brick::Formula(MolecularFormula::new(&[(Element::S, 0, 1)]))),
+        "ac" => Ok(Brick::Formula(
+            MolecularFormula::new(&[
+                (Element::O, None, 1),
+                (Element::C, None, 2),
+                (Element::H, None, 2),
+            ])
+            .unwrap(),
+        )),
+        "me" => Ok(Brick::Formula(
+            MolecularFormula::new(&[(Element::C, None, 1), (Element::H, None, 2)]).unwrap(),
+        )),
+        "kdn" => Ok(Brick::Formula(
+            MolecularFormula::new(&[
+                (Element::C, None, 9),
+                (Element::H, None, 14),
+                (Element::O, None, 8),
+            ])
+            .unwrap(),
+        )),
+        "kdo" => Ok(Brick::Formula(
+            MolecularFormula::new(&[
+                (Element::C, None, 8),
+                (Element::H, None, 12),
+                (Element::O, None, 7),
+            ])
+            .unwrap(),
+        )),
+        "sulf" => Ok(Brick::Formula(
+            MolecularFormula::new(&[(Element::S, None, 1)]).unwrap(),
+        )),
         _ => {
             if let Ok(el) = Element::try_from(name) {
                 Ok(Brick::Element(el))
@@ -151,7 +161,7 @@ impl OntologyModification {
                     let num = last_number.parse::<i16>().map_err(|_| ())? * minus;
                     match parse_unimod_composition_brick(last_name.as_str()) {
                         Ok(Brick::Formula(f)) => self.diff_formula += &(f * num),
-                        Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, num)),
+                        Ok(Brick::Element(e)) => assert!(self.diff_formula.add((e, None, num))),
                         Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, num)),
                         Err(()) => return Err(()),
                     }
@@ -163,7 +173,7 @@ impl OntologyModification {
                     if !last_name.is_empty() {
                         match parse_unimod_composition_brick(last_name.as_str()) {
                             Ok(Brick::Formula(f)) => self.diff_formula += &f,
-                            Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, 1)),
+                            Ok(Brick::Element(e)) => assert!(self.diff_formula.add((e, None, 1))),
                             Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                             Err(()) => return Err(()),
                         }
@@ -178,7 +188,7 @@ impl OntologyModification {
         if !last_name.is_empty() {
             match parse_unimod_composition_brick(last_name.as_str()) {
                 Ok(Brick::Formula(f)) => self.diff_formula += &f,
-                Ok(Brick::Element(e)) => self.diff_formula.add((e, 0, 1)),
+                Ok(Brick::Element(e)) => assert!(self.diff_formula.add((e, None, 1))),
                 Ok(Brick::MonoSaccharide(m)) => self.monosaccharides.push((m, 1)),
                 Err(()) => return Err(()),
             }

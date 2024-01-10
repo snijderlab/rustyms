@@ -291,7 +291,6 @@ fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Mass>> {
                             .map(|s| s.formula_all().unwrap())
                             .sum::<MolecularFormula>()
                             .monoisotopic_mass()
-                            .unwrap()
                     }
                 })
                 .collect::<Vec<Mass>>()
@@ -317,14 +316,12 @@ mod tests {
             a.iter()
                 .map(|s| s.formula_all().unwrap())
                 .sum::<MolecularFormula>()
-                .monoisotopic_mass()
-                .unwrap(),
+                .monoisotopic_mass(),
             &b,
             b.iter()
                 .map(|s| s.formula_all().unwrap())
                 .sum::<MolecularFormula>()
-                .monoisotopic_mass()
-                .unwrap(),
+                .monoisotopic_mass(),
             0,
             crate::MassTolerance::Ppm(10.0)
         ));

@@ -13,7 +13,8 @@ impl MolecularCharge {
         Self {
             charge_carriers: vec![(
                 charge,
-                MolecularFormula::new(&[(Element::H, 0, 1), (Element::Electron, 0, -1)]),
+                MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
+                    .unwrap(),
             )],
         }
     }
@@ -69,9 +70,12 @@ mod tests {
 
     #[test]
     fn simple_charge_options() {
-        let mc = MolecularCharge::new(vec![(1, molecular_formula!(H 1 Electron -1))]);
+        let mc = MolecularCharge::new(vec![(1, molecular_formula!(H 1 Electron -1).unwrap())]);
         let options = mc.all_charge_options();
         assert_eq!(options.len(), 1);
-        assert_eq!(options[0].formula(), molecular_formula!(H 1 Electron -1));
+        assert_eq!(
+            options[0].formula(),
+            molecular_formula!(H 1 Electron -1).unwrap()
+        );
     }
 }

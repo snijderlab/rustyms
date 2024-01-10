@@ -98,13 +98,13 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
 // PSI-MOD: (12)C -5 (13)C 5 H 0 N 0 O 0 S 0
 pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, String> {
     let mut index = 0;
-    let mut isotope = 0;
+    let mut isotope = None;
     let mut element = None;
     let bytes = value.as_bytes();
     let mut result = MolecularFormula::default();
     while index < value.len() {
         match bytes[index] {
-            b'(' if isotope == 0 => {
+            b'(' if isotope.is_none() => {
                 let len = bytes
                     .iter()
                     .skip(index)
@@ -112,9 +112,11 @@ pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, 
                     .ok_or(format!(
                         "No closing round bracket for round bracket at index: {index}"
                     ))?;
-                isotope = value[index + 1..index + len]
-                    .parse::<u16>()
-                    .map_err(|e| e.to_string())?;
+                isotope = Some(
+                    value[index + 1..index + len]
+                        .parse::<u16>()
+                        .map_err(|e| e.to_string())?,
+                );
                 index += len + 1;
             }
             b'-' | b'0'..=b'9' if element.is_some() => {
@@ -130,10 +132,10 @@ pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, 
                 .map_err(|e| e.to_string())?;
                 let num = num?;
                 if num != 0 {
-                    result.add((element.unwrap(), isotope, num));
+                    assert!(result.add((element.unwrap(), isotope, num)));
                 }
                 element = None;
-                isotope = 0;
+                isotope = None;
                 index += len;
             }
             b' ' => index += 1,
@@ -155,7 +157,7 @@ pub fn parse_molecular_formula_psi_mod(value: &str) -> Result<MolecularFormula, 
             }
         }
     }
-    if isotope != 0 || element.is_some() {
+    if isotope.is_some() || element.is_some() {
         Err("Last element missed a count".to_string())
     } else {
         Ok(result)

@@ -23,7 +23,7 @@ pub struct LinearPeptide {
     /// Global isotope modifications, saved as the element and the species that
     /// all occurrence of that element will consist of. Eg (N, 15) will make
     /// all occurring nitrogens be isotope 15.
-    pub global: Vec<(Element, u16)>,
+    pub global: Vec<(Element, Option<u16>)>,
     /// Labile modifications, which will not be found in the actual spectrum.
     pub labile: Vec<Modification>,
     /// N terminal modification
@@ -53,16 +53,16 @@ impl LinearPeptide {
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
     pub fn n_term(&self) -> MolecularFormula {
         self.n_term.as_ref().map_or_else(
-            || molecular_formula!(H 1),
-            |m| molecular_formula!(H 1) + m.formula(),
+            || molecular_formula!(H 1).unwrap(),
+            |m| molecular_formula!(H 1).unwrap() + m.formula(),
         )
     }
 
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
     pub fn c_term(&self) -> MolecularFormula {
         self.c_term.as_ref().map_or_else(
-            || molecular_formula!(H 1 O 1),
-            |m| molecular_formula!(H 1 O 1) + m.formula(),
+            || molecular_formula!(H 1 O 1).unwrap(),
+            |m| molecular_formula!(H 1 O 1).unwrap() + m.formula(),
         )
     }
 
@@ -239,7 +239,7 @@ impl LinearPeptide {
             formula += pos.formula_greedy(&mut placed)?;
         }
 
-        Some(formula.with_global_isotope_modifications(&self.global))
+        formula.with_global_isotope_modifications(&self.global)
     }
 
     /// Gives the formula for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
@@ -250,7 +250,7 @@ impl LinearPeptide {
             formula += pos.formula_greedy(&mut placed)?;
         }
 
-        Some(formula.with_global_isotope_modifications(&self.global))
+        formula.with_global_isotope_modifications(&self.global)
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -302,7 +302,7 @@ impl LinearPeptide {
         for fragment in &mut output {
             fragment.formula = fragment
                 .formula
-                .with_global_isotope_modifications(&self.global);
+                .with_global_isotope_modifications(&self.global)?;
         }
 
         // Generate precursor peak
@@ -381,7 +381,8 @@ impl LinearPeptide {
                         seq.modifications.push(modification.clone());
                     }
                 }
-                GlobalModification::Isotope(el, isotope) => self.global.push((*el, *isotope)),
+                GlobalModification::Isotope(el, 0) => self.global.push((*el, None)),
+                GlobalModification::Isotope(el, isotope) => self.global.push((*el, Some(*isotope))),
             }
         }
     }

@@ -180,12 +180,8 @@ pub fn building_blocks(
                 )
             })
             .map(|(a, m)| {
-                let mass = a
-                    .formula_all()
-                    .unwrap()
-                    .monoisotopic_mass()
-                    .unwrap_or_default()
-                    + m.formula().monoisotopic_mass().unwrap_or_default();
+                let mass =
+                    a.formula_all().unwrap().monoisotopic_mass() + m.formula().monoisotopic_mass();
                 (a, m, mass)
             })
             .collect_vec();
@@ -244,12 +240,7 @@ pub fn building_blocks(
                 );
                 options
             })
-            .map(|s| {
-                (
-                    s.clone(),
-                    s.formula_all().unwrap().monoisotopic_mass().unwrap(),
-                )
-            })
+            .map(|s| (s.clone(), s.formula_all().unwrap().monoisotopic_mass()))
             .collect();
         options.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         options
@@ -279,7 +270,7 @@ pub fn find_isobaric_sets(
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
     let base_mass = base
-        .and_then(|b| b.formula().and_then(|b| b.monoisotopic_mass()))
+        .and_then(|b| b.formula().map(|b| b.monoisotopic_mass()))
         .unwrap_or_default();
     let bounds = (bounds.0 - base_mass, bounds.1 - base_mass);
     assert!(bounds.0.value > 0.0, "Cannot have a base selection that has a weight within the tolerance of the intended final mass for isobaric search.");
@@ -537,7 +528,7 @@ mod tests {
     fn simple_isobaric_sets() {
         let pep = ComplexPeptide::pro_forma("AG").unwrap().assume_linear();
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
-            pep.bare_formula().unwrap().monoisotopic_mass().unwrap(),
+            pep.bare_formula().unwrap().monoisotopic_mass(),
             MassTolerance::Ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
             &[],

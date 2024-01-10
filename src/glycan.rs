@@ -123,8 +123,7 @@ impl GlycanStructure {
         branches.sort_unstable_by(|a, b| {
             b.formula()
                 .monoisotopic_mass()
-                .unwrap()
-                .partial_cmp(&a.formula().monoisotopic_mass().unwrap())
+                .partial_cmp(&a.formula().monoisotopic_mass())
                 .unwrap()
         });
 

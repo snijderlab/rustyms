@@ -423,7 +423,13 @@ impl ComplexPeptide {
                                 Context::line(0, line, offset+count_len+element_len, 1),
                             ))?;
 
-                            charge_carriers.push((count, MolecularFormula::new(&[(element, 0, 1), (Element::Electron, 0, -ion_charge as i16)])));
+                            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i16)]).ok_or_else(|| CustomError::error(
+                                "Invalid charge carrier formula",
+                                "The given molecular formula contains a part that does not have a defined mass",
+                                Context::line(0, line, index+2+charge_len, offset),
+                            ))?;
+
+                            charge_carriers.push((count, formula));
 
                             offset += set.len() + 1;
                         }
@@ -773,11 +779,11 @@ mod tests {
         // Formula: A + H2O
         assert_eq!(
             deuterium.formula().unwrap(),
-            molecular_formula!((2)H 7 C 3 O 2 N 1)
+            molecular_formula!((2)H 7 C 3 O 2 N 1).unwrap()
         );
         assert_eq!(
             nitrogen_15.formula().unwrap(),
-            molecular_formula!(H 7 C 3 O 2 (15)N 1)
+            molecular_formula!(H 7 C 3 O 2 (15)N 1).unwrap()
         );
     }
 
@@ -846,7 +852,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .charge_carriers,
-            vec![(2, molecular_formula!(Na 1 Electron -1))]
+            vec![(2, molecular_formula!(Na 1 Electron -1).unwrap())]
         );
         assert_eq!(
             peptide.peptides()[0].sequence,
@@ -865,8 +871,8 @@ mod tests {
                 .unwrap()
                 .charge_carriers,
             vec![
-                (1, molecular_formula!(Na 1 Electron -1)),
-                (1, molecular_formula!(H 1 Electron -1))
+                (1, molecular_formula!(Na 1 Electron -1).unwrap()),
+                (1, molecular_formula!(H 1 Electron -1).unwrap())
             ]
         );
         // Check if the C term mod is applied

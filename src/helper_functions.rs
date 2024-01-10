@@ -125,7 +125,9 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
                     .parse::<u16>()
                     .map_err(|e| e.to_string())?;
 
-                result.add((element.unwrap(), isotope, num));
+                if !result.add((element.unwrap(), Some(isotope), num)) {
+                    return Err(format!("Invalid isotope ({}) added for element ({}) in pro forma molecular formula ({})", isotope, element.unwrap(), value));
+                }
                 element = None;
                 index += len + 1;
             }
@@ -142,7 +144,9 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
                 .map_err(|e| e.to_string())?;
                 let num = num?;
                 if num != 0 {
-                    result.add((element.unwrap(), 0, num));
+                    if !result.add((element.unwrap(), None, num)) {
+                        return Err(format!("An element without a defined mass ({}) was used in a pro forma molecular formula ({})", element.unwrap(), value));
+                    }
                 }
                 element = None;
                 index += len;
@@ -167,7 +171,9 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
         }
     }
     if let Some(element) = element {
-        result.add((element, 0, 1));
+        if !result.add((element, None, 1)) {
+            return Err(format!( "An element without a defined mass ({element}) was used in a pro forma molecular formula ({value})",));
+        }
     }
     Ok(result)
 }

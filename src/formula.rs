@@ -8,31 +8,39 @@ include!("shared/formula.rs");
 
 impl MolecularFormula {
     /// The mass of the molecular formula of this element, if all element species (isotopes) exists
-    pub fn monoisotopic_mass(&self) -> Option<Mass> {
+    pub fn monoisotopic_mass(&self) -> Mass {
         let mut mass = da(self.additional_mass);
         for (e, i, n) in &self.elements {
-            mass += e.mass(*i)? * Ratio::new::<r>(f64::from(*n));
+            mass += e
+                .mass(*i)
+                .expect("An invalid molecular formula was created, please report this crash")
+                * Ratio::new::<r>(f64::from(*n));
         }
-        Some(mass)
+        mass
     }
     /// The average weight of the molecular formula of this element, if all element species (isotopes) exists
-    pub fn average_weight(&self) -> Option<Mass> {
+    pub fn average_weight(&self) -> Mass {
         let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
-            mass += e.average_weight(*i)? * Ratio::new::<r>(f64::from(*n));
+            mass += e
+                .average_weight(*i)
+                .expect("An invalid molecular formula was created, please report this crash")
+                * Ratio::new::<r>(f64::from(*n));
         }
-        Some(mass)
+        mass
     }
     /// The most abundant mass, meaning the isotope that will have the highest intensity
-    pub fn most_abundant_mass(&self) -> Option<Mass> {
+    pub fn most_abundant_mass(&self) -> Mass {
         let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
-            mass += e.most_abundant_mass(*n, *i)?;
+            mass += e
+                .most_abundant_mass(*n, *i)
+                .expect("An invalid molecular formula was created, please report this crash");
         }
-        Some(mass)
+        mass
     }
     /// Get the mass in the given mode
-    pub fn mass(&self, mode: MassMode) -> Option<Mass> {
+    pub fn mass(&self, mode: MassMode) -> Mass {
         match mode {
             MassMode::Monoisotopic => self.monoisotopic_mass(),
             MassMode::Average => self.average_weight(),
@@ -43,28 +51,36 @@ impl MolecularFormula {
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
         let mut output = String::new();
-        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
+        if let Some(carbon) = self
+            .elements
+            .iter()
+            .find(|e| e.0 == Element::C && e.1.is_none())
+        {
             write!(output, "C{}", carbon.2).unwrap();
-            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
+            if let Some(hydrogen) = self
+                .elements
+                .iter()
+                .find(|e| e.0 == Element::H && e.1.is_none())
+            {
                 write!(output, "H{}", hydrogen.2).unwrap();
             }
             for element in self
                 .elements
                 .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
             {
-                if element.1 == 0 {
-                    write!(output, "{}{}", element.0, element.2).unwrap();
+                if let Some(isotope) = element.1 {
+                    write!(output, "[{}{}{}]", isotope, element.0, element.2).unwrap();
                 } else {
-                    write!(output, "[{}{}{}]", element.1, element.0, element.2).unwrap();
+                    write!(output, "{}{}", element.0, element.2).unwrap();
                 }
             }
         } else {
             for element in &self.elements {
-                if element.1 == 0 {
-                    write!(output, "{}{}", element.0, element.2).unwrap();
+                if let Some(isotope) = element.1 {
+                    write!(output, "[{}{}{}]", isotope, element.0, element.2).unwrap();
                 } else {
-                    write!(output, "[{}{}{}]", element.1, element.0, element.2).unwrap();
+                    write!(output, "{}{}", element.0, element.2).unwrap();
                 }
             }
         }
@@ -79,20 +95,29 @@ impl MolecularFormula {
     /// and superscript numbers.
     pub fn hill_notation_fancy(&self) -> String {
         let mut output = String::new();
-        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
+        if let Some(carbon) = self
+            .elements
+            .iter()
+            .find(|e| e.0 == Element::C && e.1.is_none())
+        {
             write!(output, "C{}", to_subscript_num(carbon.2 as isize)).unwrap();
-            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
+            if let Some(hydrogen) = self
+                .elements
+                .iter()
+                .find(|e| e.0 == Element::H && e.1.is_none())
+            {
                 write!(output, "H{}", to_subscript_num(hydrogen.2 as isize)).unwrap();
             }
             for element in self
                 .elements
                 .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
             {
-                if element.1 == 0 {
+                if let Some(isotope) = element.1 {
                     write!(
                         output,
-                        "{}{}",
+                        "{}{}{}",
+                        to_superscript_num(isotope),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -100,8 +125,7 @@ impl MolecularFormula {
                 } else {
                     write!(
                         output,
-                        "{}{}{}",
-                        to_superscript_num(element.1),
+                        "{}{}",
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -110,10 +134,11 @@ impl MolecularFormula {
             }
         } else {
             for element in &self.elements {
-                if element.1 == 0 {
+                if let Some(isotope) = element.1 {
                     write!(
                         output,
-                        "{}{}",
+                        "{}{}{}",
+                        to_superscript_num(isotope),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -121,8 +146,7 @@ impl MolecularFormula {
                 } else {
                     write!(
                         output,
-                        "{}{}{}",
-                        to_superscript_num(element.1),
+                        "{}{}",
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -139,7 +163,11 @@ impl MolecularFormula {
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements encoded in HTML
     pub fn hill_notation_html(&self) -> String {
         let mut output = String::new();
-        if let Some(carbon) = self.elements.iter().find(|e| e.0 == Element::C && e.1 == 0) {
+        if let Some(carbon) = self
+            .elements
+            .iter()
+            .find(|e| e.0 == Element::C && e.1.is_none())
+        {
             write!(
                 output,
                 "C{}",
@@ -150,7 +178,11 @@ impl MolecularFormula {
                 }
             )
             .unwrap();
-            if let Some(hydrogen) = self.elements.iter().find(|e| e.0 == Element::H && e.1 == 0) {
+            if let Some(hydrogen) = self
+                .elements
+                .iter()
+                .find(|e| e.0 == Element::H && e.1.is_none())
+            {
                 write!(
                     output,
                     "H{}",
@@ -165,17 +197,15 @@ impl MolecularFormula {
             for element in self
                 .elements
                 .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1 == 0))
+                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
                 .filter(|e| e.2 != 0)
             {
                 write!(
                     output,
                     "{}{}{}",
-                    if element.1 == 0 {
-                        String::new()
-                    } else {
-                        format!("<sup>{}</sup>", element.1)
-                    },
+                    element
+                        .1
+                        .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
                     element.0,
                     if element.2 == 1 {
                         String::new()
@@ -190,11 +220,9 @@ impl MolecularFormula {
                 write!(
                     output,
                     "{}{}{}",
-                    if element.1 == 0 {
-                        String::new()
-                    } else {
-                        format!("<sup>{}</sup>", element.1)
-                    },
+                    element
+                        .1
+                        .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
                     element.0,
                     if element.2 == 1 {
                         String::new()
@@ -282,24 +310,24 @@ mod tests {
     #[test]
     fn add() {
         assert_eq!(
-            molecular_formula!(H 2 O 2),
-            molecular_formula!(H 1 O 1) + molecular_formula!(H 1 O 1)
+            molecular_formula!(H 2 O 2).unwrap(),
+            molecular_formula!(H 1 O 1).unwrap() + molecular_formula!(H 1 O 1).unwrap()
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2),
-            molecular_formula!(H 1 O 3) + molecular_formula!(H 1 O -1)
+            molecular_formula!(H 2 O 2).unwrap(),
+            molecular_formula!(H 1 O 3).unwrap() + molecular_formula!(H 1 O -1).unwrap()
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2),
-            molecular_formula!(H 1 O -1) + molecular_formula!(H 1 O 3)
+            molecular_formula!(H 2 O 2).unwrap(),
+            molecular_formula!(H 1 O -1).unwrap() + molecular_formula!(H 1 O 3).unwrap()
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2),
-            molecular_formula!(H 1 O -1) + molecular_formula!(O 3 H 1)
+            molecular_formula!(H 2 O 2).unwrap(),
+            molecular_formula!(H 1 O -1).unwrap() + molecular_formula!(O 3 H 1).unwrap()
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2),
-            molecular_formula!(H 2 O -1) + molecular_formula!(O 3)
+            molecular_formula!(H 2 O 2).unwrap(),
+            molecular_formula!(H 2 O -1).unwrap() + molecular_formula!(O 3).unwrap()
         );
     }
 }

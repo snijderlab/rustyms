@@ -7,12 +7,13 @@ use std::ops::{Add, AddAssign, Mul, Sub};
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
-    elements: Vec<(crate::Element, u16, i16)>,
+    /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
+    elements: Vec<(crate::Element, Option<u16>, i16)>,
     /// Any addition mass, defined to be monoisotopic
     additional_mass: f64,
 }
 
-/// Any item that has a clearly defined molecular formula
+/// Any item that has a clearly defined single molecular formula
 pub trait Chemical {
     /// Get the molecular formula
     fn formula(&self) -> MolecularFormula;
@@ -30,14 +31,24 @@ impl<T: Chemical> Chemical for &Vec<T> {
     }
 }
 
+/// Any item that has a number of potential chemical formulas
+pub trait MultiChemical {
+    /// Get all possible molecular formulas
+    fn formulas(&self) -> Vec<MolecularFormula>;
+}
+
 impl MolecularFormula {
-    /// Create a new molecular formula, the elements will be sorted on element/isotope and deduplicated
-    pub fn new(elements: &[(crate::Element, u16, i16)]) -> Self {
-        let result = Self {
-            elements: elements.to_vec(),
-            additional_mass: 0.0,
-        };
-        result.simplify()
+    /// Create a new molecular formula, if the chosen isotopes are not valid it returns None
+    pub fn new(elements: &[(crate::Element, Option<u16>, i16)]) -> Option<Self> {
+        if elements.iter().any(|e| !e.0.is_valid(e.1)) {
+            None
+        } else {
+            let result = Self {
+                elements: elements.to_vec(),
+                additional_mass: 0.0,
+            };
+            Some(result.simplify())
+        }
     }
 
     // The elements will be sorted on element/isotope and deduplicated
@@ -78,51 +89,65 @@ impl MolecularFormula {
         }
     }
 
-    /// Add the given element to this formula (while keeping it ordered and simplified)
-    pub fn add(&mut self, element: (crate::Element, u16, i16)) {
-        let mut index = 0;
-        let mut done = false;
-        let (el, i, n) = element;
-        while !done {
-            let base = self.elements.get(index).copied();
-            if let Some((re, ri, _)) = base {
-                if el > re || (el == re && i > ri) {
-                    index += 1;
-                } else if el == re && i == ri {
-                    self.elements[index].2 += n;
-                    done = true;
+    /// Add the given element to this formula (while keeping it ordered and simplified).
+    /// If the isotope for the added element is not valid it returns `false`.
+    #[must_use]
+    pub fn add(&mut self, element: (crate::Element, Option<u16>, i16)) -> bool {
+        if element.0.is_valid(element.1) {
+            let mut index = 0;
+            let mut done = false;
+            let (el, i, n) = element;
+            while !done {
+                let base = self.elements.get(index).copied();
+                if let Some((re, ri, _)) = base {
+                    if el > re || (el == re && i > ri) {
+                        index += 1;
+                    } else if el == re && i == ri {
+                        self.elements[index].2 += n;
+                        done = true;
+                    } else {
+                        self.elements.insert(index, (el, i, n));
+                        done = true;
+                    }
                 } else {
-                    self.elements.insert(index, (el, i, n));
+                    self.elements.push((el, i, n));
                     done = true;
                 }
-            } else {
-                self.elements.push((el, i, n));
-                done = true;
             }
+            true
+        } else {
+            false
         }
     }
 
     /// Get the elements making this formula
-    pub fn elements(&self) -> &[(Element, u16, i16)] {
+    pub fn elements(&self) -> &[(Element, Option<u16>, i16)] {
         &self.elements
     }
 
-    /// Create a new molecular formula with the given global isotope modifications
+    /// Create a new molecular formula with the given global isotope modifications. If the given isotope is not valid for this element it returns `None`.
     #[must_use]
-    pub fn with_global_isotope_modifications(&self, substitutions: &[(Element, u16)]) -> Self {
-        let mut new_elements = self.elements.clone();
-        for item in &mut new_elements {
-            for (substitute_element, substitute_species) in substitutions {
-                if item.0 == *substitute_element {
-                    item.1 = *substitute_species;
+    pub fn with_global_isotope_modifications(
+        &self,
+        substitutions: &[(Element, Option<u16>)],
+    ) -> Option<Self> {
+        if substitutions.iter().all(|e| e.0.is_valid(e.1)) {
+            let mut new_elements = self.elements.clone();
+            for item in &mut new_elements {
+                for (substitute_element, substitute_species) in substitutions {
+                    if item.0 == *substitute_element {
+                        item.1 = *substitute_species;
+                    }
                 }
             }
+            let result = Self {
+                elements: new_elements,
+                additional_mass: self.additional_mass,
+            };
+            Some(result.simplify())
+        } else {
+            None
         }
-        let result = Self {
-            elements: new_elements,
-            additional_mass: self.additional_mass,
-        };
-        result.simplify()
     }
 
     /// Get the number of electrons (the only charged species, any ionic species is saved as that element +/- the correct number of electrons).
@@ -272,16 +297,16 @@ macro_rules! molecular_formula {
 /// Internal code for the [`molecular_formula`] macro.
 macro_rules! formula_internal {
     ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, 0, $n),])
+        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, None, $n),])
     };
     ([($i:literal)$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, $i, $n),])
+        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, Some($i), $n),])
     };
     ([$e:ident $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*(Element::$e, 0, $n),])
+        formula_internal!([] -> [$($output)*(Element::$e, None, $n),])
     };
     ([($i:literal)$e:ident $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*(Element::$e, $i, $n),])
+        formula_internal!([] -> [$($output)*(Element::$e, Some($i), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
         MolecularFormula::new(&[$($output)*])

@@ -20,36 +20,36 @@ impl MolecularFormula {
             .elements()
             .iter()
             .filter(|i| {
-                i.1 == 0
+                i.1.is_none()
                     && (i.0 != Element::H
                         && i.0 != Element::C
                         && i.0 != Element::N
                         && i.0 != Element::O)
             })
             .fold(Self::default(), |mut acc, s| {
-                acc.add(*s);
+                assert!(acc.add(*s));
                 acc
             });
         let mut isotopes = Vec::new();
         let present_h = self
             .elements()
             .iter()
-            .find(|i| i.0 == Element::H && i.1 == 0)
+            .find(|i| i.0 == Element::H && i.1.is_none())
             .map_or(0, |i| i.2);
         let present_c = self
             .elements()
             .iter()
-            .find(|i| i.0 == Element::C && i.1 == 0)
+            .find(|i| i.0 == Element::C && i.1.is_none())
             .map_or(0, |i| i.2);
         let present_n = self
             .elements()
             .iter()
-            .find(|i| i.0 == Element::N && i.1 == 0)
+            .find(|i| i.0 == Element::N && i.1.is_none())
             .map_or(0, |i| i.2);
         let present_o = self
             .elements()
             .iter()
-            .find(|i| i.0 == Element::O && i.1 == 0)
+            .find(|i| i.0 == Element::O && i.1.is_none())
             .map_or(0, |i| i.2);
         let max_h = if use_h { present_h } else { 0 };
         let max_c = if use_c { present_c } else { 0 };
@@ -84,18 +84,18 @@ impl MolecularFormula {
                             }
                             // Do the calc
                             let formula = Self::new(&[
-                                (Element::H, 1, present_h - num_h),
-                                (Element::H, 2, num_h),
-                                (Element::C, 12, present_c - num_c),
-                                (Element::C, 13, num_c),
-                                (Element::N, 14, present_n - num_n),
-                                (Element::N, 15, num_n),
-                                (Element::O, 16, present_o - num_o_1 - num_o_2),
-                                (Element::O, 17, num_o_1),
-                                (Element::O, 18, num_o_2),
+                                (Element::H, Some(1), present_h - num_h),
+                                (Element::H, Some(2), num_h),
+                                (Element::C, Some(12), present_c - num_c),
+                                (Element::C, Some(13), num_c),
+                                (Element::N, Some(14), present_n - num_n),
+                                (Element::N, Some(15), num_n),
+                                (Element::O, Some(16), present_o - num_o_1 - num_o_2),
+                                (Element::O, Some(17), num_o_1),
+                                (Element::O, Some(18), num_o_2),
                             ]);
                             isotopes.push((
-                                &formula + &additional_mass,
+                                &formula.unwrap() + &additional_mass,
                                 chance,
                                 format!("[2H{num_h}][13C{num_c}][15N{num_n}][17O{num_o_1}][18O{num_o_2}]"),
                             ));
@@ -115,7 +115,7 @@ fn combined_pattern(
     let mut combined: Vec<(Mass, f64, usize, String)> = Vec::new();
 
     for isotope in isotopes {
-        let isotope_mass = isotope.0.monoisotopic_mass().unwrap().value.round();
+        let isotope_mass = isotope.0.monoisotopic_mass().value.round();
         if let Some(entry) = combined
             .iter_mut()
             .find(|i| (i.0.value - isotope_mass).abs() < f64::EPSILON)
@@ -164,11 +164,12 @@ mod tests {
     fn simple_isotope_pattern() {
         // EVQLVESGGGLVQPGG start 16 AA of herceptin
         let peptide = MolecularFormula::new(&[
-            (Element::H, 0, 108),
-            (Element::C, 0, 65),
-            (Element::N, 0, 18),
-            (Element::O, 0, 24),
-        ]);
+            (Element::H, None, 108),
+            (Element::C, None, 65),
+            (Element::N, None, 18),
+            (Element::O, None, 24),
+        ])
+        .unwrap();
         let isotopes = peptide.isotopic_distribution(1e-6, true, true, true, true);
         save_combinations(
             &combined_pattern(&isotopes),
@@ -192,8 +193,8 @@ mod tests {
         );
         println!(
             "MonoIsotopic mass: {} average mass: {}",
-            peptide.monoisotopic_mass().unwrap().value,
-            peptide.average_weight().unwrap().value
+            peptide.monoisotopic_mass().value,
+            peptide.average_weight().value
         );
     }
 
@@ -201,12 +202,13 @@ mod tests {
     fn sars_cov_2_spike_isotope_pattern() {
         // MFVFLVLLPLVSSQCVNLTTRTQLPPAYTNSFTRGVYYPDKVFRSSVLHSTQDLFLPFFSNVTWFHAIHVSGTNGTKRFDNPVLPFNDGVYFASTEKSNIIRGWIFGTTLDSKTQSLLIVNNATNVVIKVCEFQFCNDPFLGVYYHKNNKSWMESEFRVYSSANNCTFEYVSQPFLMDLEGKQGNFKNLREFVFKNIDGYFKIYSKHTPINLVRDLPQGFSALEPLVDLPIGINITRFQTLLALHRSYLTPGDSSSGWTAGAAAYYVGYLQPRTFLLKYNENGTITDAVDCALDPLSETKCTLKSFTVEKGIYQTSNFRVQPTESIVRFPNITNLCPFGEVFNATRFASVYAWNRKRISNCVADYSVLYNSASFSTFKCYGVSPTKLNDLCFTNVYADSFVIRGDEVRQIAPGQTGKIADYNYKLPDDFTGCVIAWNSNNLDSKVGGNYNYLYRLFRKSNLKPFERDISTEIYQAGSTPCNGVEGFNCYFPLQSYGFQPTNGVGYQPYRVVVLSFELLHAPATVCGPKKSTNLVKNKCVNFNFNGLTGTGVLTESNKKFLPFQQFGRDIADTTDAVRDPQTLEILDITPCSFGGVSVITPGTNTSNQVAVLYQDVNCTEVPVAIHADQLTPTWRVYSTGSNVFQTRAGCLIGAEHVNNSYECDIPIGAGICASYQTQTNSPRRARSVASQSIIAYTMSLGAENSVAYSNNSIAIPTNFTISVTTEILPVSMTKTSVDCTMYICGDSTECSNLLLQYGSFCTQLNRALTGIAVEQDKNTQEVFAQVKQIYKTPPIKDFGGFNFSQILPDPSKPSKRSFIEDLLFNKVTLADAGFIKQYGDCLGDIAARDLICAQKFNGLTVLPPLLTDEMIAQYTSALLAGTITSGWTFGAGAALQIPFAMQMAYRFNGIGVTQNVLYENQKLIANQFNSAIGKIQDSLSSTASALGKLQDVVNQNAQALNTLVKQLSSNFGAISSVLNDILSRLDKVEAEVQIDRLITGRLQSLQTYVTQQLIRAAEIRASANLAATKMSECVLGQSKRVDFCGKGYHLMSFPQSAPHGVVFLHVTYVPAQEKNFTTAPAICHDGKAHFPREGVFVSNGTHWFVTQRNFYEPQIITTDNTFVSGNCDVVIGIVNNTVYDPLQPELDSFKEELDKYFKNHTSPDVDLGDISGINASVVNIQKEIDRLNEVAKNLNESLIDLQELGKYEQYIKWPWYIWLGFIAGLIAIVMVTIMLCCMTSCCSCLKGCCSCGSCCKFDEDDSEPVLKGVKLHYT
         let spike = MolecularFormula::new(&[
-            (Element::H, 0, 9770),
-            (Element::C, 0, 6336),
-            (Element::N, 0, 1656),
-            (Element::O, 0, 1894),
-            (Element::S, 0, 54),
-        ]);
+            (Element::H, None, 9770),
+            (Element::C, None, 6336),
+            (Element::N, None, 1656),
+            (Element::O, None, 1894),
+            (Element::S, None, 54),
+        ])
+        .unwrap();
         let isotopes = spike.isotopic_distribution(1e-5, true, true, true, true);
         let file_handler = File::create("target/spike_isotopes.tsv").unwrap();
         let mut writer = BufWriter::new(file_handler);
@@ -234,8 +236,8 @@ mod tests {
         );
         println!(
             "MonoIsotopic mass: {} average mass: {}",
-            spike.monoisotopic_mass().unwrap().value,
-            spike.average_weight().unwrap().value
+            spike.monoisotopic_mass().value,
+            spike.average_weight().value
         );
     }
 
@@ -257,12 +259,13 @@ mod tests {
     fn herceptin_v_heavy_isotope_pattern() {
         // EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTK
         let herceptin = MolecularFormula::new(&[
-            (Element::H, 0, 915),
-            (Element::C, 0, 602),
-            (Element::N, 0, 165),
-            (Element::O, 0, 185),
-            (Element::S, 0, 4),
-        ]);
+            (Element::H, None, 915),
+            (Element::C, None, 602),
+            (Element::N, None, 165),
+            (Element::O, None, 185),
+            (Element::S, None, 4),
+        ])
+        .unwrap();
         let isotopes = herceptin.isotopic_distribution(1e-5, true, true, true, true);
         let file_handler = File::create("target/herceptin_isotopes.tsv").unwrap();
         let mut writer = BufWriter::new(file_handler);
@@ -290,8 +293,8 @@ mod tests {
         );
         println!(
             "MonoIsotopic mass: {} average mass: {}",
-            herceptin.monoisotopic_mass().unwrap().value,
-            herceptin.average_weight().unwrap().value
+            herceptin.monoisotopic_mass().value,
+            herceptin.average_weight().value
         );
     }
 }

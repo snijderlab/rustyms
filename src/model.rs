@@ -131,43 +131,45 @@ impl Model {
         Self {
             a: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             d: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             v: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             w: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             x: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            glycan_fragmentation: Some(vec![NeutralLoss::Loss(
+                molecular_formula!(H 2 O 1).unwrap(),
+            )]),
         }
     }
 
@@ -195,30 +197,32 @@ impl Model {
             a: (Location::None, Vec::new()),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
             w: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            glycan_fragmentation: Some(vec![NeutralLoss::Loss(
+                molecular_formula!(H 2 O 1).unwrap(),
+            )]),
         }
     }
 
@@ -227,11 +231,11 @@ impl Model {
         Self {
             a: (
                 Location::TakeN { skip: 1, take: 1 },
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             c: (Location::None, Vec::new()),
             d: (Location::TakeN { skip: 1, take: 1 }, Vec::new()),
@@ -240,10 +244,10 @@ impl Model {
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             z: (Location::None, Vec::new()),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ppm: MassOverCharge::new::<mz>(20.0),
             glycan_fragmentation: None,
         }
@@ -255,26 +259,26 @@ impl Model {
             a: (Location::None, Vec::new()),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
             w: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             precursor: Vec::new(),
             ppm: MassOverCharge::new::<mz>(20.0),
@@ -294,15 +298,15 @@ impl Model {
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             precursor: vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 3 N 1).unwrap()),
             ],
             ppm: MassOverCharge::new::<mz>(20.0),
             glycan_fragmentation: None,

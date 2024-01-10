@@ -163,7 +163,7 @@ impl RawSpectrum {
             // Get the index of the element closest to this value (spectrum is defined to always be sorted)
             let index = self
                 .spectrum
-                .binary_search_by(|p| p.mz.value.total_cmp(&fragment.mz(mode).unwrap().value))
+                .binary_search_by(|p| p.mz.value.total_cmp(&fragment.mz(mode).value))
                 .map_or_else(|i| i, |i| i);
 
             // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
@@ -171,7 +171,7 @@ impl RawSpectrum {
             for i in
                 if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1)
             {
-                let ppm = self.spectrum[i].ppm(fragment, mode).unwrap().value;
+                let ppm = self.spectrum[i].ppm(fragment, mode).value;
                 if ppm < closest.1 {
                     closest = (i, ppm);
                 }
@@ -372,7 +372,7 @@ impl PeakSpectrum for AnnotatedSpectrum {
 
     fn add_peak(&mut self, item: Self::PeakType) {
         let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
-        self.spectrum.insert(index, item)
+        self.spectrum.insert(index, item);
     }
 }
 
@@ -412,9 +412,9 @@ impl PartialEq for RawPeak {
 impl Eq for RawPeak {}
 
 impl RawPeak {
-    /// Determine the ppm error for the given fragment, optional because the mz of a [Fragment] is optional
-    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> Option<MassOverCharge> {
-        Some(MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz(mode)?)))
+    /// Determine the ppm error for the given fragment
+    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> MassOverCharge {
+        MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz(mode)))
     }
 }
 

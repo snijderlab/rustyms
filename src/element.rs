@@ -5,68 +5,77 @@ use crate::system::{da, r, Ratio};
 include!("shared/element.rs");
 
 impl Element {
+    /// Validate this isotope to have a defined mass
+    pub fn is_valid(self, isotope: Option<u16>) -> bool {
+        isotope.map_or_else(
+            || elemental_data()[self as usize - 1].0.is_some(),
+            |isotope| {
+                elemental_data()[self as usize - 1]
+                    .2
+                    .iter()
+                    .any(|(ii, _, _)| *ii == isotope)
+            },
+        )
+    }
+
     /// Get all available isotopes (N, mass, abundance)
     pub fn isotopes(self) -> &'static [(u16, Mass, f64)] {
         &elemental_data()[self as usize].2
     }
 
     /// The mass of the specified isotope of this element (if that isotope exists)
-    pub fn mass(&self, isotope: u16) -> Option<Mass> {
-        if *self == Self::Electron {
+    pub fn mass(self, isotope: Option<u16>) -> Option<Mass> {
+        if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        Some(if isotope == 0 {
-            elemental_data()[*self as usize - 1].0?
-        } else {
+        isotope.map_or(elemental_data()[self as usize - 1].0, |isotope| {
             // Specific isotope do not change anything
-            elemental_data()[*self as usize - 1]
+            elemental_data()[self as usize - 1]
                 .2
                 .iter()
                 .find(|(ii, _, _)| *ii == isotope)
-                .map(|(_, m, _)| *m)?
+                .map(|(_, m, _)| *m)
         })
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists)
-    pub fn average_weight(&self, isotope: u16) -> Option<Mass> {
-        if *self == Self::Electron {
+    pub fn average_weight(self, isotope: Option<u16>) -> Option<Mass> {
+        if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        Some(if isotope == 0 {
-            elemental_data()[*self as usize - 1].1?
-        } else {
+        isotope.map_or(elemental_data()[self as usize - 1].1, |isotope| {
             // Specific isotope do not change anything
-            elemental_data()[*self as usize - 1]
+            elemental_data()[self as usize - 1]
                 .2
                 .iter()
                 .find(|(ii, _, _)| *ii == isotope)
-                .map(|(_, m, _)| *m)?
+                .map(|(_, m, _)| *m)
         })
     }
 
     /// Gives the most abundant mass based on the number of this isotope
-    pub fn most_abundant_mass(&self, n: i16, isotope: u16) -> Option<Mass> {
-        if *self == Self::Electron {
+    pub fn most_abundant_mass(self, n: i16, isotope: Option<u16>) -> Option<Mass> {
+        if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4) * Ratio::new::<r>(f64::from(n)));
         }
         Some(
-            if isotope == 0 {
+            if let Some(isotope) = isotope {
+                // Specific isotope do not change anything
+                elemental_data()[self as usize - 1]
+                    .2
+                    .iter()
+                    .find(|(ii, _, _)| *ii == isotope)
+                    .map(|(_, m, _)| *m)?
+            } else {
                 // (mass, chance)
                 let mut max = None;
-                for iso in &elemental_data()[*self as usize - 1].2 {
+                for iso in &elemental_data()[self as usize - 1].2 {
                     let chance = iso.2 * f64::from(n);
                     if max.map_or(true, |m: (Mass, f64)| chance > m.1) {
                         max = Some((iso.1, chance));
                     }
                 }
                 max?.0
-            } else {
-                // Specific isotope do not change anything
-                elemental_data()[*self as usize - 1]
-                    .2
-                    .iter()
-                    .find(|(ii, _, _)| *ii == isotope)
-                    .map(|(_, m, _)| *m)?
             } * Ratio::new::<r>(f64::from(n)),
         )
     }
@@ -89,7 +98,7 @@ mod test {
     #[test]
     fn hill_notation() {
         assert_eq!(
-            molecular_formula!(C 6 O 5 H 10).hill_notation(),
+            molecular_formula!(C 6 O 5 H 10).unwrap().hill_notation(),
             "C6H10O5".to_string()
         );
     }

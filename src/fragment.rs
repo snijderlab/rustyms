@@ -30,15 +30,13 @@ pub struct Fragment {
 
 impl Fragment {
     /// Get the mz
-    pub fn mz(&self, mode: MassMode) -> Option<MassOverCharge> {
-        Some(self.formula.mass(mode)? / self.charge)
+    pub fn mz(&self, mode: MassMode) -> MassOverCharge {
+        self.formula.mass(mode) / self.charge
     }
 
     /// Get the ppm difference between two fragments
-    pub fn ppm(&self, other: &Self, mode: MassMode) -> Option<MassOverCharge> {
-        Some(MassOverCharge::new::<mz>(
-            self.mz(mode)?.ppm(other.mz(mode)?),
-        ))
+    pub fn ppm(&self, other: &Self, mode: MassMode) -> MassOverCharge {
+        MassOverCharge::new::<mz>(self.mz(mode).ppm(other.mz(mode)))
     }
 
     /// Create a new fragment
@@ -127,8 +125,7 @@ impl Display for Fragment {
             f,
             "{}@{}{:+}{} {}",
             self.ion,
-            self.mz(MassMode::Monoisotopic)
-                .map_or("Undefined".to_string(), |m| m.value.to_string()),
+            self.mz(MassMode::Monoisotopic).value,
             self.charge.value,
             self.neutral_loss
                 .as_ref()
@@ -420,9 +417,13 @@ mod tests {
             FragmentType::precursor,
             String::new(),
         );
-        let loss = a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1))]);
+        let loss =
+            a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())]);
         dbg!(&a, &loss);
         assert_eq!(a.formula, loss[0].formula);
-        assert_eq!(a.formula, &loss[1].formula + &molecular_formula!(H 2 O 1));
+        assert_eq!(
+            a.formula,
+            &loss[1].formula + &molecular_formula!(H 2 O 1).unwrap()
+        );
     }
 }
