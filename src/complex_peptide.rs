@@ -14,7 +14,7 @@ use crate::{
     molecular_charge::MolecularCharge,
     system::Charge,
     system::Mass,
-    Element, Fragment, LinearPeptide, Model, MolecularFormula, SequenceElement,
+    Element, Fragment, LinearPeptide, Model, MolecularFormula, MultiChemical, SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptides
@@ -24,6 +24,28 @@ pub enum ComplexPeptide {
     Singular(LinearPeptide),
     /// A multimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
     Multimeric(Vec<LinearPeptide>),
+}
+
+impl MultiChemical for ComplexPeptide {
+    /// Gives all possible formulas for this complex peptide.
+    /// # Panics
+    /// If the global isotope modification is invalid (has an invalid isotope). See [`LinearPeptide::formulas`].
+    fn formulas(&self) -> Vec<MolecularFormula> {
+        match self {
+            Self::Singular(peptide) => peptide.formulas(),
+            Self::Multimeric(peptides) => {
+                let mut formulas = vec![MolecularFormula::default()];
+                for peptide in peptides {
+                    formulas = formulas
+                        .into_iter()
+                        .cartesian_product(peptide.formulas())
+                        .map(|(f, m)| f + m)
+                        .collect();
+                }
+                formulas
+            }
+        }
+    }
 }
 
 impl Display for ComplexPeptide {
