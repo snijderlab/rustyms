@@ -38,6 +38,13 @@ impl MassTolerance {
             Self::Ppm(ppm) => a.ppm(b) <= *ppm,
         }
     }
+
+    /// See if any combination of the masses in a and b is within the tolerance see [Self::within]
+    pub fn any_within(&self, a: &[Mass], b: &[Mass]) -> bool {
+        a.iter()
+            .cartesian_product(b.iter())
+            .any(|(a, b)| self.within(*a, *b))
+    }
 }
 
 impl Display for MassTolerance {
@@ -526,7 +533,7 @@ mod tests {
     use super::*;
     #[test]
     fn simple_isobaric_sets() {
-        let pep = ComplexPeptide::pro_forma("AG").unwrap().assume_linear();
+        let pep = ComplexPeptide::pro_forma("AG").unwrap().singular().unwrap();
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formula().unwrap().monoisotopic_mass(),
             MassTolerance::Ppm(10.0),
@@ -539,8 +546,8 @@ mod tests {
         assert_eq!(
             &sets,
             &[
-                ComplexPeptide::pro_forma("GA").unwrap().assume_linear(),
-                ComplexPeptide::pro_forma("Q").unwrap().assume_linear(),
+                ComplexPeptide::pro_forma("GA").unwrap().singular().unwrap(),
+                ComplexPeptide::pro_forma("Q").unwrap().singular().unwrap(),
             ]
         );
     }

@@ -37,7 +37,10 @@ fn triple_a() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("AAA").unwrap().assume_linear(),
+        &ComplexPeptide::pro_forma("AAA")
+            .unwrap()
+            .singular()
+            .unwrap(),
         &model,
         1.0,
     );
@@ -89,7 +92,8 @@ fn with_modifications() {
         theoretical_fragments,
         &ComplexPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
             .unwrap()
-            .assume_linear(),
+            .singular()
+            .unwrap(),
         &model,
         1.0,
     );
@@ -124,7 +128,8 @@ fn with_possible_modifications() {
         theoretical_fragments,
         &ComplexPeptide::pro_forma("M[Oxidation#a1]M[#a1]")
             .unwrap()
-            .assume_linear(),
+            .singular()
+            .unwrap(),
         &model,
         1.0,
     );
@@ -163,7 +168,10 @@ fn higher_charges() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("ACD").unwrap().assume_linear(),
+        &ComplexPeptide::pro_forma("ACD")
+            .unwrap()
+            .singular()
+            .unwrap(),
         &model,
         5.0,
     );
@@ -327,7 +335,8 @@ fn all_aminoacids() {
         theoretical_fragments,
         &ComplexPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV")
             .unwrap()
-            .assume_linear(),
+            .singular()
+            .unwrap(),
         &model,
         1.0,
     );

@@ -66,7 +66,8 @@ impl FastaData {
             } else {
                 let parsed = ComplexPeptide::pro_forma(&line)
                     .map_err(|e| e.overwrite_line_number(line_number))?
-                    .assume_linear()
+                    .singular()
+                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a multimeric ComplexPeptide")
                     .sequence;
                 last_sequence.extend(parsed);
             }

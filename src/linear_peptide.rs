@@ -6,7 +6,7 @@ use crate::{
     error::CustomError,
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    Element, MolecularFormula, MultiChemical, SequenceElement,
+    Element, MolecularFormula, MultiChemical, MultiMolecularFormula, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -95,6 +95,8 @@ impl LinearPeptide {
     /// or when the sequence is empty.
     #[must_use]
     pub fn assume_simple(self) -> Self {
+        // TODO: when ambiguous mods and B/Z is supported remove them from this list of hard things and figure out a way for end users to still filter on them
+        // Also think about a way to encode this in the type system.
         assert!(
             self.ambiguous_modifications.is_empty(),
             "A simple linear peptide was assumed, but it has ambiguous modifications"
@@ -497,19 +499,15 @@ impl MultiChemical for LinearPeptide {
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
     /// # Panics
     /// If the global isotope modification is invalid (has an invalid isotope).
-    fn formulas(&self) -> Vec<MolecularFormula> {
-        let mut formulas = vec![self.n_term() + self.c_term()];
+    fn formulas(&self) -> MultiMolecularFormula {
+        let mut formulas: MultiMolecularFormula = vec![self.n_term() + self.c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for (_, pos) in self.sequence.iter().enumerate() {
-            formulas = formulas
-                .into_iter()
-                .cartesian_product(pos.formulas_greedy(&mut placed))
-                .map(|(f, m)| f + m)
-                .collect();
+            formulas += pos.formulas_greedy(&mut placed);
         }
 
         formulas
-            .into_iter()
+            .iter()
             .map(|f| f.with_global_isotope_modifications(&self.global).expect("Global isotope modification invalid in determination of all formulas for a peptide"))
             .collect()
     }

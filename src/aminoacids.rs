@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::formula::{Chemical, MolecularFormula, MultiChemical};
 use crate::fragment::Position;
 use crate::fragment::{Fragment, FragmentType};
-use crate::model::*;
 use crate::molecular_charge::MolecularCharge;
 use crate::Element;
+use crate::{model::*, MultiMolecularFormula};
 
 include!("shared/aminoacid.rs");
 
@@ -49,44 +49,42 @@ impl Chemical for AminoAcid {
 
 impl MultiChemical for AminoAcid {
     /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
-    fn formulas(&self) -> Vec<MolecularFormula> {
+    fn formulas(&self) -> MultiMolecularFormula {
         match self {
-            Self::Alanine => vec![molecular_formula!(H 5 C 3 O 1 N 1).unwrap()],
-            Self::Arginine => vec![molecular_formula!(H 12 C 6 O 1 N 4).unwrap()], // One of the H's counts as the charge carrier and is added late]r
-            Self::AmbiguousAsparagine => {
-                vec![
-                    molecular_formula!(H 6 C 4 O 2 N 2).unwrap(),
-                    molecular_formula!(H 5 C 4 O 3 N 1).unwrap(),
-                ]
-            }
-            Self::Asparagine => vec![molecular_formula!(H 6 C 4 O 2 N 2).unwrap()],
-            Self::AsparticAcid => vec![molecular_formula!(H 5 C 4 O 3 N 1).unwrap()],
-            Self::Cysteine => vec![molecular_formula!(H 5 C 3 O 1 N 1 S 1).unwrap()],
-            Self::GlutamicAcid => vec![molecular_formula!(H 7 C 5 O 3 N 1).unwrap()],
-            Self::Glutamine => vec![molecular_formula!(H 8 C 5 O 2 N 2).unwrap()],
-            Self::AmbiguousGlutamine => {
-                vec![
-                    molecular_formula!(H 8 C 5 O 2 N 2).unwrap(),
-                    molecular_formula!(H 7 C 5 O 3 N 1).unwrap(),
-                ]
-            }
-            Self::Glycine => vec![molecular_formula!(H 3 C 2 O 1 N 1).unwrap()],
-            Self::Histidine => vec![molecular_formula!(H 7 C 6 O 1 N 3).unwrap()],
+            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).unwrap().into(),
+            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).unwrap().into(), // One of the H's counts as the charge carrier and is added later
+            Self::AmbiguousAsparagine => vec![
+                molecular_formula!(H 6 C 4 O 2 N 2).unwrap(),
+                molecular_formula!(H 5 C 4 O 3 N 1).unwrap(),
+            ]
+            .into(),
+            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2).unwrap().into(),
+            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1).unwrap().into(),
+            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1).unwrap().into(),
+            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1).unwrap().into(),
+            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2).unwrap().into(),
+            Self::AmbiguousGlutamine => vec![
+                molecular_formula!(H 8 C 5 O 2 N 2).unwrap(),
+                molecular_formula!(H 7 C 5 O 3 N 1).unwrap(),
+            ]
+            .into(),
+            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1).unwrap().into(),
+            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3).unwrap().into(),
             Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
-                vec![molecular_formula!(H 11 C 6 O 1 N 1).unwrap()]
+                molecular_formula!(H 11 C 6 O 1 N 1).unwrap().into()
             }
-            Self::Lysine => vec![molecular_formula!(H 12 C 6 O 1 N 2).unwrap()],
-            Self::Methionine => vec![molecular_formula!(H 9 C 5 O 1 N 1 S 1).unwrap()],
-            Self::Phenylalanine => vec![molecular_formula!(H 9 C 9 O 1 N 1).unwrap()],
-            Self::Proline => vec![molecular_formula!(H 7 C 5 O 1 N 1).unwrap()],
-            Self::Pyrrolysine => vec![molecular_formula!(H 19 C 11 O 2 N 3).unwrap()],
-            Self::Selenocysteine => vec![molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap()],
-            Self::Serine => vec![molecular_formula!(H 5 C 3 O 2 N 1).unwrap()],
-            Self::Threonine => vec![molecular_formula!(H 7 C 4 O 2 N 1).unwrap()],
-            Self::Tryptophan => vec![molecular_formula!(H 10 C 11 O 1 N 2).unwrap()],
-            Self::Tyrosine => vec![molecular_formula!(H 9 C 9 O 2 N 1).unwrap()],
-            Self::Valine => vec![molecular_formula!(H 9 C 5 O 1 N 1).unwrap()],
-            Self::Unknown => vec![molecular_formula!().unwrap()],
+            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2).unwrap().into(),
+            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1).unwrap().into(),
+            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1).unwrap().into(),
+            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1).unwrap().into(),
+            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3).unwrap().into(),
+            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap().into(),
+            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1).unwrap().into(),
+            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1).unwrap().into(),
+            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2).unwrap().into(),
+            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1).unwrap().into(),
+            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1).unwrap().into(),
+            Self::Unknown => molecular_formula!().unwrap().into(),
         }
     }
 }

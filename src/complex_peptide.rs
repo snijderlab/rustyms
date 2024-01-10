@@ -14,11 +14,13 @@ use crate::{
     molecular_charge::MolecularCharge,
     system::Charge,
     system::Mass,
-    Element, Fragment, LinearPeptide, Model, MolecularFormula, MultiChemical, SequenceElement,
+    Element, Fragment, LinearPeptide, Model, MolecularFormula, MultiChemical,
+    MultiMolecularFormula, SequenceElement,
 };
 
-/// A single pro forma entry, can contain multiple peptides
+/// A single pro forma entry, can contain multiple peptides, more options will be added in the future to support the full Pro Forma spec
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),
@@ -30,17 +32,13 @@ impl MultiChemical for ComplexPeptide {
     /// Gives all possible formulas for this complex peptide.
     /// # Panics
     /// If the global isotope modification is invalid (has an invalid isotope). See [`LinearPeptide::formulas`].
-    fn formulas(&self) -> Vec<MolecularFormula> {
+    fn formulas(&self) -> MultiMolecularFormula {
         match self {
             Self::Singular(peptide) => peptide.formulas(),
             Self::Multimeric(peptides) => {
-                let mut formulas = vec![MolecularFormula::default()];
+                let mut formulas = MultiMolecularFormula::default();
                 for peptide in peptides {
-                    formulas = formulas
-                        .into_iter()
-                        .cartesian_product(peptide.formulas())
-                        .map(|(f, m)| f + m)
-                        .collect();
+                    formulas += peptide.formulas();
                 }
                 formulas
             }
@@ -69,10 +67,10 @@ impl Display for ComplexPeptide {
 
 impl ComplexPeptide {
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
-    /// Only supports a subset of the specification (see `proforma_grammar.md` for an overview of what is supported), some functions are not possible to be represented.
+    /// Supports a subset of the specification (see `proforma_grammar.md` for an overview of what is supported).
     ///
     /// # Errors
-    /// It fails when the string is not a valid Pro Forma string, with a minimal error message to help debug the cause.
+    /// It fails when the string is not a valid Pro Forma string or if it uses currently unsupported Pro Forma features.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
         let mut peptides = Vec::new();
@@ -583,13 +581,12 @@ impl ComplexPeptide {
         Ok((peptide, index))
     }
 
-    /// Assume there is exactly one peptide in this collection
-    /// # Panics
-    /// If there are no or multiple peptides.
-    pub fn assume_linear(self) -> LinearPeptide {
+    /// Assume there is exactly one peptide in this collection.
+    #[doc(alias = "assume_linear")]
+    pub fn singular(self) -> Option<LinearPeptide> {
         match self {
-            Self::Singular(pep) => pep,
-            Self::Multimeric(_) => panic!("This ComplexPeptide is not a singular linear peptide"),
+            Self::Singular(pep) => Some(pep),
+            Self::Multimeric(_) => None,
         }
     }
 
@@ -698,10 +695,12 @@ mod tests {
     fn parse_glycan() {
         let glycan = ComplexPeptide::pro_forma("A[Glycan:Hex]")
             .unwrap()
-            .assume_linear();
+            .singular()
+            .unwrap();
         let spaces = ComplexPeptide::pro_forma("A[Glycan:    Hex    ]")
             .unwrap()
-            .assume_linear();
+            .singular()
+            .unwrap();
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(spaces.sequence.len(), 1);
         assert_eq!(glycan, spaces);
@@ -713,10 +712,12 @@ mod tests {
     fn parse_formula() {
         let peptide = ComplexPeptide::pro_forma("A[Formula:C6H10O5]")
             .unwrap()
-            .assume_linear();
+            .singular()
+            .unwrap();
         let glycan = ComplexPeptide::pro_forma("A[Glycan:Hex]")
             .unwrap()
-            .assume_linear();
+            .singular()
+            .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(glycan.formula(), peptide.formula());
@@ -726,8 +727,9 @@ mod tests {
     fn parse_labile() {
         let with = ComplexPeptide::pro_forma("{Formula:C6H10O5}A")
             .unwrap()
-            .assume_linear();
-        let without = ComplexPeptide::pro_forma("A").unwrap().assume_linear();
+            .singular()
+            .unwrap();
+        let without = ComplexPeptide::pro_forma("A").unwrap().singular().unwrap();
         assert_eq!(with.sequence.len(), 1);
         assert_eq!(without.sequence.len(), 1);
         assert_eq!(with.formula(), without.formula());
@@ -738,8 +740,9 @@ mod tests {
     fn parse_ambiguous_modification() {
         let with = ComplexPeptide::pro_forma("A[Phospho#g0]A[#g0]")
             .unwrap()
-            .assume_linear();
-        let without = ComplexPeptide::pro_forma("AA").unwrap().assume_linear();
+            .singular()
+            .unwrap();
+        let without = ComplexPeptide::pro_forma("AA").unwrap().singular().unwrap();
         assert_eq!(with.sequence.len(), 2);
         assert_eq!(without.sequence.len(), 2);
         assert_eq!(with.sequence[0].possible_modifications.len(), 1);
@@ -750,14 +753,16 @@ mod tests {
         assert_eq!(
             ComplexPeptide::pro_forma("A[+12#g0]A[#g0]")
                 .unwrap()
-                .assume_linear()
+                .singular()
+                .unwrap()
                 .to_string(),
             "A[+12#g0]A[#g0]".to_string()
         );
         assert_eq!(
             ComplexPeptide::pro_forma("A[#g0]A[+12#g0]")
                 .unwrap()
-                .assume_linear()
+                .singular()
+                .unwrap()
                 .to_string(),
             "A[#g0]A[+12#g0]".to_string()
         );
@@ -767,8 +772,12 @@ mod tests {
     fn parse_ambiguous_aminoacid() {
         let with = ComplexPeptide::pro_forma("(?AA)C(?A)(?A)")
             .unwrap()
-            .assume_linear();
-        let without = ComplexPeptide::pro_forma("AACAA").unwrap().assume_linear();
+            .singular()
+            .unwrap();
+        let without = ComplexPeptide::pro_forma("AACAA")
+            .unwrap()
+            .singular()
+            .unwrap();
         assert_eq!(with.sequence.len(), 5);
         assert_eq!(without.sequence.len(), 5);
         assert!(with.sequence[0].ambiguous.is_some());
@@ -781,12 +790,14 @@ mod tests {
     fn parse_hard_tags() {
         let peptide = ComplexPeptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]")
             .unwrap()
-            .assume_linear();
+            .singular()
+            .unwrap();
         let glycan = ComplexPeptide::pro_forma(
             "A[info:you can define a tag multiple times|Glycan:Hex|Formula:C6H10O5]",
         )
         .unwrap()
-        .assume_linear();
+        .singular()
+        .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
         assert_eq!(glycan.formula(), peptide.formula());
@@ -794,8 +805,14 @@ mod tests {
 
     #[test]
     fn parse_global() {
-        let deuterium = ComplexPeptide::pro_forma("<D>A").unwrap().assume_linear();
-        let nitrogen_15 = ComplexPeptide::pro_forma("<15N>A").unwrap().assume_linear();
+        let deuterium = ComplexPeptide::pro_forma("<D>A")
+            .unwrap()
+            .singular()
+            .unwrap();
+        let nitrogen_15 = ComplexPeptide::pro_forma("<15N>A")
+            .unwrap()
+            .singular()
+            .unwrap();
         assert_eq!(deuterium.sequence.len(), 1);
         assert_eq!(nitrogen_15.sequence.len(), 1);
         // Formula: A + H2O

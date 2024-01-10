@@ -3,7 +3,7 @@
 use crate::{
     error::{Context, CustomError},
     modification::AmbiguousModification,
-    MolecularFormula, MultiChemical,
+    MolecularFormula, MultiChemical, MultiMolecularFormula,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -150,7 +150,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
-    pub fn formulas(&self, selected_ambiguous: &[usize]) -> Vec<MolecularFormula> {
+    pub fn formulas(&self, selected_ambiguous: &[usize]) -> MultiMolecularFormula {
         let modifications = self
             .modifications
             .iter()
@@ -164,13 +164,13 @@ impl SequenceElement {
                 .sum::<MolecularFormula>();
         self.aminoacid
             .formulas()
-            .into_iter()
+            .iter()
             .map(|formula| formula + &modifications)
             .collect()
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    pub fn formulas_greedy(&self, placed: &mut [bool]) -> Vec<MolecularFormula> {
+    pub fn formulas_greedy(&self, placed: &mut [bool]) -> MultiMolecularFormula {
         #[allow(clippy::filter_map_bool_then)] // otherwise crashes
         let modifications = self
             .modifications
@@ -189,13 +189,13 @@ impl SequenceElement {
                 .sum::<MolecularFormula>();
         self.aminoacid
             .formulas()
-            .into_iter()
+            .iter()
             .map(|formula| formula + &modifications)
             .collect()
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
-    pub fn formulas_all(&self) -> Vec<MolecularFormula> {
+    pub fn formulas_all(&self) -> MultiMolecularFormula {
         let modifications = self
             .modifications
             .iter()
@@ -208,34 +208,32 @@ impl SequenceElement {
                 .sum::<MolecularFormula>();
         self.aminoacid
             .formulas()
-            .into_iter()
+            .iter()
             .map(|formula| formula + &modifications)
             .collect()
     }
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
     /// If you have 2 options for amino acid mass (B or Z) and 2 ambiguous modifications that gives you 8 total options for the mass. (2 AA * 2 amb1 * 2 amb2)
-    pub fn formulas_all_options(&self) -> Vec<MolecularFormula> {
+    pub fn formulas_all_options(&self) -> MultiMolecularFormula {
         let modifications = self
             .modifications
             .iter()
             .map(Chemical::formula)
             .sum::<MolecularFormula>();
-        let mut formulas: Vec<_> = self
+        let mut formulas: MultiMolecularFormula = self
             .aminoacid
             .formulas()
-            .into_iter()
+            .iter()
             .map(|f| f + modifications.clone())
             .collect();
         for modification in &self.possible_modifications {
-            formulas = formulas
-                .into_iter()
-                .cartesian_product(&[
-                    MolecularFormula::default(),
-                    modification.modification.formula(),
-                ])
-                .map(|(f, m)| f + m)
-                .collect();
+            formulas += [
+                MolecularFormula::default(),
+                modification.modification.formula(),
+            ]
+            .iter()
+            .collect::<MultiMolecularFormula>();
         }
         formulas
     }

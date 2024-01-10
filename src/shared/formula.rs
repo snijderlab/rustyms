@@ -1,16 +1,52 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::Element;
-use std::ops::{Add, AddAssign, Mul, Sub};
+use crate::{helper_functions::f64_bits, Element};
+use std::{
+    cmp::Ordering,
+    hash::{Hash, Hasher},
+    ops::{Add, AddAssign, Deref, Mul, Sub},
+};
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
     elements: Vec<(crate::Element, Option<u16>, i16)>,
     /// Any addition mass, defined to be monoisotopic
     additional_mass: f64,
+}
+
+impl PartialEq for MolecularFormula {
+    /// Using [`f64::total_cmp`] for equality
+    fn eq(&self, other: &Self) -> bool {
+        self.elements == other.elements
+            && self.additional_mass.total_cmp(&other.additional_mass) == Ordering::Equal
+    }
+}
+
+impl Eq for MolecularFormula {}
+
+impl PartialOrd for MolecularFormula {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MolecularFormula {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.elements
+            .cmp(&other.elements)
+            .then(self.additional_mass.total_cmp(&other.additional_mass))
+    }
+}
+
+impl Hash for MolecularFormula {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.elements.hash(state);
+        f64_bits(self.additional_mass).hash(state);
+    }
 }
 
 /// Any item that has a clearly defined single molecular formula
@@ -29,12 +65,6 @@ impl<T: Chemical> Chemical for &Vec<T> {
     fn formula(&self) -> MolecularFormula {
         self.iter().map(Chemical::formula).sum()
     }
-}
-
-/// Any item that has a number of potential chemical formulas
-pub trait MultiChemical {
-    /// Get all possible molecular formulas
-    fn formulas(&self) -> Vec<MolecularFormula>;
 }
 
 impl MolecularFormula {
@@ -278,6 +308,109 @@ impl std::iter::Sum<Self> for MolecularFormula {
         let mut res = Self::default();
         iter.for_each(|v| res += v);
         res
+    }
+}
+
+/// Any item that has a number of potential chemical formulas
+pub trait MultiChemical {
+    /// Get all possible molecular formulas
+    fn formulas(&self) -> MultiMolecularFormula;
+
+    /// Get all possible molecular formulas filtered to only return unique formulas
+    fn unique_formulas(&self) -> MultiMolecularFormula {
+        MultiMolecularFormula(self.formulas().iter().unique().cloned().collect())
+    }
+}
+/// A set of different molecular formulas resulting from the same entity, if the entity has multiple possible masses, or if the entity is a collection of multiple things.
+/// For convenience [`std::ops::Add`] has been implemented as the cartesian product between two [`MultiMolecularFormula`]s. The [`std::iter::Sum`] implementation does the same.
+pub struct MultiMolecularFormula(Vec<MolecularFormula>);
+
+impl Deref for MultiMolecularFormula {
+    type Target = Vec<MolecularFormula>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Default for MultiMolecularFormula {
+    // Default is one empty formula to make the cartesian product with a default return useful results
+    fn default() -> Self {
+        MultiMolecularFormula(vec![MolecularFormula::default()])
+    }
+}
+
+impl Add<&MultiMolecularFormula> for &MultiMolecularFormula {
+    type Output = MultiMolecularFormula;
+    fn add(self, rhs: &MultiMolecularFormula) -> Self::Output {
+        MultiMolecularFormula(
+            self.iter()
+                .cartesian_product(rhs.iter())
+                .map(|(a, b)| a + b)
+                .collect(),
+        )
+    }
+}
+
+impl_binop_ref_cases!(impl Add, add for MultiMolecularFormula, MultiMolecularFormula, MultiMolecularFormula);
+
+impl AddAssign<&Self> for MultiMolecularFormula {
+    fn add_assign(&mut self, rhs: &Self) {
+        self.0 = self
+            .0
+            .iter()
+            .cartesian_product(rhs.iter())
+            .map(|(a, b)| a + b)
+            .collect();
+    }
+}
+
+impl AddAssign<Self> for MultiMolecularFormula {
+    fn add_assign(&mut self, rhs: Self) {
+        *self += &rhs;
+    }
+}
+
+impl std::iter::Sum<Self> for MultiMolecularFormula {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        let mut res = Self::default();
+        iter.for_each(|v| res += v);
+        res
+    }
+}
+
+impl From<MolecularFormula> for MultiMolecularFormula {
+    fn from(value: MolecularFormula) -> Self {
+        Self(vec![value])
+    }
+}
+
+impl From<&MolecularFormula> for MultiMolecularFormula {
+    fn from(value: &MolecularFormula) -> Self {
+        Self(vec![value.clone()])
+    }
+}
+
+impl From<Vec<MolecularFormula>> for MultiMolecularFormula {
+    fn from(value: Vec<MolecularFormula>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&[MolecularFormula]> for MultiMolecularFormula {
+    fn from(value: &[MolecularFormula]) -> Self {
+        Self(value.to_vec())
+    }
+}
+
+impl std::iter::FromIterator<MolecularFormula> for MultiMolecularFormula {
+    fn from_iter<T: IntoIterator<Item = MolecularFormula>>(iter: T) -> Self {
+        Self(iter.into_iter().collect_vec())
+    }
+}
+
+impl<'a> std::iter::FromIterator<&'a MolecularFormula> for MultiMolecularFormula {
+    fn from_iter<T: IntoIterator<Item = &'a MolecularFormula>>(iter: T) -> Self {
+        Self(iter.into_iter().cloned().collect_vec())
     }
 }
 

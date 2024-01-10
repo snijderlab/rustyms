@@ -1,5 +1,6 @@
 use crate::{
-    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, SequenceElement,
+    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, MultiMolecularFormula,
+    SequenceElement,
 };
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
@@ -94,9 +95,9 @@ pub fn align<const STEPS: usize>(
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
                             &seq_a.sequence[index_a - 1],
-                            masses_a[0][index_a],
+                            &masses_a[0][index_a],
                             &seq_b.sequence[index_b - 1],
-                            masses_b[0][index_b],
+                            &masses_b[0][index_b],
                             scoring_matrix,
                             base_score,
                             tolerance,
@@ -104,9 +105,9 @@ pub fn align<const STEPS: usize>(
                     } else {
                         score(
                             &seq_a.sequence[index_a - len_a..index_a],
-                            masses_a[len_a - 1][index_a],
+                            &masses_a[len_a - 1][index_a],
                             &seq_b.sequence[index_b - len_b..index_b],
-                            masses_b[len_b - 1][index_b],
+                            &masses_b[len_b - 1][index_b],
                             base_score,
                             tolerance,
                         )
@@ -195,14 +196,14 @@ pub fn align<const STEPS: usize>(
 /// Score a pair of sequence elements (AA + mods)
 fn score_pair(
     a: &SequenceElement,
-    mass_a: Mass,
+    mass_a: &[Mass],
     b: &SequenceElement,
-    mass_b: Mass,
+    mass_b: &[Mass],
     alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     score: isize,
     tolerance: MassTolerance,
 ) -> Piece {
-    match (a == b, tolerance.within(mass_a, mass_b)) {
+    match (a == b, tolerance.any_within(mass_a, mass_b)) {
         (true, true) => {
             let local = alphabet[a.aminoacid as usize][b.aminoacid as usize];
             Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
@@ -239,13 +240,13 @@ fn score_pair(
 /// Returns none if no sensible explanation can be made
 fn score(
     a: &[SequenceElement],
-    mass_a: Mass,
+    mass_a: &[Mass],
     b: &[SequenceElement],
-    mass_b: Mass,
+    mass_b: &[Mass],
     score: isize,
     tolerance: MassTolerance,
 ) -> Option<Piece> {
-    if tolerance.within(mass_a, mass_b) {
+    if tolerance.any_within(mass_a, mass_b) {
         let mut b_copy = b.to_owned();
         let rotated = a.len() == b.len()
             && a.iter().all(|el| {
@@ -278,22 +279,24 @@ fn score(
 
 /// Get the masses of all subsets of up to the given number of steps as a lookup table.
 /// The result should be is index by [steps-1][index]
-fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Mass>> {
+fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>>> {
     (1..=steps)
         .map(|size| {
             (0..=sequence.len())
                 .map(|index| {
                     if index < size {
-                        Mass::zero()
+                        vec![Mass::zero()]
                     } else {
                         sequence.sequence[index - size..index]
                             .iter()
-                            .map(|s| s.formula_all().unwrap())
-                            .sum::<MolecularFormula>()
-                            .monoisotopic_mass()
+                            .map(|s| s.formulas_all())
+                            .sum::<MultiMolecularFormula>()
+                            .iter()
+                            .map(|f| f.monoisotopic_mass())
+                            .collect()
                     }
                 })
-                .collect::<Vec<Mass>>()
+                .collect::<Vec<Vec<Mass>>>()
         })
         .collect::<Vec<_>>()
 }
@@ -313,15 +316,15 @@ mod tests {
         ];
         let pair = dbg!(score(
             &a,
-            a.iter()
+            &[a.iter()
                 .map(|s| s.formula_all().unwrap())
                 .sum::<MolecularFormula>()
-                .monoisotopic_mass(),
+                .monoisotopic_mass()],
             &b,
-            b.iter()
+            &[b.iter()
                 .map(|s| s.formula_all().unwrap())
                 .sum::<MolecularFormula>()
-                .monoisotopic_mass(),
+                .monoisotopic_mass()],
             0,
             crate::MassTolerance::Ppm(10.0)
         ));

@@ -66,7 +66,10 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap().assume_linear();
+        let peptide = ComplexPeptide::pro_forma("WFWF")
+            .unwrap()
+            .singular()
+            .unwrap();
         let fragments = peptide
             .generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &Model::all(), 0)
             .unwrap();
