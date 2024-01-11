@@ -228,7 +228,7 @@ impl SequenceElement {
             .map(|f| f + modifications.clone())
             .collect();
         for modification in &self.possible_modifications {
-            formulas += [
+            formulas *= [
                 MolecularFormula::default(),
                 modification.modification.formula(),
             ]

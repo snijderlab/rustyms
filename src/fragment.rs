@@ -8,7 +8,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MassMode,
-    MolecularFormula, NeutralLoss,
+    MolecularFormula, MultiMolecularFormula, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -61,7 +61,7 @@ impl Fragment {
     /// Generate a list of possible fragments from the list of possible preceding termini and neutral losses
     #[must_use]
     pub fn generate_all(
-        theoretical_mass: &MolecularFormula,
+        theoretical_mass: &MultiMolecularFormula,
         peptide_index: usize,
         annotation: &FragmentType,
         termini: &[(MolecularFormula, String)],
@@ -69,9 +69,10 @@ impl Fragment {
     ) -> Vec<Self> {
         termini
             .iter()
-            .map(|term| {
+            .cartesian_product(theoretical_mass.iter())
+            .map(|(term, mass)| {
                 Self::new(
-                    &term.0 + theoretical_mass,
+                    &term.0 + mass,
                     Charge::zero(),
                     peptide_index,
                     annotation.clone(),

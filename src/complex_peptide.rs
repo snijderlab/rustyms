@@ -38,7 +38,7 @@ impl MultiChemical for ComplexPeptide {
             Self::Multimeric(peptides) => {
                 let mut formulas = MultiMolecularFormula::default();
                 for peptide in peptides {
-                    formulas += peptide.formulas();
+                    formulas *= peptide.formulas();
                 }
                 formulas
             }

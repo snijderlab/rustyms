@@ -5,7 +5,7 @@ use crate::{helper_functions::f64_bits, Element};
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
-    ops::{Add, AddAssign, Deref, Mul, Sub},
+    ops::{Add, AddAssign, Deref, Mul, MulAssign, Neg, Sub},
 };
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
@@ -191,6 +191,27 @@ impl MolecularFormula {
     }
 }
 
+impl Neg for &MolecularFormula {
+    type Output = MolecularFormula;
+    fn neg(self) -> Self::Output {
+        let mut res = self.clone();
+        for element in &mut res.elements {
+            element.2 = -element.2;
+        }
+        res
+    }
+}
+
+impl Neg for MolecularFormula {
+    type Output = MolecularFormula;
+    fn neg(mut self) -> Self::Output {
+        for element in &mut self.elements {
+            element.2 = -element.2;
+        }
+        self
+    }
+}
+
 impl Add<&MolecularFormula> for &MolecularFormula {
     type Output = MolecularFormula;
     fn add(self, rhs: &MolecularFormula) -> Self::Output {
@@ -322,7 +343,7 @@ pub trait MultiChemical {
     }
 }
 /// A set of different molecular formulas resulting from the same entity, if the entity has multiple possible masses, or if the entity is a collection of multiple things.
-/// For convenience [`std::ops::Add`] has been implemented as the cartesian product between two [`MultiMolecularFormula`]s. The [`std::iter::Sum`] implementation does the same.
+/// For convenience [`std::ops::Mul`] has been implemented as the cartesian product between two [`MultiMolecularFormula`]s. The [`std::iter::Sum`] implementation does the same.
 pub struct MultiMolecularFormula(Vec<MolecularFormula>);
 
 impl Deref for MultiMolecularFormula {
@@ -339,9 +360,40 @@ impl Default for MultiMolecularFormula {
     }
 }
 
-impl Add<&MultiMolecularFormula> for &MultiMolecularFormula {
+impl Neg for &MultiMolecularFormula {
     type Output = MultiMolecularFormula;
-    fn add(self, rhs: &MultiMolecularFormula) -> Self::Output {
+    fn neg(self) -> Self::Output {
+        self.0.iter().map(|f| -f).collect()
+    }
+}
+
+impl Neg for MultiMolecularFormula {
+    type Output = MultiMolecularFormula;
+    fn neg(self) -> Self::Output {
+        self.0.into_iter().map(|f| -f).collect()
+    }
+}
+
+impl Add<&MolecularFormula> for &MultiMolecularFormula {
+    type Output = MultiMolecularFormula;
+    /// Adds this formula to all formulas in the multi formula
+    fn add(self, rhs: &MolecularFormula) -> Self::Output {
+        MultiMolecularFormula(self.iter().map(|m| m + rhs).collect())
+    }
+}
+
+impl Sub<&MolecularFormula> for &MultiMolecularFormula {
+    type Output = MultiMolecularFormula;
+    /// Subtracts this formula from all formulas in the multi formula
+    fn sub(self, rhs: &MolecularFormula) -> Self::Output {
+        MultiMolecularFormula(self.iter().map(|m| m - rhs).collect())
+    }
+}
+
+impl Mul<&MultiMolecularFormula> for &MultiMolecularFormula {
+    type Output = MultiMolecularFormula;
+    /// Cartesian product between the two multi formulas
+    fn mul(self, rhs: &MultiMolecularFormula) -> Self::Output {
         MultiMolecularFormula(
             self.iter()
                 .cartesian_product(rhs.iter())
@@ -351,10 +403,12 @@ impl Add<&MultiMolecularFormula> for &MultiMolecularFormula {
     }
 }
 
-impl_binop_ref_cases!(impl Add, add for MultiMolecularFormula, MultiMolecularFormula, MultiMolecularFormula);
+impl_binop_ref_cases!(impl Add, add for MultiMolecularFormula, MolecularFormula, MultiMolecularFormula);
+impl_binop_ref_cases!(impl Sub, sub for MultiMolecularFormula, MolecularFormula, MultiMolecularFormula);
+impl_binop_ref_cases!(impl Mul, mul for MultiMolecularFormula, MultiMolecularFormula, MultiMolecularFormula);
 
-impl AddAssign<&Self> for MultiMolecularFormula {
-    fn add_assign(&mut self, rhs: &Self) {
+impl MulAssign<&Self> for MultiMolecularFormula {
+    fn mul_assign(&mut self, rhs: &Self) {
         self.0 = self
             .0
             .iter()
@@ -364,16 +418,16 @@ impl AddAssign<&Self> for MultiMolecularFormula {
     }
 }
 
-impl AddAssign<Self> for MultiMolecularFormula {
-    fn add_assign(&mut self, rhs: Self) {
-        *self += &rhs;
+impl MulAssign<Self> for MultiMolecularFormula {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self *= &rhs;
     }
 }
 
 impl std::iter::Sum<Self> for MultiMolecularFormula {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         let mut res = Self::default();
-        iter.for_each(|v| res += v);
+        iter.for_each(|v| res *= v);
         res
     }
 }

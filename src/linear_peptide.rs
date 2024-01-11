@@ -503,7 +503,7 @@ impl MultiChemical for LinearPeptide {
         let mut formulas: MultiMolecularFormula = vec![self.n_term() + self.c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for (_, pos) in self.sequence.iter().enumerate() {
-            formulas += pos.formulas_greedy(&mut placed);
+            formulas *= pos.formulas_greedy(&mut placed);
         }
 
         formulas
