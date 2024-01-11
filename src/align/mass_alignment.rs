@@ -289,10 +289,10 @@ fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>
                     } else {
                         sequence.sequence[index - size..index]
                             .iter()
-                            .map(|s| s.formulas_all())
+                            .map(SequenceElement::formulas_all)
                             .sum::<MultiMolecularFormula>()
                             .iter()
-                            .map(|f| f.monoisotopic_mass())
+                            .map(MolecularFormula::monoisotopic_mass)
                             .collect()
                     }
                 })

@@ -39,7 +39,7 @@ impl MassTolerance {
         }
     }
 
-    /// See if any combination of the masses in a and b is within the tolerance see [Self::within]
+    /// See if any combination of the masses in a and b is within the tolerance see [`Self::within`].
     pub fn any_within(&self, a: &[Mass], b: &[Mass]) -> bool {
         a.iter()
             .cartesian_product(b.iter())

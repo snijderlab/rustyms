@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// All possible neutral losses
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum NeutralLoss {
     /// Gain of a specific formula
     Gain(MolecularFormula),

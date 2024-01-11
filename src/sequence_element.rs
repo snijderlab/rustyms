@@ -5,13 +5,12 @@ use crate::{
     modification::AmbiguousModification,
     MolecularFormula, MultiChemical, MultiMolecularFormula,
 };
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{aminoacids::AminoAcid, modification::Modification, Chemical};
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct SequenceElement {
     /// The aminoacid
     pub aminoacid: AminoAcid,

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     formula::MolecularFormula,
     glycan::{GlycanStructure, MonoSaccharide},
-    system::f64::Mass,
+    system::OrderedMass,
 };
 
 include!("../shared/modification.rs");

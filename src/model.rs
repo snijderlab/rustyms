@@ -38,7 +38,7 @@ pub struct Model {
 
 /// A struct to handle all possible fragments that could be generated on a single location
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct PossibleIons<'a> {
     /// a series ions
     pub a: (bool, &'a [NeutralLoss]),

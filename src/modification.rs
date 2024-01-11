@@ -2,10 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use std::{fmt::Display, ops::Range};
+use std::{cmp::Ordering, fmt::Display, ops::Range};
 
 use regex::Regex;
-use uom::num_traits::Zero;
 
 use crate::{
     error::Context,
@@ -16,6 +15,7 @@ use crate::{
     placement_rule::PlacementRule,
     system::dalton,
     system::Mass,
+    system::OrderedMass,
     AminoAcid, Chemical, Element, MolecularFormula, SequenceElement,
 };
 
@@ -74,7 +74,9 @@ impl Modification {
         last_error.map_or_else(
             || {
                 last_result.map(|m| {
-                    m.unwrap_or_else(|| ReturnModification::Defined(Self::Mass(Mass::zero())))
+                    m.unwrap_or_else(|| {
+                        ReturnModification::Defined(Self::Mass(OrderedMass::zero()))
+                    })
                 })
             },
             Err,
@@ -344,7 +346,7 @@ impl ReturnModification {
 }
 
 /// An ambiguous modification which could be placed on any of a set of locations
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AmbiguousModification {
     /// The id to compare be able to find the other locations where this modifications can be placed
     pub id: usize,
@@ -356,8 +358,49 @@ pub struct AmbiguousModification {
     pub group: Option<(String, bool)>,
 }
 
+impl Ord for AmbiguousModification {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let base = self
+            .id
+            .cmp(&other.id)
+            .then(self.modification.cmp(&other.modification));
+        let ls = match (self.localisation_score, &other.localisation_score) {
+            (None, None) => Ordering::Equal,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(s), Some(o)) => s.total_cmp(o),
+        };
+        base.then(ls).then(self.group.cmp(&other.group))
+    }
+}
+
+impl PartialOrd for AmbiguousModification {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for AmbiguousModification {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for AmbiguousModification {}
+
+impl std::hash::Hash for AmbiguousModification {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.modification.hash(state);
+        if let Some(v) = self.localisation_score {
+            f64_bits(v).hash(state);
+        }
+        self.group.hash(state);
+    }
+}
+
 /// Intermediate representation of a global modification
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, u16),
@@ -370,7 +413,7 @@ pub enum GlobalModification {
 fn numerical_mod(text: &str) -> Result<Modification, String> {
     text.parse().map_or_else(
         |_| Err("Invalid number".to_string()),
-        |n| Ok(Modification::Mass(Mass::new::<dalton>(n))),
+        |n| Ok(Modification::Mass(Mass::new::<dalton>(n).into())),
     )
 }
 

@@ -128,7 +128,7 @@ impl GNOmeModification {
             Modification::Gno(GnoComposition::Structure(structure), self.code_name)
         } else if let Some(mass) = self.mass {
             Modification::Gno(
-                GnoComposition::Mass(crate::system::f64::da(mass)),
+                GnoComposition::Mass(crate::system::f64::da(mass).into()),
                 self.code_name,
             )
         } else {

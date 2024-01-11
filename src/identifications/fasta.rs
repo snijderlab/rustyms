@@ -9,7 +9,7 @@ use super::{IdentifiedPeptide, MetaData};
 
 /// A single parsed line of a fasta file
 #[allow(missing_docs)]
-#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct FastaData {
     pub id: String,
     pub full_header: String,

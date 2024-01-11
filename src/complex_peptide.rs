@@ -13,13 +13,13 @@ use crate::{
     },
     molecular_charge::MolecularCharge,
     system::Charge,
-    system::Mass,
+    system::OrderedMass,
     Element, Fragment, LinearPeptide, Model, MolecularFormula, MultiChemical,
     MultiMolecularFormula, SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptides, more options will be added in the future to support the full Pro Forma spec
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 #[non_exhaustive]
 pub enum ComplexPeptide {
     /// A single linear peptide
@@ -655,7 +655,7 @@ fn unknown_position_mods(
         )
         .unwrap_or_else(|e| {
             errs.push(e);
-            ReturnModification::Defined(Modification::Mass(Mass::default()))
+            ReturnModification::Defined(Modification::Mass(OrderedMass::default()))
         });
         index = end_index + 1;
         let number = if chars[index] == b'^' {

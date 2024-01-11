@@ -1,8 +1,8 @@
 /// A modification on an amino acid
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum Modification {
     /// A modification defined with a monoisotopic mass shift
-    Mass(Mass),
+    Mass(OrderedMass),
     /// A modification defined with a molecular formula
     #[allow(non_snake_case)]
     Formula(MolecularFormula),
@@ -26,10 +26,10 @@ pub enum Modification {
 }
 
 /// All possible compositions in the GNO ontology
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum GnoComposition {
     /// Only the mass is known
-    Mass(Mass),
+    Mass(OrderedMass),
     /// The (full) structure is known
     Structure(GlycanStructure),
 }

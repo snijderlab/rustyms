@@ -247,36 +247,11 @@ pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option
 }
 
 /// Get a canonicalised u64 for f64 to be able to hash f64, based on the `ordered_float` crate (MIT license)
-pub(crate) fn f64_bits(value: f64) -> u64 {
-    // masks for the parts of the IEEE 754 float
-    const SIGN_MASK: u64 = 0x8000000000000000u64;
-    const EXP_MASK: u64 = 0x7ff0000000000000u64;
-    const MAN_MASK: u64 = 0x000fffffffffffffu64;
-
-    fn integer_decode_f64(f: f64) -> (u64, i16, i8) {
-        let bits: u64 = f.to_bits();
-        let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
-        let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
-        let mantissa = if exponent == 0 {
-            (bits & 0xfffffffffffff) << 1
-        } else {
-            (bits & 0xfffffffffffff) | 0x10000000000000
-        };
-        // Exponent bias + mantissa shift
-        exponent -= 1023 + 52;
-        (mantissa, exponent, sign)
-    }
-
-    fn raw_double_bits(f: &f64) -> u64 {
-        let (man, exp, sign) = integer_decode_f64(*f);
-        let exp_u64 = exp as u16 as u64;
-        let sign_u64 = (sign > 0) as u64;
-        (man & MAN_MASK) | ((exp_u64 << 52) & EXP_MASK) | ((sign_u64 << 63) & SIGN_MASK)
-    }
+pub fn f64_bits(value: f64) -> u64 {
     if value.is_nan() {
-        0x7ff8000000000000u64 // CANONICAL_NAN_BITS
+        0x7ff8_0000_0000_0000_u64 // CANONICAL_NAN_BITS
     } else {
-        raw_double_bits(&(value + 0.0)) // The +0.0 is to guarantee even handling of negative and positive zero
+        (value + 0.0).to_bits() // The +0.0 is to guarantee even handling of negative and positive zero
     }
 }
 

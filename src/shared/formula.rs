@@ -203,7 +203,7 @@ impl Neg for &MolecularFormula {
 }
 
 impl Neg for MolecularFormula {
-    type Output = MolecularFormula;
+    type Output = Self;
     fn neg(mut self) -> Self::Output {
         for element in &mut self.elements {
             element.2 = -element.2;
@@ -356,7 +356,7 @@ impl Deref for MultiMolecularFormula {
 impl Default for MultiMolecularFormula {
     // Default is one empty formula to make the cartesian product with a default return useful results
     fn default() -> Self {
-        MultiMolecularFormula(vec![MolecularFormula::default()])
+        Self(vec![MolecularFormula::default()])
     }
 }
 
@@ -368,7 +368,7 @@ impl Neg for &MultiMolecularFormula {
 }
 
 impl Neg for MultiMolecularFormula {
-    type Output = MultiMolecularFormula;
+    type Output = Self;
     fn neg(self) -> Self::Output {
         self.0.into_iter().map(|f| -f).collect()
     }

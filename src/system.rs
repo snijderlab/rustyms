@@ -3,7 +3,14 @@
 
 #![allow(clippy::non_canonical_clone_impl)]
 #![allow(clippy::ignored_unit_patterns)]
+use std::ops::{Deref, DerefMut};
+
+use num_traits::Zero;
 use uom::*;
+
+use serde::{Deserialize, Serialize};
+
+use crate::helper_functions;
 
 pub use self::f64::*;
 
@@ -143,5 +150,67 @@ impl Mass {
     /// Absolute ppm error between this number and the given other
     pub fn ppm(self, b: Self) -> f64 {
         ((self - b).abs() / self.abs()).value * 1e6
+    }
+}
+
+/// A wrapper around [`Mass`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct OrderedMass(Mass);
+
+impl OrderedMass {
+    /// Use the zero from [`Mass`] itself
+    pub fn zero() -> Self {
+        Self(Mass::zero())
+    }
+}
+
+impl Default for OrderedMass {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl From<Mass> for OrderedMass {
+    fn from(value: Mass) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for OrderedMass {
+    type Target = Mass;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OrderedMass {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Ord for OrderedMass {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value.total_cmp(&other.0.value)
+    }
+}
+
+impl PartialOrd for OrderedMass {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for OrderedMass {}
+
+impl PartialEq for OrderedMass {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl std::hash::Hash for OrderedMass {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        helper_functions::f64_bits(self.0.value).hash(state);
     }
 }
