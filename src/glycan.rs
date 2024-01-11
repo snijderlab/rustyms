@@ -8,7 +8,7 @@ use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
     system::Charge,
-    AminoAcid, Model,
+    AminoAcid, Model, MultiMolecularFormula,
 };
 
 use crate::uom::num_traits::Zero;
@@ -233,7 +233,7 @@ impl PositionedGlycanStructure {
         model: &Model,
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
-        full_formula: &MolecularFormula,
+        full_formula: &MultiMolecularFormula,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
         model
@@ -257,36 +257,25 @@ impl PositionedGlycanStructure {
     fn base_theoretical_fragments(
         &self,
         peptide_index: usize,
-        full_formula: &MolecularFormula,
+        full_formula: &MultiMolecularFormula,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
         // Generate the basic single breakage fragments
-        let mut base_fragments = vec![
+        let mut base_fragments = vec![Fragment::new(
+            self.formula(),
+            Charge::zero(),
+            peptide_index,
+            FragmentType::B(GlycanPosition {
+                inner_depth: self.inner_depth,
+                series_number: self.outer_depth + 1,
+                branch: self.branch.clone(),
+                attachment,
+            }),
+            String::new(),
+        )];
+        base_fragments.extend(full_formula.iter().map(|f| {
             Fragment::new(
-                self.formula(),
-                Charge::zero(),
-                peptide_index,
-                FragmentType::B(GlycanPosition {
-                    inner_depth: self.inner_depth,
-                    series_number: self.outer_depth + 1,
-                    branch: self.branch.clone(),
-                    attachment,
-                }),
-                String::new(),
-            ),
-            // Fragment::new(
-            //     self.formula() + molecular_formula!(O 1 H 2),
-            //     Charge::zero(),
-            //     peptide_index,
-            //     FragmentType::C(GlycanPosition {
-            //         inner_depth: self.inner_depth,
-            //         series_number: self.outer_depth,
-            //         branch: self.branch.clone(),
-            //     }),
-            //     String::new(),
-            // ),
-            Fragment::new(
-                full_formula - &self.formula(),
+                f - &self.formula(),
                 Charge::zero(),
                 peptide_index,
                 FragmentType::Y(GlycanPosition {
@@ -296,20 +285,8 @@ impl PositionedGlycanStructure {
                     attachment,
                 }),
                 String::new(),
-            ),
-            // Fragment::new(
-            //     total_glycan - &self.formula() - molecular_formula!(O 1 H 2),
-            //     Charge::zero(),
-            //     peptide_index,
-            //     FragmentType::Z(GlycanPosition {
-            //         inner_depth: self.inner_depth,
-            //         series_number: self.inner_depth,
-            //         branch: self.branch.clone(),
-            //     }),
-            //     String::new(),
-            // ),
-            // TODO: for A, X, C, Z just ignore for now?
-        ];
+            )
+        }));
         // Extend with all internal fragments, meaning multiple breaking bonds
         base_fragments.extend(
             self.internal_break_points(attachment)
@@ -512,7 +489,7 @@ mod test {
             },
             0,
             &MolecularCharge::proton(1),
-            &glycan.formula(),
+            &glycan.formula().into(),
             (AminoAcid::N, 0),
         );
         for fragment in &fragments {

@@ -162,6 +162,11 @@ impl OrderedMass {
     pub fn zero() -> Self {
         Self(Mass::zero())
     }
+
+    /// Get a normal [`Mass`]
+    pub fn as_mass(self) -> Mass {
+        self.0
+    }
 }
 
 impl Default for OrderedMass {

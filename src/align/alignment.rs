@@ -2,13 +2,17 @@
 
 use std::fmt::Write;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::align_type::*;
 use super::piece::*;
 use crate::align::scoring::*;
 use crate::system::Mass;
-use crate::{LinearPeptide, MolecularFormula};
+use crate::system::OrderedMass;
+use crate::LinearPeptide;
+use crate::MultiChemical;
+use crate::MultiMolecularFormula;
 
 /// An alignment of two reads.
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -104,41 +108,50 @@ impl Alignment {
     }
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn ppm(&self) -> Option<f64> {
-        Some(
-            self.mass_a()?
-                .monoisotopic_mass()
-                .ppm(self.mass_b()?.monoisotopic_mass()),
-        )
+    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    pub fn ppm(&self) -> f64 {
+        self.mass_a()
+            .iter()
+            .cartesian_product(self.mass_b().iter())
+            .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
+            .min_by(f64::total_cmp)
+            .expect("An empty MultiMolecularFormula was detected")
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    pub fn mass_difference(&self) -> Option<Mass> {
-        Some(self.mass_a()?.monoisotopic_mass() - self.mass_b()?.monoisotopic_mass())
+    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    pub fn mass_difference(&self) -> Mass {
+        self.mass_a()
+            .iter()
+            .cartesian_product(self.mass_b().iter())
+            .map(|(a, b)| OrderedMass::from(a.monoisotopic_mass() - b.monoisotopic_mass()))
+            .min()
+            .expect("An empty MultiMolecularFormula was detected")
+            .as_mass()
     }
 
-    fn mass_a(&self) -> Option<MolecularFormula> {
+    fn mass_a(&self) -> MultiMolecularFormula {
         if self.ty.left_a() && self.ty.right_a() {
-            self.seq_a.formula()
+            self.seq_a.formulas()
         } else {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
             self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
                 .iter()
-                .try_fold(MolecularFormula::default(), |acc, s| {
-                    s.formula_greedy(&mut placed_a).map(|m| acc + m)
+                .fold(MultiMolecularFormula::default(), |acc, s| {
+                    acc * s.formulas_greedy(&mut placed_a)
                 })
         }
     }
 
-    fn mass_b(&self) -> Option<MolecularFormula> {
+    fn mass_b(&self) -> MultiMolecularFormula {
         if self.ty.left_b() && self.ty.right_b() {
-            self.seq_b.formula()
+            self.seq_b.formulas()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
             self.seq_b.sequence[self.start_b..self.start_b + self.len_b()]
                 .iter()
-                .try_fold(MolecularFormula::default(), |acc, s| {
-                    s.formula_greedy(&mut placed_b).map(|m| acc + m)
+                .fold(MultiMolecularFormula::default(), |acc, s| {
+                    acc * s.formulas_greedy(&mut placed_b)
                 })
         }
     }

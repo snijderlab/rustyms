@@ -83,6 +83,35 @@ impl LinearPeptide {
         }
     }
 
+    /// Assume that the underlying peptide does not use fancy parts of the Pro Forma spec. This is the common lower bound for support in all functions of rustyms.
+    /// If you want to be even more strict on the kind of peptides you want to take take a look at [`Self::assume_very_simple`].
+    /// # Panics
+    /// When any of these functions are used:
+    /// * Labile modifications
+    /// * Global isotope modifications
+    /// * Charge carriers, use of charged ions apart from protons
+    /// or when the sequence is empty.
+    #[must_use]
+    pub fn assume_simple(self) -> Self {
+        assert!(
+            self.labile.is_empty(),
+            "A simple linear peptide was assumed, but it has labile modifications"
+        );
+        assert!(
+            self.global.is_empty(),
+            "A simple linear peptide was assumed, but it has global isotope modifications"
+        );
+        assert!(
+            self.charge_carriers.is_none(),
+            "A simple linear peptide was assumed, but it has specified charged ions"
+        );
+        assert!(
+            !self.sequence.is_empty(),
+            "A simple linear peptide was assumed, but it has no sequence"
+        );
+        self
+    }
+
     /// Assume that the underlying peptide does not use fancy parts of the Pro Forma spec.
     /// # Panics
     /// When any of these functions are used:
@@ -94,9 +123,7 @@ impl LinearPeptide {
     /// * Charge carriers, use of charged ions apart from protons
     /// or when the sequence is empty.
     #[must_use]
-    pub fn assume_simple(self) -> Self {
-        // TODO: when ambiguous mods and B/Z is supported remove them from this list of hard things and figure out a way for end users to still filter on them
-        // Also think about a way to encode this in the type system.
+    pub fn assume_very_simple(self) -> Self {
         assert!(
             self.ambiguous_modifications.is_empty(),
             "A simple linear peptide was assumed, but it has ambiguous modifications"
@@ -147,7 +174,7 @@ impl LinearPeptide {
         aa: &[SequenceElement],
         index: usize,
         base: MolecularFormula,
-    ) -> Option<Vec<(MolecularFormula, String)>> {
+    ) -> Vec<(MolecularFormula, String)> {
         let result = self
             .ambiguous_modifications
             .iter()
@@ -177,26 +204,27 @@ impl LinearPeptide {
                     .collect()
             })
             .into_iter()
-            .map(|pattern| {
+            .flat_map(|pattern| {
                 let ambiguous_local = pattern
                     .iter()
                     .filter_map(|(id, pos)| (*pos == index).then_some(id))
                     .collect::<Vec<_>>();
                 aa.iter()
                     .enumerate()
-                    .try_fold(MolecularFormula::default(), |acc, (index, aa)| {
-                        aa.formula(
+                    .fold(MultiMolecularFormula::default(), |acc, (index, aa)| {
+                        acc * aa.formulas(
                             &pattern
+                                .clone()
                                 .iter()
                                 .copied()
                                 .filter_map(|(id, pos)| (pos == index).then_some(id))
                                 .collect_vec(),
                         )
-                        .map(|m| acc + m)
                     })
+                    .iter()
                     .map(|m| {
                         &base
-                            + &m
+                            + m
                             + self.sequence[index]
                                 .possible_modifications
                                 .iter()
@@ -224,12 +252,13 @@ impl LinearPeptide {
                             }),
                         )
                     })
+                    .collect_vec()
             })
-            .collect::<Option<Vec<(MolecularFormula, String)>>>()?;
+            .collect::<Vec<(MolecularFormula, String)>>();
         if result.is_empty() {
-            Some(vec![(base, String::new())])
+            vec![(base, String::new())]
         } else {
-            Some(result)
+            result
         }
     }
 
@@ -275,14 +304,14 @@ impl LinearPeptide {
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
             let n_term =
-                self.ambiguous_patterns(0..=index, &self.sequence[0..index], index, self.n_term())?;
+                self.ambiguous_patterns(0..=index, &self.sequence[0..index], index, self.n_term());
 
             let c_term = self.ambiguous_patterns(
                 index..self.sequence.len(),
                 &self.sequence[index + 1..self.sequence.len()],
                 index,
                 self.c_term(),
-            )?;
+            );
 
             output.append(
                 &mut self.sequence[index].aminoacid.fragments(
@@ -308,17 +337,17 @@ impl LinearPeptide {
         }
 
         // Generate precursor peak
-        output.extend(
+        output.extend(self.formulas().iter().flat_map(|m| {
             Fragment::new(
-                self.formula()?,
+                m.clone(),
                 Charge::zero(),
                 peptide_index,
                 FragmentType::precursor,
                 String::new(),
             )
             .with_charge(charge_carriers)
-            .with_neutral_losses(&model.precursor),
-        );
+            .with_neutral_losses(&model.precursor)
+        }));
 
         // Add glycan fragmentation to all peptide fragments
         // Assuming that only one glycan can ever fragment at the same time,
@@ -334,7 +363,7 @@ impl LinearPeptide {
                                 model,
                                 peptide_index,
                                 charge_carriers,
-                                &self.formula()?,
+                                &self.formulas(),
                                 (position.aminoacid, sequence_index),
                             ),
                     );
@@ -348,7 +377,7 @@ impl LinearPeptide {
                                 model,
                                 peptide_index,
                                 charge_carriers,
-                                &self.formula()?,
+                                &self.formulas(),
                                 (position.aminoacid, sequence_index),
                             ),
                     );
