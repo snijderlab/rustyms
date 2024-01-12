@@ -1307,6 +1307,7 @@ impl GlycanStructure {
         }; // Starting sugar, will be removed
         let mut last_branch: &mut Self = &mut branch;
         let bytes = line.as_bytes();
+
         while offset < range.end {
             while bytes[offset] == b'[' {
                 let end = end_of_enclosure(bytes, offset + 1, b'[', b']').ok_or_else(|| {
@@ -1332,15 +1333,8 @@ impl GlycanStructure {
                 branches: Vec::new(),
             });
             last_branch = last_branch.branches.last_mut().unwrap();
-            if bytes[offset] == b'(' {
-                if let Some(end) = next_char(bytes, offset + 1, b')') {
-                    offset = end + 1; // just ignore all linking stuff I do not care
-                } else {
-                    // This only happens for incomplete branches where the last parts of the branch are unknown.
-                    assert!(range.end - offset < 10); // make sure it is the last part
-                    offset = range.end; // assume it is the last not closed brace
-                }
-            }
+
+            offset = Self::ignore_linking_information(bytes, offset, &range);
         }
         branch.branches.pop().map_or_else(
             || {
@@ -1352,6 +1346,19 @@ impl GlycanStructure {
             },
             Ok,
         )
+    }
+
+    fn ignore_linking_information(bytes: &[u8], mut offset: usize, range: &Range<usize>) -> usize {
+        if bytes[offset] == b'(' {
+            if let Some(end) = next_char(bytes, offset + 1, b')') {
+                offset = end + 1; // just ignore all linking stuff I do not care
+            } else {
+                // This only happens for incomplete branches where the last parts of the branch are unknown.
+                assert!(range.end - offset < 10); // make sure it is the last part
+                offset = range.end; // assume it is the last not closed brace
+            }
+        }
+        offset
     }
 }
 
