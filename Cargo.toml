@@ -18,7 +18,7 @@ flate2 = "1.0"
 itertools = "0.12"
 regex = "1.8"
 serde = { version = "1.0", features = ["derive"] }
-statrs = "0.16"
+probability = "0.20"
 uom = { version = "0.35", features = ["use_serde"] }
 
 [build-dependencies]

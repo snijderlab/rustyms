@@ -1,5 +1,5 @@
 use crate::{element::Element, system::da, system::Mass, MolecularFormula};
-use statrs::distribution::{Binomial, Discrete};
+use probability::distribution::{Binomial, Discrete};
 use std::collections::HashMap;
 
 impl MolecularFormula {
@@ -132,14 +132,7 @@ fn combined_pattern(
 }
 
 fn binom(tries: i16, total: i16, p: f64) -> f64 {
-    Binomial::new(p, u64::from(total as u16))
-        .unwrap()
-        .pmf(u64::from(tries as u16))
-    //memoized_f64_factorial(total, cache)
-    //    / (memoized_f64_factorial(tries, cache) * memoized_f64_factorial(total - tries, cache))
-    //    * p.powi(tries as i32)
-    //    * (1.0 - p).powi((total - tries) as i32)
-    //poisson f.powi(i32::from(n)) * f64::exp(-f) / stupid_f64_factorial(n)
+    Binomial::new(total as usize, p).mass(tries as usize)
 }
 
 fn memoized_f64_factorial(num: u16, cache: &mut HashMap<u16, f64>) -> f64 {
