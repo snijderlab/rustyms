@@ -7,15 +7,19 @@ include!("shared/element.rs");
 impl Element {
     /// Validate this isotope to have a defined mass
     pub fn is_valid(self, isotope: Option<u16>) -> bool {
-        isotope.map_or_else(
-            || elemental_data()[self as usize - 1].0.is_some(),
-            |isotope| {
-                elemental_data()[self as usize - 1]
-                    .2
-                    .iter()
-                    .any(|(ii, _, _)| *ii == isotope)
-            },
-        )
+        if self == Self::Electron {
+            isotope.is_none()
+        } else {
+            isotope.map_or_else(
+                || elemental_data()[self as usize - 1].0.is_some(),
+                |isotope| {
+                    elemental_data()[self as usize - 1]
+                        .2
+                        .iter()
+                        .any(|(ii, _, _)| *ii == isotope)
+                },
+            )
+        }
     }
 
     /// Get all available isotopes (N, mass, abundance)

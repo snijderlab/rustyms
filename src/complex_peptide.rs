@@ -901,7 +901,7 @@ mod tests {
 
     #[test]
     fn parse_adduct_ions_02() {
-        let peptide = ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap();
+        let peptide = dbg!(ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
         assert_eq!(peptide.peptides().len(), 2);
         assert_eq!(
             peptide.peptides()[0]
