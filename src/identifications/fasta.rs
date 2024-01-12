@@ -20,6 +20,10 @@ impl FastaData {
     /// Parse a single fasta file
     /// # Errors
     /// A custom error when it is not a valid fasta file
+    /// # Panics
+    /// It panics if the fasta file contains a [`ComplexPeptide`] instead of a [`LinearPeptide`].
+    /// This is because this function uses the build in [`ComplexPeptide::pro_forma`] to parse the
+    /// sequence. It does it per line though so if you want to misuse this fact remember that.
     pub fn parse_file(path: &str) -> Result<Vec<Self>, CustomError> {
         let file = std::fs::File::open(path).map_err(|_| {
             CustomError::error(

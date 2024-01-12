@@ -720,7 +720,7 @@ mod tests {
             .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(glycan.formula(), peptide.formula());
+        assert_eq!(glycan.formulas(), peptide.formulas());
     }
 
     #[test]
@@ -732,7 +732,7 @@ mod tests {
         let without = ComplexPeptide::pro_forma("A").unwrap().singular().unwrap();
         assert_eq!(with.sequence.len(), 1);
         assert_eq!(without.sequence.len(), 1);
-        assert_eq!(with.formula(), without.formula());
+        assert_eq!(with.formulas(), without.formulas());
         assert_eq!(with.labile[0].to_string(), "Formula:C6H10O5".to_string());
     }
 
@@ -782,7 +782,7 @@ mod tests {
         assert_eq!(without.sequence.len(), 5);
         assert!(with.sequence[0].ambiguous.is_some());
         assert!(with.sequence[1].ambiguous.is_some());
-        assert_eq!(with.formula(), without.formula());
+        assert_eq!(with.formulas(), without.formulas());
         assert_eq!(with.to_string(), "(?AA)C(?A)(?A)".to_string());
     }
 
@@ -800,7 +800,7 @@ mod tests {
         .unwrap();
         assert_eq!(peptide.sequence.len(), 1);
         assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(glycan.formula(), peptide.formula());
+        assert_eq!(glycan.formulas(), peptide.formulas());
     }
 
     #[test]
@@ -817,12 +817,12 @@ mod tests {
         assert_eq!(nitrogen_15.sequence.len(), 1);
         // Formula: A + H2O
         assert_eq!(
-            deuterium.formula().unwrap(),
-            molecular_formula!((2)H 7 C 3 O 2 N 1).unwrap()
+            deuterium.formulas(),
+            molecular_formula!((2)H 7 C 3 O 2 N 1).unwrap().into()
         );
         assert_eq!(
-            nitrogen_15.formula().unwrap(),
-            molecular_formula!(H 7 C 3 O 2 (15)N 1).unwrap()
+            nitrogen_15.formulas(),
+            molecular_formula!(H 7 C 3 O 2 (15)N 1).unwrap().into()
         );
     }
 
@@ -916,8 +916,8 @@ mod tests {
         );
         // Check if the C term mod is applied
         assert_eq!(
-            peptide.peptides()[0].sequence[0].formula_all(),
-            peptide.peptides()[1].sequence[0].formula_all()
+            peptide.peptides()[0].sequence[0].formulas_all(),
+            peptide.peptides()[1].sequence[0].formulas_all()
         );
     }
 }

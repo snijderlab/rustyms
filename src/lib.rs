@@ -36,6 +36,7 @@ mod linear_peptide;
 pub mod model;
 pub mod modification;
 mod molecular_charge;
+mod multi_formula;
 mod neutral_loss;
 pub mod ontologies;
 pub mod placement_rule;
@@ -51,6 +52,7 @@ pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets, MassToleranc
 pub use crate::linear_peptide::LinearPeptide;
 pub use crate::model::Model;
 pub use crate::modification::Modification;
+pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::spectrum::{AnnotatedSpectrum, MassMode, RawSpectrum};

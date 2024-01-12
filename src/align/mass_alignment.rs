@@ -305,7 +305,7 @@ fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>
 mod tests {
     use super::score;
     use crate::aminoacids::AminoAcid;
-    use crate::{MolecularFormula, SequenceElement};
+    use crate::{MultiMolecularFormula, SequenceElement};
 
     #[test]
     fn pair() {
@@ -317,13 +317,13 @@ mod tests {
         let pair = dbg!(score(
             &a,
             &[a.iter()
-                .map(|s| s.formula_all().unwrap())
-                .sum::<MolecularFormula>()
+                .map(SequenceElement::formulas_all)
+                .sum::<MultiMolecularFormula>()[0]
                 .monoisotopic_mass()],
             &b,
             &[b.iter()
-                .map(|s| s.formula_all().unwrap())
-                .sum::<MolecularFormula>()
+                .map(SequenceElement::formulas_all)
+                .sum::<MultiMolecularFormula>()[0]
                 .monoisotopic_mass()],
             0,
             crate::MassTolerance::Ppm(10.0)

@@ -7,7 +7,7 @@ use crate::{
     modification::Modification,
     placement_rule::{PlacementRule, Position},
     system::{da, r, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, SequenceElement,
+    AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement,
 };
 
 /// A tolerance around a given mass for searching purposes
@@ -186,10 +186,14 @@ pub fn building_blocks(
                     },
                 )
             })
-            .map(|(a, m)| {
-                let mass =
-                    a.formula_all().unwrap().monoisotopic_mass() + m.formula().monoisotopic_mass();
-                (a, m, mass)
+            .flat_map(|(a, m)| {
+                let mc = m.clone();
+                let masses = a
+                    .formulas_all()
+                    .as_vec()
+                    .into_iter()
+                    .map(move |f| f.monoisotopic_mass() + m.formula().monoisotopic_mass());
+                masses.map(move |mass| (a.clone(), mc.clone(), mass))
             })
             .collect_vec();
         options.sort_unstable_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
@@ -247,7 +251,12 @@ pub fn building_blocks(
                 );
                 options
             })
-            .map(|s| (s.clone(), s.formula_all().unwrap().monoisotopic_mass()))
+            .flat_map(|s| {
+                s.formulas_all()
+                    .as_vec()
+                    .into_iter()
+                    .map(move |f| (s.clone(), f.monoisotopic_mass()))
+            })
             .collect();
         options.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         options
@@ -263,7 +272,8 @@ pub fn building_blocks(
 
 /// Find the isobaric sets for the given mass with the given modifications and ppm error.
 /// The modifications are placed on any location they are allowed based on the given placement
-/// rules, so using any modifications which provide those is advised.
+/// rules, so using any modifications which provide those is advised. If the provided [`LinearPeptide`]
+/// has multiple formulas, it uses the formula with the lowest monoisotopic mass.
 /// # Panics
 /// Panics if any of the modifications does not have a defined mass. Or if the weight of the
 /// base selection is already in the tolerance of the given mass.
@@ -277,7 +287,12 @@ pub fn find_isobaric_sets(
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
     let base_mass = base
-        .and_then(|b| b.formula().map(|b| b.monoisotopic_mass()))
+        .and_then(|b| {
+            b.formulas()
+                .mass_bounds()
+                .into_option()
+                .map(|(f, _)| f.monoisotopic_mass())
+        })
         .unwrap_or_default();
     let bounds = (bounds.0 - base_mass, bounds.1 - base_mass);
     assert!(bounds.0.value > 0.0, "Cannot have a base selection that has a weight within the tolerance of the intended final mass for isobaric search.");
@@ -535,7 +550,7 @@ mod tests {
     fn simple_isobaric_sets() {
         let pep = ComplexPeptide::pro_forma("AG").unwrap().singular().unwrap();
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
-            pep.bare_formula().unwrap().monoisotopic_mass(),
+            pep.bare_formulas()[0].monoisotopic_mass(),
             MassTolerance::Ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
             &[],

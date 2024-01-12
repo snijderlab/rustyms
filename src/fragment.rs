@@ -405,14 +405,14 @@ impl std::fmt::Display for GlycanBreakPos {
 #[cfg(test)]
 mod tests {
 
-    use crate::{AminoAcid, Element};
+    use crate::{AminoAcid, Element, MultiChemical};
 
     use super::*;
 
     #[test]
     fn neutral_loss() {
         let a = Fragment::new(
-            AminoAcid::AsparticAcid.formula(),
+            AminoAcid::AsparticAcid.formulas()[0].clone(),
             Charge::new::<e>(1.0),
             0,
             FragmentType::precursor,

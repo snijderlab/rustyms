@@ -1,51 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::formula::{Chemical, MolecularFormula, MultiChemical};
+use crate::formula::MolecularFormula;
 use crate::fragment::Position;
 use crate::fragment::{Fragment, FragmentType};
 use crate::molecular_charge::MolecularCharge;
+use crate::multi_formula::MultiMolecularFormula;
 use crate::Element;
-use crate::{model::*, MultiMolecularFormula};
+use crate::{model::*, MultiChemical};
 
 include!("shared/aminoacid.rs");
-
-impl Chemical for AminoAcid {
-    /// Get the formula for an amino acid, it panics on B/Z
-    fn formula(&self) -> MolecularFormula {
-        match self {
-            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).unwrap(),
-            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).unwrap(), // One of the H's counts as the charge carrier and is added later
-            Self::AmbiguousAsparagine => {
-                panic!("Molecular formula of Asx/B ambiguous asparagine is not defined.")
-            }
-            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2).unwrap(),
-            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1).unwrap(),
-            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1).unwrap(),
-            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1).unwrap(),
-            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2).unwrap(),
-            Self::AmbiguousGlutamine => {
-                panic!("Molecular formula of Glx/Z ambiguous glutamine is not defined.")
-            }
-            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1).unwrap(),
-            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3).unwrap(),
-            Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
-                molecular_formula!(H 11 C 6 O 1 N 1).unwrap()
-            }
-            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2).unwrap(),
-            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1).unwrap(),
-            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1).unwrap(),
-            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1).unwrap(),
-            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3).unwrap(),
-            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap(),
-            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1).unwrap(),
-            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1).unwrap(),
-            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2).unwrap(),
-            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1).unwrap(),
-            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1).unwrap(),
-            Self::Unknown => molecular_formula!().unwrap(),
-        }
-    }
-}
 
 impl MultiChemical for AminoAcid {
     /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
@@ -418,8 +381,8 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.formula().average_weight();
-        let mass_ala = AminoAcid::Ala.formula().monoisotopic_mass();
+        let weight_ala = AminoAcid::A.formulas()[0].average_weight();
+        let mass_ala = AminoAcid::Ala.formulas()[0].monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -427,8 +390,8 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.formula().average_weight();
-        let mass_lys = AminoAcid::Lys.formula().monoisotopic_mass();
+        let weight_lys = AminoAcid::K.formulas()[0].average_weight();
+        let mass_lys = AminoAcid::Lys.formulas()[0].monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
@@ -462,8 +425,8 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.formula().monoisotopic_mass().value,
-                aa.formula().average_weight().value,
+                aa.formulas()[0].monoisotopic_mass().value,
+                aa.formulas()[0].average_weight().value,
             );
             println!(
                 "{}: {} {} {} {}",

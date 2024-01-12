@@ -262,26 +262,23 @@ impl LinearPeptide {
         }
     }
 
-    /// Gives the formula for the whole peptide. With the global isotope modifications applied.
-    pub fn formula(&self) -> Option<MolecularFormula> {
-        let mut formula = self.n_term() + self.c_term();
+    /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
+    /// # Panics
+    /// If the global isotope modification is invalid (uses elements/isotopes without a defined mass).
+    pub fn bare_formulas(&self) -> MultiMolecularFormula {
+        let mut formulas = MultiMolecularFormula::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
-        for (_, pos) in self.sequence.iter().enumerate() {
-            formula += pos.formula_greedy(&mut placed)?;
+        for pos in &self.sequence {
+            formulas *= pos.formulas_greedy(&mut placed);
         }
 
-        formula.with_global_isotope_modifications(&self.global)
-    }
-
-    /// Gives the formula for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    pub fn bare_formula(&self) -> Option<MolecularFormula> {
-        let mut formula = MolecularFormula::default();
-        let mut placed = vec![false; self.ambiguous_modifications.len()];
-        for (_, pos) in self.sequence.iter().enumerate() {
-            formula += pos.formula_greedy(&mut placed)?;
-        }
-
-        formula.with_global_isotope_modifications(&self.global)
+        formulas
+            .iter()
+            .map(|f| {
+                f.with_global_isotope_modifications(&self.global)
+                    .expect("Invalid global isotope modification in bare_formulas")
+            })
+            .collect()
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -531,7 +528,7 @@ impl MultiChemical for LinearPeptide {
     fn formulas(&self) -> MultiMolecularFormula {
         let mut formulas: MultiMolecularFormula = vec![self.n_term() + self.c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
-        for (_, pos) in self.sequence.iter().enumerate() {
+        for pos in &self.sequence {
             formulas *= pos.formulas_greedy(&mut placed);
         }
 
