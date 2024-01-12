@@ -156,3 +156,29 @@ impl<'a> std::iter::FromIterator<&'a MolecularFormula> for MultiMolecularFormula
         Self(iter.into_iter().cloned().collect_vec())
     }
 }
+
+// #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+struct AmbiguousLabels<Position, Option>(Vec<AmbiguousLabel<Position, Option>>);
+
+struct AmbiguousLabel<Position, Option> {
+    position: Position,
+    option: Option,
+}
+
+impl<Position, Option> AmbiguousLabel<Position, Option> {
+    pub const fn position(&self) -> &Position {
+        &self.position
+    }
+    pub const fn option(&self) -> &Option {
+        &self.option
+    }
+}
+
+impl<Position: Clone, Option: Clone> Clone for AmbiguousLabel<Position, Option> {
+    fn clone(&self) -> Self {
+        Self {
+            position: self.position.clone(),
+            option: self.option.clone(),
+        }
+    }
+}
