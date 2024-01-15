@@ -348,9 +348,8 @@ fn test(
     model: &Model,
     charge: f64,
 ) {
-    let mut calculated_fragments = peptide
-        .generate_theoretical_fragments(Charge::new::<e>(charge), model, 0)
-        .unwrap();
+    let mut calculated_fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<e>(charge), model, 0);
     let mut found = Vec::new();
     let mut this_found;
     for goal in theoretical_fragments {

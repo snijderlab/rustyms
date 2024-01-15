@@ -51,15 +51,7 @@ impl FastaData {
                     sequences.push(Self {
                         id,
                         full_header,
-                        peptide: LinearPeptide {
-                            global: Vec::new(),
-                            labile: Vec::new(),
-                            n_term: None,
-                            c_term: None,
-                            sequence: last_sequence,
-                            ambiguous_modifications: Vec::new(),
-                            charge_carriers: None,
-                        },
+                        peptide: last_sequence.into(),
                     });
                 }
                 last_header = Some((
@@ -80,15 +72,7 @@ impl FastaData {
             sequences.push(Self {
                 id,
                 full_header,
-                peptide: LinearPeptide {
-                    global: Vec::new(),
-                    labile: Vec::new(),
-                    n_term: None,
-                    c_term: None,
-                    sequence: last_sequence,
-                    ambiguous_modifications: Vec::new(),
-                    charge_carriers: None,
-                },
+                peptide: last_sequence.into(),
             });
         }
 

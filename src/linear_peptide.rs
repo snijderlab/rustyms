@@ -23,7 +23,7 @@ pub struct LinearPeptide {
     /// Global isotope modifications, saved as the element and the species that
     /// all occurrence of that element will consist of. Eg (N, 15) will make
     /// all occurring nitrogens be isotope 15.
-    pub global: Vec<(Element, Option<u16>)>,
+    global: Vec<(Element, Option<u16>)>,
     /// Labile modifications, which will not be found in the actual spectrum.
     pub labile: Vec<Modification>,
     /// N terminal modification
@@ -39,6 +39,60 @@ pub struct LinearPeptide {
     pub charge_carriers: Option<MolecularCharge>,
 }
 
+/// Builder style methods to create a [`LinearPeptide`]
+impl LinearPeptide {
+    /// Create a new [`LinearPeptide`], if you want an empty peptide look at [`LinearPeptide::default`].
+    /// Potentially the collect() or into() methods can be useful as well.
+    #[must_use]
+    pub fn new(sequence: impl IntoIterator<Item = SequenceElement>) -> Self {
+        sequence.into_iter().collect()
+    }
+
+    /// Add global isotope modifications, if any is invalid it returns None
+    #[must_use]
+    pub fn global(
+        mut self,
+        global: impl IntoIterator<Item = (Element, Option<u16>)>,
+    ) -> Option<Self> {
+        for modification in global {
+            if modification.0.is_valid(modification.1) {
+                self.global.push(modification);
+            } else {
+                return None;
+            }
+        }
+        Some(self)
+    }
+
+    /// Add labile modifications
+    #[must_use]
+    pub fn labile(mut self, labile: impl IntoIterator<Item = Modification>) -> Self {
+        self.labile.extend(labile);
+        self
+    }
+
+    /// Add the N terminal modification
+    #[must_use]
+    pub fn n_term(mut self, term: Option<Modification>) -> Self {
+        self.n_term = term;
+        self
+    }
+
+    /// Add the C terminal modification
+    #[must_use]
+    pub fn c_term(mut self, term: Option<Modification>) -> Self {
+        self.c_term = term;
+        self
+    }
+
+    /// Add the charge carriers
+    #[must_use]
+    pub fn charge_carriers(mut self, charge: Option<MolecularCharge>) -> Self {
+        self.charge_carriers = charge;
+        self
+    }
+}
+
 impl LinearPeptide {
     /// Get the number of amino acids making up this peptide
     pub fn len(&self) -> usize {
@@ -51,7 +105,7 @@ impl LinearPeptide {
     }
 
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
-    pub fn n_term(&self) -> MolecularFormula {
+    pub fn get_n_term(&self) -> MolecularFormula {
         self.n_term.as_ref().map_or_else(
             || molecular_formula!(H 1).unwrap(),
             |m| molecular_formula!(H 1).unwrap() + m.formula(),
@@ -59,11 +113,16 @@ impl LinearPeptide {
     }
 
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
-    pub fn c_term(&self) -> MolecularFormula {
+    pub fn get_c_term(&self) -> MolecularFormula {
         self.c_term.as_ref().map_or_else(
             || molecular_formula!(H 1 O 1).unwrap(),
             |m| molecular_formula!(H 1 O 1).unwrap() + m.formula(),
         )
+    }
+
+    /// Get the global isotope modifications
+    pub fn get_global(&self) -> &[(Element, Option<u16>)] {
+        &self.global
     }
 
     /// Get the reverse of this peptide
@@ -90,7 +149,7 @@ impl LinearPeptide {
     /// * Labile modifications
     /// * Global isotope modifications
     /// * Charge carriers, use of charged ions apart from protons
-    /// or when the sequence is empty.
+    /// * or when the sequence is empty.
     #[must_use]
     pub fn assume_simple(self) -> Self {
         assert!(
@@ -121,7 +180,7 @@ impl LinearPeptide {
     /// * Ambiguous amino acids (B/Z)
     /// * Ambiguous amino acid sequence `(?AA)`
     /// * Charge carriers, use of charged ions apart from protons
-    /// or when the sequence is empty.
+    /// * or when the sequence is empty.
     #[must_use]
     pub fn assume_very_simple(self) -> Self {
         assert!(
@@ -263,8 +322,6 @@ impl LinearPeptide {
     }
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    /// # Panics
-    /// If the global isotope modification is invalid (uses elements/isotopes without a defined mass).
     pub fn bare_formulas(&self) -> MultiMolecularFormula {
         let mut formulas = MultiMolecularFormula::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
@@ -291,7 +348,7 @@ impl LinearPeptide {
         max_charge: Charge,
         model: &Model,
         peptide_index: usize,
-    ) -> Option<Vec<Fragment>> {
+    ) -> Vec<Fragment> {
         assert!(max_charge.value >= 1.0);
         assert!(max_charge.value <= u64::MAX as f64);
 
@@ -300,14 +357,18 @@ impl LinearPeptide {
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            let n_term =
-                self.ambiguous_patterns(0..=index, &self.sequence[0..index], index, self.n_term());
+            let n_term = self.ambiguous_patterns(
+                0..=index,
+                &self.sequence[0..index],
+                index,
+                self.get_n_term(),
+            );
 
             let c_term = self.ambiguous_patterns(
                 index..self.sequence.len(),
                 &self.sequence[index + 1..self.sequence.len()],
                 index,
-                self.c_term(),
+                self.get_c_term(),
             );
 
             output.append(
@@ -330,7 +391,8 @@ impl LinearPeptide {
         for fragment in &mut output {
             fragment.formula = fragment
                 .formula
-                .with_global_isotope_modifications(&self.global)?;
+                .with_global_isotope_modifications(&self.global)
+                .expect("Invalid global isotope modification");
         }
 
         // Generate precursor peak
@@ -382,13 +444,15 @@ impl LinearPeptide {
             }
         }
 
-        Some(output)
+        output
     }
 
+    /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false
+    #[must_use]
     pub(crate) fn apply_global_modifications(
         &mut self,
         global_modifications: &[GlobalModification],
-    ) {
+    ) -> bool {
         let length = self.len();
         for modification in global_modifications {
             match modification {
@@ -409,10 +473,13 @@ impl LinearPeptide {
                         seq.modifications.push(modification.clone());
                     }
                 }
-                GlobalModification::Isotope(el, 0) => self.global.push((*el, None)),
-                GlobalModification::Isotope(el, isotope) => self.global.push((*el, Some(*isotope))),
+                GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {
+                    self.global.push((*el, *isotope));
+                }
+                GlobalModification::Isotope(..) => return false,
             }
         }
+        true
     }
 
     /// Place all global unknown positions at all possible locations as ambiguous modifications
@@ -523,10 +590,9 @@ impl LinearPeptide {
 
 impl MultiChemical for LinearPeptide {
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    /// # Panics
-    /// If the global isotope modification is invalid (has an invalid isotope).
     fn formulas(&self) -> MultiMolecularFormula {
-        let mut formulas: MultiMolecularFormula = vec![self.n_term() + self.c_term()].into();
+        let mut formulas: MultiMolecularFormula =
+            vec![self.get_n_term() + self.get_c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {
             formulas *= pos.formulas_greedy(&mut placed);
@@ -586,3 +652,5 @@ where
         Self::from(iter)
     }
 }
+
+// TODO: implement indexing with range and usize for LinearPeptide

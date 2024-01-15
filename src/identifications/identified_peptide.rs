@@ -38,6 +38,7 @@ pub enum MetaData {
     Fasta(FastaData),
     /// Novor metadata
     MaxQuant(MaxQuantData),
+    // TODO: build Casanovo support at some point
 }
 
 impl MetaData {
@@ -58,7 +59,8 @@ impl MetaData {
             _ => None,
         }
     }
-    /// Which fragmentation mode was used, if known
+    /// The scan number of the spectrum for this identified peptide, if known.
+    // TODO: Allow multiple scan numbers to be returned, but think about merging spectra then as well
     pub fn scan_number(&self) -> Option<usize> {
         match self {
             Self::Peaks(PeaksData { scan, .. }) => {

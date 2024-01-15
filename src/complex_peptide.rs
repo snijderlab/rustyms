@@ -258,34 +258,44 @@ impl ComplexPeptide {
                     ));
                 }
             } else if &line[index + 1..end_index] == "D" {
-                global_modifications.push(GlobalModification::Isotope(Element::H, 2));
+                global_modifications.push(GlobalModification::Isotope(Element::H, Some(2)));
             } else {
                 let num = &line[index + 1..end_index]
                     .chars()
                     .take_while(char::is_ascii_digit)
                     .collect::<String>();
                 let el = &line[index + 1 + num.len()..end_index];
-                global_modifications.push(GlobalModification::Isotope(
-                    el.try_into().map_err(|()| {
-                        CustomError::error(
-                            "Invalid global modification",
-                            "Could not determine the element",
-                            Context::line(
-                                0,
-                                line,
-                                index + num.len(),
-                                index + 1 + num.len() - end_index,
-                            ),
-                        )
-                    })?,
-                    num.parse().map_err(|_| {
-                        CustomError::error(
-                            "Invalid global modification",
-                            "Could not read isotope number",
-                            Context::line(0, line, index + 1, index - end_index),
-                        )
-                    })?,
-                ));
+                let el: Element = el.try_into().map_err(|()| {
+                    CustomError::error(
+                        "Invalid global modification",
+                        "Could not determine the element",
+                        Context::line(
+                            0,
+                            line,
+                            index + num.len(),
+                            index + 1 + num.len() - end_index,
+                        ),
+                    )
+                })?;
+                let num: u16 = num.parse::<u16>().map_err(|_| {
+                    CustomError::error(
+                        "Invalid global modification",
+                        "Could not read isotope number",
+                        Context::line(0, line, index + 1, index - end_index),
+                    )
+                })?;
+                let num = (num != 0).then_some(num);
+                if !el.is_valid(num) {
+                    return Err(CustomError::error(
+                        "Invalid global modification",
+                        format!(
+                            "This element {el} does not have a defined weight {}",
+                            num.map_or_else(String::new, |num| format!("for isotope {num}"))
+                        ),
+                        Context::line(0, line, index + 1, index - end_index),
+                    ));
+                }
+                global_modifications.push(GlobalModification::Isotope(el, num));
             }
 
             index = end_index + 1;
@@ -570,7 +580,13 @@ impl ComplexPeptide {
             .collect();
 
         // Check all placement rules
-        peptide.apply_global_modifications(&global_modifications);
+        if !peptide.apply_global_modifications(&global_modifications) {
+            return Err(CustomError::error(
+                "Invalid global isotope modification",
+                "There is an invalid global isotope modification",
+                Context::full_line(0, line),
+            ));
+        }
         peptide.apply_unknown_position_modification(&unknown_position_modifications);
         peptide.apply_ranged_unknown_position_modification(
             &ranged_unknown_position_modifications,
@@ -603,12 +619,12 @@ impl ComplexPeptide {
         &self,
         max_charge: Charge,
         model: &Model,
-    ) -> Option<Vec<Fragment>> {
+    ) -> Vec<Fragment> {
         let mut base = Vec::new();
         for (index, peptide) in self.peptides().iter().enumerate() {
-            base.extend(peptide.generate_theoretical_fragments(max_charge, model, index)?);
+            base.extend(peptide.generate_theoretical_fragments(max_charge, model, index));
         }
-        Some(base)
+        base
     }
 }
 
@@ -868,16 +884,14 @@ mod tests {
 
         // With two different sequences
         let dimeric = ComplexPeptide::pro_forma("AA+CC").unwrap();
-        let fragments = dbg!(dimeric
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model)
-            .unwrap());
+        let fragments =
+            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model));
         assert_eq!(fragments.len(), 4); // aA, aC, pAA, pCC
 
         // With two identical sequences
         let dimeric = ComplexPeptide::pro_forma("AA+AA").unwrap();
-        let fragments = dbg!(dimeric
-            .generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model)
-            .unwrap());
+        let fragments =
+            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model));
         assert_eq!(fragments.len(), 4); // aA, pAA (both twice once for each peptide)
     }
 

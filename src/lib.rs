@@ -28,6 +28,7 @@ mod complex_peptide;
 mod element;
 pub mod error;
 pub mod fragment;
+mod fragmentation;
 pub mod glycan;
 pub mod identifications;
 mod isobaric_sets;
@@ -72,9 +73,11 @@ mod test {
             .unwrap()
             .singular()
             .unwrap();
-        let fragments = peptide
-            .generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &Model::all(), 0)
-            .unwrap();
+        let fragments = peptide.generate_theoretical_fragments(
+            system::Charge::new::<system::e>(1.0),
+            &Model::all(),
+            0,
+        );
         println!("{}", fragments.len());
         println!("{fragments:?}");
     }
@@ -84,9 +87,8 @@ mod test {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
         let peptide = ComplexPeptide::pro_forma("WFWF").unwrap();
-        let fragments = peptide
-            .generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &model)
-            .unwrap();
+        let fragments =
+            peptide.generate_theoretical_fragments(system::Charge::new::<system::e>(1.0), &model);
         let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
         println!("{annotated:?}");
     }

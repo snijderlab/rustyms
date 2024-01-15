@@ -17,12 +17,12 @@
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
 //! use rustyms::*;
-//! let a = ComplexPeptide::pro_forma("ANA").unwrap().assume_linear();
-//! let b = ComplexPeptide::pro_forma("AGGA").unwrap().assume_linear();
+//! let a = ComplexPeptide::pro_forma("ANA").unwrap().singular().unwrap();
+//! let b = ComplexPeptide::pro_forma("AGGA").unwrap().singular().unwrap();
 //! let alignment = align::align::<4>(a, b, &align::BLOSUM62,
 //!                    MassTolerance::Ppm(10.0), align::Type::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
-//! assert_eq!(alignment.ppm(), Some(0.0));
+//! assert_eq!(alignment.ppm(), 0.0);
 //! ```
 //!
 //! Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>

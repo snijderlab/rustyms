@@ -11,7 +11,7 @@ use rustyms::system::*;
 // Parse a peptide
 let peptide = ComplexPeptide::pro_forma("VAEINPSNGGTTFNEKFKGGKATJ").unwrap();
 // Get the theoretical fragmentation for EThcD
-let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(4.0), &Model::ethcd()).unwrap();
+let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(4.0), &Model::ethcd());
 // Load the raw file
 let spectra = rawfile::mgf::open("data/annotated_example.mgf").unwrap();
 // Annotate the spectrum with this peptide

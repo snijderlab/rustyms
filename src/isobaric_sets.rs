@@ -402,23 +402,19 @@ impl IsobaricSetIterator {
         } else if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
             sequence.push(c.0);
         }
-        LinearPeptide {
-            global: Vec::new(),
-            labile: Vec::new(),
-            n_term: self
-                .base
-                .as_ref()
-                .and_then(|b| b.n_term.clone())
-                .or_else(|| self.state.0.map(|i| self.n_term[i].1.clone())),
-            c_term: self
-                .base
-                .as_ref()
-                .and_then(|b| b.c_term.clone())
-                .or_else(|| self.state.1.map(|i| self.c_term[i].1.clone())),
-            sequence,
-            ambiguous_modifications: Vec::new(),
-            charge_carriers: None,
-        }
+        LinearPeptide::new(sequence)
+            .n_term(
+                self.base
+                    .as_ref()
+                    .and_then(|b| b.n_term.clone())
+                    .or_else(|| self.state.0.map(|i| self.n_term[i].1.clone())),
+            )
+            .c_term(
+                self.base
+                    .as_ref()
+                    .and_then(|b| b.c_term.clone())
+                    .or_else(|| self.state.1.map(|i| self.c_term[i].1.clone())),
+            )
     }
 
     /// Reset the state for the center selection
