@@ -44,6 +44,7 @@ impl MolecularFormula {
         }
         mass
     }
+
     /// Get the mass in the given mode
     pub fn mass(&self, mode: MassMode) -> Mass {
         match mode {
@@ -51,6 +52,11 @@ impl MolecularFormula {
             MassMode::Average => self.average_weight(),
             MassMode::MostAbundant => self.most_abundant_mass(),
         }
+    }
+
+    /// Check if the formula is empty
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
     }
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes

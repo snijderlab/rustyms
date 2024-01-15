@@ -249,7 +249,7 @@ impl AminoAcid {
                 ions.c.1,
             ));
         }
-        if ions.d.0 {
+        if ions.d.0 && modifications.is_empty() {
             base_fragments.extend(Fragment::generate_all(
                 &if *self == Self::B || *self == Self::Z {
                     self.formulas()
@@ -257,10 +257,10 @@ impl AminoAcid {
                         .zip(self.satellite_ion_fragments().iter())
                         .map(|(mass, sat)| mass - sat)
                         .collect::<MultiMolecularFormula>()
-                        + (modifications - molecular_formula!(H 1 C 1 O 1).unwrap())
+                        + molecular_formula!(H 1 C 1 O 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
-                        + (modifications - molecular_formula!(H 1 C 1 O 1).unwrap())
+                        + molecular_formula!(H 1 C 1 O 1).unwrap()
                 },
                 peptide_index,
                 &FragmentType::d(Position::n(sequence_index, sequence_length)),
@@ -268,16 +268,16 @@ impl AminoAcid {
                 ions.d.1,
             ));
         }
-        if ions.v.0 {
+        if ions.v.0 && modifications.is_empty() {
             base_fragments.extend(Fragment::generate_all(
-                &(modifications + &molecular_formula!(H 3 C 2 N 1 O 1).unwrap()).into(), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
+                &molecular_formula!(H 3 C 2 N 1 O 1).unwrap().into(), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
                 peptide_index,
                 &FragmentType::v(Position::n(sequence_index, sequence_length)),
                 c_term,
                 ions.v.1,
             ));
         }
-        if ions.w.0 {
+        if ions.w.0 && modifications.is_empty() {
             base_fragments.extend(Fragment::generate_all(
                 &if *self == Self::B || *self == Self::Z {
                     self.formulas()
@@ -285,10 +285,10 @@ impl AminoAcid {
                         .zip(self.satellite_ion_fragments().iter())
                         .map(|(mass, sat)| mass - sat)
                         .collect::<MultiMolecularFormula>()
-                        + (modifications - molecular_formula!(H 2 N 1).unwrap())
+                        + molecular_formula!(H 2 N 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
-                        + (modifications - molecular_formula!(H 2 N 1).unwrap())
+                        + molecular_formula!(H 2 N 1).unwrap()
                 },
                 peptide_index,
                 &FragmentType::w(Position::c(sequence_index, sequence_length)),
