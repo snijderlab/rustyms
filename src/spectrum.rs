@@ -2,6 +2,7 @@
 
 use std::{cmp::Ordering, iter::FusedIterator};
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
@@ -374,6 +375,119 @@ impl PeakSpectrum for AnnotatedSpectrum {
         let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
         self.spectrum.insert(index, item);
     }
+}
+
+impl AnnotatedSpectrum {
+    /// Get the spectrum scores for this annotated spectrum
+    pub fn scores(&self, fragments: &[Fragment]) -> Vec<Scores> {
+        let mut results = Vec::new();
+        let total_intensity: f64 = self.spectrum.iter().map(|p| p.intensity).sum();
+        for (peptide_index, peptide) in self.peptide.peptides().iter().enumerate() {
+            let (num_annotated, intensity_annotated) = self
+                .spectrum
+                .iter()
+                .filter(|p| {
+                    p.annotation
+                        .iter()
+                        .any(|a| a.peptide_index == peptide_index)
+                })
+                .fold((0, 0.0), |(n, intensity), p| {
+                    (n + 1, intensity + p.intensity)
+                });
+            let total_fragments = fragments
+                .iter()
+                .filter(|f| f.peptide_index == peptide_index)
+                .count();
+            let fragments_found = f64::from(num_annotated) / total_fragments as f64;
+            let peaks_annotated = f64::from(num_annotated) / self.spectrum.len() as f64;
+            let intensity_annotated = intensity_annotated / total_intensity;
+            let positions_covered = self
+                .spectrum
+                .iter()
+                .flat_map(|p| {
+                    p.annotation
+                        .iter()
+                        .filter(|a| a.peptide_index == peptide_index)
+                        .filter_map(|a| a.ion.position())
+                })
+                .map(|pos| pos.sequence_index)
+                .unique()
+                .count() as f64
+                / peptide.len() as f64;
+            results.push(Scores {
+                peptide_index,
+                fragments_found,
+                peaks_annotated,
+                intensity_annotated,
+                positions_covered,
+            });
+        }
+        results
+    }
+
+    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> () {
+        let masses = fragments
+            .iter()
+            .map(|f| f.mz(MassMode::Monoisotopic))
+            .collect_vec();
+        let mut results = Vec::with_capacity(50);
+
+        for offset in -25..=25 {
+            let peaks = self
+                .spectrum
+                .iter()
+                .map(|p| {
+                    p.experimental_mz
+                        + MassOverCharge::new::<mz>(std::f64::consts::PI + f64::from(offset))
+                })
+                .collect_vec();
+            let mut annotated = 0;
+            for mass in &masses {
+                // Get the index of the element closest to this value (spectrum is defined to always be sorted)
+                let index = peaks
+                    .binary_search_by(|p| p.value.total_cmp(&mass.value))
+                    .map_or_else(|i| i, |i| i);
+
+                // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
+                let mut closest = (0, f64::INFINITY);
+                for i in if index == 0 { 0 } else { index - 1 }
+                    ..=(index + 1).min(self.spectrum.len() - 1)
+                {
+                    let ppm = peaks[i].ppm(*mass);
+                    if ppm < closest.1 {
+                        closest = (i, ppm);
+                    }
+                }
+
+                if closest.1 < model.ppm.value {
+                    annotated += 1;
+                }
+            }
+            results.push(annotated);
+        }
+        let average = results.iter().sum::<usize>() as f64 / results.len() as f64;
+        let st_dev = todo!();
+
+        // Recreate the original raw spectrum
+        // Shift the raw spectrum + π + (-25..25)
+        // For each shift determine the total number of matching fragments
+        // Determine the average num & stdev
+        // Return the average num and the number of stdevs that the actual number is from the average (+log variant of this as score?)
+    }
+}
+
+/// The scores for a single peptide in an annotated spectrum
+pub struct Scores {
+    /// The peptide index
+    pub peptide_index: usize,
+    /// The fraction of the total fragments that could be annotated
+    pub fragments_found: f64,
+    /// The fraction of the total peaks that could be annotated
+    pub peaks_annotated: f64,
+    /// The fraction of the total intensity that could be annotated
+    pub intensity_annotated: f64,
+    /// The fraction of the total positions that has at least one fragment found
+    pub positions_covered: f64,
 }
 
 /// A raw peak

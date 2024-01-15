@@ -56,7 +56,7 @@ pub use crate::modification::Modification;
 pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
 pub use crate::sequence_element::SequenceElement;
-pub use crate::spectrum::{AnnotatedSpectrum, MassMode, RawSpectrum};
+pub use crate::spectrum::{AnnotatedSpectrum, MassMode, RawSpectrum, Scores};
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;
 
