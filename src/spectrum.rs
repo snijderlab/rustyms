@@ -425,7 +425,8 @@ impl AnnotatedSpectrum {
         results
     }
 
-    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> () {
+    /// Get a false discovery rate estimation for this annotation. See the [`FDR`] struct for all statistics that can be retrieved.
+    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> FDR {
         let masses = fragments
             .iter()
             .map(|f| f.mz(MassMode::Monoisotopic))
@@ -441,6 +442,7 @@ impl AnnotatedSpectrum {
                         + MassOverCharge::new::<mz>(std::f64::consts::PI + f64::from(offset))
                 })
                 .collect_vec();
+            let mut peak_annotated = vec![false; peaks.len()];
             let mut annotated = 0;
             for mass in &masses {
                 // Get the index of the element closest to this value (spectrum is defined to always be sorted)
@@ -459,20 +461,31 @@ impl AnnotatedSpectrum {
                     }
                 }
 
-                if closest.1 < model.ppm.value {
+                if closest.1 < model.ppm.value && !peak_annotated[closest.0] {
                     annotated += 1;
+                    peak_annotated[closest.0] = true;
                 }
             }
-            results.push(annotated);
+            results.push(f64::from(annotated) / self.spectrum.len() as f64);
         }
-        let average = results.iter().sum::<usize>() as f64 / results.len() as f64;
-        let st_dev = todo!();
+        let average = results.iter().sum::<f64>() / results.len() as f64;
+        let st_dev = results
+            .iter()
+            .map(|x| (x - average).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        let actual = self
+            .spectrum
+            .iter()
+            .filter(|p| !p.annotation.is_empty())
+            .count() as f64
+            / self.spectrum.len() as f64;
 
-        // Recreate the original raw spectrum
-        // Shift the raw spectrum + π + (-25..25)
-        // For each shift determine the total number of matching fragments
-        // Determine the average num & stdev
-        // Return the average num and the number of stdevs that the actual number is from the average (+log variant of this as score?)
+        FDR {
+            actual_peaks_annotated: actual,
+            average_false_peaks_annotated: average,
+            standard_deviation_false_peaks_annotated: st_dev,
+        }
     }
 }
 
@@ -488,6 +501,35 @@ pub struct Scores {
     pub intensity_annotated: f64,
     /// The fraction of the total positions that has at least one fragment found
     pub positions_covered: f64,
+}
+
+/// A false discovery rate for an annotation to a spectrum
+pub struct FDR {
+    /// The fraction of the total peaks that could be annotated
+    pub actual_peaks_annotated: f64,
+    /// The average fraction of the false peaks that could be annotated
+    pub average_false_peaks_annotated: f64,
+    /// The standard deviation of the false peaks that could be annotated
+    pub standard_deviation_false_peaks_annotated: f64,
+}
+
+impl FDR {
+    /// Get the false discovery rate (as a fraction).
+    /// The average number of false peaks annotated divided by the average number of annotated peaks.
+    pub fn fdr(&self) -> f64 {
+        self.average_false_peaks_annotated / self.actual_peaks_annotated
+    }
+
+    /// Get the number of standard deviations the number of annotated peaks is from the average number of false annotations.
+    pub fn sigma(&self) -> f64 {
+        (self.actual_peaks_annotated - self.average_false_peaks_annotated)
+            / self.standard_deviation_false_peaks_annotated
+    }
+
+    /// Get the score of this annotation. Defined as the log2 of the sigma.
+    pub fn score(&self) -> f64 {
+        self.sigma().log2()
+    }
 }
 
 /// A raw peak
