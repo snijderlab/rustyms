@@ -267,8 +267,8 @@ impl Matrix {
                 (index as isize) * GAP_EXTEND_PENALTY as isize,
                 GAP_EXTEND_PENALTY,
                 MatchType::Gap,
-                u8::from(index != 0),
-                0,
+                if is_a { u8::from(index != 0) } else { 0 },
+                if is_a { 0 } else { u8::from(index != 0) },
             );
         }
     }
@@ -339,9 +339,10 @@ impl std::ops::IndexMut<(usize, usize)> for Matrix {
 
 #[cfg(test)]
 mod tests {
-    use super::score;
+    use super::{align, score, Type};
+    use crate::align::BLOSUM62;
     use crate::aminoacids::AminoAcid;
-    use crate::{MultiMolecularFormula, SequenceElement};
+    use crate::{ComplexPeptide, MultiMolecularFormula, SequenceElement};
 
     #[test]
     fn pair() {
@@ -369,5 +370,22 @@ mod tests {
             crate::MassTolerance::Ppm(10.0)
         ));
         assert!(pair.is_some());
+    }
+
+    #[test]
+    fn example_alignment() {
+        let a = ComplexPeptide::pro_forma("QVQLVQSGAEVKKPGASVKVSCKASGYTFTSYDINWVRQATGQGLEWMGWMNPNSGNTGYAQKFQGRVTMTRNTSISTAYMELSSLRSEDTAVYYCAR").unwrap().singular().unwrap();
+        let b = ComplexPeptide::pro_forma("SGTKLVESGGGLVQPGGSLLRS")
+            .unwrap()
+            .singular()
+            .unwrap();
+        let alignment = align::<4>(
+            a,
+            b,
+            BLOSUM62,
+            crate::MassTolerance::Ppm(10.0),
+            Type::GLOBAL_B,
+        );
+        dbg!(alignment);
     }
 }
