@@ -124,10 +124,9 @@ impl Alignment {
         self.mass_a()
             .iter()
             .cartesian_product(self.mass_b().iter())
-            .map(|(a, b)| OrderedMass::from(a.monoisotopic_mass() - b.monoisotopic_mass()))
-            .min()
+            .map(|(a, b)| a.monoisotopic_mass() - b.monoisotopic_mass())
+            .min_by(|a, b| a.abs().value.total_cmp(&b.abs().value))
             .expect("An empty MultiMolecularFormula was detected")
-            .as_mass()
     }
 
     fn mass_a(&self) -> MultiMolecularFormula {
