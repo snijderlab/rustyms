@@ -1,10 +1,17 @@
 use crate::{
-    system::{da, r, Mass, Ratio},
+    system::{da, r, Mass, OrderedMass, Ratio},
     MassMode,
 };
 use std::fmt::Write;
 
 include!("shared/formula.rs");
+
+impl From<&MolecularFormula> for OrderedMass {
+    /// Create an ordered mass from the monoisotopic mass (needed for [`Multi<MolecularFormula>`])
+    fn from(value: &MolecularFormula) -> Self {
+        value.monoisotopic_mass().into()
+    }
+}
 
 impl MolecularFormula {
     /// The mass of the molecular formula of this element, if all element species (isotopes) exists

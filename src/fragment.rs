@@ -8,7 +8,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MassMode,
-    MolecularFormula, MultiMolecularFormula, NeutralLoss,
+    MolecularFormula, Multi, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -61,7 +61,7 @@ impl Fragment {
     /// Generate a list of possible fragments from the list of possible preceding termini and neutral losses
     #[must_use]
     pub fn generate_all(
-        theoretical_mass: &MultiMolecularFormula,
+        theoretical_mass: &Multi<MolecularFormula>,
         peptide_index: usize,
         annotation: &FragmentType,
         termini: &[(MolecularFormula, String)],

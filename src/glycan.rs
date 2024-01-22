@@ -8,7 +8,7 @@ use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
     system::Charge,
-    AminoAcid, Model, MultiMolecularFormula,
+    AminoAcid, Model, Multi,
 };
 
 use crate::uom::num_traits::Zero;
@@ -233,7 +233,7 @@ impl PositionedGlycanStructure {
         model: &Model,
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
-        full_formula: &MultiMolecularFormula,
+        full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
         model
@@ -257,7 +257,7 @@ impl PositionedGlycanStructure {
     fn base_theoretical_fragments(
         &self,
         peptide_index: usize,
-        full_formula: &MultiMolecularFormula,
+        full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
         // Generate the basic single breakage fragments

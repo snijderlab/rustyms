@@ -14,8 +14,8 @@ use crate::{
     molecular_charge::MolecularCharge,
     system::Charge,
     system::OrderedMass,
-    Element, Fragment, LinearPeptide, Model, MolecularFormula, MultiChemical,
-    MultiMolecularFormula, SequenceElement,
+    Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
+    SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptides, more options will be added in the future to support the full Pro Forma spec
@@ -32,11 +32,11 @@ impl MultiChemical for ComplexPeptide {
     /// Gives all possible formulas for this complex peptide.
     /// # Panics
     /// If the global isotope modification is invalid (has an invalid isotope). See [`LinearPeptide::formulas`].
-    fn formulas(&self) -> MultiMolecularFormula {
+    fn formulas(&self) -> Multi<MolecularFormula> {
         match self {
             Self::Singular(peptide) => peptide.formulas(),
             Self::Multimeric(peptides) => {
-                let mut formulas = MultiMolecularFormula::default();
+                let mut formulas = Multi::default();
                 for peptide in peptides {
                     formulas *= peptide.formulas();
                 }

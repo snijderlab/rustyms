@@ -4,15 +4,14 @@ use crate::formula::MolecularFormula;
 use crate::fragment::Position;
 use crate::fragment::{Fragment, FragmentType};
 use crate::molecular_charge::MolecularCharge;
-use crate::multi_formula::MultiMolecularFormula;
-use crate::Element;
 use crate::{model::*, MultiChemical};
+use crate::{Element, Multi};
 
 include!("shared/aminoacid.rs");
 
 impl MultiChemical for AminoAcid {
     /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
-    fn formulas(&self) -> MultiMolecularFormula {
+    fn formulas(&self) -> Multi<MolecularFormula> {
         match self {
             Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).unwrap().into(),
             Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).unwrap().into(), // One of the H's counts as the charge carrier and is added later
@@ -157,7 +156,7 @@ impl AminoAcid {
     ];
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
-    pub fn satellite_ion_fragments(&self) -> MultiMolecularFormula {
+    pub fn satellite_ion_fragments(&self) -> Multi<MolecularFormula> {
         match self {
             Self::Alanine
             | Self::Glycine
@@ -166,7 +165,7 @@ impl AminoAcid {
             | Self::Proline
             | Self::Tryptophan
             | Self::Tyrosine
-            | Self::Unknown => MultiMolecularFormula::default(),
+            | Self::Unknown => Multi::default(),
             Self::Arginine => molecular_formula!(H 9 C 2 N 2).unwrap().into(),
             Self::Asparagine => molecular_formula!(H 2 C 1 N 1 O 1).unwrap().into(),
             Self::AsparticAcid => molecular_formula!(H 1 C 1 O 2).unwrap().into(),
@@ -256,7 +255,7 @@ impl AminoAcid {
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
                         .map(|(mass, sat)| mass - sat)
-                        .collect::<MultiMolecularFormula>()
+                        .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 1 C 1 O 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
@@ -284,7 +283,7 @@ impl AminoAcid {
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
                         .map(|(mass, sat)| mass - sat)
-                        .collect::<MultiMolecularFormula>()
+                        .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 2 N 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()

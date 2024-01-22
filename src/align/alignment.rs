@@ -11,8 +11,9 @@ use crate::align::scoring::*;
 use crate::system::Mass;
 use crate::system::OrderedMass;
 use crate::LinearPeptide;
+use crate::MolecularFormula;
+use crate::Multi;
 use crate::MultiChemical;
-use crate::MultiMolecularFormula;
 
 /// An alignment of two reads.
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -115,7 +116,7 @@ impl Alignment {
             .cartesian_product(self.mass_b().iter())
             .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
             .min_by(f64::total_cmp)
-            .expect("An empty MultiMolecularFormula was detected")
+            .expect("An empty Multi<MolecularFormula>  was detected")
     }
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
@@ -126,30 +127,30 @@ impl Alignment {
             .cartesian_product(self.mass_b().iter())
             .map(|(a, b)| a.monoisotopic_mass() - b.monoisotopic_mass())
             .min_by(|a, b| a.abs().value.total_cmp(&b.abs().value))
-            .expect("An empty MultiMolecularFormula was detected")
+            .expect("An empty Multi<MolecularFormula>  was detected")
     }
 
-    fn mass_a(&self) -> MultiMolecularFormula {
+    fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.ty.left_a() && self.ty.right_a() {
             self.seq_a.formulas()
         } else {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
             self.seq_a.sequence[self.start_a..self.start_a + self.len_a()]
                 .iter()
-                .fold(MultiMolecularFormula::default(), |acc, s| {
+                .fold(Multi::default(), |acc, s| {
                     acc * s.formulas_greedy(&mut placed_a)
                 })
         }
     }
 
-    fn mass_b(&self) -> MultiMolecularFormula {
+    fn mass_b(&self) -> Multi<MolecularFormula> {
         if self.ty.left_b() && self.ty.right_b() {
             self.seq_b.formulas()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];
             self.seq_b.sequence[self.start_b..self.start_b + self.len_b()]
                 .iter()
-                .fold(MultiMolecularFormula::default(), |acc, s| {
+                .fold(Multi::default(), |acc, s| {
                     acc * s.formulas_greedy(&mut placed_b)
                 })
         }

@@ -1,6 +1,5 @@
 use crate::{
-    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, MultiMolecularFormula,
-    SequenceElement,
+    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, Multi, SequenceElement,
 };
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
@@ -231,7 +230,7 @@ fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>
                         sequence.sequence[index - size..index]
                             .iter()
                             .map(SequenceElement::formulas_all)
-                            .sum::<MultiMolecularFormula>()
+                            .sum::<Multi<MolecularFormula>>()
                             .iter()
                             .map(MolecularFormula::monoisotopic_mass)
                             .collect()
@@ -342,7 +341,7 @@ mod tests {
     use super::{align, score, Type};
     use crate::align::BLOSUM62;
     use crate::aminoacids::AminoAcid;
-    use crate::{ComplexPeptide, MultiMolecularFormula, SequenceElement};
+    use crate::{ComplexPeptide, MolecularFormula, Multi, SequenceElement};
 
     #[test]
     fn pair() {
@@ -356,14 +355,14 @@ mod tests {
                 &a,
                 &[a.iter()
                     .map(SequenceElement::formulas_all)
-                    .sum::<MultiMolecularFormula>()[0]
+                    .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()]
             ),
             (
                 &b,
                 &[b.iter()
                     .map(SequenceElement::formulas_all)
-                    .sum::<MultiMolecularFormula>()[0]
+                    .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()]
             ),
             0,

@@ -6,7 +6,7 @@ use crate::{
     error::CustomError,
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    Element, MolecularFormula, MultiChemical, MultiMolecularFormula, SequenceElement,
+    Element, MolecularFormula, Multi, MultiChemical, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -270,7 +270,7 @@ impl LinearPeptide {
                     .collect::<Vec<_>>();
                 aa.iter()
                     .enumerate()
-                    .fold(MultiMolecularFormula::default(), |acc, (index, aa)| {
+                    .fold(Multi::default(), |acc, (index, aa)| {
                         acc * aa.formulas(
                             &pattern
                                 .clone()
@@ -322,8 +322,8 @@ impl LinearPeptide {
     }
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    pub fn bare_formulas(&self) -> MultiMolecularFormula {
-        let mut formulas = MultiMolecularFormula::default();
+    pub fn bare_formulas(&self) -> Multi<MolecularFormula> {
+        let mut formulas = Multi::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {
             formulas *= pos.formulas_greedy(&mut placed);
@@ -590,8 +590,8 @@ impl LinearPeptide {
 
 impl MultiChemical for LinearPeptide {
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    fn formulas(&self) -> MultiMolecularFormula {
-        let mut formulas: MultiMolecularFormula =
+    fn formulas(&self) -> Multi<MolecularFormula> {
+        let mut formulas: Multi<MolecularFormula> =
             vec![self.get_n_term() + self.get_c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {

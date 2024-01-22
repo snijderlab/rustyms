@@ -3,7 +3,7 @@
 use crate::{
     error::{Context, CustomError},
     modification::AmbiguousModification,
-    MolecularFormula, MultiChemical, MultiMolecularFormula,
+    MolecularFormula, Multi, MultiChemical,
 };
 use serde::{Deserialize, Serialize};
 
@@ -79,7 +79,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
-    pub fn formulas(&self, selected_ambiguous: &[usize]) -> MultiMolecularFormula {
+    pub fn formulas(&self, selected_ambiguous: &[usize]) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
@@ -99,7 +99,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    pub fn formulas_greedy(&self, placed: &mut [bool]) -> MultiMolecularFormula {
+    pub fn formulas_greedy(&self, placed: &mut [bool]) -> Multi<MolecularFormula> {
         #[allow(clippy::filter_map_bool_then)] // otherwise crashes
         let modifications = self
             .modifications
@@ -124,7 +124,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
-    pub fn formulas_all(&self) -> MultiMolecularFormula {
+    pub fn formulas_all(&self) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
@@ -144,13 +144,13 @@ impl SequenceElement {
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
     /// If you have 2 options for amino acid mass (B or Z) and 2 ambiguous modifications that gives you 8 total options for the mass. (2 AA * 2 amb1 * 2 amb2)
-    pub fn formulas_all_options(&self) -> MultiMolecularFormula {
+    pub fn formulas_all_options(&self) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
             .map(Chemical::formula)
             .sum::<MolecularFormula>();
-        let mut formulas: MultiMolecularFormula = self
+        let mut formulas: Multi<MolecularFormula> = self
             .aminoacid
             .formulas()
             .iter()
@@ -162,7 +162,7 @@ impl SequenceElement {
                 modification.modification.formula(),
             ]
             .iter()
-            .collect::<MultiMolecularFormula>();
+            .collect::<Multi<MolecularFormula>>();
         }
         formulas
     }
