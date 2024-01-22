@@ -46,11 +46,12 @@ pub mod rawfile;
 mod sequence_element;
 pub mod spectrum;
 pub mod system;
+mod tolerance;
 
 pub use crate::complex_peptide::ComplexPeptide;
 pub use crate::element::*;
 pub use crate::formula::*;
-pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets, MassTolerance};
+pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
 pub use crate::linear_peptide::LinearPeptide;
 pub use crate::model::Model;
 pub use crate::modification::Modification;
@@ -59,6 +60,7 @@ pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::spectrum::{AnnotatedSpectrum, MassMode, RawSpectrum};
+pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;
 

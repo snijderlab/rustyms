@@ -164,7 +164,7 @@ impl OrderedMass {
     }
 
     /// Get a normal [`Mass`]
-    pub fn as_mass(self) -> Mass {
+    pub fn into_inner(self) -> Mass {
         self.0
     }
 }

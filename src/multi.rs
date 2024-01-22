@@ -12,7 +12,7 @@ pub struct Multi<M>(Vec<M>);
 
 impl<M> Multi<M> {
     /// Get the underlying vector
-    pub fn as_vec(self) -> Vec<M> {
+    pub fn into_inner(self) -> Vec<M> {
         self.0
     }
 }

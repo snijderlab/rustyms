@@ -1,96 +1,13 @@
-use std::{cmp::Ordering, fmt::Display, str::FromStr};
+use std::cmp::Ordering;
 
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     modification::Modification,
     placement_rule::{PlacementRule, Position},
-    system::{da, r, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement,
+    system::{r, Mass, Ratio},
+    AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
 };
-
-/// A tolerance around a given mass for searching purposes
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
-pub enum MassTolerance {
-    /// A relative search tolerance in parts per million
-    Ppm(f64),
-    /// An absolute tolerance defined by a constant offset from the mass (bounds are mass - tolerance, mass + tolerance)
-    Absolute(Mass),
-}
-
-impl MassTolerance {
-    /// Find the bounds around a given mass for this tolerance
-    pub fn bounds(&self, mass: Mass) -> (Mass, Mass) {
-        match self {
-            Self::Ppm(ppm) => (
-                da(mass.value * (1.0 - ppm / 1e6)),
-                da(mass.value * (1.0 + ppm / 1e6)),
-            ),
-            Self::Absolute(tolerance) => (mass - *tolerance, mass + *tolerance),
-        }
-    }
-
-    /// See if these two masses are within this tolerance of each other
-    pub fn within(&self, a: Mass, b: Mass) -> bool {
-        match self {
-            Self::Absolute(tol) => (a.value - b.value).abs() <= tol.value,
-            Self::Ppm(ppm) => a.ppm(b) <= *ppm,
-        }
-    }
-
-    /// See if any combination of the masses in a and b is within the tolerance see [`Self::within`].
-    pub fn any_within(&self, a: &[Mass], b: &[Mass]) -> bool {
-        a.iter()
-            .cartesian_product(b.iter())
-            .any(|(a, b)| self.within(*a, *b))
-    }
-}
-
-impl Display for MassTolerance {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Absolute(mass) => format!("{} da", mass.value),
-                Self::Ppm(ppm) => format!("{ppm} ppm"),
-            }
-        )
-    }
-}
-
-impl FromStr for MassTolerance {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let num_str = String::from_utf8(
-            s.bytes()
-                .take_while(|c| {
-                    c.is_ascii_digit()
-                        || *c == b'.'
-                        || *c == b'-'
-                        || *c == b'+'
-                        || *c == b'e'
-                        || *c == b'E'
-                })
-                .collect::<Vec<_>>(),
-        )
-        .map_err(|_| ())?;
-        let num = num_str.parse::<f64>().map_err(|_| ())?;
-        match s[num_str.len()..].trim() {
-            "ppm" => Ok(Self::Ppm(num)),
-            "da" => Ok(Self::Absolute(da(num))),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<&str> for MassTolerance {
-    type Error = ();
-    fn try_from(value: &str) -> Result<Self, ()> {
-        value.parse()
-    }
-}
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
 pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
@@ -190,7 +107,7 @@ pub fn building_blocks(
                 let mc = m.clone();
                 let masses = a
                     .formulas_all()
-                    .as_vec()
+                    .into_inner()
                     .into_iter()
                     .map(move |f| f.monoisotopic_mass() + m.formula().monoisotopic_mass());
                 masses.map(move |mass| (a.clone(), mc.clone(), mass))
@@ -253,7 +170,7 @@ pub fn building_blocks(
             })
             .flat_map(|s| {
                 s.formulas_all()
-                    .as_vec()
+                    .into_inner()
                     .into_iter()
                     .map(move |f| (s.clone(), f.monoisotopic_mass()))
             })
@@ -279,7 +196,7 @@ pub fn building_blocks(
 /// base selection is already in the tolerance of the given mass.
 pub fn find_isobaric_sets(
     mass: Mass,
-    tolerance: MassTolerance,
+    tolerance: Tolerance,
     amino_acids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
@@ -547,7 +464,7 @@ mod tests {
         let pep = ComplexPeptide::pro_forma("AG").unwrap().singular().unwrap();
         let sets: Vec<LinearPeptide> = find_isobaric_sets(
             pep.bare_formulas()[0].monoisotopic_mass(),
-            MassTolerance::Ppm(10.0),
+            Tolerance::new_ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
             &[],
             &[],

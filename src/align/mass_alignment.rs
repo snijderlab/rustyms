@@ -1,5 +1,6 @@
 use crate::{
-    system::Mass, AminoAcid, LinearPeptide, MassTolerance, MolecularFormula, Multi, SequenceElement,
+    system::Mass, AminoAcid, LinearPeptide, MassComparable, MolecularFormula, Multi,
+    SequenceElement, Tolerance,
 };
 
 use super::{align_type::*, piece::*, scoring::*, Alignment};
@@ -18,7 +19,7 @@ pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
-    tolerance: MassTolerance,
+    tolerance: Tolerance,
     ty: Type,
 ) -> Alignment {
     // Enforce some assumptions
@@ -139,13 +140,13 @@ pub fn align<const STEPS: usize>(
 
 /// Score a pair of sequence elements (AA + mods)
 fn score_pair(
-    a: (&SequenceElement, &[Mass]),
-    b: (&SequenceElement, &[Mass]),
+    a: (&SequenceElement, &Multi<Mass>),
+    b: (&SequenceElement, &Multi<Mass>),
     alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     score: isize,
-    tolerance: MassTolerance,
+    tolerance: Tolerance,
 ) -> Piece {
-    match (a.0 == b.0, tolerance.any_within(a.1, a.1)) {
+    match (a.0 == b.0, tolerance.within(a.1, a.1)) {
         (true, true) => {
             let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize];
             Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
@@ -181,12 +182,12 @@ fn score_pair(
 /// Score two sets of aminoacids (it will only be called when at least one of a and b has len > 1)
 /// Returns none if no sensible explanation can be made
 fn score(
-    a: (&[SequenceElement], &[Mass]),
-    b: (&[SequenceElement], &[Mass]),
+    a: (&[SequenceElement], &Multi<Mass>),
+    b: (&[SequenceElement], &Multi<Mass>),
     score: isize,
-    tolerance: MassTolerance,
+    tolerance: Tolerance,
 ) -> Option<Piece> {
-    if tolerance.any_within(a.1, b.1) {
+    if tolerance.within(a.1, b.1) {
         let mut b_copy = b.0.to_owned();
         let rotated = a.0.len() == b.0.len()
             && a.0.iter().all(|el| {
@@ -219,13 +220,13 @@ fn score(
 
 /// Get the masses of all subsets of up to the given number of steps as a lookup table.
 /// The result should be is index by [steps-1][index]
-fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>>> {
+fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Multi<Mass>>> {
     (1..=steps)
         .map(|size| {
             (0..=sequence.len())
                 .map(|index| {
                     if index < size {
-                        vec![Mass::zero()]
+                        Mass::zero().into()
                     } else {
                         sequence.sequence[index - size..index]
                             .iter()
@@ -236,7 +237,7 @@ fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Vec<Mass>
                             .collect()
                     }
                 })
-                .collect::<Vec<Vec<Mass>>>()
+                .collect::<Vec<Multi<Mass>>>()
         })
         .collect::<Vec<_>>()
 }
@@ -353,20 +354,22 @@ mod tests {
         let pair = dbg!(score(
             (
                 &a,
-                &[a.iter()
+                &a.iter()
                     .map(SequenceElement::formulas_all)
                     .sum::<Multi<MolecularFormula>>()[0]
-                    .monoisotopic_mass()]
+                    .monoisotopic_mass()
+                    .into()
             ),
             (
                 &b,
-                &[b.iter()
+                &b.iter()
                     .map(SequenceElement::formulas_all)
                     .sum::<Multi<MolecularFormula>>()[0]
-                    .monoisotopic_mass()]
+                    .monoisotopic_mass()
+                    .into()
             ),
             0,
-            crate::MassTolerance::Ppm(10.0)
+            crate::Tolerance::new_ppm(10.0)
         ));
         assert!(pair.is_some());
     }
@@ -382,7 +385,7 @@ mod tests {
             a,
             b,
             BLOSUM62,
-            crate::MassTolerance::Ppm(10.0),
+            crate::Tolerance::new_ppm(10.0),
             Type::GLOBAL_B,
         );
         dbg!(alignment);
