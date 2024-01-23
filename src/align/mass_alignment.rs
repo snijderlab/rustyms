@@ -146,7 +146,7 @@ fn score_pair(
     score: isize,
     tolerance: Tolerance,
 ) -> Piece {
-    match (a.0 == b.0, tolerance.within(a.1, a.1)) {
+    match (a.0 == b.0, tolerance.within(a.1, b.1)) {
         (true, true) => {
             let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize];
             Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
