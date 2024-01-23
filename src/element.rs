@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use crate::system::{da, r, Ratio};
+use crate::system::{da, fraction, Ratio};
 
 include!("shared/element.rs");
 
@@ -60,7 +60,7 @@ impl Element {
     /// Gives the most abundant mass based on the number of this isotope
     pub fn most_abundant_mass(self, n: i16, isotope: Option<u16>) -> Option<Mass> {
         if self == Self::Electron {
-            return Some(da(5.485_799_090_65e-4) * Ratio::new::<r>(f64::from(n)));
+            return Some(da(5.485_799_090_65e-4) * Ratio::new::<fraction>(f64::from(n)));
         }
         Some(
             if let Some(isotope) = isotope {
@@ -80,7 +80,7 @@ impl Element {
                     }
                 }
                 max?.0
-            } * Ratio::new::<r>(f64::from(n)),
+            } * Ratio::new::<fraction>(f64::from(n)),
         )
     }
 }

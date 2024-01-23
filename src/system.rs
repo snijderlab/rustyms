@@ -25,6 +25,7 @@ pub mod mass {
         /// Mass
         dimension: Q< P1, Z0, Z0>;
         units {
+            @millidalton: 0.001; "mDa", "millidalton", "millidaltons";
             @dalton: 1.0; "Da", "dalton", "daltons";
             @kilodalton: 1_000.0; "kDa", "kilodalton", "kilodaltons";
             @megadalton: 1_000_000.0; "MDa", "megadalton", "megadaltons";
@@ -96,7 +97,13 @@ pub mod ratio {
         /// Unit less quantity for general calculations
         dimension: Q< Z0, Z0, Z0>;
         units {
-            @r: 1.0; "r", "ratio", "ratios";
+            @fraction: 1.0; "⅟", "fraction", "fraction";
+            @percent: 0.01; "%", "percent", "percent";
+            @promille: 0.01; "‰", "promille", "promille";
+            @ppm: 0.000_001; "ppm", "ppm", "ppm";
+            @ppb: 0.000_000_001; "ppb", "ppb", "ppb";
+            @ppt: 0.000_000_000_001; "ppt", "ppt", "ppt";
+            @ppq: 0.000_000_000_000_001; "ppq", "ppq", "ppq";
         }
     }
 }
@@ -130,7 +137,7 @@ pub mod f64 {
     pub use super::charge::e;
     pub use super::mass::dalton;
     pub use super::mass_over_charge::mz;
-    pub use super::ratio::r;
+    pub use super::ratio::fraction;
     pub use super::time::s;
 
     /// Annotate the given number as being in Da
@@ -138,6 +145,20 @@ pub mod f64 {
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)
     }
+}
+
+pub mod usize {
+    mod mks {
+        pub use super::super::*;
+    }
+
+    Q!(self::mks, usize);
+
+    pub use super::charge::e;
+    pub use super::mass::dalton;
+    pub use super::mass_over_charge::mz;
+    pub use super::ratio::fraction;
+    pub use super::time::s;
 }
 
 impl MassOverCharge {

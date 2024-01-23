@@ -19,7 +19,7 @@ itertools = "0.12"
 regex = "1.8"
 serde = { version = "1.0", features = ["derive"] }
 probability = "0.20"
-uom = { version = "0.35", features = ["use_serde"] }
+uom = { version = "0.35", features = ["use_serde", "usize"] }
 ordered-float = { version = "4.2", features = ["serde"] }
 
 [build-dependencies]
@@ -28,4 +28,5 @@ flate2 = "1.0"
 itertools = "0.12"
 regex = "1.8"
 serde = { version = "1.0", features = ["derive"] }
-uom = { version = "0.35", features = ["use_serde"] }
+uom = { version = "0.35", features = ["use_serde", "usize"] }
+ordered-float = { version = "4.2", features = ["serde"] }

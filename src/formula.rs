@@ -1,5 +1,5 @@
 use crate::{
-    system::{da, r, Mass, OrderedMass, Ratio},
+    system::{da, fraction, Mass, OrderedMass, Ratio},
     MassMode,
 };
 use std::fmt::Write;
@@ -22,7 +22,7 @@ impl MolecularFormula {
             mass += e
                 .mass(*i)
                 .expect("An invalid molecular formula was created, please report this crash")
-                * Ratio::new::<r>(f64::from(*n));
+                * Ratio::new::<fraction>(f64::from(*n));
         }
         mass
     }
@@ -35,7 +35,7 @@ impl MolecularFormula {
             mass += e
                 .average_weight(*i)
                 .expect("An invalid molecular formula was created, please report this crash")
-                * Ratio::new::<r>(f64::from(*n));
+                * Ratio::new::<fraction>(f64::from(*n));
         }
         mass
     }

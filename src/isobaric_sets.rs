@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     modification::Modification,
     placement_rule::{PlacementRule, Position},
-    system::{r, Mass, Ratio},
+    system::{fraction, Mass, Ratio},
     AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
 };
 
@@ -388,8 +388,9 @@ impl Iterator for IsobaricSetIterator {
                                             .iter()
                                             .map(|i| self.center[*i].1)
                                             .sum::<Mass>()
-                                            + Ratio::new::<r>((self.state.2.len() - level) as f64)
-                                                * self.sizes.1
+                                            + Ratio::new::<fraction>(
+                                                (self.state.2.len() - level) as f64,
+                                            ) * self.sizes.1
                                             > self.bounds.0
                                         {
                                             level = self.state.2.len() - 1;
@@ -401,7 +402,9 @@ impl Iterator for IsobaricSetIterator {
                     }
                     self.state.2.pop();
                     // Stop the search when there is no possibility for a fitting answer
-                    if self.sizes.1 * Ratio::new::<r>(self.state.2.len() as f64) < self.bounds.0 {
+                    if self.sizes.1 * Ratio::new::<fraction>(self.state.2.len() as f64)
+                        < self.bounds.0
+                    {
                         break;
                     }
                     // Reset the levels to be all 0s again
