@@ -41,6 +41,12 @@ pub fn align<const STEPS: usize>(
         matrix.global_start(false);
     }
 
+    // Notes for dynamic alignment:
+    // * do the 0..=STEPS loops for 0..=len_left
+    // * Use memoisation on masses, to be able to grow when needed
+    // * quit searching as soon as a positive scoring option is found
+    // * keep the highest scoring, instead of using a growing vec of values
+
     let mut values = Vec::with_capacity(STEPS * STEPS + 2);
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
