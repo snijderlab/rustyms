@@ -1,3 +1,4 @@
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{helper_functions::f64_bits, Element};
@@ -8,44 +9,13 @@ use std::{
 };
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
     elements: Vec<(crate::Element, Option<u16>, i16)>,
     /// Any addition mass, defined to be monoisotopic
-    additional_mass: f64,
-}
-
-impl PartialEq for MolecularFormula {
-    /// Using [`f64::total_cmp`] for equality
-    fn eq(&self, other: &Self) -> bool {
-        self.elements == other.elements
-            && self.additional_mass.total_cmp(&other.additional_mass) == Ordering::Equal
-    }
-}
-
-impl Eq for MolecularFormula {}
-
-impl PartialOrd for MolecularFormula {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for MolecularFormula {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.elements
-            .cmp(&other.elements)
-            .then(self.additional_mass.total_cmp(&other.additional_mass))
-    }
-}
-
-impl Hash for MolecularFormula {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.elements.hash(state);
-        f64_bits(self.additional_mass).hash(state);
-    }
+    additional_mass: OrderedFloat<f64>,
 }
 
 /// Any item that has a clearly defined single molecular formula
@@ -74,7 +44,7 @@ impl MolecularFormula {
         } else {
             let result = Self {
                 elements: elements.to_vec(),
-                additional_mass: 0.0,
+                additional_mass: 0.0.into(),
             };
             Some(result.simplify())
         }
@@ -114,7 +84,7 @@ impl MolecularFormula {
     pub const fn with_additional_mass(additional_mass: f64) -> Self {
         Self {
             elements: Vec::new(),
-            additional_mass,
+            additional_mass: OrderedFloat(additional_mass),
         }
     }
 

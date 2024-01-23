@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -210,7 +211,8 @@ impl ComplexPeptide {
         let mut ambiguous_aa_counter = 0;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
-        let mut ambiguous_found_positions = Vec::new();
+        let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
+            Vec::new();
         let mut global_modifications = Vec::new();
         let mut unknown_position_modifications = Vec::new();
         let mut ranged_unknown_position_modifications = Vec::new();

@@ -3,6 +3,7 @@
 use std::{cmp::Ordering, iter::FusedIterator};
 
 use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
@@ -127,11 +128,11 @@ impl RawSpectrum {
         let max = self
             .spectrum
             .iter()
-            .map(|p| p.intensity)
+            .map(|p| *p.intensity)
             .reduce(f64::max)
             .unwrap_or(f64::INFINITY);
         self.spectrum
-            .retain(|p| p.intensity >= max * filter_threshold);
+            .retain(|p| *p.intensity >= max * filter_threshold);
         self.spectrum.shrink_to_fit();
     }
 
@@ -381,7 +382,7 @@ impl AnnotatedSpectrum {
     /// Get the spectrum scores for this annotated spectrum
     pub fn scores(&self, fragments: &[Fragment]) -> Vec<Scores> {
         let mut results = Vec::new();
-        let total_intensity: f64 = self.spectrum.iter().map(|p| p.intensity).sum();
+        let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
         for (peptide_index, peptide) in self.peptide.peptides().iter().enumerate() {
             let (num_annotated, intensity_annotated) = self
                 .spectrum
@@ -392,7 +393,7 @@ impl AnnotatedSpectrum {
                         .any(|a| a.peptide_index == peptide_index)
                 })
                 .fold((0, 0.0), |(n, intensity), p| {
-                    (n + 1, intensity + p.intensity)
+                    (n + 1, intensity + *p.intensity)
                 });
             let total_fragments = fragments
                 .iter()
@@ -538,7 +539,7 @@ pub struct RawPeak {
     /// The mz value of this peak
     pub mz: MassOverCharge,
     /// The intensity of this peak
-    pub intensity: f64,
+    pub intensity: OrderedFloat<f64>,
     /// The charge of this peak
     pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
 }
@@ -580,7 +581,7 @@ pub struct AnnotatedPeak {
     /// The experimental mz
     pub experimental_mz: MassOverCharge,
     /// The experimental intensity
-    pub intensity: f64,
+    pub intensity: OrderedFloat<f64>,
     /// The charge
     pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
     /// The annotation, if present

@@ -5,6 +5,7 @@ use std::{
     path::Path,
 };
 
+use ordered_float::OrderedFloat;
 use regex::Regex;
 use uom::num_traits::Zero;
 
@@ -109,7 +110,7 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String>
                 };
                 let mut peak = RawPeak {
                     mz: MassOverCharge::zero(),
-                    intensity: 0.0,
+                    intensity: OrderedFloat(0.0),
                     charge: Charge::new::<e>(1.0),
                 };
                 if split.len() < 2 {

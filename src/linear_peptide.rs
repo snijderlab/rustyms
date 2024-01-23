@@ -580,7 +580,7 @@ impl LinearPeptide {
                         .possible_modifications
                         .last_mut()
                         .unwrap()
-                        .localisation_score = Some(individual_score);
+                        .localisation_score = Some(individual_score.into());
                 }
             }
             self.ambiguous_modifications[id].extend(positions);

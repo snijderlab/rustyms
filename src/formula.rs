@@ -17,7 +17,7 @@ impl MolecularFormula {
     /// The mass of the molecular formula of this element, if all element species (isotopes) exists
     #[allow(clippy::missing_panics_doc)]
     pub fn monoisotopic_mass(&self) -> Mass {
-        let mut mass = da(self.additional_mass);
+        let mut mass = da(*self.additional_mass);
         for (e, i, n) in &self.elements {
             mass += e
                 .mass(*i)
@@ -30,7 +30,7 @@ impl MolecularFormula {
     /// The average weight of the molecular formula of this element, if all element species (isotopes) exists
     #[allow(clippy::missing_panics_doc)]
     pub fn average_weight(&self) -> Mass {
-        let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
+        let mut mass = da(*self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
             mass += e
                 .average_weight(*i)
@@ -43,7 +43,7 @@ impl MolecularFormula {
     /// The most abundant mass, meaning the isotope that will have the highest intensity
     #[allow(clippy::missing_panics_doc)]
     pub fn most_abundant_mass(&self) -> Mass {
-        let mut mass = da(self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
+        let mut mass = da(*self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
             mass += e
                 .most_abundant_mass(*n, *i)

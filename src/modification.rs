@@ -1,5 +1,6 @@
 //! Handle modification related issues, access provided if you want to dive deeply into modifications in your own code.
 
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use std::{cmp::Ordering, fmt::Display, ops::Range};
@@ -174,13 +175,16 @@ fn parse_single_modification(
             groups.get(3).map(|m| (m.as_str(), m.start(), m.len())),
             groups.get(4).map(|m| (m.as_str(), m.start(), m.len())),
             groups.get(5).map(|m| {
-                m.as_str().parse::<f64>().map_err(|_| {
-                    CustomError::error(
+                m.as_str()
+                    .parse::<f64>()
+                    .map(|v| OrderedFloat::from(v))
+                    .map_err(|_| {
+                        CustomError::error(
                         "Invalid modification localisation score",
                         "The ambiguous modification localisation score needs to be a valid number",
                         Context::line(0, line, offset + m.start(), m.len()),
                     )
-                })
+                    })
             }),
         );
         // Handle localisation score errors (could not do this inside the above closure)
@@ -324,14 +328,14 @@ fn parse_single_modification(
 include!("shared/ontology.rs");
 
 /// A modification as returned by the parser
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum ReturnModification {
     /// A fully self contained modification
     Defined(Modification),
     /// A modification that references an ambiguous modification
-    Referenced(usize, Option<f64>),
+    Referenced(usize, Option<OrderedFloat<f64>>),
     /// A modification that references an ambiguous modification and is preferred on this location
-    Preferred(usize, Option<f64>),
+    Preferred(usize, Option<OrderedFloat<f64>>),
 }
 
 impl ReturnModification {
@@ -346,57 +350,16 @@ impl ReturnModification {
 }
 
 /// An ambiguous modification which could be placed on any of a set of locations
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct AmbiguousModification {
     /// The id to compare be able to find the other locations where this modifications can be placed
     pub id: usize,
     /// The modification itself
     pub modification: Modification,
     /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
-    pub localisation_score: Option<f64>,
+    pub localisation_score: Option<OrderedFloat<f64>>,
     /// If this is a named group contain the name and track if this is the preferred location or not
     pub group: Option<(String, bool)>,
-}
-
-impl Ord for AmbiguousModification {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let base = self
-            .id
-            .cmp(&other.id)
-            .then(self.modification.cmp(&other.modification));
-        let ls = match (self.localisation_score, &other.localisation_score) {
-            (None, None) => Ordering::Equal,
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            (Some(s), Some(o)) => s.total_cmp(o),
-        };
-        base.then(ls).then(self.group.cmp(&other.group))
-    }
-}
-
-impl PartialOrd for AmbiguousModification {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for AmbiguousModification {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other).is_eq()
-    }
-}
-
-impl Eq for AmbiguousModification {}
-
-impl std::hash::Hash for AmbiguousModification {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-        self.modification.hash(state);
-        if let Some(v) = self.localisation_score {
-            f64_bits(v).hash(state);
-        }
-        self.group.hash(state);
-    }
 }
 
 /// Intermediate representation of a global modification
