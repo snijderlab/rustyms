@@ -1,4 +1,4 @@
-use std::ops::{Add, Deref, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, AddAssign, Deref, Mul, MulAssign, Neg, Sub};
 
 use itertools::{Itertools, MinMaxResult};
 use serde::{Deserialize, Serialize};
@@ -284,6 +284,26 @@ impl<M> From<Vec<M>> for Multi<M> {
 impl<M: Clone> From<&[M]> for Multi<M> {
     fn from(value: &[M]) -> Self {
         Self(value.to_vec())
+    }
+}
+
+impl<'a, M> From<&'a [Self]> for Multi<M>
+where
+    Self: Mul<&'a Self, Output = Self> + 'a,
+    M: Default + Clone + AddAssign<M>,
+{
+    /// Get all potential combination from a series of multi elements. If the series is empty it returns the default element.
+    fn from(value: &'a [Self]) -> Self {
+        value.iter().fold(Self::default(), |mut acc, a: &Self| {
+            if a.len() == 1 {
+                for ac in &mut acc.0 {
+                    *ac += a.0[0].clone();
+                }
+                acc
+            } else {
+                acc * a
+            }
+        })
     }
 }
 

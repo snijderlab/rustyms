@@ -3,7 +3,7 @@ use crate::{
     SequenceElement, Tolerance,
 };
 
-use super::{align_type::*, piece::*, scoring::*, Alignment};
+use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, Alignment};
 use crate::uom::num_traits::Zero;
 
 /// Create an alignment of two peptides based on mass and homology.
@@ -15,24 +15,24 @@ use crate::uom::num_traits::Zero;
 /// It also panics if `STEPS > 32`, it cannot store the local scores in an i8 otherwise.
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<const STEPS: usize>(
+pub fn align(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance,
     ty: Type,
+    max_steps: Option<usize>,
 ) -> Alignment {
     // Enforce some assumptions
     let seq_a = seq_a.assume_simple();
     let seq_b = seq_b.assume_simple();
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
-    assert!(STEPS <= 32);
 
     let mut matrix = Matrix::new(&seq_a, &seq_b);
-    let mut high = (0, 0, 0);
-    let masses_a = calculate_masses(STEPS, &seq_a);
-    let masses_b = calculate_masses(STEPS, &seq_b);
+    let mut global_highest = (0, 0, 0);
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_a);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b);
 
     if ty.left_a() {
         matrix.global_start(true);
@@ -47,19 +47,22 @@ pub fn align<const STEPS: usize>(
     // * quit searching as soon as a positive scoring option is found
     // * keep the highest scoring, instead of using a growing vec of values
 
-    let mut values = Vec::with_capacity(STEPS * STEPS + 2);
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
-            values.clear();
-            for len_a in 0..=STEPS {
-                for len_b in 0..=STEPS {
+            let mut highest = None;
+            let mut stop = false;
+            for len_a in 0..index_a.min(max_steps.unwrap_or(usize::MAX)) {
+                for len_b in 0..index_b.min(max_steps.unwrap_or(usize::MAX)) {
                     if len_a == 0 && len_b != 1
                         || len_a != 1 && len_b == 0
-                        || len_a > index_a
-                        || len_b > index_b
+                        || len_a == 0 && len_b == 0
                     {
                         continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                     }
+                    // if len_a == 0 && index_a == seq_a.len() || len_b == 0 && index_b == seq_b.len()
+                    // {
+                    //     continue;
+                    // }
                     let base_score = matrix[(index_a - len_a, index_b - len_b)].score;
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
@@ -80,8 +83,8 @@ pub fn align<const STEPS: usize>(
                         ))
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
-                            (&seq_a.sequence[index_a - 1], &masses_a[0][index_a]),
-                            (&seq_b.sequence[index_b - 1], &masses_b[0][index_b]),
+                            (&seq_a.sequence[index_a - 1], &masses_a[[index_a - 1, 0]]),
+                            (&seq_b.sequence[index_b - 1], &masses_b[[index_b - 1, 0]]),
                             scoring_matrix,
                             base_score,
                             tolerance,
@@ -90,34 +93,42 @@ pub fn align<const STEPS: usize>(
                         score(
                             (
                                 &seq_a.sequence[index_a - len_a..index_a],
-                                &masses_a[len_a - 1][index_a],
+                                &masses_a[[index_a - 1, len_a]],
                             ),
                             (
                                 &seq_b.sequence[index_b - len_b..index_b],
-                                &masses_b[len_b - 1][index_b],
+                                &masses_b[[index_b - 1, len_b]],
                             ),
                             base_score,
                             tolerance,
                         )
                     };
                     if let Some(p) = piece {
-                        values.push(p);
+                        if highest.is_none()
+                            || highest.as_ref().is_some_and(|h: &Piece| h.score < p.score)
+                        {
+                            highest = Some(p);
+                        }
+                    }
+                    if highest.as_ref().is_some_and(|h| h.local_score > 0) {
+                        stop = true;
+                        break;
                     }
                 }
+                if stop {
+                    break;
+                }
             }
-            let value = values
-                .iter()
-                .max_by(|x, y| x.score.cmp(&y.score))
-                .cloned()
-                .unwrap_or_default();
-            if value.score >= high.0 {
-                high = (value.score, index_a, index_b);
+            if let Some(highest) = highest {
+                if highest.score >= global_highest.0 {
+                    global_highest = (highest.score, index_a, index_b);
+                }
+                matrix[(index_a, index_b)] = highest;
             }
-            matrix[(index_a, index_b)] = value;
         }
     }
 
-    let (high_score, start_a, start_b, path) = matrix.trace_path(ty, high);
+    let (high_score, start_a, start_b, path) = matrix.trace_path(ty, global_highest);
 
     let max_score = (seq_a.sequence
         [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
@@ -140,7 +151,7 @@ pub fn align<const STEPS: usize>(
         seq_a,
         seq_b,
         ty,
-        maximal_step: STEPS,
+        maximal_step: max_steps.unwrap_or(usize::MAX),
     }
 }
 
@@ -168,13 +179,16 @@ fn score_pair(
                 1,
             )
         }
-        (false, true) => Piece::new(
-            score + ISOBARIC as isize,
-            ISOBARIC,
-            MatchType::Isobaric,
-            1,
-            1,
-        ),
+        (false, true) => {
+            // println!("isobaric: {:?} vs {:?}", a.1, b.1);
+            Piece::new(
+                score + ISOBARIC as isize,
+                ISOBARIC,
+                MatchType::Isobaric,
+                1,
+                1,
+            )
+        }
         (false, false) => Piece::new(
             score + MISMATCH as isize,
             MISMATCH,
@@ -204,8 +218,10 @@ fn score(
             });
         #[allow(clippy::cast_possible_wrap)]
         let local = if rotated {
+            // println!("rotated: {:?} vs {:?}", a.1, b.1);
             BASE_SPECIAL + ROTATED * a.0.len() as i8
         } else {
+            // println!("isobaric: {:?} vs {:?}", a.1, b.1);
             BASE_SPECIAL + ISOBARIC * (a.0.len() + b.0.len()) as i8 / 2
         };
         Some(Piece::new(
@@ -224,28 +240,21 @@ fn score(
     }
 }
 
-/// Get the masses of all subsets of up to the given number of steps as a lookup table.
-/// The result should be is index by [steps-1][index]
-fn calculate_masses(steps: usize, sequence: &LinearPeptide) -> Vec<Vec<Multi<Mass>>> {
-    (1..=steps)
-        .map(|size| {
-            (0..=sequence.len())
-                .map(|index| {
-                    if index < size {
-                        Mass::zero().into()
-                    } else {
-                        sequence.sequence[index - size..index]
-                            .iter()
-                            .map(SequenceElement::formulas_all)
-                            .sum::<Multi<MolecularFormula>>()
-                            .iter()
-                            .map(MolecularFormula::monoisotopic_mass)
-                            .collect()
-                    }
-                })
-                .collect::<Vec<Multi<Mass>>>()
-        })
-        .collect::<Vec<_>>()
+/// Get the masses of all sequence elements
+fn calculate_masses(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
+    let mut array = DiagonalArray::new(sequence.len());
+    for i in 0..sequence.len() {
+        for j in 0..=i {
+            array[[i, j]] = sequence.sequence[i - j..i]
+                .iter()
+                .map(SequenceElement::formulas_all)
+                .sum::<Multi<MolecularFormula>>()
+                .iter()
+                .map(MolecularFormula::monoisotopic_mass)
+                .collect();
+        }
+    }
+    array
 }
 
 struct Matrix {
@@ -387,12 +396,13 @@ mod tests {
             .unwrap()
             .singular()
             .unwrap();
-        let alignment = align::<4>(
+        let alignment = align(
             a,
             b,
             BLOSUM62,
             crate::Tolerance::new_ppm(10.0),
             Type::GLOBAL_B,
+            None,
         );
         dbg!(alignment);
     }
