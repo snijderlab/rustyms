@@ -9,7 +9,6 @@ use super::align_type::*;
 use super::piece::*;
 use crate::align::scoring::*;
 use crate::system::Mass;
-use crate::system::OrderedMass;
 use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;

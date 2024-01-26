@@ -1,10 +1,9 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use crate::{helper_functions::f64_bits, Element};
+use crate::Element;
 use std::{
-    cmp::Ordering,
-    hash::{Hash, Hasher},
+    hash::Hash,
     ops::{Add, AddAssign, Mul, Neg, Sub},
 };
 

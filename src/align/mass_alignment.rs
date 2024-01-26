@@ -4,7 +4,6 @@ use crate::{
 };
 
 use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, Alignment};
-use crate::uom::num_traits::Zero;
 
 /// Create an alignment of two peptides based on mass and homology.
 /// The substitution matrix is in the exact same order as the definition of [`AminoAcid`].
@@ -33,6 +32,7 @@ pub fn align(
     let mut global_highest = (0, 0, 0);
     let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_a);
     let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b);
+    let zero: Multi<Mass> = Multi::default();
 
     if ty.left_a() {
         matrix.global_start(true);
@@ -53,9 +53,8 @@ pub fn align(
             let mut stop = false;
             for len_a in 0..index_a.min(max_steps.unwrap_or(usize::MAX)) {
                 for len_b in 0..index_b.min(max_steps.unwrap_or(usize::MAX)) {
-                    if len_a == 0 && len_b != 1
-                        || len_a != 1 && len_b == 0
-                        || len_a == 0 && len_b == 0
+                    if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0
+                    // || len_a == 0 && len_b == 0
                     {
                         continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                     }
@@ -92,12 +91,20 @@ pub fn align(
                     } else {
                         score(
                             (
-                                &seq_a.sequence[index_a - len_a..index_a],
-                                &masses_a[[index_a - 1, len_a]],
+                                &seq_a.sequence[index_a - len_a - 1..index_a - 1],
+                                if len_a == 0 {
+                                    &zero
+                                } else {
+                                    &masses_a[[index_a - 1, len_a - 1]]
+                                },
                             ),
                             (
-                                &seq_b.sequence[index_b - len_b..index_b],
-                                &masses_b[[index_b - 1, len_b]],
+                                &seq_b.sequence[index_b - len_b - 1..index_b - 1],
+                                if len_b == 0 {
+                                    &zero
+                                } else {
+                                    &masses_b[[index_b - 1, len_b - 1]]
+                                },
                             ),
                             base_score,
                             tolerance,
@@ -124,6 +131,14 @@ pub fn align(
                     global_highest = (highest.score, index_a, index_b);
                 }
                 matrix[(index_a, index_b)] = highest;
+            } else if ty.global() {
+                matrix[(index_a, index_b)] = score_pair(
+                    (&seq_a.sequence[index_a - 1], &masses_a[[index_a - 1, 0]]),
+                    (&seq_b.sequence[index_b - 1], &masses_b[[index_b - 1, 0]]),
+                    scoring_matrix,
+                    matrix[(index_a - 1, index_b - 1)].score,
+                    tolerance,
+                );
             }
         }
     }
@@ -245,7 +260,7 @@ fn calculate_masses(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len());
     for i in 0..sequence.len() {
         for j in 0..=i {
-            array[[i, j]] = sequence.sequence[i - j..i]
+            array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
                 .map(SequenceElement::formulas_all)
                 .sum::<Multi<MolecularFormula>>()
