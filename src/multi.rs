@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Deref, Mul, MulAssign, Neg, Sub};
+use std::{
+    ops::{Add, AddAssign, Deref, Mul, MulAssign, Neg, Sub},
+    rc::Rc,
+};
 
 use itertools::{Itertools, MinMaxResult};
 use serde::{Deserialize, Serialize};
@@ -8,14 +11,7 @@ use crate::system::OrderedMass;
 /// A collection of potentially multiple of the generic type, it is used be able to easily
 /// combine multiple of this multi struct into all possible combinations.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct Multi<M>(Vec<M>);
-
-impl<M> Multi<M> {
-    /// Get the underlying vector
-    pub fn into_inner(self) -> Vec<M> {
-        self.0
-    }
-}
+pub struct Multi<M>(Rc<[M]>);
 
 impl<M: Eq + std::hash::Hash + Clone> Multi<M> {
     /// Get all unique values
@@ -37,7 +33,7 @@ where
 }
 
 impl<M> Deref for Multi<M> {
-    type Target = Vec<M>;
+    type Target = [M];
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -46,7 +42,7 @@ impl<M> Deref for Multi<M> {
 impl<M: Default> Default for Multi<M> {
     // Default is one empty M to make the cartesian product with a default return useful results
     fn default() -> Self {
-        Self(vec![M::default()])
+        Self(Rc::new([M::default()]))
     }
 }
 
@@ -62,11 +58,11 @@ where
 
 impl<M> Neg for Multi<M>
 where
-    M: Neg<Output = M>,
+    M: Neg<Output = M> + Clone,
 {
     type Output = Self;
     fn neg(self) -> Self::Output {
-        self.0.into_iter().map(|f| -f).collect()
+        self.0.iter().cloned().map(|f| -f).collect()
     }
 }
 
@@ -83,12 +79,12 @@ where
 
 impl<'a, M> Add<&'a M> for Multi<M>
 where
-    M: Add<M, Output = M> + Clone,
+    M: Add<&'a M, Output = M> + Clone,
 {
     type Output = Self;
     /// Adds this formula to all formulas in the multi formula
-    fn add(self, rhs: &M) -> Self::Output {
-        self.0.into_iter().map(|m| m + rhs.clone()).collect()
+    fn add(self, rhs: &'a M) -> Self::Output {
+        self.0.iter().cloned().map(|m| m + rhs).collect()
     }
 }
 
@@ -103,14 +99,14 @@ where
     }
 }
 
-impl<M> Add<M> for Multi<M>
+impl<'a, M> Add<M> for Multi<M>
 where
-    M: Add<M, Output = M> + Clone,
+    M: Add<M, Output = M> + Clone + 'a,
 {
     type Output = Self;
     /// Adds this formula to all formulas in the multi formula
     fn add(self, rhs: M) -> Self::Output {
-        self.0.into_iter().map(|m| m + rhs.clone()).collect()
+        self.0.iter().cloned().map(|m| m + rhs.clone()).collect()
     }
 }
 
@@ -128,16 +124,16 @@ where
 
 impl<'a, M> Sub<&'a M> for Multi<M>
 where
-    M: Sub<M, Output = M> + Clone,
+    M: Sub<&'a M, Output = M> + Clone + 'a,
 {
     type Output = Self;
     /// Subtracts this formula from all formulas in the multi formula
-    fn sub(self, rhs: &M) -> Self::Output {
-        self.0.into_iter().map(|m| m - rhs.clone()).collect()
+    fn sub(self, rhs: &'a M) -> Self::Output {
+        self.0.iter().cloned().map(|m| m - rhs).collect()
     }
 }
 
-impl<'a, M> Sub<M> for Multi<&'a M>
+impl<'a, M> Sub<M> for &'a Multi<M>
 where
     &'a M: Sub<M, Output = M> + 'a,
     M: Clone,
@@ -145,18 +141,18 @@ where
     type Output = Multi<M>;
     /// Subtracts this formula from all formulas in the multi formula
     fn sub(self, rhs: M) -> Self::Output {
-        self.0.into_iter().map(|m| m - rhs.clone()).collect()
+        self.0.iter().map(|m| m - rhs.clone()).collect()
     }
 }
 
-impl<M> Sub<M> for Multi<M>
+impl<'a, M> Sub<M> for Multi<M>
 where
-    M: Sub<M, Output = M> + Clone,
+    M: Sub<M, Output = M> + Clone + 'a,
 {
     type Output = Self;
     /// Subtracts this formula from all formulas in the multi formula
     fn sub(self, rhs: M) -> Self::Output {
-        self.0.into_iter().map(|m| m - rhs.clone()).collect()
+        self.0.iter().cloned().map(|m| m - rhs.clone()).collect()
     }
 }
 
@@ -185,7 +181,8 @@ where
     /// Cartesian product between the two multi formulas
     fn mul(self, rhs: &Self) -> Self::Output {
         self.0
-            .into_iter()
+            .iter()
+            .cloned()
             .cartesian_product(rhs.0.iter())
             .map(|(a, b)| b.clone() + a)
             .collect()
@@ -215,7 +212,8 @@ where
     /// Cartesian product between the two multi formulas
     fn mul(self, rhs: Self) -> Self::Output {
         self.0
-            .into_iter()
+            .iter()
+            .cloned()
             .cartesian_product(rhs.0.iter())
             .map(|(a, b)| b.clone() + a)
             .collect()
@@ -265,41 +263,38 @@ where
 
 impl<M> From<M> for Multi<M> {
     fn from(value: M) -> Self {
-        Self(vec![value])
+        Self(Rc::new([value]))
     }
 }
 
 impl<M: Clone> From<&M> for Multi<M> {
     fn from(value: &M) -> Self {
-        Self(vec![value.clone()])
+        Self(Rc::new([value.clone()]))
     }
 }
 
 impl<M> From<Vec<M>> for Multi<M> {
     fn from(value: Vec<M>) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 
 impl<M: Clone> From<&[M]> for Multi<M> {
     fn from(value: &[M]) -> Self {
-        Self(value.to_vec())
+        Self(value.into())
     }
 }
 
 impl<'a, M> From<&'a [Self]> for Multi<M>
 where
     Self: Mul<&'a Self, Output = Self> + 'a,
-    M: Default + Clone + AddAssign<M>,
+    M: Default + Clone + Add<M, Output = M>,
 {
     /// Get all potential combination from a series of multi elements. If the series is empty it returns the default element.
     fn from(value: &'a [Self]) -> Self {
-        value.iter().fold(Self::default(), |mut acc, a: &Self| {
+        value.iter().fold(Self::default(), |acc, a: &Self| {
             if a.len() == 1 {
-                for ac in &mut acc.0 {
-                    *ac += a.0[0].clone();
-                }
-                acc
+                acc.iter().cloned().map(|ac| ac + a.0[0].clone()).collect()
             } else {
                 acc * a
             }
@@ -309,12 +304,12 @@ where
 
 impl<M> std::iter::FromIterator<M> for Multi<M> {
     fn from_iter<T: IntoIterator<Item = M>>(iter: T) -> Self {
-        Self(iter.into_iter().collect_vec())
+        Self(iter.into_iter().collect())
     }
 }
 
 impl<'a, M: Clone + 'a> std::iter::FromIterator<&'a M> for Multi<M> {
     fn from_iter<T: IntoIterator<Item = &'a M>>(iter: T) -> Self {
-        Self(iter.into_iter().cloned().collect_vec())
+        Self(iter.into_iter().cloned().collect())
     }
 }

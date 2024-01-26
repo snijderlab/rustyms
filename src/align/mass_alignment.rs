@@ -62,11 +62,11 @@ pub fn align(
                     // {
                     //     continue;
                     // }
-                    let base_score = matrix[(index_a - len_a, index_b - len_b)].score;
+                    let prev = unsafe { matrix.get_unchecked([index_a - len_a, index_b - len_b]) };
+                    let base_score = prev.score;
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
                         // First check the score to be used for affine gaps
-                        let prev = &matrix[(index_a - len_a, index_b - len_b)];
                         let score =
                             if prev.step_a == 0 && len_a == 0 || prev.step_b == 0 && len_b == 0 {
                                 GAP_EXTEND_PENALTY
@@ -82,8 +82,12 @@ pub fn align(
                         ))
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
-                            (&seq_a.sequence[index_a - 1], &masses_a[[index_a - 1, 0]]),
-                            (&seq_b.sequence[index_b - 1], &masses_b[[index_b - 1, 0]]),
+                            (&seq_a.sequence[index_a - 1], unsafe {
+                                &masses_a.get_unchecked([index_a - 1, 0])
+                            }),
+                            (&seq_b.sequence[index_b - 1], unsafe {
+                                &masses_b.get_unchecked([index_b - 1, 0])
+                            }),
                             scoring_matrix,
                             base_score,
                             tolerance,
@@ -95,7 +99,7 @@ pub fn align(
                                 if len_a == 0 {
                                     &zero
                                 } else {
-                                    &masses_a[[index_a - 1, len_a - 1]]
+                                    unsafe { &masses_a.get_unchecked([index_a - 1, len_a - 1]) }
                                 },
                             ),
                             (
@@ -103,7 +107,7 @@ pub fn align(
                                 if len_b == 0 {
                                     &zero
                                 } else {
-                                    &masses_b[[index_b - 1, len_b - 1]]
+                                    unsafe { &masses_b.get_unchecked([index_b - 1, len_b - 1]) }
                                 },
                             ),
                             base_score,
@@ -130,15 +134,25 @@ pub fn align(
                 if highest.score >= global_highest.0 {
                     global_highest = (highest.score, index_a, index_b);
                 }
-                matrix[(index_a, index_b)] = highest;
+                unsafe {
+                    *matrix.get_unchecked_mut([index_a, index_b]) = highest;
+                }
             } else if ty.global() {
-                matrix[(index_a, index_b)] = score_pair(
-                    (&seq_a.sequence[index_a - 1], &masses_a[[index_a - 1, 0]]),
-                    (&seq_b.sequence[index_b - 1], &masses_b[[index_b - 1, 0]]),
-                    scoring_matrix,
-                    matrix[(index_a - 1, index_b - 1)].score,
-                    tolerance,
-                );
+                unsafe {
+                    *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
+                        (
+                            &seq_a.sequence[index_a - 1],
+                            &masses_a.get_unchecked([index_a - 1, 0]),
+                        ),
+                        (
+                            &seq_b.sequence[index_b - 1],
+                            &masses_b.get_unchecked([index_b - 1, 0]),
+                        ),
+                        scoring_matrix,
+                        matrix[[index_a - 1, index_b - 1]].score,
+                        tolerance,
+                    );
+                }
             }
         }
     }
@@ -349,21 +363,31 @@ impl Matrix {
             high
         }
     }
-}
 
-impl std::ops::Index<(usize, usize)> for Matrix {
-    type Output = Piece;
-    fn index(&self, index: (usize, usize)) -> &Self::Output {
-        assert!(index.0 <= self.a + 1);
-        assert!(index.1 <= self.b + 1);
-        &self.value[index.0][index.1]
+    pub unsafe fn get_unchecked(&self, index: [usize; 2]) -> &Piece {
+        self.value.get_unchecked(index[0]).get_unchecked(index[1])
+    }
+
+    pub unsafe fn get_unchecked_mut(&mut self, index: [usize; 2]) -> &mut Piece {
+        self.value
+            .get_unchecked_mut(index[0])
+            .get_unchecked_mut(index[1])
     }
 }
-impl std::ops::IndexMut<(usize, usize)> for Matrix {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        assert!(index.0 <= self.a + 1);
-        assert!(index.1 <= self.b + 1);
-        &mut self.value[index.0][index.1]
+
+impl std::ops::Index<[usize; 2]> for Matrix {
+    type Output = Piece;
+    fn index(&self, index: [usize; 2]) -> &Self::Output {
+        assert!(index[0] <= self.a + 1);
+        assert!(index[1] <= self.b + 1);
+        &self.value[index[0]][index[1]]
+    }
+}
+impl std::ops::IndexMut<[usize; 2]> for Matrix {
+    fn index_mut(&mut self, index: [usize; 2]) -> &mut Self::Output {
+        assert!(index[0] <= self.a + 1);
+        assert!(index[1] <= self.b + 1);
+        &mut self.value[index[0]][index[1]]
     }
 }
 

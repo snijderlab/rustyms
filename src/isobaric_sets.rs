@@ -105,12 +105,11 @@ pub fn building_blocks(
             })
             .flat_map(|(a, m)| {
                 let mc = m.clone();
-                let masses = a
-                    .formulas_all()
-                    .into_inner()
-                    .into_iter()
-                    .map(move |f| f.monoisotopic_mass() + m.formula().monoisotopic_mass());
-                masses.map(move |mass| (a.clone(), mc.clone(), mass))
+                a.formulas_all()
+                    .iter()
+                    .map(|f| f.monoisotopic_mass() + m.formula().monoisotopic_mass())
+                    .map(|mass| (a.clone(), mc.clone(), mass))
+                    .collect_vec()
             })
             .collect_vec();
         options.sort_unstable_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
@@ -170,9 +169,10 @@ pub fn building_blocks(
             })
             .flat_map(|s| {
                 s.formulas_all()
-                    .into_inner()
-                    .into_iter()
-                    .map(move |f| (s.clone(), f.monoisotopic_mass()))
+                    .iter()
+                    .cloned()
+                    .map(|f| (s.clone(), f.monoisotopic_mass()))
+                    .collect_vec()
             })
             .collect();
         options.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());

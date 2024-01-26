@@ -9,6 +9,16 @@ impl<T> DiagonalArray<T> {
     const fn length(n: usize) -> usize {
         (n + 1) * n / 2
     }
+
+    pub unsafe fn get_unchecked(&self, index: [usize; 2]) -> &T {
+        let index = Self::length(index[0]) + index[1];
+        self.data.get_unchecked(index)
+    }
+
+    pub unsafe fn get_unchecked_mut(&mut self, index: [usize; 2]) -> &mut T {
+        let index = Self::length(index[0]) + index[1];
+        self.data.get_unchecked_mut(index)
+    }
 }
 
 impl<T: Default + Clone> DiagonalArray<T> {
