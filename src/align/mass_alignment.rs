@@ -30,8 +30,10 @@ pub fn align(
 
     let mut matrix = Matrix::new(&seq_a, &seq_b);
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_a);
-    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b);
+    let masses_a: DiagonalArray<Multi<Mass>> =
+        calculate_masses(&seq_a, max_steps.unwrap_or(usize::MAX));
+    let masses_b: DiagonalArray<Multi<Mass>> =
+        calculate_masses(&seq_b, max_steps.unwrap_or(usize::MAX));
     let zero: Multi<Mass> = Multi::default();
 
     if ty.left_a() {
@@ -270,8 +272,8 @@ fn score(
 }
 
 /// Get the masses of all sequence elements
-fn calculate_masses(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
-    let mut array = DiagonalArray::new(sequence.len());
+fn calculate_masses(sequence: &LinearPeptide, max_depth: usize) -> DiagonalArray<Multi<Mass>> {
+    let mut array = DiagonalArray::new(sequence.len(), max_depth);
     for i in 0..sequence.len() {
         for j in 0..=i {
             array[[i, j]] = sequence.sequence[i - j..=i]
