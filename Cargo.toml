@@ -30,3 +30,10 @@ regex = "1.8"
 serde = { version = "1.0", features = ["derive", "rc"] }
 uom = { version = "0.35", features = ["use_serde", "usize"] }
 ordered-float = { version = "4.2", features = ["serde"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "alignment"
+harness = false

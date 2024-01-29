@@ -10,7 +10,7 @@ pub struct DiagonalArray<T> {
 impl<T> DiagonalArray<T> {
     /// Calculate the index of a given point (along the first axis; n) into the array with the given `max_depth` (m)
     const fn length(n: usize, m: usize) -> usize {
-        let mi = if n <= m { n } else { m }; // min
+        let mi = if n >= m { m } else { n };
         (mi + 1) * mi / 2 + n.saturating_sub(m) * m
     }
 
@@ -45,12 +45,12 @@ impl<T> DiagonalArray<T> {
 }
 
 impl<T: Default + Clone> DiagonalArray<T> {
-    /// Create a new diagonal array of the correct size, with all values initialised to the default value of the type
+    /// Create a new diagonal array of the correct size, with all values initialised to the default value of the type, with up to and including the depth given in `max_depth`
     pub fn new(len: usize, max_depth: usize) -> Self {
         Self {
             len,
             max_depth,
-            data: vec![T::default(); Self::length(len, max_depth)].into(),
+            data: vec![T::default(); Self::length(len, max_depth.saturating_add(1))].into(),
         }
     }
 }

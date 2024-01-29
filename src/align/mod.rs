@@ -42,3 +42,49 @@ pub use mass_alignment::align;
 pub use piece::Piece;
 pub use scoring::matrices::*;
 pub use scoring::MatchType;
+
+#[cfg(test)]
+mod tests {
+    use crate::{ComplexPeptide, LinearPeptide};
+
+    use super::{Alignment, Type};
+
+    fn align(a: LinearPeptide, b: LinearPeptide, max_depth: Option<usize>) -> Alignment {
+        crate::align::align(
+            a,
+            b,
+            crate::align::BLOSUM62,
+            crate::Tolerance::new_ppm(10.0),
+            Type::GLOBAL,
+            max_depth,
+        )
+    }
+
+    fn linear(aa: &str) -> LinearPeptide {
+        ComplexPeptide::pro_forma(aa).unwrap().singular().unwrap()
+    }
+
+    #[test]
+    fn simple_1() {
+        let a = linear("ANGARS");
+        let b = linear("AGGQRS");
+        let c = dbg!(align(a, b, Some(1)));
+        assert_eq!(c.short(), "1=1X1=1X2=");
+    }
+
+    #[test]
+    fn simple_4() {
+        let a = linear("ANGARS");
+        let b = linear("AGGQRS");
+        let c = dbg!(align(a, b, Some(4)));
+        assert_eq!(c.short(), "1=1:2i2:1i2=");
+    }
+
+    #[test]
+    fn simple_unbounded() {
+        let a = linear("ANGARS");
+        let b = linear("AGGQRS");
+        let c = dbg!(align(a, b, None));
+        assert_eq!(c.short(), "1=1:2i2:1i2=");
+    }
+}

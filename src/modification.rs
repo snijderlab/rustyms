@@ -3,7 +3,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{cmp::Ordering, fmt::Display, ops::Range};
+use std::{fmt::Display, ops::Range};
 
 use regex::Regex;
 
@@ -177,7 +177,7 @@ fn parse_single_modification(
             groups.get(5).map(|m| {
                 m.as_str()
                     .parse::<f64>()
-                    .map(|v| OrderedFloat::from(v))
+                    .map(OrderedFloat::from)
                     .map_err(|_| {
                         CustomError::error(
                         "Invalid modification localisation score",

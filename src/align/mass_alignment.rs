@@ -27,13 +27,12 @@ pub fn align(
     let seq_b = seq_b.assume_simple();
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
+    let max_depth = max_steps.unwrap_or(usize::MAX);
 
     let mut matrix = Matrix::new(&seq_a, &seq_b);
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> =
-        calculate_masses(&seq_a, max_steps.unwrap_or(usize::MAX));
-    let masses_b: DiagonalArray<Multi<Mass>> =
-        calculate_masses(&seq_b, max_steps.unwrap_or(usize::MAX));
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_a, max_depth);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b, max_depth);
     let zero: Multi<Mass> = Multi::default();
 
     if ty.left_a() {
@@ -43,18 +42,12 @@ pub fn align(
         matrix.global_start(false);
     }
 
-    // Notes for dynamic alignment:
-    // * do the 0..=STEPS loops for 0..=len_left
-    // * Use memoisation on masses, to be able to grow when needed
-    // * quit searching as soon as a positive scoring option is found
-    // * keep the highest scoring, instead of using a growing vec of values
-
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
             let mut highest = None;
             let mut stop = false;
-            for len_a in 0..index_a.min(max_steps.unwrap_or(usize::MAX)) {
-                for len_b in 0..index_b.min(max_steps.unwrap_or(usize::MAX)) {
+            for len_a in 0..index_a.min(max_depth) {
+                for len_b in 0..index_b.min(max_depth) {
                     if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0
                     // || len_a == 0 && len_b == 0
                     {
@@ -182,7 +175,7 @@ pub fn align(
         seq_a,
         seq_b,
         ty,
-        maximal_step: max_steps.unwrap_or(usize::MAX),
+        maximal_step: max_depth,
     }
 }
 
@@ -274,8 +267,10 @@ fn score(
 /// Get the masses of all sequence elements
 fn calculate_masses(sequence: &LinearPeptide, max_depth: usize) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), max_depth);
+    // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
-        for j in 0..=i {
+        // dbg!(i, 0..=i.min(max_depth));
+        for j in 0..=i.min(max_depth) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
                 .map(SequenceElement::formulas_all)
@@ -395,10 +390,9 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 
 #[cfg(test)]
 mod tests {
-    use super::{align, score, Type};
-    use crate::align::BLOSUM62;
+    use super::score;
     use crate::aminoacids::AminoAcid;
-    use crate::{ComplexPeptide, MolecularFormula, Multi, SequenceElement};
+    use crate::{MolecularFormula, Multi, SequenceElement};
 
     #[test]
     fn pair() {
@@ -428,23 +422,5 @@ mod tests {
             crate::Tolerance::new_ppm(10.0)
         ));
         assert!(pair.is_some());
-    }
-
-    #[test]
-    fn example_alignment() {
-        let a = ComplexPeptide::pro_forma("QVQLVQSGAEVKKPGASVKVSCKASGYTFTSYDINWVRQATGQGLEWMGWMNPNSGNTGYAQKFQGRVTMTRNTSISTAYMELSSLRSEDTAVYYCAR").unwrap().singular().unwrap();
-        let b = ComplexPeptide::pro_forma("SGTKLVESGGGLVQPGGSLLRS")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let alignment = align(
-            a,
-            b,
-            BLOSUM62,
-            crate::Tolerance::new_ppm(10.0),
-            Type::GLOBAL_B,
-            None,
-        );
-        dbg!(alignment);
     }
 }
