@@ -1,5 +1,9 @@
+use std::time::Duration;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use rustyms::align::*;
+use rustyms::system::dalton;
+use rustyms::system::Mass;
 use rustyms::*;
 
 pub fn simple_1(c: &mut Criterion) {
@@ -17,7 +21,7 @@ pub fn simple_1(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(1),
             )
@@ -40,7 +44,7 @@ pub fn simple_4(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -63,7 +67,7 @@ pub fn simple_unbounded(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 None,
             )
@@ -86,7 +90,7 @@ pub fn igha_1(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(1),
             )
@@ -109,7 +113,7 @@ pub fn igha_4(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -132,7 +136,7 @@ pub fn igha_8(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(8),
             )
@@ -155,7 +159,7 @@ pub fn igha_32(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(32),
             )
@@ -178,7 +182,7 @@ pub fn igha_unbounded(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 None,
             )
@@ -201,7 +205,7 @@ pub fn simple_not_ambiguous(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -224,7 +228,7 @@ pub fn simple_ambiguous_a(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -247,7 +251,7 @@ pub fn simple_ambiguous_b(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -270,7 +274,7 @@ pub fn simple_ambiguous_ab(c: &mut Criterion) {
                 a.clone(),
                 b.clone(),
                 align::BLOSUM62,
-                Tolerance::new_ppm(10.0),
+                Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
                 Type::GLOBAL,
                 Some(4),
             )
@@ -279,8 +283,12 @@ pub fn simple_ambiguous_ab(c: &mut Criterion) {
 }
 
 criterion_group!(
-    alignments,
-    simple_1,
+    name = alignments;
+    config = Criterion::default()
+        .significance_level(0.1)
+        .sample_size(200)
+        .measurement_time(Duration::from_secs(20));
+    targets = simple_1,
     simple_4,
     simple_unbounded,
     igha_1,

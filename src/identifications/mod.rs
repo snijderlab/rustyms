@@ -2,8 +2,9 @@
 
 #[macro_use]
 mod common_parser;
+/// The internal csv parsing methods.
 #[path = "../shared/csv.rs"]
-mod csv;
+pub mod csv;
 mod fasta;
 mod identified_peptide;
 mod maxquant;

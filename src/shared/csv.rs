@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{error::CustomError, helper_functions::check_extension};
 
+/// A single line in a CSV file
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct CsvLine {
     line_index: usize,
@@ -24,6 +25,9 @@ impl CsvLine {
     }
     pub fn line(&self) -> &str {
         &self.line
+    }
+    pub fn headers(&self) -> impl Iterator<Item = &str> {
+        self.fields.iter().map(|f| f.0.as_str())
     }
     pub fn number_of_columns(&self) -> usize {
         self.fields.len()
