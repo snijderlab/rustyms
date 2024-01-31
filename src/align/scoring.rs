@@ -25,7 +25,8 @@ pub const MASS_MISMATCH_PENALTY: i8 = -1;
 pub const BASE_SPECIAL: i8 = 1;
 pub const ROTATED: i8 = 3;
 pub const ISOBARIC: i8 = 2;
-pub const GAP_START_PENALTY: i8 = -5;
+/// The final value for the gap start penalty is gap start + gap extend
+pub const GAP_START_PENALTY: i8 = -4;
 pub const GAP_EXTEND_PENALTY: i8 = -1;
 
 /// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>

@@ -11,7 +11,6 @@ use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, 
 /// The [`Type`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
-/// It also panics if `STEPS > 32`, it cannot store the local scores in an i8 otherwise.
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
 pub fn align<const STEPS: usize>(
@@ -27,7 +26,7 @@ pub fn align<const STEPS: usize>(
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
 
-    let mut matrix = Matrix::new(&seq_a, &seq_b);
+    let mut matrix = Matrix::new(seq_a.len(), seq_b.len());
     let mut global_highest = (0, 0, 0);
     let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_a);
     let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_b);
@@ -43,29 +42,23 @@ pub fn align<const STEPS: usize>(
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
             let mut highest = None;
-            let mut stop = false;
-            for len_a in 0..index_a.min(STEPS) {
+            'steps: for len_a in 0..index_a.min(STEPS) {
                 for len_b in 0..index_b.min(STEPS) {
-                    if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0
-                    // || len_a == 0 && len_b == 0
-                    {
+                    if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0 {
                         continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                     }
-                    // if len_a == 0 && index_a == seq_a.len() || len_b == 0 && index_b == seq_b.len()
-                    // {
-                    //     continue;
-                    // }
                     let prev = unsafe { matrix.get_unchecked([index_a - len_a, index_b - len_b]) };
                     let base_score = prev.score;
+
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
                         // First check the score to be used for affine gaps
-                        let score =
-                            if prev.step_a == 0 && len_a == 0 || prev.step_b == 0 && len_b == 0 {
-                                GAP_EXTEND_PENALTY
-                            } else {
-                                GAP_START_PENALTY
-                            };
+                        let score = GAP_EXTEND_PENALTY
+                            + GAP_START_PENALTY
+                                * i8::from(
+                                    prev.step_a == 0 && len_a == 0
+                                        || prev.step_b == 0 && len_b == 0,
+                                );
                         Some(Piece::new(
                             base_score + score as isize,
                             score,
@@ -75,34 +68,48 @@ pub fn align<const STEPS: usize>(
                         ))
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
-                            (&seq_a.sequence[index_a - 1], unsafe {
-                                &masses_a.get_unchecked([index_a - 1, 0])
-                            }),
-                            (&seq_b.sequence[index_b - 1], unsafe {
-                                &masses_b.get_unchecked([index_b - 1, 0])
-                            }),
+                            unsafe {
+                                (
+                                    &seq_a.sequence.get_unchecked(index_a - 1),
+                                    &masses_a.get_unchecked([index_a - 1, 0]),
+                                )
+                            },
+                            unsafe {
+                                (
+                                    &seq_b.sequence.get_unchecked(index_b - 1),
+                                    &masses_b.get_unchecked([index_b - 1, 0]),
+                                )
+                            },
                             scoring_matrix,
                             base_score,
                             tolerance,
                         ))
                     } else {
                         score(
-                            (
-                                &seq_a.sequence[index_a - len_a - 1..index_a - 1],
-                                if len_a == 0 {
-                                    &zero
-                                } else {
-                                    unsafe { &masses_a.get_unchecked([index_a - 1, len_a - 1]) }
-                                },
-                            ),
-                            (
-                                &seq_b.sequence[index_b - len_b - 1..index_b - 1],
-                                if len_b == 0 {
-                                    &zero
-                                } else {
-                                    unsafe { &masses_b.get_unchecked([index_b - 1, len_b - 1]) }
-                                },
-                            ),
+                            unsafe {
+                                (
+                                    &seq_a
+                                        .sequence
+                                        .get_unchecked(index_a - len_a - 1..index_a - 1),
+                                    if len_a == 0 {
+                                        &zero
+                                    } else {
+                                        &masses_a.get_unchecked([index_a - 1, len_a - 1])
+                                    },
+                                )
+                            },
+                            unsafe {
+                                (
+                                    &seq_b
+                                        .sequence
+                                        .get_unchecked(index_b - len_b - 1..index_b - 1),
+                                    if len_b == 0 {
+                                        &zero
+                                    } else {
+                                        &masses_b.get_unchecked([index_b - 1, len_b - 1])
+                                    },
+                                )
+                            },
                             base_score,
                             tolerance,
                         )
@@ -115,12 +122,8 @@ pub fn align<const STEPS: usize>(
                         }
                     }
                     if highest.as_ref().is_some_and(|h| h.local_score > 0) {
-                        stop = true;
-                        break;
+                        break 'steps;
                     }
-                }
-                if stop {
-                    break;
                 }
             }
             if let Some(highest) = highest {
@@ -134,25 +137,24 @@ pub fn align<const STEPS: usize>(
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
                         (
-                            &seq_a.sequence[index_a - 1],
+                            &seq_a.sequence.get_unchecked(index_a - 1),
                             &masses_a.get_unchecked([index_a - 1, 0]),
                         ),
                         (
-                            &seq_b.sequence[index_b - 1],
+                            &seq_b.sequence.get_unchecked(index_b - 1),
                             &masses_b.get_unchecked([index_b - 1, 0]),
                         ),
                         scoring_matrix,
-                        matrix[[index_a - 1, index_b - 1]].score,
+                        matrix.get_unchecked([index_a - 1, index_b - 1]).score,
                         tolerance,
                     );
                 }
             }
         }
     }
+    let (absolute_score, start_a, start_b, path) = matrix.trace_path(ty, global_highest);
 
-    let (high_score, start_a, start_b, path) = matrix.trace_path(ty, global_highest);
-
-    let max_score = (seq_a.sequence
+    let maximal_score = (seq_a.sequence
         [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
         .iter()
         .map(|a| scoring_matrix[a.aminoacid as usize][a.aminoacid as usize] as isize)
@@ -164,9 +166,9 @@ pub fn align<const STEPS: usize>(
         / 2;
 
     Alignment {
-        absolute_score: high_score,
-        normalised_score: high_score as f64 / max_score as f64,
-        maximal_score: max_score,
+        absolute_score,
+        normalised_score: absolute_score as f64 / maximal_score as f64,
+        maximal_score,
         path,
         start_a,
         start_b,
@@ -230,14 +232,21 @@ fn score(
     tolerance: Tolerance,
 ) -> Option<Piece> {
     if tolerance.within(a.1, b.1) {
-        let mut b_copy = b.0.to_owned();
-        let rotated = a.0.len() == b.0.len()
-            && a.0.iter().all(|el| {
-                b_copy.iter().position(|x| x == el).map_or(false, |pos| {
-                    b_copy.remove(pos);
-                    true
+        let rotated = {
+            a.0.len() == b.0.len() && {
+                let mut b_copy = vec![false; b.0.len()];
+                a.0.iter().all(|el| {
+                    b_copy
+                        .iter()
+                        .enumerate()
+                        .position(|(index, used)| !used && b.0[index] == *el)
+                        .map_or(false, |pos| {
+                            b_copy[pos] = true;
+                            true
+                        })
                 })
-            });
+            }
+        };
         #[allow(clippy::cast_possible_wrap)]
         let local = if rotated {
             // println!("rotated: {:?} vs {:?}", a.1, b.1);
@@ -288,9 +297,7 @@ struct Matrix {
 }
 
 impl Matrix {
-    pub fn new(seq_a: &LinearPeptide, seq_b: &LinearPeptide) -> Self {
-        let a = seq_a.len();
-        let b = seq_b.len();
+    pub fn new(a: usize, b: usize) -> Self {
         Self {
             value: vec![vec![Piece::default(); b + 1]; a + 1],
             a,
