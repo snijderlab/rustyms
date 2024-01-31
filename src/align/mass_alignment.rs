@@ -14,25 +14,23 @@ use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, 
 /// It also panics if `STEPS > 32`, it cannot store the local scores in an i8 otherwise.
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align(
+pub fn align<const STEPS: usize>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance,
     ty: Type,
-    max_steps: Option<usize>,
 ) -> Alignment {
     // Enforce some assumptions
     let seq_a = seq_a.assume_simple();
     let seq_b = seq_b.assume_simple();
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
-    let max_depth = max_steps.unwrap_or(usize::MAX);
 
     let mut matrix = Matrix::new(&seq_a, &seq_b);
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_a, max_depth);
-    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b, max_depth);
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_a);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_b);
     let zero: Multi<Mass> = Multi::default();
 
     if ty.left_a() {
@@ -46,8 +44,8 @@ pub fn align(
         for index_b in 1..=seq_b.len() {
             let mut highest = None;
             let mut stop = false;
-            for len_a in 0..index_a.min(max_depth) {
-                for len_b in 0..index_b.min(max_depth) {
+            for len_a in 0..index_a.min(STEPS) {
+                for len_b in 0..index_b.min(STEPS) {
                     if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0
                     // || len_a == 0 && len_b == 0
                     {
@@ -175,7 +173,7 @@ pub fn align(
         seq_a,
         seq_b,
         ty,
-        maximal_step: max_depth,
+        maximal_step: STEPS,
     }
 }
 
@@ -265,12 +263,12 @@ fn score(
 }
 
 /// Get the masses of all sequence elements
-fn calculate_masses(sequence: &LinearPeptide, max_depth: usize) -> DiagonalArray<Multi<Mass>> {
-    let mut array = DiagonalArray::new(sequence.len(), max_depth);
+fn calculate_masses<const STEPS: usize>(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
+    let mut array = DiagonalArray::new(sequence.len(), STEPS);
     // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
         // dbg!(i, 0..=i.min(max_depth));
-        for j in 0..=i.min(max_depth) {
+        for j in 0..=i.min(STEPS) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
                 .map(SequenceElement::formulas_all)
