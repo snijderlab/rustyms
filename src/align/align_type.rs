@@ -144,7 +144,7 @@ impl Side {
         match self {
             Self::EitherGlobal => "-=",
             Self::Specified { a, b } => match (a, b) {
-                (true, true) => "==",
+                (true, true) => "=",
                 (false, false) => "⁐=",
                 (true, false) => "‿=",
                 (false, true) => "⁀=",
@@ -156,7 +156,7 @@ impl Side {
         match self {
             Self::EitherGlobal => "=-",
             Self::Specified { a, b } => match (a, b) {
-                (true, true) => "==",
+                (true, true) => "=",
                 (false, false) => "=⁐",
                 (true, false) => "=‿",
                 (false, true) => "=⁀",

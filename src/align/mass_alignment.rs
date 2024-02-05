@@ -130,8 +130,10 @@ pub fn align<const STEPS: usize>(
                 if highest.score >= global_highest.0 {
                     global_highest = (highest.score, index_a, index_b);
                 }
-                unsafe {
-                    *matrix.get_unchecked_mut([index_a, index_b]) = highest;
+                if ty.left.global() || highest.score > 0 {
+                    unsafe {
+                        *matrix.get_unchecked_mut([index_a, index_b]) = highest;
+                    }
                 }
             } else if ty.left.global() {
                 unsafe {
