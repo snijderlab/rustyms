@@ -49,14 +49,13 @@ mod tests {
 
     use super::{AlignType, Alignment};
 
-    fn align(a: LinearPeptide, b: LinearPeptide, max_depth: Option<usize>) -> Alignment {
-        crate::align::align(
+    fn align<const STEPS: usize>(a: LinearPeptide, b: LinearPeptide) -> Alignment {
+        crate::align::align::<STEPS>(
             a,
             b,
             crate::align::BLOSUM62,
             crate::Tolerance::new_ppm(10.0),
             AlignType::GLOBAL,
-            max_depth,
         )
     }
 
@@ -68,7 +67,7 @@ mod tests {
     fn simple_1() {
         let a = linear("ANGARS");
         let b = linear("AGGQRS");
-        let c = dbg!(align(a, b, Some(1)));
+        let c = dbg!(align::<1>(a, b));
         assert_eq!(c.short(), "1=1X1=1X2=");
     }
 
@@ -76,7 +75,7 @@ mod tests {
     fn simple_4() {
         let a = linear("ANGARS");
         let b = linear("AGGQRS");
-        let c = dbg!(align(a, b, Some(4)));
+        let c = dbg!(align::<4>(a, b));
         assert_eq!(c.short(), "1=1:2i2:1i2=");
     }
 
@@ -84,7 +83,7 @@ mod tests {
     fn simple_unbounded() {
         let a = linear("ANGARS");
         let b = linear("AGGQRS");
-        let c = dbg!(align(a, b, None));
+        let c = dbg!(align::<{ usize::MAX }>(a, b));
         assert_eq!(c.short(), "1=1:2i2:1i2=");
     }
 }

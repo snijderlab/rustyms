@@ -32,8 +32,15 @@ uom = { version = "0.35", features = ["use_serde", "usize"] }
 ordered-float = { version = "4.2", features = ["serde"] }
 
 [dev-dependencies]
-criterion = "0.5"
+iai-callgrind = "0.10.2"
 
 [[bench]]
-name = "alignment"
+name = "iai"
 harness = false
+
+[profile.release]
+debug = true
+opt-level = 3
+lto = true
+codegen-units = 1
+# bench profile inherits from release so only change the release settings
