@@ -19,7 +19,7 @@ pub fn align(
     seq_b: LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance,
-    ty: Type,
+    ty: AlignType,
     max_steps: Option<usize>,
 ) -> Alignment {
     // Enforce some assumptions
@@ -35,10 +35,10 @@ pub fn align(
     let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses(&seq_b, max_depth);
     let zero: Multi<Mass> = Multi::default();
 
-    if ty.left_a() {
+    if ty.left.global_a() {
         matrix.global_start(true);
     }
-    if ty.left_b() {
+    if ty.left.global_b() {
         matrix.global_start(false);
     }
 
@@ -132,7 +132,7 @@ pub fn align(
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = highest;
                 }
-            } else if ty.global() {
+            } else if ty.left.global() {
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
                         (
@@ -316,7 +316,7 @@ impl Matrix {
 
     pub fn trace_path(
         &self,
-        ty: Type,
+        ty: AlignType,
         high: (isize, usize, usize),
     ) -> (isize, usize, usize, Vec<Piece>) {
         let mut path = Vec::new();
@@ -324,11 +324,9 @@ impl Matrix {
         let high_score = high.0;
 
         // Loop back to left side
-        while ty.left_a() && ty.left_b() || !(high.1 == 0 && high.2 == 0) {
+        while ty.left.global() || !(high.1 == 0 && high.2 == 0) {
             let value = self.value[high.1][high.2].clone();
-            if value.step_a == 0 && value.step_b == 0
-                || !ty.left_a() && !ty.left_b() && value.score < 0
-            {
+            if value.step_a == 0 && value.step_b == 0 || !ty.left.global() && value.score < 0 {
                 break;
             }
             high = (
@@ -341,21 +339,35 @@ impl Matrix {
         (high_score, high.1, high.2, path.into_iter().rev().collect())
     }
 
-    fn find_end(&self, ty: Type, high: (isize, usize, usize)) -> (isize, usize, usize) {
-        if ty.right_a() && ty.right_b() {
+    fn find_end(&self, ty: AlignType, high: (isize, usize, usize)) -> (isize, usize, usize) {
+        if ty.right.global_a() && ty.right.global_a() {
             (self.value[self.a][self.b].score, self.a, self.b)
-        } else if ty.right_b() {
+        } else if ty.right.global_b() {
             let value = (0..=self.a)
                 .map(|v| (v, self.value[v][self.b].score))
                 .max_by(|a, b| a.1.cmp(&b.1))
                 .unwrap_or_default();
             (value.1, value.0, self.b)
-        } else if ty.right_a() {
+        } else if ty.right.global_a() {
             let value = (0..=self.b)
                 .map(|v| (v, self.value[self.a][v].score))
                 .max_by(|a, b| a.1.cmp(&b.1))
                 .unwrap_or_default();
             (value.1, self.a, value.0)
+        } else if ty.right.global() {
+            let value_a = (0..=self.a)
+                .map(|v| (v, self.value[v][self.b].score))
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .unwrap_or_default();
+            let value_b = (0..=self.b)
+                .map(|v| (v, self.value[self.a][v].score))
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .unwrap_or_default();
+            if value_a.1 >= value_b.1 {
+                (value_a.1, value_a.0, self.b)
+            } else {
+                (value_b.1, self.a, value_b.0)
+            }
         } else {
             high
         }

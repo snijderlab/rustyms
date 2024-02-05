@@ -22,7 +22,7 @@ pub fn simple_1(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(1),
             )
         })
@@ -45,7 +45,7 @@ pub fn simple_4(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })
@@ -68,7 +68,7 @@ pub fn simple_unbounded(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 None,
             )
         })
@@ -91,7 +91,7 @@ pub fn igha_1(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(1),
             )
         })
@@ -114,7 +114,7 @@ pub fn igha_4(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })
@@ -137,7 +137,7 @@ pub fn igha_8(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(8),
             )
         })
@@ -160,7 +160,7 @@ pub fn igha_32(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(32),
             )
         })
@@ -183,7 +183,7 @@ pub fn igha_unbounded(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 None,
             )
         })
@@ -206,7 +206,7 @@ pub fn simple_not_ambiguous(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })
@@ -229,7 +229,7 @@ pub fn simple_ambiguous_a(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })
@@ -252,7 +252,7 @@ pub fn simple_ambiguous_b(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })
@@ -275,7 +275,7 @@ pub fn simple_ambiguous_ab(c: &mut Criterion) {
                 b.clone(),
                 align::BLOSUM62,
                 Tolerance::new_absolute(Mass::new::<dalton>(0.1)),
-                Type::GLOBAL,
+                AlignType::GLOBAL,
                 Some(4),
             )
         })

@@ -36,7 +36,7 @@ pub struct Alignment {
     /// The second sequence
     pub seq_b: LinearPeptide,
     /// The alignment type
-    pub ty: Type,
+    pub ty: AlignType,
     /// The maximal step size (the const generic STEPS)
     pub maximal_step: usize,
 }
@@ -130,7 +130,7 @@ impl Alignment {
     }
 
     fn mass_a(&self) -> Multi<MolecularFormula> {
-        if self.ty.left_a() && self.ty.right_a() {
+        if self.ty.left.global_a() && self.ty.right.global_a() {
             self.seq_a.formulas()
         } else {
             let mut placed_a = vec![false; self.seq_a.ambiguous_modifications.len()];
@@ -143,7 +143,7 @@ impl Alignment {
     }
 
     fn mass_b(&self) -> Multi<MolecularFormula> {
-        if self.ty.left_b() && self.ty.right_b() {
+        if self.ty.left.global_b() && self.ty.right.global_b() {
             self.seq_b.formulas()
         } else {
             let mut placed_b = vec![false; self.seq_b.ambiguous_modifications.len()];

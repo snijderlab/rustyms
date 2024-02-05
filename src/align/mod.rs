@@ -36,7 +36,7 @@ mod mass_alignment;
 mod piece;
 mod scoring;
 
-pub use align_type::Type;
+pub use align_type::AlignType;
 pub use alignment::Alignment;
 pub use mass_alignment::align;
 pub use piece::Piece;
@@ -47,7 +47,7 @@ pub use scoring::MatchType;
 mod tests {
     use crate::{ComplexPeptide, LinearPeptide};
 
-    use super::{Alignment, Type};
+    use super::{AlignType, Alignment};
 
     fn align(a: LinearPeptide, b: LinearPeptide, max_depth: Option<usize>) -> Alignment {
         crate::align::align(
@@ -55,7 +55,7 @@ mod tests {
             b,
             crate::align::BLOSUM62,
             crate::Tolerance::new_ppm(10.0),
-            Type::GLOBAL,
+            AlignType::GLOBAL,
             max_depth,
         )
     }
