@@ -2,7 +2,7 @@
 name = "rustyms"
 version = "0.7.0"
 edition = "2021"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 authors = ["Douwe Schulte <d.schulte@uu.nl>"]
 description = "A library to handle proteomic mass spectrometry data and match peptides to spectra."
 categories = ["science"]
