@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{
     system::Mass, AminoAcid, LinearPeptide, MassComparable, MolecularFormula, Multi,
     SequenceElement, Tolerance,
@@ -42,9 +44,12 @@ pub fn align<const STEPS: usize>(
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
             let mut highest = None;
-            'steps: for len_a in 0..index_a.min(STEPS) {
-                for len_b in 0..index_b.min(STEPS) {
-                    if len_a == 0 && len_b != 1 || len_a != 1 && len_b == 0 {
+            'steps: for len_a in 0..=index_a.min(STEPS) {
+                for len_b in 0..=index_b.min(STEPS) {
+                    if len_a == 0 && len_b != 1
+                        || len_a != 1 && len_b == 0
+                        || len_a == 0 && len_b == 0
+                    {
                         continue; // Do not allow double gaps, any double gaps will be counted as two gaps after each other
                     }
                     let prev = unsafe { matrix.get_unchecked([index_a - len_a, index_b - len_b]) };
@@ -88,9 +93,9 @@ pub fn align<const STEPS: usize>(
                         score(
                             unsafe {
                                 (
-                                    &seq_a
-                                        .sequence
-                                        .get_unchecked(index_a - len_a - 1..index_a - 1),
+                                    &seq_a.sequence.get_unchecked(
+                                        (index_a - len_a).saturating_sub(1)..index_a - 1,
+                                    ),
                                     if len_a == 0 {
                                         &zero
                                     } else {
@@ -100,9 +105,9 @@ pub fn align<const STEPS: usize>(
                             },
                             unsafe {
                                 (
-                                    &seq_b
-                                        .sequence
-                                        .get_unchecked(index_b - len_b - 1..index_b - 1),
+                                    &seq_b.sequence.get_unchecked(
+                                        (index_b - len_b).saturating_sub(1)..index_b - 1,
+                                    ),
                                     if len_b == 0 {
                                         &zero
                                     } else {
@@ -121,9 +126,9 @@ pub fn align<const STEPS: usize>(
                             highest = Some(p);
                         }
                     }
-                    if highest.as_ref().is_some_and(|h| h.local_score > 0) {
-                        break 'steps;
-                    }
+                    // if highest.as_ref().is_some_and(|h| h.local_score > 0) {
+                    //     break 'steps; TODO: think about if this is needed
+                    // }
                 }
             }
             if let Some(highest) = highest {
@@ -296,6 +301,36 @@ struct Matrix {
     value: Vec<Vec<Piece>>,
     a: usize,
     b: usize,
+}
+
+impl Debug for Matrix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        for column in &self.value {
+            let mut line_0 = String::new();
+            let mut line_1 = String::new();
+            for cell in column {
+                let top = format!("{}/{} {:2}", cell.step_a, cell.step_b, cell.local_score);
+                let bottom = format!(
+                    "{} {:3}",
+                    match cell.match_type {
+                        MatchType::FullIdentity => "FI",
+                        MatchType::Gap => "G ",
+                        MatchType::IdentityMassMismatch => "IM",
+                        MatchType::Isobaric => "I ",
+                        MatchType::Rotation => "R ",
+                        MatchType::Mismatch => "M ",
+                    },
+                    cell.score
+                );
+                write!(&mut line_0, "⎡{top:0$}⎤", top.len().max(bottom.len()))?;
+                write!(&mut line_1, "⎣{bottom:0$}⎦", top.len().max(bottom.len()))?;
+            }
+            writeln!(f, "{line_0}")?;
+            writeln!(f, "{line_1}")?;
+        }
+        Ok(())
+    }
 }
 
 impl Matrix {
