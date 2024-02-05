@@ -33,7 +33,9 @@ mod peaks_tests;
 use std::str::FromStr;
 
 impl CsvLine {
-    /// Parse a column into the given format, if erroneous extend the base error with the correct context and return that
+    /// Parse a column into the given format
+    /// # Errors
+    /// If erroneous extend the base error with the correct context and return that
     pub fn parse_column<F: FromStr>(
         &self,
         column: usize,
@@ -43,7 +45,9 @@ impl CsvLine {
             .parse()
             .map_err(|_| base_error.with_context(self.column_context(column)))
     }
-    /// Parse a column into the given format, if erroneous extend the base error with the correct context and return that
+    /// Parse a column into the given format
+    /// # Errors
+    /// If erroneous extend the base error with the correct context and return that
     pub fn parse_column_or_empty<F: FromStr>(
         &self,
         column: usize,

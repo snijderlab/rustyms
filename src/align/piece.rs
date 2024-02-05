@@ -7,23 +7,23 @@ pub struct Piece {
     /// The total score of the path up till now
     pub score: isize,
     /// The local contribution to the score of this piece
-    pub local_score: i8,
+    pub local_score: isize,
     /// The type of the match
     pub match_type: MatchType,
     /// The number of steps on the first sequence
-    pub step_a: u8,
+    pub step_a: u16,
     /// The number of steps on the second sequence
-    pub step_b: u8,
+    pub step_b: u16,
 }
 
 impl Piece {
     /// Create a new alignment piece
     pub const fn new(
         score: isize,
-        local_score: i8,
+        local_score: isize,
         match_type: MatchType,
-        step_a: u8,
-        step_b: u8,
+        step_a: u16,
+        step_b: u16,
     ) -> Self {
         Self {
             score,

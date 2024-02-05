@@ -322,6 +322,7 @@ impl LinearPeptide {
     }
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
+    #[allow(clippy::missing_panics_doc)] // global isotope mods are guaranteed to be correct
     pub fn bare_formulas(&self) -> Multi<MolecularFormula> {
         let mut formulas = Multi::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
@@ -580,7 +581,7 @@ impl LinearPeptide {
                         .possible_modifications
                         .last_mut()
                         .unwrap()
-                        .localisation_score = Some(individual_score.into());
+                        .localisation_score = Some(individual_score);
                 }
             }
             self.ambiguous_modifications[id].extend(positions);

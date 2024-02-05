@@ -15,7 +15,7 @@ use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, 
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<const STEPS: usize>(
+pub fn align<const STEPS: u16>(
     seq_a: LinearPeptide,
     seq_b: LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -44,8 +44,8 @@ pub fn align<const STEPS: usize>(
     for index_a in 1..=seq_a.len() {
         for index_b in 1..=seq_b.len() {
             let mut highest = None;
-            'steps: for len_a in 0..=index_a.min(STEPS) {
-                for len_b in 0..=index_b.min(STEPS) {
+            for len_a in 0..=index_a.min(STEPS as usize) {
+                for len_b in 0..=index_b.min(STEPS as usize) {
                     if len_a == 0 && len_b != 1
                         || len_a != 1 && len_b == 0
                         || len_a == 0 && len_b == 0
@@ -60,16 +60,16 @@ pub fn align<const STEPS: usize>(
                         // First check the score to be used for affine gaps
                         let score = GAP_EXTEND_PENALTY
                             + GAP_START_PENALTY
-                                * i8::from(
+                                * isize::from(
                                     prev.step_a == 0 && len_a == 0
                                         || prev.step_b == 0 && len_b == 0,
                                 );
                         Some(Piece::new(
-                            base_score + score as isize,
+                            base_score + score,
                             score,
                             MatchType::Gap,
-                            len_a as u8,
-                            len_b as u8,
+                            len_a as u16,
+                            len_b as u16,
                         ))
                     } else if len_a == 1 && len_b == 1 {
                         Some(score_pair(
@@ -182,7 +182,7 @@ pub fn align<const STEPS: usize>(
         seq_a,
         seq_b,
         ty,
-        maximal_step: STEPS,
+        maximal_step: STEPS as usize,
     }
 }
 
@@ -196,37 +196,19 @@ fn score_pair(
 ) -> Piece {
     match (a.0 == b.0, tolerance.within(a.1, b.1)) {
         (true, true) => {
-            let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize];
-            Piece::new(score + local as isize, local, MatchType::FullIdentity, 1, 1)
+            let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize] as isize;
+            Piece::new(score + local, local, MatchType::FullIdentity, 1, 1)
         }
         (true, false) => {
-            let local =
-                alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize] + MASS_MISMATCH_PENALTY;
-            Piece::new(
-                score + local as isize,
-                local,
-                MatchType::IdentityMassMismatch,
-                1,
-                1,
-            )
+            let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize] as isize
+                + MASS_MISMATCH_PENALTY;
+            Piece::new(score + local, local, MatchType::IdentityMassMismatch, 1, 1)
         }
         (false, true) => {
             // println!("isobaric: {:?} vs {:?}", a.1, b.1);
-            Piece::new(
-                score + ISOBARIC as isize,
-                ISOBARIC,
-                MatchType::Isobaric,
-                1,
-                1,
-            )
+            Piece::new(score + ISOBARIC, ISOBARIC, MatchType::Isobaric, 1, 1)
         }
-        (false, false) => Piece::new(
-            score + MISMATCH as isize,
-            MISMATCH,
-            MatchType::Mismatch,
-            1,
-            1,
-        ),
+        (false, false) => Piece::new(score + MISMATCH, MISMATCH, MatchType::Mismatch, 1, 1),
     }
 }
 
@@ -257,10 +239,10 @@ fn score(
         #[allow(clippy::cast_possible_wrap)]
         let local = if rotated {
             // println!("rotated: {:?} vs {:?}", a.1, b.1);
-            BASE_SPECIAL + ROTATED * a.0.len() as i8
+            BASE_SPECIAL + ROTATED * a.0.len() as isize
         } else {
             // println!("isobaric: {:?} vs {:?}", a.1, b.1);
-            BASE_SPECIAL + ISOBARIC * (a.0.len() + b.0.len()) as i8 / 2
+            BASE_SPECIAL + ISOBARIC * (a.0.len() + b.0.len()) as isize / 2
         };
         Some(Piece::new(
             score + local as isize,
@@ -270,8 +252,8 @@ fn score(
             } else {
                 MatchType::Isobaric
             },
-            a.0.len() as u8,
-            b.0.len() as u8,
+            a.0.len() as u16,
+            b.0.len() as u16,
         ))
     } else {
         None
@@ -279,12 +261,12 @@ fn score(
 }
 
 /// Get the masses of all sequence elements
-fn calculate_masses<const STEPS: usize>(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
+fn calculate_masses<const STEPS: u16>(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
     // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
         // dbg!(i, 0..=i.min(max_depth));
-        for j in 0..=i.min(STEPS) {
+        for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
                 .map(SequenceElement::formulas_all)
@@ -347,11 +329,11 @@ impl Matrix {
         let max = if is_a { self.a } else { self.b };
         for index in 0..=max {
             self.value[if is_a { index } else { 0 }][if is_a { 0 } else { index }] = Piece::new(
-                (index as isize) * GAP_EXTEND_PENALTY as isize,
+                (index as isize) * GAP_EXTEND_PENALTY,
                 GAP_EXTEND_PENALTY,
                 MatchType::Gap,
-                if is_a { u8::from(index != 0) } else { 0 },
-                if is_a { 0 } else { u8::from(index != 0) },
+                if is_a { u16::from(index != 0) } else { 0 },
+                if is_a { 0 } else { u16::from(index != 0) },
             );
         }
     }

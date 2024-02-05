@@ -59,6 +59,7 @@ macro_rules! format_family {
                     ))
                 })
             }
+            #[allow(clippy::redundant_closure_call)] // Macro magic
             fn parse_specific(source: &Self::Source, format: &$format) -> Result<Self, CustomError> {
                 Ok(Self {
                     $($rname: $rf(source.column(format.$rname)?)?,)*
@@ -71,6 +72,9 @@ macro_rules! format_family {
 }
 
 impl CsvLine {
+    /// Get the specified column
+    /// # Errors
+    /// If the given column does not exist
     pub fn column<'a>(&'a self, name: &str) -> Result<Location<'a>, CustomError> {
         self.index_column(name).map(|(_v, c)| Location {
             line: self,

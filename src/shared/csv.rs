@@ -20,18 +20,23 @@ pub struct CsvLine {
 
 #[allow(dead_code)]
 impl CsvLine {
+    /// Get the line index (0 based)
     pub const fn line_index(&self) -> usize {
         self.line_index
     }
+    /// Get the full line
     pub fn line(&self) -> &str {
         &self.line
     }
+    /// Get the column headers
     pub fn headers(&self) -> impl Iterator<Item = &str> {
         self.fields.iter().map(|f| f.0.as_str())
     }
+    /// Get the number of columns
     pub fn number_of_columns(&self) -> usize {
         self.fields.len()
     }
+    /// Get the context applicable to the specified column
     pub fn column_context(&self, column: usize) -> crate::error::Context {
         crate::error::Context::line(
             self.line_index,
@@ -40,6 +45,7 @@ impl CsvLine {
             self.fields[column].1.len(),
         )
     }
+    /// Get the context for the specified range in the original line
     pub fn range_context(&self, range: std::ops::Range<usize>) -> crate::error::Context {
         crate::error::Context::line(
             self.line_index(),
@@ -48,12 +54,17 @@ impl CsvLine {
             range.len(),
         )
     }
+    /// Get the context for the whole line
     pub fn full_context(&self) -> crate::error::Context {
         crate::error::Context::full_line(self.line_index, self.line.clone())
     }
+    /// Get the range of a specified column
     pub fn range(&self, index: usize) -> &Range<usize> {
         &self.fields[index].1
     }
+    /// Get the specified column, by column name
+    /// # Errors
+    /// If the given name is not a column header return an error
     pub fn index_column(&self, name: &str) -> Result<(&str, &Range<usize>), CustomError> {
         self.fields
             .iter()

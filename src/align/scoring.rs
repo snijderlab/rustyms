@@ -20,14 +20,14 @@ pub enum MatchType {
     Gap,
 }
 
-pub const MISMATCH: i8 = -1;
-pub const MASS_MISMATCH_PENALTY: i8 = -1;
-pub const BASE_SPECIAL: i8 = 1;
-pub const ROTATED: i8 = 3;
-pub const ISOBARIC: i8 = 2;
+pub const MISMATCH: isize = -1;
+pub const MASS_MISMATCH_PENALTY: isize = -1;
+pub const BASE_SPECIAL: isize = 1;
+pub const ROTATED: isize = 3;
+pub const ISOBARIC: isize = 2;
 /// The final value for the gap start penalty is gap start + gap extend
-pub const GAP_START_PENALTY: i8 = -4;
-pub const GAP_EXTEND_PENALTY: i8 = -1;
+pub const GAP_START_PENALTY: isize = -4;
+pub const GAP_EXTEND_PENALTY: isize = -1;
 
 /// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>
 /// The UO columns are added by me (see top left for the original matrix used by me) (B/J/Z is the rounded down average of the corresponding non ambiguous AAs) (All these are exactly the same for all matrices)

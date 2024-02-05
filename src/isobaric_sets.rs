@@ -104,6 +104,7 @@ pub fn building_blocks(
                 )
             })
             .flat_map(|(a, m)| {
+                #[allow(clippy::redundant_clone)] // not redundant
                 let mc = m.clone();
                 a.formulas_all()
                     .iter()
@@ -170,7 +171,6 @@ pub fn building_blocks(
             .flat_map(|s| {
                 s.formulas_all()
                     .iter()
-                    .cloned()
                     .map(|f| (s.clone(), f.monoisotopic_mass()))
                     .collect_vec()
             })

@@ -147,6 +147,7 @@ pub mod f64 {
     }
 }
 
+/// All quantities with usize as underlying type
 pub mod usize {
     mod mks {
         pub use super::super::*;
@@ -185,6 +186,7 @@ impl OrderedMass {
     }
 
     /// Get a normal [`Mass`]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> Mass {
         self.0
     }

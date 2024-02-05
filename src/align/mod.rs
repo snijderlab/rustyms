@@ -20,7 +20,7 @@
 //! let a = ComplexPeptide::pro_forma("ANA").unwrap().singular().unwrap();
 //! let b = ComplexPeptide::pro_forma("AGGA").unwrap().singular().unwrap();
 //! let alignment = align::align::<4>(a, b, &align::BLOSUM62,
-//!                    MassTolerance::Ppm(10.0), align::Type::GLOBAL);
+//!                    Tolerance::new_ppm(10.0), align::AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm(), 0.0);
 //! ```
@@ -49,7 +49,7 @@ mod tests {
 
     use super::{AlignType, Alignment};
 
-    fn align<const STEPS: usize>(a: LinearPeptide, b: LinearPeptide) -> Alignment {
+    fn align<const STEPS: u16>(a: LinearPeptide, b: LinearPeptide) -> Alignment {
         crate::align::align::<STEPS>(
             a,
             b,
@@ -83,7 +83,7 @@ mod tests {
     fn simple_unbounded() {
         let a = linear("ANGARS");
         let b = linear("AGGQRS");
-        let c = dbg!(align::<{ usize::MAX }>(a, b));
+        let c = dbg!(align::<{ u16::MAX }>(a, b));
         assert_eq!(c.short(), "1=1:2i2:1i2=");
     }
 }

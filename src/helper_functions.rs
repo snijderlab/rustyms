@@ -143,10 +143,8 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
                 .map(|v| (v.parse::<i16>().map_err(|e| e.to_string()), v.len()))
                 .map_err(|e| e.to_string())?;
                 let num = num?;
-                if num != 0 {
-                    if !result.add((element.unwrap(), None, num)) {
-                        return Err(format!("An element without a defined mass ({}) was used in a pro forma molecular formula ({})", element.unwrap(), value));
-                    }
+                if num != 0 && !result.add((element.unwrap(), None, num)) {
+                    return Err(format!("An element without a defined mass ({}) was used in a pro forma molecular formula ({})", element.unwrap(), value));
                 }
                 element = None;
                 index += len;

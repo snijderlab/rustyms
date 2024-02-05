@@ -46,11 +46,12 @@ impl<T> DiagonalArray<T> {
 
 impl<T: Default + Clone> DiagonalArray<T> {
     /// Create a new diagonal array of the correct size, with all values initialised to the default value of the type, with up to and including the depth given in `max_depth`
-    pub fn new(len: usize, max_depth: usize) -> Self {
+    pub fn new(len: usize, max_depth: u16) -> Self {
         Self {
             len,
-            max_depth,
-            data: vec![T::default(); Self::length(len, max_depth.saturating_add(1))].into(),
+            max_depth: max_depth as usize,
+            data: vec![T::default(); Self::length(len, (max_depth as usize).saturating_add(1))]
+                .into(),
         }
     }
 }

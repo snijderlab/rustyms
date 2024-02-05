@@ -50,7 +50,7 @@ impl Alignment {
             Deletion,
             Match,
             Mismatch,
-            Special(MatchType, u8, u8),
+            Special(MatchType, u16, u16),
         }
         impl std::fmt::Display for StepType {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -109,6 +109,7 @@ impl Alignment {
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    #[allow(clippy::missing_panics_doc)]
     pub fn ppm(&self) -> f64 {
         self.mass_a()
             .iter()
@@ -120,6 +121,7 @@ impl Alignment {
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    #[allow(clippy::missing_panics_doc)]
     pub fn mass_difference(&self) -> Mass {
         self.mass_a()
             .iter()
@@ -155,26 +157,43 @@ impl Alignment {
         }
     }
 
-    /// Returns statistics for this match. Returns `(identical, similar, gap, length)`. Retrieve the identity (or gap) as percentage
-    /// by calculating `identical as f64 / length as f64`. The length is calculated as the max length of `len_a` and `len_b`.
-    pub fn stats(&self) -> (usize, usize, usize, usize) {
-        let (identical, similar, gap) = self.path.iter().fold((0, 0, 0), |acc, p| {
-            let m = p.match_type;
-            (
-                acc.0
-                    + usize::from(
-                        m == MatchType::IdentityMassMismatch || m == MatchType::FullIdentity,
-                    ),
-                acc.1
-                    + usize::from(
-                        m == MatchType::FullIdentity
-                            || m == MatchType::Isobaric
-                            || m == MatchType::Rotation,
-                    ) * p.step_a as usize,
-                acc.2 + usize::from(m == MatchType::Gap),
-            )
-        });
-        (identical, similar, gap, self.len_a().max(self.len_b()))
+    /// Returns statistics for this match. Returns `(identical, mass similar, similar, gap, length)`. Retrieve any stat as percentage
+    /// by calculating `stat as f64 / length as f64`. The length is calculated as the max length of `len_a` and `len_b`.
+    /// Identical is the number of positions that have identical amino acids, mass similar is the number of positions that have the same mass
+    /// (identical, isobaric, rotated), similar is the number of positions that have a positive score in the matrix, and gap is the number
+    /// of positions that are gaps.
+    pub fn stats(&self) -> (usize, usize, usize, usize, usize) {
+        let (identical, mass_similar, similar, gap) =
+            self.path.iter().fold((0, 0, 0, 0), |acc, p| {
+                let m = p.match_type;
+                (
+                    acc.0
+                        + usize::from(
+                            m == MatchType::IdentityMassMismatch || m == MatchType::FullIdentity,
+                        ) * p.step_a.max(p.step_b) as usize,
+                    acc.1
+                        + usize::from(
+                            m == MatchType::FullIdentity
+                                || m == MatchType::Isobaric
+                                || m == MatchType::Rotation,
+                        ) * p.step_a.max(p.step_b) as usize,
+                    acc.0
+                        + usize::from(
+                            (m == MatchType::IdentityMassMismatch
+                                || m == MatchType::FullIdentity
+                                || m == MatchType::Mismatch)
+                                && p.local_score >= 0,
+                        ) * p.step_a.max(p.step_b) as usize,
+                    acc.2 + usize::from(m == MatchType::Gap),
+                )
+            });
+        (
+            identical,
+            mass_similar,
+            similar,
+            gap,
+            self.len_a().max(self.len_b()),
+        )
     }
 
     /// Generate a summary of this alignment for printing to the command line
@@ -214,15 +233,15 @@ impl Alignment {
             .iter()
             .map(|p| p.local_score)
             .max()
-            .unwrap_or(i8::MAX);
+            .unwrap_or(isize::MAX);
         let min = self
             .path
             .iter()
             .map(|p| p.local_score)
             .min()
-            .unwrap_or(i8::MIN + 1); // +1 to make it also valid as a positive number
-        let factor = blocks.len() as f64 / f64::from(min.abs().max(max));
-        let index = |n| ((f64::from(n) * factor).floor() as usize).min(blocks.len() - 1);
+            .unwrap_or(isize::MIN + 1); // +1 to make it also valid as a positive number
+        let factor = blocks.len() as f64 / min.abs().max(max) as f64;
+        let index = |n| ((n as f64 * factor).floor() as usize).min(blocks.len() - 1);
 
         for piece in &self.path {
             let l = std::cmp::max(piece.step_b, piece.step_a);
