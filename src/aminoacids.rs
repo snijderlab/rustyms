@@ -371,6 +371,22 @@ impl AminoAcid {
             Self::AmbiguousGlutamine => 'Z',
         }
     }
+
+    /// Check if two amino acids are considered identical. X is identical to anything, J to IL, B to ND, Z to EQ.
+    pub fn canonical_identical(self, rhs: Self) -> bool {
+        match (self, rhs) {
+            (a, b) if a == b => true,
+            (Self::X, _)
+            | (_, Self::X)
+            | (Self::J, Self::L | Self::I)
+            | (Self::L | Self::I, Self::J)
+            | (Self::B, Self::N | Self::D)
+            | (Self::N | Self::D, Self::B)
+            | (Self::Z, Self::Q | Self::E)
+            | (Self::Q | Self::E, Self::Z) => true,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

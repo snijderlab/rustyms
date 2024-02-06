@@ -126,9 +126,6 @@ pub fn align<'a, const STEPS: u16>(
                             highest = Some(p);
                         }
                     }
-                    // if highest.as_ref().is_some_and(|h| h.local_score > 0) {
-                    //     break 'steps; TODO: think about if this is needed
-                    // }
                 }
             }
             if let Some(highest) = highest {
