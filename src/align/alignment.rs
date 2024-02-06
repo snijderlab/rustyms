@@ -1,9 +1,6 @@
-//! Functions to generate alignments of peptides based on homology, while taking mass spec error into account.
-
-use std::fmt::Write;
+//! Functions to generate alignments of peptides based on homology, while taking mass spec errors into account.
 
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
 use super::align_type::*;
 use super::piece::*;
@@ -15,8 +12,8 @@ use crate::Multi;
 use crate::MultiChemical;
 
 /// An alignment of two reads.
-#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct Alignment {
+#[derive(Clone, PartialEq, Debug)]
+pub struct Alignment<'a> {
     /// The absolute score of this alignment
     pub absolute_score: isize,
     /// The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
@@ -32,16 +29,16 @@ pub struct Alignment {
     /// The position in the second sequence where the alignment starts
     pub start_b: usize,
     /// The first sequence
-    pub seq_a: LinearPeptide,
+    pub seq_a: &'a LinearPeptide,
     /// The second sequence
-    pub seq_b: LinearPeptide,
+    pub seq_b: &'a LinearPeptide,
     /// The alignment type
     pub ty: AlignType,
     /// The maximal step size (the const generic STEPS)
     pub maximal_step: usize,
 }
 
-impl Alignment {
+impl<'a> Alignment<'a> {
     /// Get a short representation of the alignment in CIGAR like format. It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
     pub fn short(&self) -> String {
         #[derive(PartialEq, Eq)]
@@ -196,18 +193,6 @@ impl Alignment {
         )
     }
 
-    /// Generate a summary of this alignment for printing to the command line
-    pub fn summary(&self) -> String {
-        format!(
-            "score: {}\npath: {}\nstart: ({}, {})\naligned:\n{}",
-            self.absolute_score,
-            self.short(),
-            self.start_a,
-            self.start_b,
-            self.aligned()
-        )
-    }
-
     /// The total number of residues matched on the first sequence
     pub fn len_a(&self) -> usize {
         self.path.iter().map(|p| p.step_a as usize).sum()
@@ -216,96 +201,5 @@ impl Alignment {
     /// The total number of residues matched on the second sequence
     pub fn len_b(&self) -> usize {
         self.path.iter().map(|p| p.step_b as usize).sum()
-    }
-
-    // TODO: find a more graceful way of handling B/Z amino acids
-    fn aligned(&self) -> String {
-        let blocks: Vec<char> = " ▁▂▃▄▅▆▇█".chars().collect();
-        let blocks_neg: Vec<char> = "▔▔▔▔▀▀▀▀█".chars().collect();
-        let mut str_a = String::new();
-        let mut str_b = String::new();
-        let mut str_blocks = String::new();
-        let mut str_blocks_neg = String::new();
-        let mut loc_a = self.start_a;
-        let mut loc_b = self.start_b;
-        let max = self
-            .path
-            .iter()
-            .map(|p| p.local_score)
-            .max()
-            .unwrap_or(isize::MAX);
-        let min = self
-            .path
-            .iter()
-            .map(|p| p.local_score)
-            .min()
-            .unwrap_or(isize::MIN + 1); // +1 to make it also valid as a positive number
-        let factor = blocks.len() as f64 / min.abs().max(max) as f64;
-        let index = |n| ((n as f64 * factor).floor() as usize).min(blocks.len() - 1);
-
-        for piece in &self.path {
-            let l = std::cmp::max(piece.step_b, piece.step_a);
-            if piece.step_a == 0 {
-                write!(str_a, "{:-<width$}", "", width = l as usize).unwrap();
-            } else {
-                write!(
-                    str_a,
-                    "{:·<width$}",
-                    self.seq_a.sequence[loc_a..loc_a + piece.step_a as usize]
-                        .iter()
-                        .map(|a| a.aminoacid.char())
-                        .collect::<String>(),
-                    width = l as usize
-                )
-                .unwrap();
-            }
-            if piece.step_b == 0 {
-                write!(str_b, "{:-<width$}", "", width = l as usize).unwrap();
-            } else {
-                write!(
-                    str_b,
-                    "{:·<width$}",
-                    self.seq_b.sequence[loc_b..loc_b + piece.step_b as usize]
-                        .iter()
-                        .map(|a| a.aminoacid.char())
-                        .collect::<String>(),
-                    width = l as usize
-                )
-                .unwrap();
-            }
-            write!(
-                str_blocks,
-                "{}",
-                str::repeat(
-                    &if piece.local_score < 0 {
-                        " ".to_string()
-                    } else {
-                        #[allow(clippy::cast_sign_loss)] // Checked above
-                        blocks[index(piece.local_score)].to_string()
-                    },
-                    l as usize
-                )
-            )
-            .unwrap();
-            write!(
-                str_blocks_neg,
-                "{}",
-                str::repeat(
-                    &if piece.local_score > 0 {
-                        " ".to_string()
-                    } else {
-                        #[allow(clippy::cast_sign_loss)] // Checked above
-                        blocks_neg[index(-piece.local_score)].to_string()
-                    },
-                    l as usize
-                )
-            )
-            .unwrap();
-
-            loc_a += piece.step_a as usize;
-            loc_b += piece.step_b as usize;
-        }
-
-        format!("{str_a}\n{str_b}\n{str_blocks}\n{str_blocks_neg}")
     }
 }

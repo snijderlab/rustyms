@@ -453,7 +453,7 @@ impl AnnotatedSpectrum {
 
                 // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
                 let mut closest = (0, f64::INFINITY);
-                #[warn(clippy::needless_range_loop)] // I like this better
+                #[allow(clippy::needless_range_loop)] // I like this better
                 for i in if index == 0 { 0 } else { index - 1 }
                     ..=(index + 1).min(self.spectrum.len() - 1)
                 {

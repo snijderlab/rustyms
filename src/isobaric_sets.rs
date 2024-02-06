@@ -248,7 +248,10 @@ impl IsobaricSetIterator {
             sizes,
             bounds,
             state: (None, None, Vec::new()),
-            base: base.map(|b| b.clone().assume_simple()),
+            base: base.map(|b| {
+                b.assume_simple();
+                b.clone()
+            }),
         };
         while iter.current_mass() < iter.bounds.0 - iter.sizes.0 {
             iter.state.2.push(0);

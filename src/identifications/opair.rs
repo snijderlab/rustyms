@@ -7,7 +7,7 @@ use crate::{
     error::Context,
     error::CustomError,
     system::{Charge, Mass, MassOverCharge, Time},
-    AminoAcid, ComplexPeptide, LinearPeptide,
+    AminoAcid, LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
 
@@ -112,7 +112,7 @@ format_family!(
                 ))
             },
         );
-        peptide: LinearPeptide, |location: Location| ComplexPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         );

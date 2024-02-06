@@ -7,7 +7,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     system::{Charge, Mass, MassOverCharge, Time},
-    ComplexPeptide, LinearPeptide,
+    LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ format_family!(
         mass:  Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         ppm: f64, |location: Location| location.parse(NUMBER_ERROR);
         score: f64, |location: Location| location        .parse::<f64>(NUMBER_ERROR)        .map(|f| f / 100.0);
-        peptide:  LinearPeptide, |location: Location| ComplexPeptide::sloppy_pro_forma(
+        peptide:  LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         );

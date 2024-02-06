@@ -3,10 +3,11 @@
 use std::{fmt::Display, ops::RangeBounds};
 
 use crate::{
-    error::CustomError,
+    error::{Context, CustomError},
+    helper_functions::{end_of_enclosure, ResultExtensions},
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    Element, MolecularFormula, Multi, MultiChemical, SequenceElement,
+    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -94,6 +95,119 @@ impl LinearPeptide {
 }
 
 impl LinearPeptide {
+    /// Convenience wrapper to parse a linear peptide in pro forma notation, to handle all possible pro forma sequences look at [`ComplexPeptide::pro_forma`].
+    /// # Errors
+    /// It gives an error when the peptide is not correctly formatted. (Also see the `ComplexPeptide` main function for this.)
+    /// It additionally gives an error if the peptide specified was multimeric (see [`ComplexPeptide::singular`]).
+    pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
+        let complex = ComplexPeptide::pro_forma(value)?;
+        complex.singular().ok_or_else(|| {
+            CustomError::error(
+                "Complex peptide found",
+                "A linear peptide was expected but a multimeric peptide was found.",
+                crate::error::Context::Show {
+                    line: value.to_string(),
+                },
+            )
+        })
+    }
+
+    /// Read sloppy pro forma like sequences. Defined by the use of square or round braces to indicate
+    /// modifications and missing any particular method of defining the N or C terminal modifications.
+    /// Additionally any underscores will be ignored both on the ends and inside the sequence.
+    ///
+    /// All modifications follow the same definitions as the strict pro forma syntax, if it cannot be
+    /// parsed as a strict pro forma modification it falls back to [`Modification::sloppy_modification`].
+    ///
+    /// # Errors
+    /// If it does not fit the above description.
+    pub fn sloppy_pro_forma(
+        line: &str,
+        location: std::ops::Range<usize>,
+    ) -> Result<Self, CustomError> {
+        if line[location.clone()].trim().is_empty() {
+            return Err(CustomError::error(
+                "Peptide sequence is empty",
+                "A peptide sequence cannot be empty",
+                Context::line(0, line, location.start, 1),
+            ));
+        }
+        let mut peptide = Self::default();
+        let mut ambiguous_lookup = Vec::new();
+        let chars: &[u8] = line[location.clone()].as_bytes();
+        let mut index = 0;
+
+        while index < chars.len() {
+            match chars[index] {
+                b'_' => index += 1, //ignore
+                b'[' | b'(' => {
+                    let (open, close) = if chars[index] == b'[' {
+                        (b'[', b']')
+                    } else {
+                        (b'(', b')')
+                    };
+                    let end_index =
+                        end_of_enclosure(chars, index + 1, open, close).ok_or_else(|| {
+                            CustomError::error(
+                                "Invalid modification",
+                                "No valid closing delimiter",
+                                Context::line(0, line, location.start + index, 1),
+                            )
+                        })?;
+                    let modification = Modification::try_from(
+                        line,
+                        location.start + index + 1..location.start + end_index,
+                        &mut ambiguous_lookup,
+                    )
+                    .map(|m| {
+                        m.defined().ok_or_else(|| {
+                            CustomError::error(
+                                "Invalid modification",
+                                "A modification in the sloppy peptide format cannot be ambiguous",
+                                Context::line(
+                                    0,
+                                    line,
+                                    location.start + index + 1,
+                                    end_index - 1 - index,
+                                ),
+                            )
+                        })
+                    })
+                    .flat_err()
+                    .map_err(|err| {
+                        Modification::sloppy_modification(
+                            line,
+                            location.start + index + 1..location.start + end_index,
+                        )
+                        .ok_or(err)
+                    })
+                    .flat_err()?;
+                    index = end_index + 1;
+
+                    match peptide.sequence.last_mut() {
+                        Some(aa) => aa.modifications.push(modification),
+                        None => peptide.n_term = Some(modification),
+                    }
+                }
+                ch => {
+                    peptide.sequence.push(SequenceElement::new(
+                        ch.try_into().map_err(|()| {
+                            CustomError::error(
+                                "Invalid amino acid",
+                                "This character is not a valid amino acid",
+                                Context::line(0, line, location.start + index, 1),
+                            )
+                        })?,
+                        None,
+                    ));
+                    index += 1;
+                }
+            }
+        }
+        peptide.enforce_modification_rules()?;
+        Ok(peptide)
+    }
+
     /// Get the number of amino acids making up this peptide
     pub fn len(&self) -> usize {
         self.sequence.len()
@@ -150,8 +264,7 @@ impl LinearPeptide {
     /// * Global isotope modifications
     /// * Charge carriers, use of charged ions apart from protons
     /// * or when the sequence is empty.
-    #[must_use]
-    pub fn assume_simple(self) -> Self {
+    pub fn assume_simple(&self) {
         assert!(
             self.labile.is_empty(),
             "A simple linear peptide was assumed, but it has labile modifications"
@@ -168,7 +281,6 @@ impl LinearPeptide {
             !self.sequence.is_empty(),
             "A simple linear peptide was assumed, but it has no sequence"
         );
-        self
     }
 
     /// Assume that the underlying peptide does not use fancy parts of the Pro Forma spec.
@@ -181,8 +293,7 @@ impl LinearPeptide {
     /// * Ambiguous amino acid sequence `(?AA)`
     /// * Charge carriers, use of charged ions apart from protons
     /// * or when the sequence is empty.
-    #[must_use]
-    pub fn assume_very_simple(self) -> Self {
+    pub fn assume_very_simple(&self) {
         assert!(
             self.ambiguous_modifications.is_empty(),
             "A simple linear peptide was assumed, but it has ambiguous modifications"
@@ -214,7 +325,6 @@ impl LinearPeptide {
             !self.sequence.is_empty(),
             "A simple linear peptide was assumed, but it has no sequence"
         );
-        self
     }
 
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {

@@ -15,23 +15,23 @@ use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, 
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<const STEPS: u16>(
-    seq_a: LinearPeptide,
-    seq_b: LinearPeptide,
+pub fn align<'a, const STEPS: u16>(
+    seq_a: &'a LinearPeptide,
+    seq_b: &'a LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance,
     ty: AlignType,
-) -> Alignment {
+) -> Alignment<'a> {
     // Enforce some assumptions
-    let seq_a = seq_a.assume_simple();
-    let seq_b = seq_b.assume_simple();
+    seq_a.assume_simple();
+    seq_b.assume_simple();
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
 
     let mut matrix = Matrix::new(seq_a.len(), seq_b.len());
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_a);
-    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(&seq_b);
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_a);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b);
     let zero: Multi<Mass> = Multi::default();
 
     if ty.left.global_a() {

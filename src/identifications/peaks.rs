@@ -4,7 +4,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     system::{Charge, Mass, MassOverCharge, Time},
-    ComplexPeptide, LinearPeptide,
+    LinearPeptide,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ format_family!(
     required {
         scan: Vec<PeaksId>, |location: Location| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
-        peptide: LinearPeptide, |location: Location| ComplexPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
                         );
