@@ -1,13 +1,17 @@
 #![warn(dead_code)]
 
-use std::{fmt::Display, ops::RangeBounds};
+use std::{
+    fmt::Display,
+    ops::{Index, RangeBounds},
+    slice::SliceIndex,
+};
 
 use crate::{
     error::{Context, CustomError},
     helper_functions::{end_of_enclosure, ResultExtensions},
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, SequenceElement,
+    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, Protease, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -697,6 +701,42 @@ impl LinearPeptide {
             self.ambiguous_modifications[id].extend(positions);
         }
     }
+
+    /// Get a region of this peptide as a new peptide (with all terminal/global/ambiguous modifications).
+    #[must_use]
+    pub fn sub_peptide(&self, index: impl RangeBounds<usize>) -> Self {
+        Self {
+            n_term: if index.contains(&0) {
+                self.n_term.clone()
+            } else {
+                None
+            },
+            c_term: if index.contains(&(self.len() - 1)) {
+                self.c_term.clone()
+            } else {
+                None
+            },
+            sequence: self.sequence[(index.start_bound().cloned(), index.end_bound().cloned())]
+                .to_vec(),
+            ..self.clone()
+        }
+    }
+
+    /// Digest this sequence with the given protease and the given maximal number of missed cleavages.
+    pub fn digest(&self, protease: &Protease, max_missed_cleavages: usize) -> Vec<Self> {
+        let mut sites = vec![0];
+        sites.extend_from_slice(&protease.match_locations(&self.sequence));
+        sites.push(self.len());
+
+        let mut result = Vec::new();
+
+        for (index, start) in sites.iter().enumerate() {
+            for end in index..(index + max_missed_cleavages + 1).max(sites.len()) {
+                result.push(self.sub_peptide((*start)..end));
+            }
+        }
+        result
+    }
 }
 
 impl MultiChemical for LinearPeptide {
@@ -764,4 +804,10 @@ where
     }
 }
 
-// TODO: implement indexing with range and usize for LinearPeptide
+impl<I: SliceIndex<[SequenceElement]>> Index<I> for LinearPeptide {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.sequence[index]
+    }
+}
