@@ -732,8 +732,8 @@ impl LinearPeptide {
         let mut result = Vec::new();
 
         for (index, start) in sites.iter().enumerate() {
-            for end in index..(index + max_missed_cleavages + 1).max(sites.len()) {
-                result.push(self.sub_peptide((*start)..end));
+            for end in sites.iter().skip(index).take(max_missed_cleavages + 1) {
+                result.push(self.sub_peptide((*start)..*end));
             }
         }
         result
