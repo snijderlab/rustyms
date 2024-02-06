@@ -86,10 +86,21 @@ impl Modification {
 
     /// Parse a modification defined by sloppy names
     #[allow(clippy::missing_panics_doc)]
-    pub fn sloppy_modification(line: &str, location: std::ops::Range<usize>) -> Option<Self> {
+    pub fn sloppy_modification(
+        line: &str,
+        location: std::ops::Range<usize>,
+        position: Option<&SequenceElement>,
+    ) -> Option<Self> {
         match line[location.clone()].to_lowercase().as_str() {
             "o" => unimod_ontology().find_id(35),  // oxidation
             "cam" => unimod_ontology().find_id(4), // carbamidomethyl
+            "pyro-glu" => unimod_ontology().find_id(
+                if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
+                    27
+                } else {
+                    28
+                },
+            ), // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
             _ => {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
@@ -132,7 +143,7 @@ impl Modification {
     }
 
     fn sloppy_modification_internal(line: &str) -> Option<Self> {
-        Self::sloppy_modification(line, 0..line.len())
+        Self::sloppy_modification(line, 0..line.len(), None)
     }
 
     /// Check to see if this modification can be placed on the specified element

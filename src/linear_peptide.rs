@@ -182,6 +182,7 @@ impl LinearPeptide {
                         Modification::sloppy_modification(
                             line,
                             location.start + index + 1..location.start + end_index,
+                            peptide.sequence.last(),
                         )
                         .ok_or(err)
                     })
