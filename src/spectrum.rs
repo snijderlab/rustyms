@@ -9,6 +9,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
+    itertools_extension::ItertoolsExt,
     system::{f64::*, mass_over_charge::mz},
     ComplexPeptide, Model,
 };
@@ -124,7 +125,7 @@ impl RawSpectrum {
     ///
     /// # Panics
     /// It panics if any peaks has an intensity that is NaN.
-    pub fn noise_filter(&mut self, filter_threshold: f64) {
+    pub fn relative_noise_filter(&mut self, filter_threshold: f64) {
         let max = self
             .spectrum
             .iter()
@@ -134,6 +135,47 @@ impl RawSpectrum {
         self.spectrum
             .retain(|p| *p.intensity >= max * filter_threshold);
         self.spectrum.shrink_to_fit();
+    }
+
+    /// Filter the spectrum to retain all with an intensity above `filter_threshold`.
+    pub fn absolute_noise_filter(&mut self, filter_threshold: f64) {
+        self.spectrum.retain(|p| *p.intensity >= filter_threshold);
+        self.spectrum.shrink_to_fit();
+    }
+
+    /// Filter a spectrum by dividing it in windows and within each window only retain the `top` number of peaks.
+    #[allow(clippy::missing_panics_doc)] // Cannot panic as it checks with peek first
+    pub fn top_x_filter(&mut self, window_size: f64, top: usize) {
+        let mut new_spectrum = Vec::with_capacity(
+            self.spectrum
+                .last()
+                .and_then(|l| self.spectrum.first().map(|f| (f, l)))
+                .map(|(f, l)| ((l.mz.value - f.mz.value) / window_size).round() as usize * top)
+                .unwrap_or_default(),
+        );
+        let mut spectrum = self.spectrum.iter().cloned().peekable();
+        let mut window = 1;
+        let mut peaks = Vec::new();
+
+        while spectrum.peek().is_some() {
+            while let Some(peek) = spectrum.peek() {
+                if peek.mz.value <= f64::from(window) * window_size {
+                    peaks.push(spectrum.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+            new_spectrum.extend(
+                peaks
+                    .iter()
+                    .cloned()
+                    .k_largest_by(top, |a, b| a.mz.value.total_cmp(&b.mz.value)),
+            );
+            peaks.clear();
+            window += 1;
+        }
+
+        self.spectrum = new_spectrum;
     }
 
     /// Annotate this spectrum with the given peptide and given fragments see [`crate::ComplexPeptide::generate_theoretical_fragments`].

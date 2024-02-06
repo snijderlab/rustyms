@@ -33,6 +33,7 @@ pub mod glycan;
 pub mod identifications;
 mod isobaric_sets;
 mod isotopes;
+mod itertools_extension;
 mod linear_peptide;
 pub mod model;
 pub mod modification;
