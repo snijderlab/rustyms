@@ -17,9 +17,9 @@
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
 //! use rustyms::*;
-//! let a = ComplexPeptide::pro_forma("ANA").unwrap().singular().unwrap();
-//! let b = ComplexPeptide::pro_forma("AGGA").unwrap().singular().unwrap();
-//! let alignment = align::align::<4>(a, b, &align::BLOSUM62,
+//! let a = LinearPeptide::pro_forma("ANA").unwrap();
+//! let b = LinearPeptide::pro_forma("AGGA").unwrap();
+//! let alignment = align::align::<4>(&a, &b, &align::BLOSUM62,
 //!                    Tolerance::new_ppm(10.0), align::AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm(), 0.0);

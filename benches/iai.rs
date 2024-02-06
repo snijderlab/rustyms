@@ -33,11 +33,11 @@ fn setup_igha() -> (LinearPeptide, LinearPeptide) {
 #[bench::igha_1(setup_igha())]
 pub fn align_1(setup: (LinearPeptide, LinearPeptide)) {
     rustyms::align::align::<1>(
-        setup.0,
-        setup.1,
+        &setup.0,
+        &setup.1,
         align::BLOSUM62,
         Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-        Type::GLOBAL,
+        AlignType::GLOBAL,
     );
 }
 
@@ -51,11 +51,11 @@ pub fn align_1(setup: (LinearPeptide, LinearPeptide)) {
 // #[bench::igha_8(setup_igha(Some(8)))]
 pub fn align_4(setup: (LinearPeptide, LinearPeptide)) {
     rustyms::align::align::<4>(
-        setup.0,
-        setup.1,
+        &setup.0,
+        &setup.1,
         align::BLOSUM62,
         Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-        Type::GLOBAL,
+        AlignType::GLOBAL,
     );
 }
 
@@ -63,12 +63,12 @@ pub fn align_4(setup: (LinearPeptide, LinearPeptide)) {
 #[bench::simple_unbounded(setup_simple())]
 // #[bench::igha_8(setup_igha(Some(8)))]
 pub fn align_unbounded(setup: (LinearPeptide, LinearPeptide)) {
-    rustyms::align::align::<{ usize::MAX }>(
-        setup.0,
-        setup.1,
+    rustyms::align::align::<{ u16::MAX }>(
+        &setup.0,
+        &setup.1,
         align::BLOSUM62,
         Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-        Type::GLOBAL,
+        AlignType::GLOBAL,
     );
 }
 
