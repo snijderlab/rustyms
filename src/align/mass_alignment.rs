@@ -5,7 +5,10 @@ use crate::{
     SequenceElement, Tolerance,
 };
 
-use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, Alignment};
+use super::{
+    align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, AlignmentInner,
+    RefAlignment,
+};
 
 /// Create an alignment of two peptides based on mass and homology.
 /// The substitution matrix is in the exact same order as the definition of [`AminoAcid`].
@@ -20,8 +23,8 @@ pub fn align<'a, const STEPS: u16>(
     seq_b: &'a LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance,
-    ty: AlignType,
-) -> Alignment<'a> {
+    align_type: AlignType,
+) -> RefAlignment<'a> {
     // Enforce some assumptions
     seq_a.assume_simple();
     seq_b.assume_simple();
@@ -34,10 +37,10 @@ pub fn align<'a, const STEPS: u16>(
     let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b);
     let zero: Multi<Mass> = Multi::default();
 
-    if ty.left.global_a() {
+    if align_type.left.global_a() {
         matrix.global_start(true);
     }
-    if ty.left.global_b() {
+    if align_type.left.global_b() {
         matrix.global_start(false);
     }
 
@@ -132,12 +135,12 @@ pub fn align<'a, const STEPS: u16>(
                 if highest.score >= global_highest.0 {
                     global_highest = (highest.score, index_a, index_b);
                 }
-                if ty.left.global() || highest.score > 0 {
+                if align_type.left.global() || highest.score > 0 {
                     unsafe {
                         *matrix.get_unchecked_mut([index_a, index_b]) = highest;
                     }
                 }
-            } else if ty.left.global() {
+            } else if align_type.left.global() {
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
                         (
@@ -156,7 +159,7 @@ pub fn align<'a, const STEPS: u16>(
             }
         }
     }
-    let (absolute_score, start_a, start_b, path) = matrix.trace_path(ty, global_highest);
+    let (absolute_score, start_a, start_b, path) = matrix.trace_path(align_type, global_highest);
 
     let maximal_score = (seq_a.sequence
         [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
@@ -169,17 +172,21 @@ pub fn align<'a, const STEPS: u16>(
             .sum::<isize>())
         / 2;
 
-    Alignment {
-        absolute_score,
-        normalised_score: absolute_score as f64 / maximal_score as f64,
-        maximal_score,
-        path,
-        start_a,
-        start_b,
+    RefAlignment {
+        inner: AlignmentInner {
+            absolute_score,
+            normalised_score: ordered_float::OrderedFloat(
+                absolute_score as f64 / maximal_score as f64,
+            ),
+            maximal_score,
+            path,
+            start_a,
+            start_b,
+            align_type,
+            maximal_step: STEPS,
+        },
         seq_a,
         seq_b,
-        ty,
-        maximal_step: STEPS as usize,
     }
 }
 

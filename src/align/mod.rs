@@ -37,19 +37,21 @@ mod piece;
 mod scoring;
 
 pub use align_type::AlignType;
-pub use alignment::Alignment;
+pub use alignment::{Alignment, OwnedAlignment, RefAlignment};
 pub use mass_alignment::align;
 pub use piece::Piece;
 pub use scoring::matrices::*;
 pub use scoring::MatchType;
 
+use alignment::AlignmentInner;
+
 #[cfg(test)]
 mod tests {
     use crate::{ComplexPeptide, LinearPeptide};
 
-    use super::{AlignType, Alignment};
+    use super::{AlignType, Alignment, RefAlignment};
 
-    fn align<'a, const STEPS: u16>(a: &'a LinearPeptide, b: &'a LinearPeptide) -> Alignment<'a> {
+    fn align<'a, const STEPS: u16>(a: &'a LinearPeptide, b: &'a LinearPeptide) -> RefAlignment<'a> {
         crate::align::align::<STEPS>(
             a,
             b,
