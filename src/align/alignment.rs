@@ -124,7 +124,7 @@ pub trait Alignment: PrivateAlignment {
     /// 2. The absolute score of this alignment
     /// 3. The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
     ///    Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
-    fn score(&self) -> (f64, isize, isize) {
+    fn scores(&self) -> (f64, isize, isize) {
         (
             self.inner().normalised_score.0,
             self.inner().absolute_score,
