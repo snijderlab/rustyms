@@ -41,6 +41,8 @@ impl GlycanStructure {
         Self::parse_internal(line, range).map(|(g, _)| g)
     }
 
+    /// # Errors
+    /// Return an Err if the format is not correct
     fn parse_internal(line: &str, range: Range<usize>) -> Result<(Self, usize), CustomError> {
         // Parse at the start the first recognised glycan name
         for name in glycan_parse_list() {
@@ -112,7 +114,9 @@ impl GlycanStructure {
     }
 
     /// Given the inner depth determine the correct positions and branch ordering
-    /// Return the positioned tree and the outer depth
+    /// Return the positioned tree and the outer depth.
+    /// # Panics
+    /// When any of the masses in this glycan cannot be compared see [`f64::partial_cmp`].
     fn internal_pos(
         self,
         inner_depth: usize,
@@ -396,6 +400,7 @@ impl PositionedGlycanStructure {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod test {
     use super::*;
 

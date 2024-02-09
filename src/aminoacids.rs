@@ -156,7 +156,7 @@ impl AminoAcid {
     ];
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
-    pub fn satellite_ion_fragments(&self) -> Multi<MolecularFormula> {
+    pub fn satellite_ion_fragments(self) -> Multi<MolecularFormula> {
         match self {
             Self::Alanine
             | Self::Glycine
@@ -210,7 +210,7 @@ impl AminoAcid {
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
     pub fn fragments(
-        &self,
+        self,
         n_term: &[(MolecularFormula, String)],
         c_term: &[(MolecularFormula, String)],
         modifications: &MolecularFormula,
@@ -250,7 +250,7 @@ impl AminoAcid {
         }
         if ions.d.0 && modifications.is_empty() {
             base_fragments.extend(Fragment::generate_all(
-                &if *self == Self::B || *self == Self::Z {
+                &if self == Self::B || self == Self::Z {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
@@ -278,7 +278,7 @@ impl AminoAcid {
         }
         if ions.w.0 && modifications.is_empty() {
             base_fragments.extend(Fragment::generate_all(
-                &if *self == Self::B || *self == Self::Z {
+                &if self == Self::B || self == Self::Z {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
@@ -341,7 +341,7 @@ impl AminoAcid {
         charged
     }
 
-    pub const fn char(&self) -> char {
+    pub const fn char(self) -> char {
         match self {
             Self::Alanine => 'A',
             Self::AmbiguousAsparagine => 'B',
@@ -390,7 +390,11 @@ impl AminoAcid {
 }
 
 #[cfg(test)]
-#[allow(clippy::unreadable_literal, clippy::float_cmp)]
+#[allow(
+    clippy::unreadable_literal,
+    clippy::float_cmp,
+    clippy::missing_panics_doc
+)]
 mod tests {
     use super::*;
 

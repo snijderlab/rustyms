@@ -2,6 +2,8 @@ use std::path::Path;
 
 use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 pub trait ResultExtensions<T, E> {
+    /// # Errors
+    /// If any of the errors contained within has an error.
     fn flat_err(self) -> Result<T, E>;
 }
 
@@ -24,6 +26,8 @@ impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
 }
 
 pub trait InvertResult<T, E> {
+    /// # Errors
+    /// If any of the errors contained within has an error.
     fn invert(self) -> Result<Option<T>, E>;
 }
 
@@ -38,6 +42,8 @@ impl<T, E> InvertResult<T, E> for Option<Result<Option<T>, E>> {
     }
 }
 
+/// # Errors
+/// If the name cannot be recognised or a number is not valid.
 #[allow(dead_code)]
 pub fn parse_named_counter<T: Clone>(
     value: &str,
@@ -64,7 +70,11 @@ pub fn parse_named_counter<T: Clone>(
                     if num.is_empty() {
                         output.push((name.1.clone(), 1));
                     } else {
-                        output.push((name.1.clone(), num.parse().unwrap()));
+                        output.push((
+                            name.1.clone(),
+                            num.parse()
+                                .map_err(|_| format!("Not a valid number '{num}'"))?,
+                        ));
                         index += num.len()
                             + value[index..]
                                 .chars()
@@ -83,8 +93,11 @@ pub fn parse_named_counter<T: Clone>(
     Ok(output)
 }
 
-// ProForma: [13C2][12C-2]H2N
+/// Parse Pro Forma formulas: [13C2][12C-2]H2N.
+/// # Errors
+/// If the formula is not valid.
 #[allow(dead_code)]
+#[allow(clippy::missing_panics_doc)] // Cannot panic
 pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula, String> {
     let mut index = 0;
     let mut element = None;
@@ -118,18 +131,22 @@ pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula
                         break;
                     }
                 }
-                let num = value[index + isotope + ele..index + len]
-                    .parse::<i16>()
-                    .map_err(|e| e.to_string())?;
-                let isotope = value[index..index + isotope]
-                    .parse::<u16>()
-                    .map_err(|e| e.to_string())?;
+                if let Some(parsed_element) = element {
+                    let num = value[index + isotope + ele..index + len]
+                        .parse::<i16>()
+                        .map_err(|e| e.to_string())?;
+                    let isotope = value[index..index + isotope]
+                        .parse::<u16>()
+                        .map_err(|e| e.to_string())?;
 
-                if !result.add((element.unwrap(), Some(isotope), num)) {
-                    return Err(format!("Invalid isotope ({}) added for element ({}) in pro forma molecular formula ({})", isotope, element.unwrap(), value));
+                    if !result.add((parsed_element, Some(isotope), num)) {
+                        return Err(format!("Invalid isotope ({isotope}) added for element ({parsed_element}) in pro forma molecular formula ({value})"));
+                    }
+                    element = None;
+                    index += len + 1;
+                } else {
+                    return Err(format!("Invalid element ({ele}) in formula ({value})"));
                 }
-                element = None;
-                index += len + 1;
             }
             b'-' | b'0'..=b'9' if element.is_some() => {
                 let (num, len) = std::str::from_utf8(
@@ -213,7 +230,9 @@ pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Opti
 }
 
 #[allow(dead_code)]
-/// Get the next number, returns length in bytes and the number
+/// Get the next number, returns length in bytes and the number.
+/// # Panics
+/// If the text is not valid UTF-8.
 pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option<(usize, isize)> {
     let mut sign = 1;
     let mut sign_set = false;

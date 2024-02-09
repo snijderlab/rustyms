@@ -136,6 +136,8 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String>
     Ok(output)
 }
 
+/// # Errors
+/// When the charge could not be properly parsed.
 fn parse_charge(input: &str) -> Result<Charge, ()> {
     if input.ends_with('+') {
         Ok(Charge::new::<e>(
@@ -150,6 +152,7 @@ fn parse_charge(input: &str) -> Result<Charge, ()> {
     }
 }
 
+#[allow(clippy::missing_panics_doc)]
 fn parse_title(title: &str, spectrum: &mut RawSpectrum) {
     // basic structure: <name>.<scan>.<scan>.<experiment?>? File:"<name>", NativeID:"(<header>) +"
     let ms_convert_format: Regex =
@@ -182,6 +185,7 @@ fn parse_title(title: &str, spectrum: &mut RawSpectrum) {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     #[test]

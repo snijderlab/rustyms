@@ -905,7 +905,7 @@ impl Display for GlycanSubstituent {
                 Self::Tauryl => "Tau".to_string(),
                 Self::Ulo => "ulo".to_string(),
                 Self::Ulof => "ulof".to_string(),
-                Self::Water => "waterloss".to_string(),
+                Self::Water => "water_loss".to_string(),
             }
         )
     }
@@ -1348,6 +1348,8 @@ impl GlycanStructure {
         )
     }
 
+    /// # Panics
+    /// It panics if a brace was not closed that was not close to the end of the input (more then 10 bytes from the end).
     fn ignore_linking_information(bytes: &[u8], mut offset: usize, range: &Range<usize>) -> usize {
         if bytes[offset] == b'(' {
             if let Some(end) = next_char(bytes, offset + 1, b')') {
@@ -1374,6 +1376,7 @@ impl Chemical for GlycanStructure {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
 

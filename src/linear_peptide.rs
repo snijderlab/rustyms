@@ -47,7 +47,7 @@ pub struct LinearPeptide {
 /// Builder style methods to create a [`LinearPeptide`]
 impl LinearPeptide {
     /// Create a new [`LinearPeptide`], if you want an empty peptide look at [`LinearPeptide::default`].
-    /// Potentially the collect() or into() methods can be useful as well.
+    /// Potentially the `.collect()` or `.into()` methods can be useful as well.
     #[must_use]
     pub fn new(sequence: impl IntoIterator<Item = SequenceElement>) -> Self {
         sequence.into_iter().collect()
@@ -332,6 +332,8 @@ impl LinearPeptide {
         );
     }
 
+    /// # Errors
+    /// If a modification rule is broken it returns an error.
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
         for (index, element) in self.sequence.iter().enumerate() {
             element.enforce_modification_rules(index, self.sequence.len())?;
@@ -630,6 +632,8 @@ impl LinearPeptide {
         }
     }
     /// Place all ranged unknown positions at all possible locations as ambiguous modifications
+    /// # Panics
+    /// It panics when information for an ambiguous modification is missing (name/mod).
     pub(crate) fn apply_ranged_unknown_position_modification(
         &mut self,
         ranged_unknown_position_modifications: &[(usize, usize, ReturnModification)],

@@ -3,7 +3,7 @@ use probability::distribution::{Binomial, Discrete};
 use std::collections::HashMap;
 
 impl MolecularFormula {
-    #[allow(clippy::fn_params_excessive_bools)]
+    #[allow(clippy::fn_params_excessive_bools, clippy::missing_panics_doc)]
     fn isotopic_distribution(
         &self,
         threshold: f64,
@@ -104,7 +104,7 @@ impl MolecularFormula {
                 }
             }
         }
-        isotopes.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        isotopes.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
         isotopes
     }
 }
@@ -127,7 +127,7 @@ fn combined_pattern(
             combined.push((da(isotope_mass), isotope.1, 1, isotope.2.clone()));
         }
     }
-    combined.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    combined.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
     combined
 }
 
@@ -146,6 +146,7 @@ fn stupid_f64_factorial(num: u16) -> f64 {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use std::{

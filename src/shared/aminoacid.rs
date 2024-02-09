@@ -35,6 +35,17 @@ pub enum AminoAcid {
 }
 //ARNDCQEGHILKMFPSTWYVBJZUOX
 
+#[derive(Debug)]
+pub struct NotACodon;
+
+impl std::fmt::Display for NotACodon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Not a valid codon")
+    }
+}
+
+impl std::error::Error for NotACodon {}
+
 #[allow(dead_code)]
 impl AminoAcid {
     /// The total number of amino acids
@@ -43,9 +54,9 @@ impl AminoAcid {
     /// It returns None for a stop codon.
     /// <https://en.wikipedia.org/wiki/DNA_and_RNA_codon_tables>
     /// # Errors
-    /// It returns `Err(())` when the given codon is not a valid dna codon.
+    /// It returns `Err(NotACodon)` when the given codon is not a valid dna codon.
     #[allow(dead_code)]
-    pub fn from_dna(dna: &str) -> Result<Option<Self>, ()> {
+    pub fn from_dna(dna: &str) -> Result<Option<Self>, NotACodon> {
         match dna.to_lowercase().as_str() {
             "ttt" | "ttc" => Ok(Some(Self::Phenylalanine)),
             "tta" | "ttg" | "ctt" | "ctc" | "cta" | "ctg" => Ok(Some(Self::Leucine)),
@@ -68,7 +79,7 @@ impl AminoAcid {
             "tgt" | "tgc" => Ok(Some(Self::Cysteine)),
             "tgg" => Ok(Some(Self::Tryptophan)),
             "ggt" | "ggc" | "gga" | "ggg" => Ok(Some(Self::Glycine)),
-            _ => Err(()),
+            _ => Err(NotACodon),
         }
     }
 }

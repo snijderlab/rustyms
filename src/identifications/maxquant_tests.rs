@@ -1,3 +1,4 @@
+#![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
 use crate::identifications::{maxquant, IdentifiedPeptide, IdentifiedPeptideSource, MaxQuantData};

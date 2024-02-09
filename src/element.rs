@@ -96,6 +96,7 @@ pub fn elemental_data() -> &'static ElementalData {
 static ELEMENTAL_DATA_CELL: OnceLock<ElementalData> = OnceLock::new();
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod test {
     use crate::{Element, MolecularFormula};
 

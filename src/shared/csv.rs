@@ -109,6 +109,8 @@ pub fn parse_csv(
 }
 
 /// Parse a CSV file from a raw `BufReader`
+/// # Errors
+/// If no header is provided and the first line could not be read as a header line.
 pub fn parse_csv_raw<T: std::io::Read>(
     reader: T,
     separator: u8,
@@ -116,13 +118,14 @@ pub fn parse_csv_raw<T: std::io::Read>(
 ) -> Result<CsvLineIter<T>, String> {
     let reader = BufReader::new(reader);
     let mut lines = reader.lines().enumerate();
-    let header = if let Some(header) = provided_header {
+    let column_headers = if let Some(header) = provided_header {
         header
     } else {
-        let (_, header) = lines
+        let (_, column_headers) = lines
             .next()
             .ok_or("Empty CSV file, but it should contain a header")?;
-        let header_line = header.map_err(|err| format!("Could not read header line: {err}"))?;
+        let header_line =
+            column_headers.map_err(|err| format!("Could not read header line: {err}"))?;
         csv_separate(&header_line, separator)?
             .into_iter()
             .map(|r| header_line[r].to_lowercase())
@@ -131,7 +134,7 @@ pub fn parse_csv_raw<T: std::io::Read>(
 
     Ok(CsvLineIter {
         lines,
-        header,
+        header: column_headers,
         separator,
     })
 }
@@ -167,6 +170,8 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
     }
 }
 
+/// # Errors
+/// If the line is empty.
 fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> {
     if line.is_empty() {
         return Err("Empty line".to_string());

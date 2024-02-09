@@ -113,7 +113,7 @@ pub fn building_blocks(
                     .collect_vec()
             })
             .collect_vec();
-        options.sort_unstable_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        options.sort_unstable_by(|a, b| a.2.value.total_cmp(&b.2.value));
         options
     }
 
@@ -233,6 +233,8 @@ pub struct IsobaricSetIterator {
 impl IsobaricSetIterator {
     /// `n_term` & `c_term` are the possible combinations of terminal modifications with their valid placements and the full mass of this combo
     /// The base sequence is assumed to be simple, see [`LinearPeptide::assume_simple`].
+    /// # Panics
+    /// If there is not at least one element in the `center` list.
     fn new(
         n_term: Vec<(SequenceElement, Modification, Mass)>,
         c_term: Vec<(SequenceElement, Modification, Mass)>,
@@ -282,6 +284,8 @@ impl IsobaricSetIterator {
         }
     }
 
+    /// # Panics
+    /// If the base sequence is empty.
     fn peptide(&self) -> LinearPeptide {
         let mut sequence = Vec::with_capacity(
             self.base
@@ -461,6 +465,7 @@ impl Iterator for IsobaricSetIterator {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::ComplexPeptide;
 

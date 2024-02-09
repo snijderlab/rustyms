@@ -1,3 +1,4 @@
+#![allow(clippy::missing_panics_doc)]
 use crate::{model::*, system::*, *};
 
 #[test]

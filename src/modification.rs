@@ -164,6 +164,9 @@ impl Modification {
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
 pub type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
 
+/// # Errors
+/// It returns an error when the given line cannot be read as a single modification.
+#[allow(clippy::missing_panics_doc)]
 fn parse_single_modification(
     line: &str,
     full_modification: &str,
@@ -384,6 +387,8 @@ pub enum GlobalModification {
     Free(Modification),
 }
 
+/// # Errors
+/// It returns an error when the text is not numerical
 fn numerical_mod(text: &str) -> Result<Modification, String> {
     text.parse().map_or_else(
         |_| Err("Invalid number".to_string()),
@@ -418,6 +423,7 @@ impl Display for Modification {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
 
