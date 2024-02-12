@@ -283,7 +283,7 @@ fn parse_single_modification(
                     .find_name(full.0)
                     .or_else(|| Ontology::Psimod.find_name(full.0))
                     .map(Some)
-                    .ok_or_else(|| 
+                    .ok_or_else(||
                         Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
                     .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a type of modification that is not yet supported?")
                     .with_context(Context::line(0, line, offset+full.1, full.2)))
@@ -296,7 +296,7 @@ fn parse_single_modification(
                 .ok_or_else(|| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
-                .map_err(|_| 
+                .map_err(|_|
                     Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
                     .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification.")
                     .with_context(Context::line(0, line, offset+full.1, full.2))
