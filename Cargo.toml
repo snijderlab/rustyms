@@ -21,6 +21,7 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 probability = "0.20"
 uom = { version = "0.35", features = ["use_serde", "usize"] }
 ordered-float = { version = "4.2", features = ["serde"] }
+similar = "2.4"
 
 [build-dependencies]
 bincode = "1.3"

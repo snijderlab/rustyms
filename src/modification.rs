@@ -8,15 +8,11 @@ use std::{fmt::Display, ops::Range};
 use regex::Regex;
 
 use crate::{
-    error::Context,
-    error::CustomError,
+    error::{Context, CustomError},
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
-    ontologies::{gnome_ontology, psimod_ontology, unimod_ontology},
     placement_rule::PlacementRule,
-    system::dalton,
-    system::Mass,
-    system::OrderedMass,
+    system::{dalton, Mass, OrderedMass},
     AminoAcid, Chemical, Element, MolecularFormula, SequenceElement,
 };
 
@@ -44,7 +40,7 @@ impl Chemical for Modification {
 }
 
 impl Modification {
-    /// Try to parse the modification. Any ambiguous modification will be number
+    /// Try to parse the modification. Any ambiguous modification will be numbered
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
     /// # Errors
@@ -92,22 +88,22 @@ impl Modification {
         position: Option<&SequenceElement>,
     ) -> Option<Self> {
         match line[location.clone()].to_lowercase().as_str() {
-            "o" => unimod_ontology().find_id(35),  // oxidation
-            "cam" => unimod_ontology().find_id(4), // carbamidomethyl
-            "pyro-glu" => unimod_ontology().find_id(
-                if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
+            "o" => Ontology::Unimod.find_id(35),  // oxidation
+            "cam" => Ontology::Unimod.find_id(4), // carbamidomethyl
+            "pyro-glu" => {
+                Ontology::Unimod.find_id(if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
                     27
                 } else {
                     28
-                },
-            ), // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
+                })
+            } // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
             _ => {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
                     .unwrap()
                     .captures(&line[location.clone()])
                     .and_then(|capture| {
-                        unimod_ontology()
+                        Ontology::Unimod
                             .find_name(&capture[1])
                             .ok_or_else(|| {
                                 parse_named_counter(&capture[1], glycan_parse_list(), false)
@@ -116,7 +112,7 @@ impl Modification {
                             .flat_err()
                             .or_else(|_| {
                                 match &capture[1] {
-                                    "Deamidation" => Ok(unimod_ontology().find_id(7).unwrap()), // deamidated
+                                    "Deamidation" => Ok(Ontology::Unimod.find_id(7).unwrap()), // deamidated
                                     _ => Err(()),
                                 }
                             })
@@ -128,11 +124,9 @@ impl Modification {
                             .unwrap()
                             .captures(&line[location])
                             .and_then(|capture| {
-                                unimod_ontology().find_name(capture[1].trim()).or_else(|| {
+                                Ontology::Unimod.find_name(capture[1].trim()).or_else(|| {
                                     match capture[1].trim() {
-                                        "Deamidation" => {
-                                            Some(unimod_ontology().find_id(7).unwrap())
-                                        } // deamidated
+                                        "Deamidation" => Some(Ontology::Unimod.find_id(7).unwrap()), // deamidated
                                         _ => None,
                                     }
                                 })
@@ -217,74 +211,93 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("Unimod accession number should be a number")
                     })?;
-                    unimod_ontology().find_id(id)
-                        .map(Some)
-                        .ok_or_else(||
-                            basic_error
-                            .with_long_description("The supplied Unimod accession number is not an existing modification"))
+                    Ontology::Unimod.find_id(id).map(Some).ok_or_else(|| {
+                        basic_error.with_long_description(
+                            "The supplied Unimod accession number is not an existing modification",
+                        )
+                    })
                 }
                 ("mod", tail) => {
-                    let id = tail.parse::<usize>().map_err(|_| basic_error
-                        .with_long_description("PSI-MOD accession number should be a number"))?;
-                    psimod_ontology().find_id(id)
-                        .map(Some)
-                        .ok_or_else(|| basic_error
-                            .with_long_description("The supplied PSI-MOD accession number is not an existing modification"))
+                    let id = tail.parse::<usize>().map_err(|_| {
+                        basic_error
+                            .with_long_description("PSI-MOD accession number should be a number")
+                    })?;
+                    Ontology::Psimod.find_id(id).map(Some).ok_or_else(|| {
+                        basic_error.with_long_description(
+                            "The supplied PSI-MOD accession number is not an existing modification",
+                        )
+                    })
                 }
-                ("u", tail) => unimod_ontology().find_name(tail)
+                ("u", tail) => Ontology::Unimod
+                    .find_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| basic_error
-                        .with_long_description("This modification cannot be read as a Unimod name or numerical modification")),
-                ("m", tail) => psimod_ontology().find_name(tail)
+                    .map_err(|_| {
+                        Ontology::Unimod
+                            .find_closest(tail)
+                            .with_context(basic_error.context().clone())
+                    }),
+                ("m", tail) => Ontology::Psimod
+                    .find_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
-                    .map_err(|_| basic_error
-                        .with_long_description("This modification cannot be read as a PSI-MOD name or numerical modification")),
-                ("gno" | "g", tail) => gnome_ontology().find_name(tail)
-                    .map(Some)
-                    .ok_or_else(|| basic_error
-                        .with_long_description("This modification cannot be read as a GNO name")),
+                    .map_err(|_| {
+                        Ontology::Psimod
+                            .find_closest(tail)
+                            .with_context(basic_error.context().clone())
+                    }),
+                ("gno" | "g", tail) => Ontology::Gnome.find_name(tail).map(Some).ok_or_else(|| {
+                    basic_error
+                        .with_long_description("This modification cannot be read as a GNO name")
+                }),
                 ("formula", tail) => Ok(Some(Modification::Formula(
-                    parse_molecular_formula_pro_forma(tail).map_err(|e| basic_error
-                        .with_long_description(format!("This modification cannot be read as a valid formula: {e}")))?,
+                    parse_molecular_formula_pro_forma(tail).map_err(|e| {
+                        basic_error.with_long_description(format!(
+                            "This modification cannot be read as a valid formula: {e}"
+                        ))
+                    })?,
                 ))),
-                ("glycan", tail) => Ok(Some(Modification::Glycan(parse_named_counter(
-                    tail,
-                    glycan_parse_list(),
-                    false,
-                ).map_err(|e| basic_error
-                    .with_long_description(format!("This modification cannot be read as a valid glycan: {e}")))?))),
-                ("glycanstructure", _) => GlycanStructure::parse(line, offset + tail.1..offset+tail.1+tail.2).map(|g| Some(Modification::GlycanStructure(g))),
+                ("glycan", tail) => Ok(Some(Modification::Glycan(
+                    parse_named_counter(tail, glycan_parse_list(), false).map_err(|e| {
+                        basic_error.with_long_description(format!(
+                            "This modification cannot be read as a valid glycan: {e}"
+                        ))
+                    })?,
+                ))),
+                ("glycanstructure", _) => {
+                    GlycanStructure::parse(line, offset + tail.1..offset + tail.1 + tail.2)
+                        .map(|g| Some(Modification::GlycanStructure(g)))
+                }
                 ("info", _) => Ok(None),
-                ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| basic_error
-                    .with_long_description("This modification cannot be read as a numerical modification")),
-                (_, _tail) => unimod_ontology().find_name(full.0)
-                    .or_else(|| psimod_ontology().find_name(full.0 ))
+                ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| {
+                    basic_error.with_long_description(
+                        "This modification cannot be read as a numerical modification",
+                    )
+                }),
+                (_, _tail) => Ontology::Unimod
+                    .find_name(full.0)
+                    .or_else(|| Ontology::Psimod.find_name(full.0))
                     .map(Some)
-                    .ok_or_else(||
-                        CustomError::error(
-                            "Invalid modification",
-                            "Rustyms does not support these types of modification (yet)",
-                            Context::line(0, line, offset+head.1, head.2),
-                        )),
+                    .ok_or_else(|| 
+                        Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
+                    .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a type of modification that is not yet supported?")
+                    .with_context(Context::line(0, line, offset+full.1, full.2)))
             }
         } else if full.0.is_empty() {
             Ok(None)
         } else {
-            unimod_ontology().find_name(full.0 )
-                .or_else(|| psimod_ontology().find_name(full.0))
+            Ontology::Unimod.find_name(full.0 )
+                .or_else(|| Ontology::Psimod.find_name(full.0))
                 .ok_or_else(|| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
-                .map_err(|_|
-                    CustomError::error(
-                        "Invalid modification",
-                        "This modification cannot be read as a Unimod name, PSI-MOD name, or numerical modification",
-                        Context::line(0, line, offset+full.1, full.2),
-                    ))
+                .map_err(|_| 
+                    Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
+                    .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification.")
+                    .with_context(Context::line(0, line, offset+full.1, full.2))
+                )
         };
         // Handle ambiguous modifications
         if let Some(group) = group {
@@ -425,7 +438,7 @@ mod tests {
     fn sloppy_names() {
         assert_eq!(
             Modification::sloppy_modification_internal("Deamidation (NQ)"),
-            Some(unimod_ontology().find_name("deamidated").unwrap())
+            Some(Ontology::Unimod.find_name("deamidated").unwrap())
         );
     }
 }

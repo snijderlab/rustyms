@@ -44,7 +44,6 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
-    use crate::ontologies::*;
 
     use super::*;
     #[test]
@@ -66,7 +65,7 @@ mod tests {
             PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Alanine,
-                    modifications: vec![psimod_ontology().find_id(30).unwrap()],
+                    modifications: vec![Ontology::Psimod.find_id(30).unwrap()],
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
@@ -119,7 +118,7 @@ mod tests {
             "end"
         );
         assert!(
-            dbg!(unimod_ontology().find_id(7).unwrap()).is_possible(
+            dbg!(Ontology::Unimod.find_id(7).unwrap()).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),

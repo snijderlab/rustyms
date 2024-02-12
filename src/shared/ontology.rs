@@ -50,32 +50,3 @@ impl std::fmt::Display for Ontology {
 
 /// The shared type for contact between the build and compile steps
 pub type OntologyList = Vec<(usize, String, Modification)>;
-
-/// Any ontology you can lookup modification in
-pub trait OntologyLookup {
-    /// Find the given name in this ontology
-    fn find_name(&self, code: &str) -> Option<Modification>;
-    /// Find the given id in this ontology
-    fn find_id(&self, id: usize) -> Option<Modification>;
-}
-
-impl OntologyLookup for OntologyList {
-    fn find_name(&self, code: &str) -> Option<Modification> {
-        let code = code.to_ascii_lowercase();
-        for option in self {
-            if option.1 == code {
-                return Some(option.2.clone());
-            }
-        }
-        None
-    }
-
-    fn find_id(&self, id: usize) -> Option<Modification> {
-        for option in self {
-            if option.0 == id {
-                return Some(option.2.clone());
-            }
-        }
-        None
-    }
-}

@@ -12,6 +12,8 @@ pub struct CustomError {
     short_description: String,
     /// A longer description of the error, presented below the context to give more information and helpful feedback
     long_description: String,
+    /// Possible suggestion(s) for the indicated text
+    suggestions: Vec<String>,
     /// The context, in the most general sense this produces output which leads the user to the right place in the code or file
     context: Context,
 }
@@ -33,6 +35,7 @@ impl CustomError {
             warning: false,
             short_description: short_desc.to_string(),
             long_description: long_desc.to_string(),
+            suggestions: Vec::new(),
             context,
         }
     }
@@ -51,6 +54,7 @@ impl CustomError {
             warning: false,
             short_description: short_desc,
             long_description: long_desc,
+            suggestions: Vec::new(),
             context,
         }
     }
@@ -69,6 +73,7 @@ impl CustomError {
             warning: true,
             short_description: short_desc.to_string(),
             long_description: long_desc.to_string(),
+            suggestions: Vec::new(),
             context,
         }
     }
@@ -105,6 +110,19 @@ impl CustomError {
             ..self.clone()
         }
     }
+
+    /// Create a copy of the error with the given suggestions
+    #[must_use]
+    pub fn with_suggestions(
+        &self,
+        suggestions: impl IntoIterator<Item = impl std::string::ToString>,
+    ) -> Self {
+        Self {
+            suggestions: suggestions.into_iter().map(|s| s.to_string()).collect(),
+            ..self.clone()
+        }
+    }
+
     /// Create a copy of the error with a new context
     #[must_use]
     pub fn with_context(&self, context: Context) -> Self {
@@ -131,27 +149,25 @@ impl CustomError {
 
 impl fmt::Debug for CustomError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "{}: {}{}\n{}\n",
+            "{}: {}{}\n{}",
             self.level(),
             self.short_description,
             self.context,
             self.long_description
-        )
+        )?;
+        match self.suggestions.len() {
+            0 => Ok(()),
+            1 => writeln!(f, "Did you mean: {}?", self.suggestions[0]),
+            _ => writeln!(f, "Did you mean any of: {}?", self.suggestions.join(", ")),
+        }
     }
 }
 
 impl fmt::Display for CustomError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}: {}{}\n{}\n",
-            self.level(),
-            self.short_description,
-            self.context,
-            self.long_description
-        )
+        write!(f, "{self:?}")
     }
 }
 
