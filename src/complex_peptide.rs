@@ -99,6 +99,9 @@ impl ComplexPeptide {
         })
     }
 
+    /// # Errors
+    /// It returns an error if the line is not a supported Pro Forma line.
+    #[allow(clippy::missing_panics_doc)] // Can not panic
     fn pro_forma_inner(
         line: &str,
         mut index: usize,
@@ -210,7 +213,8 @@ impl ComplexPeptide {
 
         // Unknown position mods
         if let Some(result) = unknown_position_mods(chars, index) {
-            let (buf, mods, ambiguous_mods) = result.map_err(|mut e| e.pop().unwrap())?; // TODO: at some point be able to return all errors
+            let (buf, mods, ambiguous_mods) =
+                result.map_err(|mut e| e.pop().unwrap_or_else(|| CustomError::error("Missing error in ambiguous mods", "Ambiguous modifications could not be parsed, but no error was returned, please report this error.", Context::Show { line: line.to_string() })))?; // TODO: at some point be able to return all errors
             index = buf;
 
             unknown_position_modifications = mods
@@ -557,6 +561,10 @@ where
 type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
+/// # Errors
+/// Give all errors when the text cannot be read as mods of unknown position.
+/// # Panics
+/// Breaks if the text is not valid UTF-8
 fn unknown_position_mods(
     chars: &[u8],
     start: usize,
@@ -605,6 +613,7 @@ fn unknown_position_mods(
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
         model::Location,

@@ -401,11 +401,21 @@ impl Matrix {
         }
     }
 
+    /// # Safety
+    /// This function assumes the index to be valid. Not upholding this does an out of bounds unsafe [`Vec::get_unchecked`].
+    /// A debug assertion hold up this promise on debug builds.
     pub unsafe fn get_unchecked(&self, index: [usize; 2]) -> &Piece {
+        debug_assert!(self.value.len() > index[0]);
+        debug_assert!(self.value[index[0]].len() > index[1]);
         self.value.get_unchecked(index[0]).get_unchecked(index[1])
     }
 
+    /// # Safety
+    /// This function assumes the index to be valid. Not upholding this does an out of bounds unsafe [`Vec::get_unchecked_mut`].
+    /// A debug assertion hold up this promise on debug builds.
     pub unsafe fn get_unchecked_mut(&mut self, index: [usize; 2]) -> &mut Piece {
+        debug_assert!(self.value.len() > index[0]);
+        debug_assert!(self.value[index[0]].len() > index[1]);
         self.value
             .get_unchecked_mut(index[0])
             .get_unchecked_mut(index[1])
@@ -429,6 +439,7 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::score;
     use crate::aminoacids::AminoAcid;

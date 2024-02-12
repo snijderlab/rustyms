@@ -258,6 +258,7 @@ impl MolecularFormula {
     }
 }
 
+#[allow(clippy::missing_panics_doc)] // Cannot panic
 fn to_subscript_num(input: isize) -> String {
     let text = input.to_string();
     let mut output = String::new();
@@ -271,6 +272,7 @@ fn to_subscript_num(input: isize) -> String {
     output
 }
 
+#[allow(clippy::missing_panics_doc)] // Cannot panic
 fn to_superscript_num(input: u16) -> String {
     let text = input.to_string();
     let mut output = String::new();
@@ -296,6 +298,7 @@ impl std::fmt::Display for MolecularFormula {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{Element, MolecularFormula};
 

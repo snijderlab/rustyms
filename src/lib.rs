@@ -71,6 +71,7 @@ pub use fragment::Fragment;
 extern crate uom;
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod test {
     use super::*;
 

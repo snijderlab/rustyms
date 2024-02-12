@@ -28,11 +28,11 @@ impl<'a> RefAlignment<'a> {
     /// Clone the referenced sequences to make an alignment that owns the sequences.
     /// This can be necessary in some context where the references cannot be guaranteed to stay as long as you need the alignment.
     #[must_use]
-    pub fn to_owned(self) -> OwnedAlignment {
+    pub fn to_owned(&self) -> OwnedAlignment {
         OwnedAlignment {
             seq_a: self.seq_a.clone(),
             seq_b: self.seq_b.clone(),
-            inner: self.inner,
+            inner: self.inner.clone(),
         }
     }
 }
@@ -101,11 +101,14 @@ impl Alignment for OwnedAlignment {
     }
 }
 
+/// The link to the inner data structure shared between all alignments, but private to prevent inner details from leaking to the public
 trait PrivateAlignment {
     /// Get the shared inner stuff
     fn inner(&self) -> &AlignmentInner;
 }
 
+/// A generalised alignment with all behaviour.
+#[allow(private_bounds)] // Intended behaviour no one should build on the inner structure
 pub trait Alignment: PrivateAlignment {
     /// The first sequence
     fn seq_a(&self) -> &LinearPeptide;
@@ -164,186 +167,12 @@ pub trait Alignment: PrivateAlignment {
 
     /// The total number of residues matched on the first sequence
     fn len_a(&self) -> usize {
-        self.inner().len_a()
+        self.path().iter().map(|p| p.step_a as usize).sum()
     }
 
     /// The total number of residues matched on the second sequence
     fn len_b(&self) -> usize {
-        self.inner().len_b()
-    }
-
-    /// Returns statistics for this match. Returns `(identical, mass similar, similar, gap, length)`. Retrieve any stat as percentage
-    /// by calculating `stat as f64 / length as f64`. The length is calculated as the max length of `len_a` and `len_b`.
-    /// Identical is the number of positions that have identical amino acids, mass similar is the number of positions that have the same mass
-    /// (identical, isobaric, rotated), similar is the number of positions that have a positive score in the matrix, and gap is the number
-    /// of positions that are gaps.
-    fn stats(&self) -> (usize, usize, usize, usize, usize) {
-        self.inner().stats()
-    }
-
-    /// The mass(es) for the matched portion of the first sequence
-    fn mass_a(&self) -> Multi<MolecularFormula> {
-        self.inner().mass_a(self.seq_a())
-    }
-
-    /// The mass(es) for the matched portion of the second sequence
-    fn mass_b(&self) -> Multi<MolecularFormula> {
-        self.inner().mass_b(self.seq_b())
-    }
-
-    /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    fn mass_difference(&self) -> Mass {
-        self.inner().mass_difference(self.seq_a(), self.seq_b())
-    }
-
-    /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    fn ppm(&self) -> f64 {
-        self.inner().ppm(self.seq_a(), self.seq_b())
-    }
-
-    /// Get a short representation of the alignment in CIGAR like format.
-    /// It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
-    fn short(&self) -> String {
-        self.inner().short(self.seq_a(), self.seq_b())
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub(super) struct AlignmentInner {
-    /// The absolute score of this alignment
-    pub absolute_score: isize,
-    /// The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
-    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
-    pub maximal_score: isize,
-    /// The normalised score, normalised for the alignment length and for the used alphabet.
-    /// The normalisation is as follows `absolute_score / max_score`.
-    pub normalised_score: OrderedFloat<f64>,
-    /// The path or steps taken for the alignment
-    pub path: Vec<Piece>,
-    /// The position in the first sequence where the alignment starts
-    pub start_a: usize,
-    /// The position in the second sequence where the alignment starts
-    pub start_b: usize,
-    /// The alignment type
-    pub align_type: AlignType,
-    /// The maximal step size (the const generic STEPS)
-    pub maximal_step: u16,
-}
-
-impl AlignmentInner {
-    /// Get a short representation of the alignment in CIGAR like format. It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
-    fn short(&self, seq_a: &LinearPeptide, seq_b: &LinearPeptide) -> String {
-        #[derive(PartialEq, Eq)]
-        enum StepType {
-            Insertion,
-            Deletion,
-            Match,
-            Mismatch,
-            Special(MatchType, u16, u16),
-        }
-        impl std::fmt::Display for StepType {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(
-                    f,
-                    "{}",
-                    match self {
-                        Self::Insertion => String::from("I"),
-                        Self::Deletion => String::from("D"),
-                        Self::Match => String::from("="),
-                        Self::Mismatch => String::from("X"),
-                        Self::Special(MatchType::Rotation, a, b) if a == b => format!("{a}r"),
-                        Self::Special(MatchType::Rotation, a, b) => format!("{a}:{b}r"),
-                        Self::Special(MatchType::Isobaric, a, b) if a == b => format!("{a}i"),
-                        Self::Special(MatchType::Isobaric, a, b) => format!("{a}:{b}i"),
-                        Self::Special(..) => panic!("A special match cannot be of this match type"),
-                    }
-                )
-            }
-        }
-        let (_, _, output, last) = self.path.iter().fold(
-            (self.start_a, self.start_b, String::new(), None),
-            |(a, b, output, last), step| {
-                let current_type = match (step.match_type, step.step_a, step.step_b) {
-                    (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
-                    (_, 0, 1) => StepType::Insertion,
-                    (_, 1, 0) => StepType::Deletion,
-                    (_, 1, 1) if seq_a.sequence[a] == seq_b.sequence[b] => StepType::Match,
-                    (_, 1, 1) => StepType::Mismatch,
-                    (m, a, b) => StepType::Special(m, a, b),
-                };
-                let (str, last) = match last {
-                    Some((t @ StepType::Special(..), _)) => {
-                        (format!("{output}{t}"), Some((current_type, 1)))
-                    }
-                    Some((t, n)) if t == current_type => (output, Some((t, n + 1))),
-                    Some((t, n)) => (format!("{output}{n}{t}"), Some((current_type, 1))),
-                    None => (output, Some((current_type, 1))),
-                };
-                (
-                    a + step.step_a as usize,
-                    b + step.step_b as usize,
-                    str,
-                    last,
-                )
-            },
-        );
-        match last {
-            Some((t @ StepType::Special(..), _)) => format!("{output}{t}"),
-            Some((t, n)) => format!("{output}{n}{t}"),
-            _ => output,
-        }
-    }
-
-    /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    #[allow(clippy::missing_panics_doc)]
-    fn ppm(&self, seq_a: &LinearPeptide, seq_b: &LinearPeptide) -> f64 {
-        self.mass_a(seq_a)
-            .iter()
-            .cartesian_product(self.mass_b(seq_b).iter())
-            .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
-            .min_by(f64::total_cmp)
-            .expect("An empty Multi<MolecularFormula>  was detected")
-    }
-
-    /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
-    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    #[allow(clippy::missing_panics_doc)]
-    fn mass_difference(&self, seq_a: &LinearPeptide, seq_b: &LinearPeptide) -> Mass {
-        self.mass_a(seq_a)
-            .iter()
-            .cartesian_product(self.mass_b(seq_b).iter())
-            .map(|(a, b)| a.monoisotopic_mass() - b.monoisotopic_mass())
-            .min_by(|a, b| a.abs().value.total_cmp(&b.abs().value))
-            .expect("An empty Multi<MolecularFormula>  was detected")
-    }
-
-    fn mass_a(&self, seq_a: &LinearPeptide) -> Multi<MolecularFormula> {
-        if self.align_type.left.global_a() && self.align_type.right.global_a() {
-            seq_a.formulas()
-        } else {
-            let mut placed_a = vec![false; seq_a.ambiguous_modifications.len()];
-            seq_a[self.start_a..self.start_a + self.len_a()]
-                .iter()
-                .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_a)
-                })
-        }
-    }
-
-    fn mass_b(&self, seq_b: &LinearPeptide) -> Multi<MolecularFormula> {
-        if self.align_type.left.global_b() && self.align_type.right.global_b() {
-            seq_b.formulas()
-        } else {
-            let mut placed_b = vec![false; seq_b.ambiguous_modifications.len()];
-            seq_b[self.start_b..self.start_b + self.len_b()]
-                .iter()
-                .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_b)
-                })
-        }
+        self.path().iter().map(|p| p.step_b as usize).sum()
     }
 
     /// Returns statistics for this match. Returns `(identical, mass similar, similar, gap, length)`. Retrieve any stat as percentage
@@ -353,7 +182,7 @@ impl AlignmentInner {
     /// of positions that are gaps.
     fn stats(&self) -> (usize, usize, usize, usize, usize) {
         let (identical, mass_similar, similar, gap) =
-            self.path.iter().fold((0, 0, 0, 0), |acc, p| {
+            self.path().iter().fold((0, 0, 0, 0), |acc, p| {
                 let m = p.match_type;
                 (
                     acc.0
@@ -385,15 +214,144 @@ impl AlignmentInner {
         )
     }
 
-    /// The total number of residues matched on the first sequence
-    fn len_a(&self) -> usize {
-        self.path.iter().map(|p| p.step_a as usize).sum()
+    /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
+    fn mass_a(&self) -> Multi<MolecularFormula> {
+        if self.align_type().left.global_a() && self.align_type().right.global_a() {
+            self.seq_a().formulas()
+        } else {
+            let mut placed_a = vec![false; self.seq_a().ambiguous_modifications.len()];
+            self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
+                .iter()
+                .fold(Multi::default(), |acc, s| {
+                    acc * s.formulas_greedy(&mut placed_a)
+                })
+        }
     }
 
-    /// The total number of residues matched on the second sequence
-    fn len_b(&self) -> usize {
-        self.path.iter().map(|p| p.step_b as usize).sum()
+    /// The mass(es) for the matched portion of the second sequence
+    fn mass_b(&self) -> Multi<MolecularFormula> {
+        if self.align_type().left.global_b() && self.align_type().right.global_b() {
+            self.seq_b().formulas()
+        } else {
+            let mut placed_b = vec![false; self.seq_b().ambiguous_modifications.len()];
+            self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
+                .iter()
+                .fold(Multi::default(), |acc, s| {
+                    acc * s.formulas_greedy(&mut placed_b)
+                })
+        }
     }
+
+    /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
+    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    #[allow(clippy::missing_panics_doc)]
+    fn mass_difference(&self) -> Mass {
+        self.mass_a()
+            .iter()
+            .cartesian_product(self.mass_b().iter())
+            .map(|(a, b)| a.monoisotopic_mass() - b.monoisotopic_mass())
+            .min_by(|a, b| a.abs().value.total_cmp(&b.abs().value))
+            .expect("An empty Multi<MolecularFormula>  was detected")
+    }
+
+    /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
+    /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    fn ppm(&self) -> f64 {
+        self.mass_a()
+            .iter()
+            .cartesian_product(self.mass_b().iter())
+            .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
+            .min_by(f64::total_cmp)
+            .expect("An empty Multi<MolecularFormula>  was detected")
+    }
+
+    /// Get a short representation of the alignment in CIGAR like format.
+    /// It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
+    fn short(&self) -> String {
+        #[derive(PartialEq, Eq)]
+        enum StepType {
+            Insertion,
+            Deletion,
+            Match,
+            Mismatch,
+            Special(MatchType, u16, u16),
+        }
+        impl std::fmt::Display for StepType {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    f,
+                    "{}",
+                    match self {
+                        Self::Insertion => String::from("I"),
+                        Self::Deletion => String::from("D"),
+                        Self::Match => String::from("="),
+                        Self::Mismatch => String::from("X"),
+                        Self::Special(MatchType::Rotation, a, b) if a == b => format!("{a}r"),
+                        Self::Special(MatchType::Rotation, a, b) => format!("{a}:{b}r"),
+                        Self::Special(MatchType::Isobaric, a, b) if a == b => format!("{a}i"),
+                        Self::Special(MatchType::Isobaric, a, b) => format!("{a}:{b}i"),
+                        Self::Special(..) => panic!("A special match cannot be of this match type"),
+                    }
+                )
+            }
+        }
+        let (_, _, output, last) = self.path().iter().fold(
+            (self.start_a(), self.start_b(), String::new(), None),
+            |(a, b, output, last), step| {
+                let current_type = match (step.match_type, step.step_a, step.step_b) {
+                    (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
+                    (_, 0, 1) => StepType::Insertion,
+                    (_, 1, 0) => StepType::Deletion,
+                    (_, 1, 1) if self.seq_a().sequence[a] == self.seq_b().sequence[b] => {
+                        StepType::Match
+                    }
+                    (_, 1, 1) => StepType::Mismatch,
+                    (m, a, b) => StepType::Special(m, a, b),
+                };
+                let (str, last) = match last {
+                    Some((t @ StepType::Special(..), _)) => {
+                        (format!("{output}{t}"), Some((current_type, 1)))
+                    }
+                    Some((t, n)) if t == current_type => (output, Some((t, n + 1))),
+                    Some((t, n)) => (format!("{output}{n}{t}"), Some((current_type, 1))),
+                    None => (output, Some((current_type, 1))),
+                };
+                (
+                    a + step.step_a as usize,
+                    b + step.step_b as usize,
+                    str,
+                    last,
+                )
+            },
+        );
+        match last {
+            Some((t @ StepType::Special(..), _)) => format!("{output}{t}"),
+            Some((t, n)) => format!("{output}{n}{t}"),
+            _ => output,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub(super) struct AlignmentInner {
+    /// The absolute score of this alignment
+    pub absolute_score: isize,
+    /// The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
+    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
+    pub maximal_score: isize,
+    /// The normalised score, normalised for the alignment length and for the used alphabet.
+    /// The normalisation is as follows `absolute_score / max_score`.
+    pub normalised_score: OrderedFloat<f64>,
+    /// The path or steps taken for the alignment
+    pub path: Vec<Piece>,
+    /// The position in the first sequence where the alignment starts
+    pub start_a: usize,
+    /// The position in the second sequence where the alignment starts
+    pub start_b: usize,
+    /// The alignment type
+    pub align_type: AlignType,
+    /// The maximal step size (the const generic STEPS)
+    pub maximal_step: u16,
 }
 
 impl PartialOrd for AlignmentInner {

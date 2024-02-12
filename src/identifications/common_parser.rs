@@ -136,6 +136,8 @@ impl<'a> Location<'a> {
         }
     }
 
+    /// # Errors
+    /// If the parse method fails. See [`FromStr::parse`].
     pub fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<T, CustomError> {
         self.as_str().trim().parse().map_err(|_| {
             CustomError::error(
@@ -146,6 +148,8 @@ impl<'a> Location<'a> {
         })
     }
 
+    /// # Errors
+    /// If the provided parse method fails.
     pub fn parse_with<T>(
         self,
         f: impl Fn(Self) -> Result<T, CustomError>,
@@ -153,6 +157,8 @@ impl<'a> Location<'a> {
         f(self)
     }
 
+    /// # Errors
+    /// If the text could not be read as a valid id.
     pub fn get_id(self, base_error: (&str, &str)) -> Result<(Option<usize>, usize), CustomError> {
         if let Some((start, end)) = self.as_str().split_once(':') {
             Ok((
@@ -194,11 +200,17 @@ impl<'a> Location<'a> {
 
 pub trait OptionalLocation<'a> {
     fn or_empty(self) -> Option<Location<'a>>;
+    /// # Errors
+    /// If the parse method fails. See [`FromStr::parse`].
     fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<Option<T>, CustomError>;
+    /// # Errors
+    /// If the provided parse method fails.
     fn parse_with<T>(
         self,
         f: impl Fn(Location<'a>) -> Result<T, CustomError>,
     ) -> Result<Option<T>, CustomError>;
+    /// # Errors
+    /// If the text could not be read as a valid id.
     fn get_id(
         self,
         base_error: (&str, &str),

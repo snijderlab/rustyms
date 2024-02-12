@@ -174,7 +174,7 @@ impl fmt::Display for CustomError {
 impl error::Error for CustomError {}
 
 #[cfg(test)]
-#[allow(clippy::print_stdout)]
+#[allow(clippy::print_stdout, clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use crate::error::FilePosition;

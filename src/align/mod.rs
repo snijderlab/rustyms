@@ -46,6 +46,7 @@ pub use scoring::MatchType;
 use alignment::AlignmentInner;
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{ComplexPeptide, LinearPeptide};
 

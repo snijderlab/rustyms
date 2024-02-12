@@ -403,6 +403,7 @@ impl std::fmt::Display for GlycanBreakPos {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
 
     use crate::{AminoAcid, Element, MultiChemical};

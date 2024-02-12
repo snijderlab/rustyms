@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Adapted to include J,B,Z,U,O, and X.
 impl crate::AminoAcid {
-    pub const fn physiochemical_class(&self) -> PhysiochemicalClass {
+    pub const fn physiochemical_class(self) -> PhysiochemicalClass {
         match self {
             Self::Alanine
             | Self::Isoleucine
@@ -43,7 +43,7 @@ impl crate::AminoAcid {
             | Self::Unknown => PhysiochemicalClass::Unknown,
         }
     }
-    pub const fn chemical_class(&self) -> ChemicalClass {
+    pub const fn chemical_class(self) -> ChemicalClass {
         match self {
             Self::Alanine
             | Self::Isoleucine
@@ -65,7 +65,7 @@ impl crate::AminoAcid {
             | Self::Unknown => ChemicalClass::Unknown,
         }
     }
-    pub const fn volume_class(&self) -> VolumeClass {
+    pub const fn volume_class(self) -> VolumeClass {
         match self {
             Self::Alanine | Self::Glycine | Self::Serine => VolumeClass::VerySmall,
             Self::Proline
@@ -92,7 +92,7 @@ impl crate::AminoAcid {
             Self::Unknown => VolumeClass::Unknown,
         }
     }
-    pub const fn hydropathy_class(&self) -> HydropathyClass {
+    pub const fn hydropathy_class(self) -> HydropathyClass {
         match self {
             Self::Alanine
             | Self::Cysteine
@@ -122,7 +122,7 @@ impl crate::AminoAcid {
             Self::Unknown => HydropathyClass::Unknown,
         }
     }
-    pub const fn charge_class(&self) -> ChargeClass {
+    pub const fn charge_class(self) -> ChargeClass {
         match self {
             Self::Arginine | Self::Histidine | Self::Lysine => ChargeClass::Positive,
             Self::AsparticAcid | Self::GlutamicAcid => ChargeClass::Negative,
@@ -149,7 +149,7 @@ impl crate::AminoAcid {
             }
         }
     }
-    pub const fn polarity_class(&self) -> PolarityClass {
+    pub const fn polarity_class(self) -> PolarityClass {
         match self {
             Self::Arginine
             | Self::Histidine
@@ -179,7 +179,7 @@ impl crate::AminoAcid {
             Self::Unknown => PolarityClass::Unknown,
         }
     }
-    pub const fn hydrogen_bond_class(&self) -> HydrogenBondClass {
+    pub const fn hydrogen_bond_class(self) -> HydrogenBondClass {
         match self {
             Self::Arginine | Self::Lysine | Self::Tryptophan => HydrogenBondClass::Donor,
             Self::AsparticAcid | Self::GlutamicAcid => HydrogenBondClass::Acceptor,

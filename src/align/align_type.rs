@@ -46,19 +46,19 @@ impl AlignType {
     }
 
     /// Get a descriptive name for this alignment type
-    pub fn description(&self) -> String {
+    pub fn description(self) -> String {
         let left = self.left.description();
         let right = self.right.description();
 
         if left == right {
             left.to_string()
         } else {
-            format!("{left} left {right} right")
+            format!("{left} left, {right} right")
         }
     }
 
     /// Get a concise symbolic representation for this alignment type
-    pub fn symbol(&self) -> String {
+    pub fn symbol(self) -> String {
         format!("{}{}", self.left.symbol_left(), self.right.symbol_right())
     }
 }

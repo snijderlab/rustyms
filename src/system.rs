@@ -127,6 +127,7 @@ system! {
 }
 
 /// The whole system with f64 as storage type
+#[allow(unused_imports)]
 pub mod f64 {
     mod mks {
         pub use super::super::*;
@@ -148,6 +149,7 @@ pub mod f64 {
 }
 
 /// All quantities with usize as underlying type
+#[allow(unused_imports)]
 pub mod usize {
     mod mks {
         pub use super::super::*;

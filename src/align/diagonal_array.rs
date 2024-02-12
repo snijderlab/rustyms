@@ -14,6 +14,8 @@ impl<T> DiagonalArray<T> {
         (mi + 1) * mi / 2 + n.saturating_sub(m) * m
     }
 
+    /// # Panics
+    /// When the indices are not valid
     fn validate_indices(&self, index: [usize; 2]) -> bool {
         assert!(
             index[0] < self.len,
@@ -31,12 +33,18 @@ impl<T> DiagonalArray<T> {
         true
     }
 
+    /// # Safety
+    /// This function assumes the index to be valid. Not upholding this does an out of bounds unsafe [`[T]::get_unchecked`].
+    /// A debug assertion hold up this promise on debug builds.
     pub unsafe fn get_unchecked(&self, index: [usize; 2]) -> &T {
         debug_assert!(self.validate_indices(index));
         let index = Self::length(index[0], self.max_depth) + index[1];
         self.data.get_unchecked(index)
     }
 
+    /// # Safety
+    /// This function assumes the index to be valid. Not upholding this does an out of bounds unsafe [`[T]::get_unchecked_mut`].
+    /// A debug assertion hold up this promise on debug builds.
     pub unsafe fn get_unchecked_mut(&mut self, index: [usize; 2]) -> &mut T {
         debug_assert!(self.validate_indices(index));
         let index = Self::length(index[0], self.max_depth) + index[1];
@@ -75,6 +83,7 @@ impl<T> std::ops::IndexMut<[usize; 2]> for DiagonalArray<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::DiagonalArray;
 

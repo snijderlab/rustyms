@@ -96,6 +96,7 @@ impl From<MaxQuantData> for IdentifiedPeptide {
 pub enum MaxQuantVersion {
     /// msms.txt
     #[default]
+    #[allow(clippy::upper_case_acronyms)]
     MSMS,
     /// msmsScans.txt
     MSMSScans,

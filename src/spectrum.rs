@@ -469,7 +469,7 @@ impl AnnotatedSpectrum {
     }
 
     /// Get a false discovery rate estimation for this annotation. See the [`FDR`] struct for all statistics that can be retrieved.
-    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> FDR {
+    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> Fdr {
         let masses = fragments
             .iter()
             .map(|f| f.mz(MassMode::Monoisotopic))
@@ -525,10 +525,10 @@ impl AnnotatedSpectrum {
             .count() as f64
             / self.spectrum.len() as f64;
 
-        FDR {
-            actual_peaks_annotated: actual,
-            average_false_peaks_annotated: average,
-            standard_deviation_false_peaks_annotated: st_dev,
+        Fdr {
+            actual,
+            average_false: average,
+            standard_deviation_false: st_dev,
         }
     }
 }
@@ -548,26 +548,25 @@ pub struct Scores {
 }
 
 /// A false discovery rate for an annotation to a spectrum
-pub struct FDR {
-    /// The fraction of the total peaks that could be annotated
-    pub actual_peaks_annotated: f64,
+pub struct Fdr {
+    /// The fraction of the total (assumed to be true) peaks that could be annotated
+    pub actual: f64,
     /// The average fraction of the false peaks that could be annotated
-    pub average_false_peaks_annotated: f64,
+    pub average_false: f64,
     /// The standard deviation of the false peaks that could be annotated
-    pub standard_deviation_false_peaks_annotated: f64,
+    pub standard_deviation_false: f64,
 }
 
-impl FDR {
+impl Fdr {
     /// Get the false discovery rate (as a fraction).
     /// The average number of false peaks annotated divided by the average number of annotated peaks.
     pub fn fdr(&self) -> f64 {
-        self.average_false_peaks_annotated / self.actual_peaks_annotated
+        self.average_false / self.actual
     }
 
     /// Get the number of standard deviations the number of annotated peaks is from the average number of false annotations.
     pub fn sigma(&self) -> f64 {
-        (self.actual_peaks_annotated - self.average_false_peaks_annotated)
-            / self.standard_deviation_false_peaks_annotated
+        (self.actual - self.average_false) / self.standard_deviation_false
     }
 
     /// Get the score of this annotation. Defined as the log2 of the sigma.

@@ -33,6 +33,8 @@ impl SequenceElement {
         }
     }
 
+    /// # Errors
+    /// If the underlying formatter errors.
     pub(crate) fn display(
         &self,
         f: &mut std::fmt::Formatter<'_>,
@@ -168,6 +170,8 @@ impl SequenceElement {
     }
 
     /// Enforce the placement rules of predefined modifications.
+    /// # Errors
+    /// If a rule has been broken.
     pub(crate) fn enforce_modification_rules(
         &self,
         index: usize,

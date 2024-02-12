@@ -192,6 +192,8 @@ impl Context {
     }
 
     /// Display this context, with an optional note after the context.
+    /// # Errors
+    /// If the underlying formatter errors.
     fn display(&self, f: &mut fmt::Formatter<'_>, note: Option<&str>) -> fmt::Result {
         const MAX_COLS: usize = 95;
         let mut tail = true; // End with a tailing line ╵
