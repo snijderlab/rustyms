@@ -1123,12 +1123,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(first_allele) = first_allele {
-                    let alignment = rustyms::align::align::<1>(
+                    let alignment = rustyms_align::align::<1>(
                         first_allele,
                         &seq.sequence,
-                        rustyms::align::BLOSUM90,
-                        rustyms::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms::align::AlignType::GLOBAL,
+                        rustyms_align::BLOSUM90,
+                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        rustyms_align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(
@@ -1139,12 +1139,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(reference) = reference {
-                    let alignment = rustyms::align::align::<1>(
+                    let alignment = rustyms_align::align::<1>(
                         reference,
                         &seq.sequence,
-                        rustyms::align::BLOSUM90,
-                        rustyms::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms::align::AlignType::GLOBAL,
+                        rustyms_align::BLOSUM90,
+                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        rustyms_align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(
