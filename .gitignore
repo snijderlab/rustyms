@@ -1,2 +1,6 @@
 /target
 /Cargo.lock
+*/target/
+errors.dat
+imgt.dat.Z
+imgt.dat
