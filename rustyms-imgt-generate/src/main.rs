@@ -22,8 +22,9 @@ use rustyms_core::{
 fn main() {
     let file = File::open("../data/imgt.dat")
         .expect("Please provide the 'imgt.dat' file in the 'data' directory.");
-    let mut output = BufWriter::new(File::create("../imgt/src/germlines/mod.rs").unwrap());
-    let mut docs = BufWriter::new(File::create("../imgt/src/germlines/germlines.md").unwrap());
+    let mut output = BufWriter::new(File::create("../rustyms-imgt/src/germlines/mod.rs").unwrap());
+    let mut docs =
+        BufWriter::new(File::create("../rustyms-imgt/src/germlines/germlines.md").unwrap());
     let mut error = BufWriter::new(File::create("errors.dat").unwrap());
     let data = parse_dat(BufReader::new(file));
     let mut grouped = HashMap::new();
@@ -67,7 +68,7 @@ fn main() {
     // Save temp seqs in final data structure
     for (species, entry) in deduped_temp {
         if species == Species::HomoSapiens
-            && entry.name.gene == GeneType::C(Some(Constant::A))
+            && entry.name.gene == GeneType::V//C(Some(Constant::A))
             && entry.name.chain == ChainType::Heavy
         {
             println!("{}", entry);
@@ -137,7 +138,7 @@ _Number of genes / number of alleles_
         found_species.push(species);
 
         let mut file =
-            std::fs::File::create(format!("../../imgt/src/germlines/{species}.bin")).unwrap();
+            std::fs::File::create(format!("../rustyms-imgt/src/germlines/{species}.bin")).unwrap();
         file.write_all(&bincode::serialize::<Germlines>(&germlines).unwrap())
             .unwrap();
     }
