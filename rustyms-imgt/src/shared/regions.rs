@@ -461,6 +461,7 @@ pub enum GeneType {
 }
 
 /// Any type of constant gene
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Constant {
     A,
@@ -519,6 +520,7 @@ impl Display for GeneType {
 }
 
 /// Any region in a germline, eg FR1, CDR1
+#[allow(missing_docs, non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Region {
     CDR1,

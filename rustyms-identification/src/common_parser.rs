@@ -96,6 +96,7 @@ pub struct Location<'a> {
 }
 
 impl<'a> Location<'a> {
+    #[allow(dead_code)]
     pub fn column(column: usize, source: &'a CsvLine) -> Self {
         Location {
             line: source,
@@ -103,6 +104,7 @@ impl<'a> Location<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn optional_column(column: Option<usize>, source: &'a CsvLine) -> Option<Self> {
         column.map(|index| Location {
             line: source,

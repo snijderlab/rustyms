@@ -34,15 +34,3 @@ impl Piece {
         }
     }
 }
-
-impl Piece {
-    /// Display this piece very compactly
-    pub(super) fn short(&self) -> String {
-        match (self.step_a, self.step_b) {
-            (0, 1) => "I".to_string(),
-            (1, 0) => "D".to_string(),
-            (1, 1) => "M".to_string(),
-            (a, b) => format!("S[{b},{a}]"),
-        }
-    }
-}
