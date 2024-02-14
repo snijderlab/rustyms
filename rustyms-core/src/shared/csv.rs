@@ -1,3 +1,5 @@
+//! Methods for reading and parsing CSV files. (Internal use mostly).
+
 use std::{
     fmt::Debug,
     fs::File,

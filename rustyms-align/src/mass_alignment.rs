@@ -5,11 +5,14 @@ use rustyms_core::{
     SequenceElement, Tolerance,
 };
 
+use crate::alignment::Score;
+
 use super::{
     align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, AlignmentInner,
     RefAlignment,
 };
 
+// TODO: no way of handling terminal modifications yet
 /// Create an alignment of two peptides based on mass and homology.
 /// The substitution matrix is in the exact same order as the definition of [`AminoAcid`].
 /// The [`Tolerance`] sets the tolerance for two sets of amino acids to be regarded as the same mass.
@@ -174,11 +177,13 @@ pub fn align<'a, const STEPS: u16>(
 
     RefAlignment {
         inner: AlignmentInner {
-            absolute_score,
-            normalised_score: ordered_float::OrderedFloat(
-                absolute_score as f64 / maximal_score as f64,
-            ),
-            maximal_score,
+            score: Score {
+                absolute: absolute_score,
+                normalised: ordered_float::OrderedFloat(
+                    absolute_score as f64 / maximal_score as f64,
+                ),
+                max: maximal_score,
+            },
             path,
             start_a,
             start_b,

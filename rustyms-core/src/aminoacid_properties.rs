@@ -1,4 +1,4 @@
-//! All amino acid property classes according to
+//! All amino acid property classes according to IMGT.
 //! > IMGT standardized criteria for statistical analysis of immunoglobulin V-REGION amino acid properties
 //! >
 //! > Christelle Pommié, Séverine Levadoux, Robert Sabatier, Gérard Lefranc, Marie-Paule Lefranc
@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// All amino acid property classes according to
+/// All amino acid property classes according to IMGT.
 /// > IMGT standardized criteria for statistical analysis of immunoglobulin V-REGION amino acid properties
 /// >
 /// > Christelle Pommié, Séverine Levadoux, Robert Sabatier, Gérard Lefranc, Marie-Paule Lefranc

@@ -1136,7 +1136,7 @@ impl std::fmt::Display for TemporaryGermline {
                         f,
                         "{}├─ALLELE DIF: {} AAs",
                         main_branch,
-                        alignment.4 - alignment.0,
+                        alignment.length - alignment.identical,
                     )?;
                 }
                 if let Some(reference) = reference {
@@ -1152,7 +1152,7 @@ impl std::fmt::Display for TemporaryGermline {
                         f,
                         "{}├─OPTION DIF: {} AAs",
                         main_branch,
-                        alignment.4 - alignment.0,
+                        alignment.length - alignment.identical,
                     )?;
                 }
                 writeln!(

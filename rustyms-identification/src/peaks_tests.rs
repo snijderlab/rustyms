@@ -49,7 +49,9 @@ fn peaks_ab() {
 
 #[test]
 fn full_peaks_file() {
-    for pep in PeaksData::parse_file("data/200305_HER_test_04_DENOVO.csv.gz").unwrap() {
+    for pep in
+        PeaksData::parse_file("../rustyms-core/data/200305_HER_test_04_DENOVO.csv.gz").unwrap()
+    {
         if let Err(e) = pep {
             panic!("{}", e);
         }

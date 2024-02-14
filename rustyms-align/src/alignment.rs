@@ -1,4 +1,4 @@
-//! Functions to generate alignments of peptides based on homology, while taking mass spec errors into account.
+//! Functions to generate alignments of peptides based on homology, while taking mass spectrometry errors into account.
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -119,21 +119,12 @@ pub trait Alignment: PrivateAlignment {
     /// The normalised score, normalised for the alignment length and for the used alphabet.
     /// The normalisation is calculated as follows `absolute_score / max_score`.
     fn normalised_score(&self) -> f64 {
-        self.inner().normalised_score.0
+        self.inner().score.normalised.0
     }
 
-    /// All three scores for this alignment (normalised, absolute, max).
-    /// 1. The normalised score is normalised for the alignment length and for the used alphabet.
-    ///    The normalisation is calculated as follows `absolute_score / max_score`.
-    /// 2. The absolute score of this alignment
-    /// 3. The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
-    ///    Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
-    fn scores(&self) -> (f64, isize, isize) {
-        (
-            self.inner().normalised_score.0,
-            self.inner().absolute_score,
-            self.inner().maximal_score,
-        )
+    /// All three scores for this alignment.
+    fn score(&self) -> Score {
+        self.inner().score
     }
 
     /// The path or steps taken for the alignment
@@ -176,14 +167,10 @@ pub trait Alignment: PrivateAlignment {
         self.path().iter().map(|p| p.step_b as usize).sum()
     }
 
-    /// Returns statistics for this match. Returns `(identical, mass similar, similar, gap, length)`. Retrieve any stat as percentage
-    /// by calculating `stat as f64 / length as f64`. The length is calculated as the max length of `len_a` and `len_b`.
-    /// Identical is the number of positions that have identical amino acids, mass similar is the number of positions that have the same mass
-    /// (identical, isobaric, rotated), similar is the number of positions that have a positive score in the matrix, and gap is the number
-    /// of positions that are gaps.
-    fn stats(&self) -> (usize, usize, usize, usize, usize) {
-        let (identical, mass_similar, similar, gap) =
-            self.path().iter().fold((0, 0, 0, 0), |acc, p| {
+    /// Returns statistics for this match.
+    fn stats(&self) -> Stats {
+        let (identical, mass_similar, similar, gaps, length) =
+            self.path().iter().fold((0, 0, 0, 0, 0), |acc, p| {
                 let m = p.match_type;
                 (
                     acc.0
@@ -196,23 +183,24 @@ pub trait Alignment: PrivateAlignment {
                                 || m == MatchType::Isobaric
                                 || m == MatchType::Rotation,
                         ) * p.step_a.max(p.step_b) as usize,
-                    acc.0
+                    acc.2
                         + usize::from(
                             (m == MatchType::IdentityMassMismatch
                                 || m == MatchType::FullIdentity
                                 || m == MatchType::Mismatch)
                                 && p.local_score >= 0,
                         ) * p.step_a.max(p.step_b) as usize,
-                    acc.2 + usize::from(m == MatchType::Gap),
+                    acc.3 + usize::from(m == MatchType::Gap),
+                    acc.4 + p.step_a.max(p.step_b) as usize,
                 )
             });
-        (
+        Stats {
             identical,
             mass_similar,
             similar,
-            gap,
-            self.len_a().max(self.len_b()),
-        )
+            gaps,
+            length,
+        }
     }
 
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
@@ -335,14 +323,8 @@ pub trait Alignment: PrivateAlignment {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub(super) struct AlignmentInner {
-    /// The absolute score of this alignment
-    pub absolute_score: isize,
-    /// The maximal score of this alignment: the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
-    /// Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
-    pub maximal_score: isize,
-    /// The normalised score, normalised for the alignment length and for the used alphabet.
-    /// The normalisation is as follows `absolute_score / max_score`.
-    pub normalised_score: OrderedFloat<f64>,
+    /// The scores of this alignment
+    pub score: Score,
     /// The path or steps taken for the alignment
     pub path: Vec<Piece>,
     /// The position in the first sequence where the alignment starts
@@ -363,6 +345,55 @@ impl PartialOrd for AlignmentInner {
 
 impl Ord for AlignmentInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.normalised_score.total_cmp(&other.normalised_score)
+        self.score.normalised.cmp(&other.score.normalised)
     }
+}
+
+/// Statistics for an alignment with some helper functions to easily retrieve the number of interest.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub struct Stats {
+    /// The total number of identical positions
+    pub identical: usize,
+    /// The total number of mass similar positions, so including isobaric and rotations
+    pub mass_similar: usize,
+    /// The total number of similar positions, where the scoring matrix scores above 0, and not isobaric
+    pub similar: usize,
+    /// The total number of gap positions
+    pub gaps: usize,
+    /// The length of the alignment, the sum of the max of the step for A and B for each position.
+    pub length: usize,
+}
+
+impl Stats {
+    /// Get the identity as fraction.
+    pub fn identity(&self) -> f64 {
+        self.identical as f64 / self.length as f64
+    }
+
+    /// Get the mass similarity as fraction.
+    pub fn mass_similarity(&self) -> f64 {
+        self.mass_similar as f64 / self.length as f64
+    }
+
+    /// Get the similarity as fraction.
+    pub fn similarity(&self) -> f64 {
+        self.similar as f64 / self.length as f64
+    }
+
+    /// Get the gaps as fraction.
+    pub fn gaps_fraction(&self) -> f64 {
+        self.gaps as f64 / self.length as f64
+    }
+}
+
+/// The score of an alignment
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub struct Score {
+    /// The normalised score (absolute / max)
+    pub normalised: OrderedFloat<f64>,
+    /// The absolute score
+    pub absolute: isize,
+    /// The maximal possible score, the average score of the sequence slices on sequence a and b if they were aligned to themself, rounded down.
+    ///    Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
+    pub max: isize,
 }

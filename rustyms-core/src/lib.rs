@@ -1,3 +1,5 @@
+//! The core of mass spectrometry. With all fragmentation, peptide and raw file parsing, annotations and much more.
+
 #![allow(dead_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 #![allow(
@@ -20,6 +22,7 @@ mod helper_functions;
 #[macro_use]
 mod formula;
 
+#[doc(hidden)]
 #[path = "shared/csv.rs"]
 pub mod csv;
 

@@ -110,6 +110,7 @@ pub mod ratio {
 
 system! {
     /// Quantities
+    #[doc(hidden)]
     quantities: Q {
         mass: dalton, M;
         charge: e, C;

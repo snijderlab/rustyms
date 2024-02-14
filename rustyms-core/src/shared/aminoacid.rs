@@ -1,5 +1,4 @@
-/// An amino acid, alongside the standard ones some ambiguous (B/J/Z/X) and non-standard (U/O) are included.
-/// <https://www.insdc.org/submitting-standards/feature-table/#7.4.3>
+/// An amino acid, alongside the standard ones some [ambiguous (B/J/Z/X) and non-standard (U/O)](https://www.insdc.org/submitting-standards/feature-table/#7.4.3) are included.
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
 )]

@@ -534,6 +534,7 @@ impl AnnotatedSpectrum {
 }
 
 /// The scores for a single peptide in an annotated spectrum
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Scores {
     /// The peptide index
     pub peptide_index: usize,
@@ -548,6 +549,7 @@ pub struct Scores {
 }
 
 /// A false discovery rate for an annotation to a spectrum
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Fdr {
     /// The fraction of the total (assumed to be true) peaks that could be annotated
     pub actual: f64,

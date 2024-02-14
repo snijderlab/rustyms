@@ -94,9 +94,6 @@ fn sift_down<T>(
 }
 
 pub trait ItertoolsExt: Iterator {
-    /// ```
-    /// itertools::assert_equal(five_smallest, 0..5);
-    /// ```
     fn k_smallest(mut self, k: usize) -> std::vec::IntoIter<Self::Item>
     where
         Self: Sized,
@@ -157,18 +154,6 @@ pub trait ItertoolsExt: Iterator {
     /// Semantically equivalent to `k_smallest` with a reversed `Ord`
     /// However, this is implemented by way of a custom binary heap
     /// which does not have the same performance characteristics for very large `T`
-    /// ```
-    /// use itertools::Itertools;
-    ///
-    /// // A random permutation of 0..15
-    /// let numbers = vec![6, 9, 1, 14, 0, 4, 8, 7, 11, 2, 10, 3, 13, 12, 5];
-    ///
-    /// let five_largest = numbers
-    ///     .into_iter()
-    ///     .k_largest(5);
-    ///
-    /// itertools::assert_equal(five_largest, vec![14,13,12,11,10]);
-    /// ```
     fn k_largest(self, k: usize) -> std::vec::IntoIter<Self::Item>
     where
         Self: Sized,

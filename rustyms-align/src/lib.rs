@@ -1,4 +1,5 @@
 //! Code to make alignments of two peptides based on mass mistakes, and genetic information.
+//!
 //! A mass based alignment handles the case in which multiple amino acids are wrong, but the total mass
 //! of this set of amino acids is equal to the mass of a set of different amino acids on the other peptide.
 //! This is quite common in mass spectrometry where mistakes based on mass coincidences are very common.
@@ -16,11 +17,12 @@
 //! ```
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
-//! use rustyms::*;
+//! use rustyms_core::*;
+//! use rustyms_align::*;
 //! let a = LinearPeptide::pro_forma("ANA").unwrap();
 //! let b = LinearPeptide::pro_forma("AGGA").unwrap();
-//! let alignment = align::align::<4>(&a, &b, &align::BLOSUM62,
-//!                    Tolerance::new_ppm(10.0), align::AlignType::GLOBAL);
+//! let alignment = align::<4>(&a, &b, &BLOSUM62,
+//!                    Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm(), 0.0);
 //! ```
@@ -43,7 +45,7 @@ mod consecutive;
 pub use consecutive::*;
 
 pub use align_type::{AlignType, Side};
-pub use alignment::{Alignment, OwnedAlignment, RefAlignment};
+pub use alignment::{Alignment, OwnedAlignment, RefAlignment, Score, Stats};
 pub use mass_alignment::align;
 pub use piece::Piece;
 pub use scoring::matrices::*;

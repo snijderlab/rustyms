@@ -10,6 +10,7 @@ use regex::Regex;
 use uom::num_traits::Zero;
 
 use crate::{
+    error::{Context, CustomError},
     helper_functions::check_extension,
     spectrum::{PeakSpectrum, RawPeak, RawSpectrum},
     system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
@@ -24,9 +25,15 @@ use flate2::read::GzDecoder;
 /// * Any line in the file could not be read
 /// * When any expected number in the file is not a number
 /// * When there is only one column (separated by space or tab) on a data row
-pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
+pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, CustomError> {
     let path = path.as_ref();
-    let file = File::open(path).map_err(|err| format!("Could not open file: {err}"))?;
+    let file = File::open(path).map_err(|err| {
+        CustomError::error(
+            "Could not open file",
+            format!("Additional info: {err}"),
+            Context::show(path.display()),
+        )
+    })?;
     if check_extension(path, "gz") {
         open_raw(GzDecoder::new(file))
     } else {
@@ -43,13 +50,24 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, String> {
 /// * When any expected number in the file is not a number
 /// * When there is only one column (separated by space or tab) on a data row
 #[allow(clippy::missing_panics_doc)]
-pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String> {
+pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomError> {
     let reader = BufReader::new(reader);
     let mut current = RawSpectrum::default();
     let mut output = Vec::new();
     for (linenumber, line) in reader.lines().enumerate() {
         let linenumber = linenumber + 1;
-        let line = line.map_err(|_| "Error while reading line")?;
+        let line = line.map_err(|err| {
+            CustomError::error(
+                "Could not read mgf file",
+                format!("Error while reading line: {err}"),
+                Context::show(format!("Line number {linenumber}")),
+            )
+        })?;
+        let base_error = CustomError::error(
+            "Could not read mgf file",
+            "..",
+            Context::full_line(linenumber, line.clone()),
+        );
         match line.as_str() {
             "BEGIN IONS" | "" => (),
             "END IONS" => {
@@ -63,40 +81,46 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String>
                     "PEPMASS" => match value.split_once(' ') {
                         None => {
                             current.mass = Mass::new::<dalton>(value.parse().map_err(|_| {
-                                format!("Not a number {key} for PEPMASS on {linenumber}")
+                                base_error.with_long_description(format!(
+                                    "Not a number {key} for PEPMASS"
+                                ))
                             })?);
                         }
                         Some((mass, intensity)) => {
                             current.mass = Mass::new::<dalton>(mass.parse().map_err(|_| {
-                                format!("Not a number {key} for PEPMASS mass on {linenumber}")
+                                base_error.with_long_description(format!(
+                                    "Not a number {key} for PEPMASS"
+                                ))
                             })?);
                             current.intensity = Some(intensity.parse().map_err(|_| {
-                                format!("Not a number {key} for PEPMASS intensity on {linenumber}")
+                                base_error.with_long_description(format!(
+                                    "Not a number {key} for PEPMASS"
+                                ))
                             })?);
                         }
                     },
                     "CHARGE" => {
                         current.charge = parse_charge(value).map_err(|()| {
-                            format!("Not a number {key} for CHARGE on {linenumber}")
+                            base_error
+                                .with_long_description(format!("Not a number {key} for CHARGE"))
                         })?;
                     }
                     "RT" => {
-                        current.rt =
-                            Time::new::<s>(value.parse().map_err(|_| {
-                                format!("Not a number {key} for RT on {linenumber}")
-                            })?);
+                        current.rt = Time::new::<s>(value.parse().map_err(|_| {
+                            base_error.with_long_description(format!("Not a number {key} for RT"))
+                        })?);
                     }
                     "RTINSECONDS" => {
-                        current.rt =
-                            Time::new::<s>(value.parse().map_err(|_| {
-                                format!("Not a number {key} for RT on {linenumber}")
-                            })?);
+                        current.rt = Time::new::<s>(value.parse().map_err(|_| {
+                            base_error.with_long_description(format!("Not a number {key} for RT"))
+                        })?);
                     }
                     "TITLE" => parse_title(value, &mut current),
                     "SEQUENCE" => current.sequence = Some(value.to_owned()),
                     "NUM_SCANS" => {
                         current.num_scans = value.parse().map_err(|_| {
-                            format!("Not a number {key} for NUM_SCANS on {linenumber}")
+                            base_error
+                                .with_long_description(format!("Not a number {key} for NUM_SCANS"))
                         })?;
                     }
                     _ => (),
@@ -114,18 +138,19 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, String>
                     charge: Charge::new::<e>(1.0),
                 };
                 if split.len() < 2 {
-                    return Err(format!("Not enough columns on line {linenumber}"));
+                    return Err(base_error.with_long_description("Not enough columns"));
                 }
-                peak.mz =
-                    MassOverCharge::new::<mz>(split[0].parse().map_err(|_| {
-                        format!("Not a number {} for MZ on {linenumber}", split[0])
-                    })?);
+                peak.mz = MassOverCharge::new::<mz>(split[0].parse().map_err(|_| {
+                    base_error.with_long_description(format!("Not a number {} for MZ", split[0]))
+                })?);
                 peak.intensity = split[1].parse().map_err(|_| {
-                    format!("Not a number {} for INTENSITY on {linenumber}", split[1])
+                    base_error
+                        .with_long_description(format!("Not a number {} for INTENSITY", split[1]))
                 })?;
                 if split.len() >= 3 {
                     peak.charge = parse_charge(split[2]).map_err(|()| {
-                        format!("Not a number {} for CHARGE on {linenumber}", split[2])
+                        base_error
+                            .with_long_description(format!("Not a number {} for CHARGE", split[2]))
                     })?;
                 }
                 current.add_peak(peak);
