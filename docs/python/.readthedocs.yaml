@@ -4,11 +4,7 @@ build:
   os: "ubuntu-20.04"
   tools:
     python: "3.8"
-  jobs:
-    pre_install:
-      - curl https://sh.rustup.rs -sSf > rustup.sh
-      - bash rustup.sh -y
-      - . $HOME/.cargo/env
+    rust: "latest"
 
 python:
   install:
