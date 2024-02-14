@@ -24,7 +24,7 @@ impl Element {
 
     /// Get all available isotopes (N, mass, abundance)
     pub fn isotopes(self) -> &'static [(u16, Mass, f64)] {
-        &elemental_data()[self as usize].2
+        &elemental_data()[self as usize - 1].2
     }
 
     /// The mass of the specified isotope of this element (if that isotope exists)
