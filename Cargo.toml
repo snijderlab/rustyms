@@ -7,6 +7,7 @@ members = [
     "rustyms-imgt-generate",
     "rustyms-align",
     "rustyms-identification",
+    "rustyms-py",
 ]
 resolver = "2"
 

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rustyms"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "numpydoc>=1,<2",
+    "myst-parser",
+    "sphinx_rtd_theme",
+    "sphinx-autobuild",
+    "sphinx-automodapi",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "rustyms"
