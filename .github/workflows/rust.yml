@@ -17,10 +17,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build
+      run: cargo build -p rustyms
     - name: Run fmt
       run: cargo fmt --check
     - name: Run clippy
       run: cargo clippy
     - name: Run tests
       run: cargo test
+    - name: Build all features
+      run: |
+        cargo build -p rustyms --no-default-features
+        cargo build -p rustyms --no-default-features --features identification
+        cargo build -p rustyms --no-default-features --features imgt
+        cargo build -p rustyms --no-default-features --features align
+        cargo build -p rustyms --no-default-features --features consecutive-align
+        cargo build -p rustyms --no-default-features --features rayon
+
