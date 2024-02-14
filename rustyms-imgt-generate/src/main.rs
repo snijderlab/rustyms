@@ -106,7 +106,7 @@ fn main() {
 
     writeln!(
         output,
-        "#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse crate::shared::{{Germlines, Species}};"
+        "// @generated\n#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse crate::shared::{{Germlines, Species}};"
     )
     .unwrap();
     writeln!(output, "/// Get the germlines for any of the available species. See the main documentation for which species have which data available.").unwrap();
