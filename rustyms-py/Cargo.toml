@@ -1,5 +1,5 @@
 [package]
-name = "rustyms_py"
+name = "rustyms-py"
 version = "0.7.0"
 edition = "2021"
 

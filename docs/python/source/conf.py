@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.abspath("../../"))
 # Project information
 project = "rustyms"
 author = "Douwe Schulte, Ralf Gabriels"
-github_project_url = "https://github.com/compomics/rustyms/"
-github_doc_root = "https://github.com/compomics/rustyms/tree/release/docs/python/source/"
+github_project_url = "https://github.com/snijderlab/rustyms/"
+github_doc_root = "https://github.com/snijderlab/rustyms/tree/release/docs/python/source/"
 
 # Version
 # release = __version__
