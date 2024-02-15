@@ -132,7 +132,7 @@ impl MolecularFormula {
     // }
 
     fn __repr__(&self) -> String {
-        format!("MolecularFormula('{}')", self.0.to_string())
+        format!("{}", self.0.to_string())
     }
 
     fn __str__(&self) -> String {
@@ -1132,12 +1132,14 @@ impl RawSpectrum {
         let model = match_model(model)?;
         let fragments = peptide
             .0
-            .generate_theoretical_fragments(self.0.charge, &model, 0);
+            .generate_theoretical_fragments(self.0.charge, &model, 0).ok_or(
+                PyValueError::new_err("Failed to generate theoretical fragments for the peptide."),
+            )?;
         Ok(AnnotatedSpectrum(self.0.annotate(
             rustyms::ComplexPeptide::from(peptide.0),
-            &fragments.unwrap(),
+            &fragments,
             &model,
-            rustyms::MassMode::Monoisotopic,
+            rustyms::MassMode::Monoisotopic,  // TODO: Don't hard code
         )))
     }
 }
