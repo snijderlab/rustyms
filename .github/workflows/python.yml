@@ -3,8 +3,7 @@ name: Python CI
 on:
   push:
     branches:
-      - main
-      - master
+      - release
     tags:
       - '*'
   pull_request:
