@@ -1,13 +1,6 @@
 [workspace]
 
-members = [
-    "rustyms",
-    "rustyms-core",
-    "rustyms-imgt",
-    "rustyms-imgt-generate",
-    "rustyms-align",
-    "rustyms-identification",
-]
+members = ["rustyms", "rustyms-imgt-generate"]
 resolver = "2"
 
 [profile.release]

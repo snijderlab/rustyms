@@ -8,23 +8,20 @@ use std::{
     str::FromStr,
 };
 
-#[path = "../../rustyms-imgt/src/shared/mod.rs"]
+#[path = "../../rustyms/src/imgt/shared/mod.rs"]
 mod shared;
 
 use crate::shared::*;
+
 use itertools::Itertools;
-use rustyms_align::*;
-use rustyms_core::{
-    system::{dalton, Mass},
-    AminoAcid, LinearPeptide,
-};
+use rustyms::*;
 
 fn main() {
-    let file = File::open("../data/imgt.dat")
-        .expect("Please provide the 'imgt.dat' file in the 'data' directory.");
-    let mut output = BufWriter::new(File::create("../rustyms-imgt/src/germlines/mod.rs").unwrap());
+    let file = File::open("../rustyms/databases/imgt.dat")
+        .expect("Please provide the 'imgt.dat' file in the 'rustyms/databases' directory.");
+    let mut output = BufWriter::new(File::create("../rustyms/src/imgt/germlines/mod.rs").unwrap());
     let mut docs =
-        BufWriter::new(File::create("../rustyms-imgt/src/germlines/germlines.md").unwrap());
+        BufWriter::new(File::create("../rustyms/src/imgt/germlines/germlines.md").unwrap());
     let mut error = BufWriter::new(File::create("errors.dat").unwrap());
     let data = parse_dat(BufReader::new(file));
     let mut grouped = HashMap::new();
@@ -106,7 +103,7 @@ fn main() {
 
     writeln!(
         output,
-        "// @generated\n#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse crate::shared::{{Germlines, Species}};"
+        "// @generated\n#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse super::shared::{{Germlines, Species}};"
     )
     .unwrap();
     writeln!(output, "/// Get the germlines for any of the available species. See the main documentation for which species have which data available.").unwrap();
@@ -138,7 +135,7 @@ _Number of genes / number of alleles_
         found_species.push(species);
 
         let mut file =
-            std::fs::File::create(format!("../rustyms-imgt/src/germlines/{species}.bin")).unwrap();
+            std::fs::File::create(format!("../rustyms/src/imgt/germlines/{species}.bin")).unwrap();
         file.write_all(&bincode::serialize::<Germlines>(&germlines).unwrap())
             .unwrap();
     }
@@ -179,9 +176,10 @@ pub fn all_germlines() -> impl std::iter::Iterator<Item = &'static Germlines> {{
     writeln!(
         output,
 "/// Get all germlines in one parallel iterator, see the main documentation for more information about the available germlines
+use doc_cfg::doc_cfg;
 #[cfg(feature = \"rayon\")]
 use rayon::prelude::*;
-#[cfg(feature = \"rayon\")]
+#[doc_cfg(feature = \"rayon\")]
 pub fn par_germlines() -> impl rayon::prelude::ParallelIterator<Item = &'static Germlines> {{"
     )
     .unwrap();
@@ -1128,7 +1126,7 @@ impl std::fmt::Display for TemporaryGermline {
                         first_allele,
                         &seq.sequence,
                         rustyms_align::BLOSUM90,
-                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
                         rustyms_align::AlignType::GLOBAL,
                     )
                     .stats();
@@ -1144,7 +1142,7 @@ impl std::fmt::Display for TemporaryGermline {
                         reference,
                         &seq.sequence,
                         rustyms_align::BLOSUM90,
-                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
                         rustyms_align::AlignType::GLOBAL,
                     )
                     .stats();

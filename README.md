@@ -20,3 +20,6 @@ A peptide fragmentation matching library for rust. Split into multiple smaller c
 # Contributing
 
 Any contribution is welcome (especially adding/fixing documentation as that is very hard to do as main developer). 
+
+# IMGT generate
+Using the `rustyms-imgt-generate` the definitions for the germlines can be updated. Put the imgt.dat.Z file in the rustyms/databases directory and unpack it (this can be downloaded from https://www.imgt.org/download/LIGM-DB/imgt.dat.Z). Then run `cargo run --release -p rustyms-imgt-generate` 
