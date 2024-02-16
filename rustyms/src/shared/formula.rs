@@ -303,7 +303,7 @@ impl std::iter::Sum<Self> for MolecularFormula {
 #[macro_export]
 /// Easily define molecular formulas using the following syntax: `<element> <num>` or `(<isotope>)<element> <num>`
 /// ```
-/// # use crate::*;
+/// # use rustyms::*;
 /// molecular_formula!(C 12 (13)C 1 H 24);
 /// ```
 macro_rules! molecular_formula {

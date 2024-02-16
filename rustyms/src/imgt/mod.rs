@@ -9,7 +9,7 @@
 //! </details>
 //!
 //! ```
-//! use rustyms_imgt::*;
+//! use rustyms::imgt::*;
 //! let selection = Selection::default()
 //!                           .species([Species::HomoSapiens])
 //!                           .chain([ChainType::Heavy])

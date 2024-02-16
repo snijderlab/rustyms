@@ -32,7 +32,7 @@ impl AlignType {
     pub const EITHER_GLOBAL: Self = Self::new(None, None);
 
     /// Create a new alignment type, specifying None on any side indicates [`Side::EitherGlobal`].
-    pub const fn new(left: Option<(bool, bool)>, right: Option<(bool, bool)>) -> Self {
+    pub(crate) const fn new(left: Option<(bool, bool)>, right: Option<(bool, bool)>) -> Self {
         Self {
             left: if let Some((a, b)) = left {
                 Side::Specified { a, b }

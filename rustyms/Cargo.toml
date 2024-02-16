@@ -1,6 +1,6 @@
 [package]
 name = "rustyms"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Douwe Schulte <d.schulte@uu.nl>"]
@@ -9,7 +9,7 @@ categories = ["science"]
 keywords = ["spectra", "massspectrometry", "bio", "fragmentation", "proforma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
-include = ["src/**/*", "databases/**/*", "LICENSE", "README.md", "build.rs"]
+include = ["src/**/*", "databases/**/*", "README.md", "build.rs"]
 rust-version = "1.70.0"
 
 [dependencies]
