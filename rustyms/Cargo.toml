@@ -9,7 +9,13 @@ categories = ["science"]
 keywords = ["spectra", "massspectrometry", "bio", "fragmentation", "proforma"]
 repository = "https://github.com/snijderlab/rustyms"
 readme = "README.md"
-include = ["src/**/*", "databases/**/*", "README.md", "build.rs"]
+include = [
+    "src/**/*",
+    "databases/**/*",
+    "README.md",
+    "build.rs",
+    "benches/**/*",
+]
 rust-version = "1.70.0"
 
 [dependencies]
