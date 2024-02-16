@@ -234,6 +234,7 @@ impl MonoSaccharide {
                 index += 1;
             }
         }
+        index += line[index..].ignore(&["?"]); // I guess to indicate partial structures
         Ok((sugar, index))
     }
 
@@ -286,7 +287,7 @@ impl ParseHelper for &str {
         let mut index = 0;
         let mut amount = 1;
         let mut double = false;
-        if bytes[0].is_ascii_digit() || bytes[0] == b'?' {
+        if bytes[0].is_ascii_digit() || bytes[0] == b'?' && bytes.len() > 1 {
             match bytes[1] {
                 b',' => {
                     let num = bytes[1..]
@@ -1351,7 +1352,7 @@ impl GlycanStructure {
     /// # Panics
     /// It panics if a brace was not closed that was not close to the end of the input (more then 10 bytes from the end).
     fn ignore_linking_information(bytes: &[u8], mut offset: usize, range: &Range<usize>) -> usize {
-        if bytes[offset] == b'(' {
+        if offset < bytes.len() && bytes[offset] == b'(' {
             if let Some(end) = next_char(bytes, offset + 1, b')') {
                 offset = end + 1; // just ignore all linking stuff I do not care
             } else {
