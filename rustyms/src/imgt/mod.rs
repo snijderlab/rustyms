@@ -23,9 +23,8 @@ mod germlines;
 mod select;
 mod shared;
 
-use doc_cfg::doc_cfg;
 pub use fancy::*;
-#[doc_cfg(feature = "rayon")]
+#[cfg(feature = "rayon")]
 use germlines::par_germlines;
 use germlines::{all_germlines, germlines};
 

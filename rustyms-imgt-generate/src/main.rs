@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_pub_crate)]
+
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -14,7 +16,11 @@ mod shared;
 use crate::shared::*;
 
 use itertools::Itertools;
-use rustyms::*;
+use rustyms::{
+    align::Alignment,
+    system::{dalton, Mass},
+    *,
+};
 
 fn main() {
     let file = File::open("../rustyms/databases/imgt.dat")
@@ -176,10 +182,9 @@ pub fn all_germlines() -> impl std::iter::Iterator<Item = &'static Germlines> {{
     writeln!(
         output,
 "/// Get all germlines in one parallel iterator, see the main documentation for more information about the available germlines
-use doc_cfg::doc_cfg;
 #[cfg(feature = \"rayon\")]
 use rayon::prelude::*;
-#[doc_cfg(feature = \"rayon\")]
+#[cfg(feature = \"rayon\")]
 pub fn par_germlines() -> impl rayon::prelude::ParallelIterator<Item = &'static Germlines> {{"
     )
     .unwrap();
@@ -1122,12 +1127,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(first_allele) = first_allele {
-                    let alignment = rustyms_align::align::<1>(
+                    let alignment = rustyms::align::align::<1>(
                         first_allele,
                         &seq.sequence,
-                        rustyms_align::BLOSUM90,
+                        rustyms::align::matrix::BLOSUM90,
                         crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms_align::AlignType::GLOBAL,
+                        rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(
@@ -1138,12 +1143,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(reference) = reference {
-                    let alignment = rustyms_align::align::<1>(
+                    let alignment = rustyms::align::align::<1>(
                         reference,
                         &seq.sequence,
-                        rustyms_align::BLOSUM90,
+                        rustyms::align::matrix::BLOSUM90,
                         crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms_align::AlignType::GLOBAL,
+                        rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(

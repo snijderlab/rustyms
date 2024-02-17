@@ -1,4 +1,3 @@
-use doc_cfg::doc_cfg;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -86,7 +85,7 @@ impl Selection {
             .map(Into::into)
     }
 
-    #[doc_cfg(feature = "rayon")]
+    #[cfg(feature = "rayon")]
     /// Get the selected alleles in parallel fashion, only available if you enable the feature "rayon" (on by default)
     pub fn par_germlines(self) -> impl ParallelIterator<Item = Allele<'static>> {
         super::par_germlines()

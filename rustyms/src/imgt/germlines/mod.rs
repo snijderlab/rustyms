@@ -77,11 +77,10 @@ pub fn all_germlines() -> impl std::iter::Iterator<Item = &'static Germlines> {
         .chain(std::iter::once(lock_SusScrofa()))
         .chain(std::iter::once(lock_VicugnaPacos()))
 }
-use doc_cfg::doc_cfg;
-/// Get all germlines in one parallel iterator, see the main documentation for more information about the available germlines
+/// Get all germlines in one parallel iterator, see the main documentation for more information about the available germlines, only available with feature "rayon" (on by default)
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-#[doc_cfg(feature = "rayon")]
+#[cfg(feature = "rayon")]
 pub fn par_germlines() -> impl rayon::prelude::ParallelIterator<Item = &'static Germlines> {
     rayon::iter::once(lock_BosTaurus())
         .chain(rayon::iter::once(lock_CamelusDromedarius()))

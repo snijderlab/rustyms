@@ -4,13 +4,12 @@ use crate::itertools_extension::ItertoolsExt;
 use crate::*;
 use std::collections::HashSet;
 
-use doc_cfg::doc_cfg;
 use itertools::Itertools;
 
 /// Only available with if features `align` and `imgt` are turned on.
 /// Align one sequence to multiple consecutive genes. Each gene can be controlled to be global to the left or free to allow unmatched residues between it and the previous gene.
 /// If the sequence is too short to cover all genes only the genes that could be matched are returned.
-#[doc_cfg(feature = "imgt")]
+#[cfg(feature = "imgt")]
 pub fn consecutive_align<const STEPS: u16>(
     sequence: &LinearPeptide,
     genes: &[(GeneType, AlignType)],
@@ -64,7 +63,7 @@ pub fn consecutive_align<const STEPS: u16>(
 /// Only available with if features `align`, `rayon`, and `imgt` are turned on.
 /// Align one sequence to multiple consecutive genes. Each gene can be controlled to be global to the left or free to allow unmatched residues between it and the previous gene.
 /// If the sequence is too short to cover all genes only the genes that could be matched are returned.
-#[doc_cfg(all(feature = "rayon", feature = "imgt"))]
+#[cfg(all(feature = "rayon", feature = "imgt"))]
 pub fn par_consecutive_align<const STEPS: u16>(
     sequence: &LinearPeptide,
     genes: &[(GeneType, AlignType)],
