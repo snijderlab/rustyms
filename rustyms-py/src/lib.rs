@@ -866,11 +866,11 @@ impl LinearPeptide {
     ///
     /// Returns
     /// -------
-    /// int
+    /// int | None
     ///
     #[getter]
-    fn charge(&self) -> i16 {
-        self.0.formulas().first().unwrap().charge()
+    fn charge(&self) -> Option<i16> {
+        self.0.charge_carriers.clone().map(|c| c.formula().charge())
     }
 
     // TODO: Implement when MolecularCharge is exposed upstream.
@@ -945,11 +945,7 @@ struct RawPeak(rustyms::spectrum::RawPeak);
 #[pymethods]
 impl RawPeak {
     fn __repr__(&self) -> String {
-        format!(
-            "RawPeak(mz={}, intensity={})",
-            self.mz(),
-            self.intensity()
-        )
+        format!("RawPeak(mz={}, intensity={})", self.mz(), self.intensity())
     }
 
     /// The m/z value of the peak.
