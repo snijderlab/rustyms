@@ -109,9 +109,5 @@
         "Xylopyranose",
         "Xylulose"
     ],
-    "rust-analyzer.showUnlinkedFileNotification": false,
-    "rust-analyzer.server.extraEnv": {
-        "PYO3_PYTHON": "./.venv/Scripts/python.exe"
-    },
-    "rust-analyzer.linkedProjects": ["Cargo.toml", "rustyms-py/Cargo.toml"]
+    "rust-analyzer.showUnlinkedFileNotification": false
 }
