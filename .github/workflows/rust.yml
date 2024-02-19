@@ -30,6 +30,5 @@ jobs:
         cargo build -p rustyms --no-default-features --features identification
         cargo build -p rustyms --no-default-features --features imgt
         cargo build -p rustyms --no-default-features --features align
-        cargo build -p rustyms --no-default-features --features consecutive-align
         cargo build -p rustyms --no-default-features --features rayon
 

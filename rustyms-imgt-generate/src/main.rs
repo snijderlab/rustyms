@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_pub_crate)]
+
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -8,23 +10,24 @@ use std::{
     str::FromStr,
 };
 
-#[path = "../../rustyms-imgt/src/shared/mod.rs"]
+#[path = "../../rustyms/src/imgt/shared/mod.rs"]
 mod shared;
 
 use crate::shared::*;
+
 use itertools::Itertools;
-use rustyms_align::*;
-use rustyms_core::{
+use rustyms::{
+    align::Alignment,
     system::{dalton, Mass},
-    AminoAcid, LinearPeptide,
+    *,
 };
 
 fn main() {
-    let file = File::open("../data/imgt.dat")
-        .expect("Please provide the 'imgt.dat' file in the 'data' directory.");
-    let mut output = BufWriter::new(File::create("../rustyms-imgt/src/germlines/mod.rs").unwrap());
+    let file = File::open("../rustyms/databases/imgt.dat")
+        .expect("Please provide the 'imgt.dat' file in the 'rustyms/databases' directory.");
+    let mut output = BufWriter::new(File::create("../rustyms/src/imgt/germlines/mod.rs").unwrap());
     let mut docs =
-        BufWriter::new(File::create("../rustyms-imgt/src/germlines/germlines.md").unwrap());
+        BufWriter::new(File::create("../rustyms/src/imgt/germlines/germlines.md").unwrap());
     let mut error = BufWriter::new(File::create("errors.dat").unwrap());
     let data = parse_dat(BufReader::new(file));
     let mut grouped = HashMap::new();
@@ -106,7 +109,7 @@ fn main() {
 
     writeln!(
         output,
-        "// @generated\n#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse crate::shared::{{Germlines, Species}};"
+        "// @generated\n#![allow(non_snake_case,non_upper_case_globals)]\nuse std::sync::OnceLock;\nuse super::shared::{{Germlines, Species}};"
     )
     .unwrap();
     writeln!(output, "/// Get the germlines for any of the available species. See the main documentation for which species have which data available.").unwrap();
@@ -138,7 +141,7 @@ _Number of genes / number of alleles_
         found_species.push(species);
 
         let mut file =
-            std::fs::File::create(format!("../rustyms-imgt/src/germlines/{species}.bin")).unwrap();
+            std::fs::File::create(format!("../rustyms/src/imgt/germlines/{species}.bin")).unwrap();
         file.write_all(&bincode::serialize::<Germlines>(&germlines).unwrap())
             .unwrap();
     }
@@ -1124,12 +1127,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(first_allele) = first_allele {
-                    let alignment = rustyms_align::align::<1>(
+                    let alignment = rustyms::align::align::<1>(
                         first_allele,
                         &seq.sequence,
-                        rustyms_align::BLOSUM90,
-                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms_align::AlignType::GLOBAL,
+                        rustyms::align::matrix::BLOSUM90,
+                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(
@@ -1140,12 +1143,12 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(reference) = reference {
-                    let alignment = rustyms_align::align::<1>(
+                    let alignment = rustyms::align::align::<1>(
                         reference,
                         &seq.sequence,
-                        rustyms_align::BLOSUM90,
-                        rustyms_core::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
-                        rustyms_align::AlignType::GLOBAL,
+                        rustyms::align::matrix::BLOSUM90,
+                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();
                     writeln!(
