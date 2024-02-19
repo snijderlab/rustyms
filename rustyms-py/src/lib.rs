@@ -2,10 +2,11 @@
 
 use std::fmt::Debug;
 
+use ordered_float::OrderedFloat;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use rustyms::Chemical;
+use rustyms::{Chemical, MultiChemical};
 
 /// Mass mode enum.
 #[pyclass]
@@ -63,14 +64,14 @@ impl Element {
     ///
     /// Parameters
     /// ----------
-    /// isotope : int
-    ///    The isotope number.
+    /// isotope : int | None
+    ///    The isotope number (default: None).
     ///
     /// Returns
     /// -------
     /// float | None
     ///
-    fn mass(&self, isotope: u16) -> Option<f64> {
+    fn mass(&self, isotope: Option<u16>) -> Option<f64> {
         self.0.mass(isotope).map(|mass| mass.value)
     }
 
@@ -78,14 +79,14 @@ impl Element {
     ///
     /// Parameters
     /// ----------
-    /// isotope : int
-    ///     The isotope number.
+    /// isotope : int | None
+    ///     The isotope number (default: None).
     ///
     /// Returns
     /// -------
     /// float
     ///
-    fn average_weight(&self, isotope: u16) -> Option<f64> {
+    fn average_weight(&self, isotope: Option<u16>) -> Option<f64> {
         self.0.average_weight(isotope).map(|mass| mass.value)
     }
 
@@ -146,22 +147,32 @@ impl MolecularFormula {
     /// ----------
     /// element : Element
     ///     The element to add.
-    /// isotope : int
-    ///     The isotope number of the element to add.
+    /// isotope : int | None
+    ///     The isotope number of the element to add (default: None).
     /// n : int
-    ///     The number of atoms of this element to add.
+    ///     The number of atoms of this element to add (default: 1).
     ///
-    fn add(&mut self, element: &Element, isotope: u16, n: i16) {
-        self.0.add((element.0, isotope, n));
+    /// Raises
+    /// ------
+    /// ValueError
+    ///     If the element or isotope is invalid.
+    ///
+    #[pyo3(signature = (element, isotope=None, n=1))]
+    fn add(&mut self, element: &Element, isotope: Option<u16>, n: i16) -> PyResult<Option<()>> {
+        if self.0.add((element.0, isotope, n)) {
+            Ok(None)
+        } else {
+            Err(PyValueError::new_err("Invalid element or isotope"))
+        }
     }
 
     /// Get the elements making this formula.
     ///
     /// Returns
     /// -------
-    /// list[tuple[Element, int, int]]
+    /// list[tuple[Element, int | None, int]]
     ///
-    fn elements(&self) -> Vec<(Element, u16, i16)> {
+    fn elements(&self) -> Vec<(Element, Option<u16>, i16)> {
         self.0
             .elements()
             .iter()
@@ -194,20 +205,20 @@ impl MolecularFormula {
     ///
     /// Returns
     /// -------
-    /// float | None
+    /// float
     ///
-    fn monoisotopic_mass(&self) -> Option<f64> {
-        self.0.monoisotopic_mass().map(|mass| mass.value)
+    fn monoisotopic_mass(&self) -> f64 {
+        self.0.monoisotopic_mass().value
     }
 
     /// The average weight of the molecular formula of this element, if all element species (isotopes) exists.
     ///
     /// Returns
     /// -------
-    /// float | None
+    /// float
     ///
-    fn average_weight(&self) -> Option<f64> {
-        self.0.average_weight().map(|mass| mass.value)
+    fn average_weight(&self) -> f64 {
+        self.0.average_weight().value
     }
 
     // Broken upstream. TODO: Keep or remove?
@@ -230,7 +241,7 @@ impl MolecularFormula {
     ///
     /// Returns
     /// -------
-    /// float | None
+    /// float
     ///
     /// Raises
     /// ------
@@ -238,7 +249,7 @@ impl MolecularFormula {
     ///   If the mode is not one of the valid modes.
     ///
     #[pyo3(signature = (mode=&MassMode::Monoisotopic))]
-    fn mass(&self, mode: &MassMode) -> PyResult<Option<f64>> {
+    fn mass(&self, mode: &MassMode) -> PyResult<f64> {
         match mode {
             MassMode::Monoisotopic => Ok(self.monoisotopic_mass()),
             MassMode::Average => Ok(self.average_weight()),
@@ -274,6 +285,24 @@ impl MolecularFormula {
     }
 }
 
+// TODO: Can only be implemented if molecular_charge is exposed upstream.
+// #[pyclass]
+// /// A selection of ions that together define the charge of a peptide.
+// pub struct MolecularCharge(rustyms::MolecularCharge);
+
+// #[pymethods]
+// impl MolecularCharge {
+//     /// List of counts and molecular formulas for the charge carriers.
+//     #[getter]
+//     fn charge_carriers(&self) -> Vec<(i16, MolecularFormula)> {
+//         self.0
+//             .charge_carriers
+//             .iter()
+//             .map(|(n, mol)| (*n, mol.clone()))
+//             .collect()
+//     }
+// }
+
 /// Amino acid.
 ///
 /// Parameters
@@ -303,24 +332,60 @@ impl AminoAcid {
         self.to_string()
     }
 
-    /// Molecular formula of the amino acid.
+    /// Molecular formula(s) of the amino acid.
+    ///
+    /// Returns a list of molecular formulas that are possible for the amino acid symbol.
     ///
     /// Returns
     /// -------
-    /// MolecularFormula
+    /// List[MolecularFormula]
+    ///
+    fn formulas(&self) -> Vec<MolecularFormula> {
+        self.0
+            .formulas()
+            .iter()
+            .map(|f| MolecularFormula(f.clone()))
+            .collect()
+    }
+
+    /// Molecular formula of the amino acid.
+    ///
+    /// Returns the molecular formula of the amino acid (the first if multiple are possible).
+    ///
+    /// Returns
+    /// -------
+    /// List[MolecularFormula]
     ///
     fn formula(&self) -> MolecularFormula {
-        MolecularFormula(self.0.formula())
+        MolecularFormula(self.0.formulas().first().unwrap().clone())
+    }
+
+    /// Monoisotopic mass(es) of the amino acid.
+    ///
+    /// Returns a list of monoisotopic masses that are possible for the amino acid symbol.
+    ///
+    /// Returns
+    /// -------
+    /// List[float]
+    ///
+    fn monoisotopic_masses(&self) -> Vec<f64> {
+        self.0
+            .formulas()
+            .iter()
+            .map(|f| f.monoisotopic_mass().value)
+            .collect()
     }
 
     /// Monoisotopic mass of the amino acid.
     ///
+    /// Returns the monoisotopic mass of the amino acid (the first if multiple are possible).
+    ///
     /// Returns
     /// -------
-    /// float | None
+    /// float
     ///
-    fn monoisotopic_mass(&self) -> Option<f64> {
-        self.0.formula().monoisotopic_mass().map(|mass| mass.value)
+    fn monoisotopic_mass(&self) -> f64 {
+        self.0.formulas().first().unwrap().monoisotopic_mass().value
     }
 }
 
@@ -373,10 +438,10 @@ impl Modification {
     ///
     /// Returns
     /// -------
-    /// float | None
+    /// float
     ///
-    fn monoisotopic_mass(&self) -> Option<f64> {
-        self.0.formula().monoisotopic_mass().map(|mass| mass.value)
+    fn monoisotopic_mass(&self) -> f64 {
+        self.0.formula().monoisotopic_mass().value
     }
 }
 
@@ -409,7 +474,7 @@ impl AmbiguousModification {
         AmbiguousModification(rustyms::modification::AmbiguousModification {
             id,
             modification: modification.0,
-            localisation_score,
+            localisation_score: localisation_score.map(OrderedFloat),
             group,
         })
     }
@@ -457,7 +522,7 @@ impl AmbiguousModification {
     ///
     #[getter]
     fn localisation_score(&self) -> Option<f64> {
-        self.0.localisation_score
+        self.0.localisation_score.map(|x| x.into_inner())
     }
 
     /// If this is a named group contain the name and track if this is the preferred location or not.
@@ -620,7 +685,7 @@ impl SequenceElement {
         self.0.ambiguous
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with the selected ambiguous modifications, without any global isotope modifications.
+    /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
     ///
     /// Parameters
     /// ----------
@@ -628,13 +693,17 @@ impl SequenceElement {
     ///
     /// Returns
     /// -------
-    /// MolecularFormula
+    /// List[MolecularFormula]
     ///
-    fn formula(&self, selected_ambiguous: usize) -> MolecularFormula {
-        MolecularFormula(self.0.formula(&[selected_ambiguous]).unwrap())
+    fn formulas(&self, selected_ambiguous: usize) -> Vec<MolecularFormula> {
+        self.0
+            .formulas(&[selected_ambiguous])
+            .iter()
+            .map(|f| MolecularFormula(f.clone()))
+            .collect()
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with the ambiguous modifications placed on the very first placed (and updating this in placed), without any global isotope modifications
+    /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
     ///
     /// Parameters
     /// ----------
@@ -642,20 +711,28 @@ impl SequenceElement {
     ///
     /// Returns
     /// -------
-    /// MolecularFormula
+    /// List[MolecularFormula]
     ///
-    fn formula_greedy(&self, placed: bool) -> MolecularFormula {
-        MolecularFormula(self.0.formula_greedy(&mut [placed]).unwrap())
+    fn formula_greedy(&self, placed: bool) -> Vec<MolecularFormula> {
+        self.0
+            .formulas_greedy(&mut [placed])
+            .iter()
+            .map(|f| MolecularFormula(f.clone()))
+            .collect()
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with all ambiguous modifications, without any global isotope modifications
+    /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
     ///
     /// Returns
     /// -------
-    /// MolecularFormula
+    /// List[MolecularFormula]
     ///
-    fn formula_all(&self) -> MolecularFormula {
-        MolecularFormula(self.0.formula_all().unwrap())
+    fn formula_all(&self) -> Vec<MolecularFormula> {
+        self.0
+            .formulas_all()
+            .iter()
+            .map(|f| MolecularFormula(f.clone()))
+            .collect()
     }
 }
 
@@ -696,11 +773,7 @@ impl LinearPeptide {
     /// Create a new peptide from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Self {
-        LinearPeptide(
-            rustyms::ComplexPeptide::pro_forma(proforma)
-                .unwrap()
-                .assume_linear(),
-        )
+        LinearPeptide(rustyms::LinearPeptide::pro_forma(proforma).unwrap())
     }
 
     fn __str__(&self) -> String {
@@ -789,11 +862,26 @@ impl LinearPeptide {
         self.0.sequence.iter().map(|x| x.aminoacid.char()).collect()
     }
 
-    // TODO: How to get the charge as an integer?
+    /// The precursor charge of the peptide.
+    ///
+    /// Returns
+    /// -------
+    /// int
+    ///
+    #[getter]
+    fn charge(&self) -> i16 {
+        self.0.formulas().first().unwrap().charge()
+    }
+
+    // TODO: Implement when MolecularCharge is exposed upstream.
     // /// The adduct ions, if specified.
     // #[getter]
-    // fn charge_carriers(&self) -> Vec<> {
-    //     todo!()
+    // fn charge_carriers(&self) -> Vec<MolecularCharge> {
+    //     self.0
+    //         .charge_carriers
+    //         .iter()
+    //         .map(|c| MolecularCharge(c.clone()))
+    //         .collect()
     // }
 
     /// Get a copy of the peptide with its sequence reversed.
@@ -806,14 +894,18 @@ impl LinearPeptide {
         LinearPeptide(self.0.reverse())
     }
 
-    /// Gives the formula for the whole peptide. With the global isotope modifications applied.
+    /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
     ///
     /// Returns
     /// -------
-    /// MolecularFormula | None
+    /// List[MolecularFormula]
     ///
-    fn formula(&self) -> Option<MolecularFormula> {
-        self.0.formula().map(MolecularFormula)
+    fn formula(&self) -> Vec<MolecularFormula> {
+        self.0
+            .formulas()
+            .iter()
+            .map(|f| MolecularFormula(f.clone()))
+            .collect()
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
@@ -821,9 +913,9 @@ impl LinearPeptide {
     /// Parameters
     /// ----------
     /// max_charge : int
-    ///    The maximal charge of the fragments.
+    ///     The maximal charge of the fragments.
     /// model : FragmentationModel
-    ///   The model to use for the fragmentation.
+    ///     The model to use for the fragmentation.
     ///
     /// Returns
     /// -------
@@ -834,16 +926,13 @@ impl LinearPeptide {
         &self,
         max_charge: i16,
         model: &FragmentationModel,
-        // peptide_index: usize, TODO: Required for linear peptide?
     ) -> PyResult<Vec<Fragment>> {
         Ok(self
             .0
             .generate_theoretical_fragments(
                 rustyms::system::Charge::new::<rustyms::system::e>(max_charge as f64),
                 &match_model(model)?,
-                0, // TODO: Don't hard code?
             )
-            .unwrap()
             .iter()
             .map(|f| Fragment(f.clone()))
             .collect())
@@ -864,7 +953,7 @@ impl RawPeak {
         )
     }
 
-    /// The charge of the peak.
+    /// The charge of the peak, for instance, as encoded in MGF files.
     ///
     /// Returns
     /// -------
@@ -894,7 +983,13 @@ impl RawPeak {
     ///
     #[getter]
     fn intensity(&self) -> f64 {
-        self.0.intensity
+        self.0.intensity.into_inner()
+    }
+}
+
+impl std::fmt::Display for RawPeak {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({}, {})", self.mz(), self.intensity())
     }
 }
 
@@ -933,7 +1028,7 @@ impl AnnotatedPeak {
     ///
     #[getter]
     fn intensity(&self) -> f64 {
-        self.0.intensity
+        self.0.intensity.into_inner()
     }
 
     /// The charge of the peak.
@@ -947,7 +1042,7 @@ impl AnnotatedPeak {
         self.0.charge.value as i16
     }
 
-    /// The annotation of the peak, if present.
+    /// All annotations of the peak. Can be empty.
     ///
     /// Returns
     /// -------
@@ -960,6 +1055,22 @@ impl AnnotatedPeak {
             .iter()
             .map(|x| Fragment(x.clone()))
             .collect()
+    }
+}
+
+impl std::fmt::Display for AnnotatedPeak {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "({}, {}, {})",
+            self.experimental_mz(),
+            self.intensity(),
+            self.annotation()
+                .iter()
+                .map(|x| x.__repr__())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }
 
@@ -991,53 +1102,62 @@ pub struct RawSpectrum(rustyms::RawSpectrum);
 
 #[pymethods]
 impl RawSpectrum {
-    /// Create a new raw spectrum.
-    #[new]
-    fn new(
-        title: &str,
-        num_scans: u64,
-        rt: f64,
-        precursor_charge: f64,
-        precursor_mass: f64,
-        mz_array: Vec<f64>,
-        intensity_array: Vec<f64>,
-    ) -> Self {
-        RawSpectrum(rustyms::RawSpectrum {
-            title: title.to_string(),
-            num_scans,
-            rt: rustyms::system::Time::new::<rustyms::system::s>(rt),
-            charge: rustyms::system::Charge::new::<rustyms::system::e>(precursor_charge),
-            mass: rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass),
-            spectrum: mz_array
-                .into_iter()
-                .zip(intensity_array)
-                .map(|(mz, i)| rustyms::spectrum::RawPeak {
-                    charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
-                    mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
-                    intensity: i,
-                })
-                .collect(),
-            intensity: None,
-            sequence: None,
-            raw_file: None,
-            raw_scan_number: None,
-            raw_index: None,
-            sample: None,
-            period: None,
-            cycle: None,
-            experiment: None,
-            controller_type: None,
-            controller_number: None,
-        })
+    // TODO: How to implement with private spectrum field?
+    // /// Create a new raw spectrum.
+    // #[new]
+    // fn new(
+    //     title: &str,
+    //     num_scans: u64,
+    //     rt: f64,
+    //     precursor_charge: f64,
+    //     precursor_mass: f64,
+    //     mz_array: Vec<f64>,
+    //     intensity_array: Vec<f64>,
+    // ) -> Self {
+    //     RawSpectrum(rustyms::RawSpectrum {
+    //         title: title.to_string(),
+    //         num_scans,
+    //         rt: rustyms::system::Time::new::<rustyms::system::s>(rt),
+    //         charge: rustyms::system::Charge::new::<rustyms::system::e>(precursor_charge),
+    //         mass: rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass),
+    //         spectrum: mz_array
+    //             .into_iter()
+    //             .zip(intensity_array)
+    //             .map(|(mz, i)| rustyms::spectrum::RawPeak {
+    //                 charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
+    //                 mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
+    //                 intensity: OrderedFloat(i),
+    //             })
+    //             .collect(),
+    //         intensity: None,
+    //         sequence: None,
+    //         raw_file: None,
+    //         raw_scan_number: None,
+    //         raw_index: None,
+    //         sample: None,
+    //         period: None,
+    //         cycle: None,
+    //         experiment: None,
+    //         controller_type: None,
+    //         controller_number: None,
+    //     })
+    // }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "RawSpectrum(title='{}', num_scans={}, rt={}, charge={}, mass={}, spectrum=[{}])",
+            self.title(),
+            self.num_scans(),
+            self.rt(),
+            self.charge(),
+            self.mass(),
+            self.spectrum()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
-
-    // fn __str__(&self) -> String {
-    //     todo!()
-    // }
-
-    // fn __repr__(&self) -> String {
-    //     todo!()
-    // }
 
     /// The title.
     ///
@@ -1101,7 +1221,7 @@ impl RawSpectrum {
     ///
     #[getter]
     fn spectrum(&self) -> Vec<RawPeak> {
-        self.0.spectrum.iter().map(|x| RawPeak(x.clone())).collect()
+        self.0.clone().into_iter().map(RawPeak).collect()
     }
 
     /// Annotate this spectrum with the given peptide
@@ -1125,6 +1245,7 @@ impl RawSpectrum {
     /// ValueError
     ///     If the model is not one of the valid models.
     ///
+    #[pyo3(signature = (peptide, model, mode=&MassMode::Monoisotopic))]
     fn annotate(
         &self,
         peptide: LinearPeptide,
@@ -1134,10 +1255,7 @@ impl RawSpectrum {
         let rusty_model = match_model(model)?;
         let fragments = peptide
             .0
-            .generate_theoretical_fragments(self.0.charge, &rusty_model, 0)
-            .ok_or(PyValueError::new_err(
-                "Failed to generate theoretical fragments for the peptide.",
-            ))?;
+            .generate_theoretical_fragments(self.0.charge, &rusty_model);
         Ok(AnnotatedSpectrum(self.0.annotate(
             rustyms::ComplexPeptide::from(peptide.0),
             &fragments,
@@ -1157,13 +1275,21 @@ pub struct AnnotatedSpectrum(rustyms::AnnotatedSpectrum);
 
 #[pymethods]
 impl AnnotatedSpectrum {
-    // fn __str__(&self) -> String {
-    //     todo!()
-    // }
-
-    // fn __repr__(&self) -> String {
-    //     todo!()
-    // }
+    fn __repr__(&self) -> String {
+        format!(
+            "AnnotatedSpectrum(title='{}', num_scans={}, rt={}, charge={}, mass={}, spectrum=[{}])",
+            self.title(),
+            self.num_scans(),
+            self.rt(),
+            self.charge(),
+            self.mass(),
+            self.spectrum()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
 
     /// The title.
     ///
@@ -1227,11 +1353,7 @@ impl AnnotatedSpectrum {
     ///
     #[getter]
     fn spectrum(&self) -> Vec<AnnotatedPeak> {
-        self.0
-            .spectrum
-            .iter()
-            .map(|x| AnnotatedPeak(x.clone()))
-            .collect()
+        self.0.clone().into_iter().map(AnnotatedPeak).collect()
     }
 }
 
