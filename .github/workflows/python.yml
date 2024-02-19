@@ -89,7 +89,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist
+          args: --release --out dist --find-interpreter --manifest-path ./rustyms-py/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
