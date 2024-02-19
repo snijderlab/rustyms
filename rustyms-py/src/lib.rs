@@ -946,22 +946,10 @@ struct RawPeak(rustyms::spectrum::RawPeak);
 impl RawPeak {
     fn __repr__(&self) -> String {
         format!(
-            "RawPeak(charge={}, mz={}, intensity={})",
-            self.charge(),
+            "RawPeak(mz={}, intensity={})",
             self.mz(),
             self.intensity()
         )
-    }
-
-    /// The charge of the peak, for instance, as encoded in MGF files.
-    ///
-    /// Returns
-    /// -------
-    /// int
-    ///
-    #[getter]
-    fn charge(&self) -> i16 {
-        self.0.charge.value as i16
     }
 
     /// The m/z value of the peak.
@@ -1001,10 +989,9 @@ struct AnnotatedPeak(rustyms::spectrum::AnnotatedPeak);
 impl AnnotatedPeak {
     fn __repr__(&self) -> String {
         format!(
-            "AnnotatedPeak(experimental_mz={}, intensity={}, charge={}, annotation=[{:?}])",
+            "AnnotatedPeak(experimental_mz={}, intensity={}, annotation=[{:?}])",
             self.experimental_mz(),
             self.intensity(),
-            self.charge(),
             self.annotation(),
         )
     }
@@ -1029,17 +1016,6 @@ impl AnnotatedPeak {
     #[getter]
     fn intensity(&self) -> f64 {
         self.0.intensity.into_inner()
-    }
-
-    /// The charge of the peak.
-    ///
-    /// Returns
-    /// -------
-    /// int
-    ///
-    #[getter]
-    fn charge(&self) -> i16 {
-        self.0.charge.value as i16
     }
 
     /// All annotations of the peak. Can be empty.
