@@ -5,8 +5,15 @@ use std::fmt::Debug;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use rustyms;
 use rustyms::Chemical;
+
+/// Mass mode enum.
+#[pyclass]
+enum MassMode {
+    Monoisotopic,
+    Average,
+    // MostAbundant,
+}
 
 /// Element.
 ///
@@ -31,7 +38,7 @@ impl Element {
     }
 
     fn __repr__(&self) -> String {
-        format!("Element('{}')", self.0.to_string())
+        format!("Element('{}')", self.0)
     }
 
     fn __str__(&self) -> String {
@@ -64,10 +71,7 @@ impl Element {
     /// float | None
     ///
     fn mass(&self, isotope: u16) -> Option<f64> {
-        match self.0.mass(isotope) {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.mass(isotope).map(|mass| mass.value)
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists).
@@ -82,10 +86,7 @@ impl Element {
     /// float
     ///
     fn average_weight(&self, isotope: u16) -> Option<f64> {
-        match self.0.average_weight(isotope) {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.average_weight(isotope).map(|mass| mass.value)
     }
 
     // TODO: Should first be fixed upstream before exposing.
@@ -132,7 +133,7 @@ impl MolecularFormula {
     // }
 
     fn __repr__(&self) -> String {
-        format!("{}", self.0.to_string())
+        format!("MolecularFormula({})", self.0)
     }
 
     fn __str__(&self) -> String {
@@ -151,15 +152,20 @@ impl MolecularFormula {
     ///     The number of atoms of this element to add.
     ///
     fn add(&mut self, element: &Element, isotope: u16, n: i16) {
-        self.0.add((element.0.clone(), isotope, n));
+        self.0.add((element.0, isotope, n));
     }
 
     /// Get the elements making this formula.
+    ///
+    /// Returns
+    /// -------
+    /// list[tuple[Element, int, int]]
+    ///
     fn elements(&self) -> Vec<(Element, u16, i16)> {
         self.0
             .elements()
             .iter()
-            .map(|(e, i, n)| (Element(e.clone()), *i, *n))
+            .map(|(e, i, n)| (Element(*e), *i, *n))
             .collect()
     }
 
@@ -191,10 +197,7 @@ impl MolecularFormula {
     /// float | None
     ///
     fn monoisotopic_mass(&self) -> Option<f64> {
-        match self.0.monoisotopic_mass() {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.monoisotopic_mass().map(|mass| mass.value)
     }
 
     /// The average weight of the molecular formula of this element, if all element species (isotopes) exists.
@@ -204,31 +207,26 @@ impl MolecularFormula {
     /// float | None
     ///
     fn average_weight(&self) -> Option<f64> {
-        match self.0.average_weight() {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.average_weight().map(|mass| mass.value)
     }
 
-    /// The most abundant mass, meaning the isotope that will have the highest intensity.
-    ///
-    /// Returns
-    /// -------
-    /// float | None
-    ///
-    fn most_abundant_mass(&self) -> Option<f64> {
-        match self.0.most_abundant_mass() {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
-    }
+    // Broken upstream. TODO: Keep or remove?
+    // /// The most abundant mass, meaning the isotope that will have the highest intensity.
+    // ///
+    // /// Returns
+    // /// -------
+    // /// float | None
+    // ///
+    // fn most_abundant_mass(&self) -> Option<f64> {
+    //     self.0.most_abundant_mass().map(|m| m.value)
+    // }
 
     /// Get the mass in the given mode.
     ///
     /// Parameters
     /// ----------
-    /// mode : str
-    ///    The mode to get the mass in. One of: ``monoisotopic``, ``average``, ``most_abundant``
+    /// mode : MassMode
+    ///    The mode to get the mass in.
     ///
     /// Returns
     /// -------
@@ -239,14 +237,12 @@ impl MolecularFormula {
     /// ValueError
     ///   If the mode is not one of the valid modes.
     ///
-    fn mass(&self, mode: &str) -> PyResult<Option<f64>> {
+    #[pyo3(signature = (mode=&MassMode::Monoisotopic))]
+    fn mass(&self, mode: &MassMode) -> PyResult<Option<f64>> {
         match mode {
-            "monoisotopic" => Ok(self.monoisotopic_mass()),
-            "average" => Ok(self.average_weight()),
-            "most_abundant" => Ok(self.most_abundant_mass()),
-            _ => Err(PyValueError::new_err(
-                "Invalid mass mode. Should be one of: monoisotopic, average, most_abundant",
-            )),
+            MassMode::Monoisotopic => Ok(self.monoisotopic_mass()),
+            MassMode::Average => Ok(self.average_weight()),
+            // MassMode::MostAbundant => Ok(self.most_abundant_mass()),
         }
     }
 
@@ -324,10 +320,7 @@ impl AminoAcid {
     /// float | None
     ///
     fn monoisotopic_mass(&self) -> Option<f64> {
-        match self.0.formula().monoisotopic_mass() {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.formula().monoisotopic_mass().map(|mass| mass.value)
     }
 }
 
@@ -363,7 +356,7 @@ impl Modification {
     }
 
     fn __repr__(&self) -> String {
-        format!("Modification('{}')", self.0.to_string())
+        format!("Modification('{}')", self.0)
     }
 
     /// Molecular formula of the modification.
@@ -383,10 +376,7 @@ impl Modification {
     /// float | None
     ///
     fn monoisotopic_mass(&self) -> Option<f64> {
-        match self.0.formula().monoisotopic_mass() {
-            Some(mass) => Some(mass.value),
-            None => None,
-        }
+        self.0.formula().monoisotopic_mass().map(|mass| mass.value)
     }
 }
 
@@ -478,10 +468,7 @@ impl AmbiguousModification {
     ///
     #[getter]
     fn group(&self) -> Option<(String, bool)> {
-        match &self.0.group {
-            Some((s, b)) => Some((s.to_string(), b.clone())),
-            None => None,
-        }
+        self.0.group.as_ref().map(|(s, b)| (s.to_string(), *b))
     }
 }
 
@@ -556,10 +543,7 @@ impl Fragment {
     ///
     #[getter]
     fn neutral_loss(&self) -> Option<String> {
-        match &self.0.neutral_loss {
-            Some(nl) => Some(nl.to_string()),
-            None => None,
-        }
+        self.0.neutral_loss.as_ref().map(|nl| nl.to_string())
     }
 
     /// Additional description for humans.
@@ -636,7 +620,7 @@ impl SequenceElement {
         self.0.ambiguous
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with the selected ambiguous modifications, without any global isotype modifications.
+    /// Get the molecular formula for this position (unless it is B/Z) with the selected ambiguous modifications, without any global isotope modifications.
     ///
     /// Parameters
     /// ----------
@@ -650,7 +634,7 @@ impl SequenceElement {
         MolecularFormula(self.0.formula(&[selected_ambiguous]).unwrap())
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with the ambiguous modifications placed on the very first placed (and updating this in placed), without any global isotype modifications
+    /// Get the molecular formula for this position (unless it is B/Z) with the ambiguous modifications placed on the very first placed (and updating this in placed), without any global isotope modifications
     ///
     /// Parameters
     /// ----------
@@ -664,7 +648,7 @@ impl SequenceElement {
         MolecularFormula(self.0.formula_greedy(&mut [placed]).unwrap())
     }
 
-    /// Get the molecular formula for this position (unless it is B/Z) with all ambiguous modifications, without any global isotype modifications
+    /// Get the molecular formula for this position (unless it is B/Z) with all ambiguous modifications, without any global isotope modifications
     ///
     /// Returns
     /// -------
@@ -672,6 +656,27 @@ impl SequenceElement {
     ///
     fn formula_all(&self) -> MolecularFormula {
         MolecularFormula(self.0.formula_all().unwrap())
+    }
+}
+
+/// Fragmentation model enum.
+#[pyclass]
+enum FragmentationModel {
+    All,
+    CidHcd,
+    Etcid,
+    Etd,
+    Ethcd,
+}
+
+/// Helper function to match a FragmenationModel to a rustyms Model.
+fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
+    match model {
+        FragmentationModel::All => Ok(rustyms::Model::all()),
+        FragmentationModel::CidHcd => Ok(rustyms::Model::cid_hcd()),
+        FragmentationModel::Etcid => Ok(rustyms::Model::etcid()),
+        FragmentationModel::Etd => Ok(rustyms::Model::etd()),
+        FragmentationModel::Ethcd => Ok(rustyms::Model::ethcd()),
     }
 }
 
@@ -703,7 +708,7 @@ impl LinearPeptide {
     }
 
     fn __repr__(&self) -> String {
-        format!("LinearPeptide({})", self.0.to_string())
+        format!("LinearPeptide({})", self.0)
     }
 
     fn __len__(&self) -> usize {
@@ -733,10 +738,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn n_term(&self) -> Option<Modification> {
-        match &self.0.n_term {
-            Some(m) => Some(Modification(m.clone())),
-            None => None,
-        }
+        self.0.n_term.as_ref().map(|m| Modification(m.clone()))
     }
 
     /// C-terminal modification.
@@ -747,10 +749,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn c_term(&self) -> Option<Modification> {
-        match &self.0.c_term {
-            Some(m) => Some(Modification(m.clone())),
-            None => None,
-        }
+        self.0.c_term.as_ref().map(|m| Modification(m.clone()))
     }
 
     /// Sequence of the peptide including modifications.
@@ -814,10 +813,7 @@ impl LinearPeptide {
     /// MolecularFormula | None
     ///
     fn formula(&self) -> Option<MolecularFormula> {
-        match self.0.formula() {
-            Some(f) => Some(MolecularFormula(f)),
-            None => None,
-        }
+        self.0.formula().map(MolecularFormula)
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
@@ -826,8 +822,8 @@ impl LinearPeptide {
     /// ----------
     /// max_charge : int
     ///    The maximal charge of the fragments.
-    /// model : str
-    ///   The model to use for the fragmentation. One of: ``all``, ``cid_hcd``, ``etcid``, ``etd``, ``ethcd``
+    /// model : FragmentationModel
+    ///   The model to use for the fragmentation.
     ///
     /// Returns
     /// -------
@@ -837,15 +833,14 @@ impl LinearPeptide {
     fn generate_theoretical_fragments(
         &self,
         max_charge: i16,
-        model: &str,
+        model: &FragmentationModel,
         // peptide_index: usize, TODO: Required for linear peptide?
     ) -> PyResult<Vec<Fragment>> {
-        let model = match_model(model)?;
         Ok(self
             .0
             .generate_theoretical_fragments(
                 rustyms::system::Charge::new::<rustyms::system::e>(max_charge as f64),
-                &model,
+                &match_model(model)?,
                 0, // TODO: Don't hard code?
             )
             .unwrap()
@@ -1015,7 +1010,7 @@ impl RawSpectrum {
             mass: rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass),
             spectrum: mz_array
                 .into_iter()
-                .zip(intensity_array.into_iter())
+                .zip(intensity_array)
                 .map(|(mz, i)| rustyms::spectrum::RawPeak {
                     charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
                     mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
@@ -1114,32 +1109,44 @@ impl RawSpectrum {
     /// Parameters
     /// ----------
     /// peptide : LinearPeptide
-    ///   The peptide to annotate the spectrum with.
-    /// model : str
-    ///  The model to use for the fragmentation. One of: ``all``, ``cid_hcd``, ``etcid``, ``etd``, ``ethcd``
+    ///     The peptide to annotate the spectrum with.
+    /// model : FragmentationModel
+    ///     The model to use for the fragmentation.
+    /// mode : MassMode
+    ///    The mode to use for the mass.
     ///
     /// Returns
     /// -------
     /// AnnotatedSpectrum
-    ///  The annotated spectrum.
+    ///     The annotated spectrum.
     ///
     /// Raises
     /// ------
     /// ValueError
-    ///  If the model is not one of the valid models.
+    ///     If the model is not one of the valid models.
     ///
-    fn annotate(&self, peptide: LinearPeptide, model: &str) -> PyResult<AnnotatedSpectrum> {
-        let model = match_model(model)?;
+    fn annotate(
+        &self,
+        peptide: LinearPeptide,
+        model: &FragmentationModel,
+        mode: &MassMode,
+    ) -> PyResult<AnnotatedSpectrum> {
+        let rusty_model = match_model(model)?;
         let fragments = peptide
             .0
-            .generate_theoretical_fragments(self.0.charge, &model, 0).ok_or(
-                PyValueError::new_err("Failed to generate theoretical fragments for the peptide."),
-            )?;
+            .generate_theoretical_fragments(self.0.charge, &rusty_model, 0)
+            .ok_or(PyValueError::new_err(
+                "Failed to generate theoretical fragments for the peptide.",
+            ))?;
         Ok(AnnotatedSpectrum(self.0.annotate(
             rustyms::ComplexPeptide::from(peptide.0),
             &fragments,
-            &model,
-            rustyms::MassMode::Monoisotopic,  // TODO: Don't hard code
+            &rusty_model,
+            match mode {
+                MassMode::Monoisotopic => rustyms::MassMode::Monoisotopic,
+                MassMode::Average => rustyms::MassMode::Average,
+                // MassMode::MostAbundant => rustyms::MassMode::MostAbundant,
+            },
         )))
     }
 }
@@ -1228,24 +1235,11 @@ impl AnnotatedSpectrum {
     }
 }
 
-/// Helper function to match a model string to a rustyms model.
-fn match_model(model: &str) -> PyResult<rustyms::Model> {
-    match model {
-        "all" => Ok(rustyms::Model::all()),
-        "cid_hcd" => Ok(rustyms::Model::cid_hcd()),
-        "etcid" => Ok(rustyms::Model::ethcd()),
-        "etd" => Ok(rustyms::Model::etd()),
-        "ethcd" => Ok(rustyms::Model::ethcd()),
-        _ => Err(PyValueError::new_err(
-            "Invalid model. Should be one of: 'all', 'cid_hcd', 'etcid', 'etd', 'ethcd'",
-        )),
-    }
-}
-
 /// Python bindings to the rustyms library.
 #[pymodule]
 #[pyo3(name = "rustyms")]
 fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MassMode>()?;
     m.add_class::<Element>()?;
     m.add_class::<MolecularFormula>()?;
     m.add_class::<AminoAcid>()?;
@@ -1253,6 +1247,7 @@ fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<AmbiguousModification>()?;
     m.add_class::<Fragment>()?;
     m.add_class::<SequenceElement>()?;
+    m.add_class::<FragmentationModel>()?;
     m.add_class::<LinearPeptide>()?;
     m.add_class::<RawPeak>()?;
     m.add_class::<AnnotatedPeak>()?;
