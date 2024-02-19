@@ -1,6 +1,6 @@
-*************
-API reference
-*************
+********************
+Python API Reference
+********************
 
 .. automodule:: rustyms
    :members:

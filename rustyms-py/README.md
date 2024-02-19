@@ -1,6 +1,6 @@
 # Python bindings to rustyms
 
-Python bindings to the [rustyms](https://docs.rs/rustyms/0.7.0/rustyms/) library for proteomics
+Python bindings to the [rustyms](https://docs.rs/rustyms/) library for proteomics
 and mass spectrometry.
 
 ## Full documentation

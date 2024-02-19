@@ -7,22 +7,23 @@ and mass spectrometry.
 
 Python bindings are provided to several core components of the rustyms library, including:
 
-- {py:class}`~rustyms.Element`: Chemical elements
-- {py:class}`~rustyms.MolecularFormula`: Molecular formulas
-- {py:class}`~rustyms.AminoAcid`: Amino acids
-- {py:class}`~rustyms.Modification`: Amino acid modifications, with support for mass shifts,
+- {py:class}`~rustyms.Element` Chemical elements
+- {py:class}`~rustyms.MolecularFormula` Molecular formulas
+- {py:class}`~rustyms.AminoAcid` Amino acids
+- {py:class}`~rustyms.Modification` Amino acid modifications, with support for mass shifts,
   chemical formulas, Unimod, and PSI-MOD labels
-- {py:class}`~rustyms.AmbiguousModification`: {py:class}`~rustyms.Modification` with ambiguous
+- {py:class}`~rustyms.AmbiguousModification` {py:class}`~rustyms.Modification` with ambiguous
   localization.
-- {py:class}`~rustyms.Fragment`: Theoretical fragment ion
-- {py:class}`~rustyms.SequenceElement`: One position in a peptide sequence with amino acid and
+- {py:class}`~rustyms.Fragment` Theoretical fragment ion
+- {py:class}`~rustyms.SequenceElement` One position in a peptide sequence with amino acid and
   modifications
-- {py:class}`~rustyms.LinearPeptide`: Peptide sequence, modifications, and charge, with full
-  [ProForma 2.0](https://proforma.readthedocs.io) support
-- {py:class}`~rustyms.RawPeak`: A single peak in a mass spectrum
-- {py:class}`~rustyms.RawSpectrum`: A mass spectrum without any annotations
-- {py:class}`~rustyms.AnnotatedPeak`: A single peak in a mass spectrum with annotations
-- {py:class}`~rustyms.AnnotatedSpectrum`: A mass spectrum with annotations
+- {py:class}`~rustyms.LinearPeptide` Peptide sequence, modifications, and charge, using
+  [ProForma 2.0](https://proforma.readthedocs.io) (see {ref}`ProForma support` for more
+  information)
+- {py:class}`~rustyms.RawPeak` A single peak in a mass spectrum
+- {py:class}`~rustyms.RawSpectrum` A mass spectrum without any annotations
+- {py:class}`~rustyms.AnnotatedPeak` A single peak in a mass spectrum with annotations
+- {py:class}`~rustyms.AnnotatedSpectrum` A mass spectrum with annotations
 
 {py:mod}`rustyms` can, for example, annotate a mass spectrum from a
 [ProForma 2.0](https://proforma.readthedocs.io) peptidoforms string:
@@ -67,6 +68,7 @@ rustyms Python bindings.
 :maxdepth: 2
 
 About <self>
-Python API Reference <api>
-Contributing <contributing>
+proforma-support
+api
+contributing
 ```
