@@ -140,6 +140,40 @@ impl MolecularFormula {
         self.0.to_string()
     }
 
+    /// Create a new molecular formula from a ProForma formula notation string.
+    ///
+    /// Parameters
+    /// ----------
+    /// proforma : str
+    ///
+    /// Returns
+    /// -------
+    /// MolecularFormula
+    ///
+    #[classmethod]
+    fn from_pro_forma(_cls: &PyType, proforma: &str) -> PyResult<Self> {
+        rustyms::MolecularFormula::from_pro_forma(proforma)
+            .map(MolecularFormula)
+            .map_err(|e| PyValueError::new_err(format!("Invalid ProForma string: {}", e)))
+    }
+
+    /// Create a new molecular formula from a PSI-MOD formula notation string.
+    ///
+    /// Parameters
+    /// ----------
+    /// psi_mod : str
+    ///
+    /// Returns
+    /// -------
+    /// MolecularFormula
+    ///
+    #[classmethod]
+    fn from_psi_mod(_cls: &PyType, psi_mod: &str) -> PyResult<Self> {
+        rustyms::MolecularFormula::from_psi_mod(psi_mod)
+            .map(MolecularFormula)
+            .map_err(|e| PyValueError::new_err(format!("Invalid PSI-MOD string: {}", e)))
+    }
+
     /// Add the given element to this formula (while keeping it ordered and simplified)
     ///
     /// Parameters
