@@ -374,7 +374,7 @@ impl ComplexPeptide {
 
                             offset += set.len() + 1;
                         }
-                        peptide.charge_carriers = Some(MolecularCharge::new(charge_carriers));
+                        peptide.charge_carriers = Some(MolecularCharge::new(&charge_carriers));
                         index = end_index+1;
                         if index < chars.len() && chars[index] == b'+' {
                             index+=1; // If a peptide in a multimeric definition contains a charge state modification

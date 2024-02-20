@@ -71,6 +71,7 @@ pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
 pub use crate::linear_peptide::LinearPeptide;
 pub use crate::model::Model;
 pub use crate::modification::Modification;
+pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;

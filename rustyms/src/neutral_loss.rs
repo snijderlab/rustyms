@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{Context, CustomError},
     formula::MolecularFormula,
-    helper_functions::parse_molecular_formula_pro_forma,
 };
 
 /// All possible neutral losses
@@ -32,24 +31,8 @@ impl FromStr for NeutralLoss {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(c) = s.chars().next() {
             match c {
-                '+' => Ok(Self::Gain(
-                    parse_molecular_formula_pro_forma(&s[1..]).map_err(|e| {
-                        CustomError::error(
-                            "Invalid neutral loss",
-                            e,
-                            Context::line(0, s, 1, s.len() - 1),
-                        )
-                    })?,
-                )),
-                '-' => Ok(Self::Loss(
-                    parse_molecular_formula_pro_forma(&s[1..]).map_err(|e| {
-                        CustomError::error(
-                            "Invalid neutral loss",
-                            e,
-                            Context::line(0, s, 1, s.len() - 1),
-                        )
-                    })?,
-                )),
+                '+' => Ok(Self::Gain(MolecularFormula::from_pro_forma(&s[1..])?)),
+                '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma(&s[1..])?)),
                 _ => Err(CustomError::error(
                     "Invalid neutral loss",
                     "A neutral loss can only start with '+' or '-'",

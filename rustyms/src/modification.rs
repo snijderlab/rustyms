@@ -256,7 +256,7 @@ fn parse_single_modification(
                         .with_long_description("This modification cannot be read as a GNO name")
                 }),
                 ("formula", tail) => Ok(Some(Modification::Formula(
-                    parse_molecular_formula_pro_forma(tail).map_err(|e| {
+                    MolecularFormula::from_pro_forma(tail).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid formula: {e}"
                         ))

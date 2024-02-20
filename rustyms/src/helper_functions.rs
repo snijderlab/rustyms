@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use crate::{formula::MolecularFormula, ELEMENT_PARSE_LIST};
 pub trait ResultExtensions<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.
@@ -91,106 +90,6 @@ pub fn parse_named_counter<T: Clone>(
         }
     }
     Ok(output)
-}
-
-/// Parse Pro Forma formulas: [13C2][12C-2]H2N.
-/// # Errors
-/// If the formula is not valid.
-#[allow(dead_code)]
-#[allow(clippy::missing_panics_doc)] // Cannot panic
-pub fn parse_molecular_formula_pro_forma(value: &str) -> Result<MolecularFormula, String> {
-    let mut index = 0;
-    let mut element = None;
-    let bytes = value.as_bytes();
-    let mut result = MolecularFormula::default();
-    while index < value.len() {
-        match bytes[index] {
-            b'[' => {
-                index += 1; // Skip the open square bracket
-                let len = bytes
-                    .iter()
-                    .skip(index)
-                    .position(|c| *c == b']')
-                    .ok_or(format!(
-                        "No closing square bracket for square bracket at index: {index}"
-                    ))?;
-                let isotope = bytes
-                    .iter()
-                    .skip(index)
-                    .take_while(|c| c.is_ascii_digit())
-                    .count();
-                let ele = bytes
-                    .iter()
-                    .skip(index + isotope)
-                    .take_while(|c| c.is_ascii_alphabetic())
-                    .count();
-
-                for possible in ELEMENT_PARSE_LIST {
-                    if value[index + isotope..index + isotope + ele] == *possible.0 {
-                        element = Some(possible.1);
-                        break;
-                    }
-                }
-                if let Some(parsed_element) = element {
-                    let num = value[index + isotope + ele..index + len]
-                        .parse::<i16>()
-                        .map_err(|e| e.to_string())?;
-                    let isotope = value[index..index + isotope]
-                        .parse::<u16>()
-                        .map_err(|e| e.to_string())?;
-
-                    if !result.add((parsed_element, Some(isotope), num)) {
-                        return Err(format!("Invalid isotope ({isotope}) added for element ({parsed_element}) in pro forma molecular formula ({value})"));
-                    }
-                    element = None;
-                    index += len + 1;
-                } else {
-                    return Err(format!("Invalid element ({ele}) in formula ({value})"));
-                }
-            }
-            b'-' | b'0'..=b'9' if element.is_some() => {
-                let (num, len) = std::str::from_utf8(
-                    &bytes
-                        .iter()
-                        .skip(index)
-                        .take_while(|c| c.is_ascii_digit() || **c == b'-')
-                        .copied()
-                        .collect::<Vec<_>>(),
-                )
-                .map(|v| (v.parse::<i16>().map_err(|e| e.to_string()), v.len()))
-                .map_err(|e| e.to_string())?;
-                let num = num?;
-                if num != 0 && !result.add((element.unwrap(), None, num)) {
-                    return Err(format!("An element without a defined mass ({}) was used in a pro forma molecular formula ({})", element.unwrap(), value));
-                }
-                element = None;
-                index += len;
-            }
-            b' ' => index += 1,
-            _ => {
-                let mut found = false;
-                for possible in ELEMENT_PARSE_LIST {
-                    if value[index..].starts_with(possible.0) {
-                        element = Some(possible.1);
-                        index += possible.0.len();
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    return Err(format!(
-                        "Could not parse ProForma elemental formula, broke down at index: {index}"
-                    ));
-                }
-            }
-        }
-    }
-    if let Some(element) = element {
-        if !result.add((element, None, 1)) {
-            return Err(format!( "An element without a defined mass ({element}) was used in a pro forma molecular formula ({value})",));
-        }
-    }
-    Ok(result)
 }
 
 /// Helper function to check extensions in filenames

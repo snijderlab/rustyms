@@ -21,8 +21,10 @@ impl MolecularCharge {
     }
 
     /// Create a charge state with the given ions
-    pub fn new(charge_carriers: Vec<(isize, MolecularFormula)>) -> Self {
-        Self { charge_carriers }
+    pub fn new(charge_carriers: &[(isize, MolecularFormula)]) -> Self {
+        Self {
+            charge_carriers: charge_carriers.to_vec(),
+        }
     }
 
     /// Generate all possible charge carrier options from the selection of ions for use in fragment calculations
@@ -72,7 +74,7 @@ mod tests {
 
     #[test]
     fn simple_charge_options() {
-        let mc = MolecularCharge::new(vec![(1, molecular_formula!(H 1 Electron -1).unwrap())]);
+        let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1).unwrap())]);
         let options = mc.all_charge_options();
         assert_eq!(options.len(), 1);
         assert_eq!(
