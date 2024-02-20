@@ -4,6 +4,14 @@ use crate::{MolecularFormula, Multi};
 pub trait MultiChemical {
     /// Get all possible molecular formulas
     fn formulas(&self) -> Multi<MolecularFormula>;
+
+    /// Get the charge of this chemical, it returns None if no charge is defined.
+    fn charge(&self) -> Option<i16> {
+        self.formulas()
+            .first()
+            .map(MolecularFormula::charge)
+            .filter(|c| *c != 0)
+    }
 }
 
 // #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
