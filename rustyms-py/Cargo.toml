@@ -10,4 +10,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.19.0"
-rustyms = "0.7.0"
+rustyms = { path = "../rustyms" }
+ordered-float = { version = "4.2", features = ["serde"] }
