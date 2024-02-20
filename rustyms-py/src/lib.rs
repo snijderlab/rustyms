@@ -3,8 +3,8 @@
 use std::fmt::Debug;
 
 use ordered_float::OrderedFloat;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::{exceptions::PyValueError, types::PyType};
 
 use rustyms::{Chemical, MultiChemical};
 
@@ -13,7 +13,6 @@ use rustyms::{Chemical, MultiChemical};
 enum MassMode {
     Monoisotopic,
     Average,
-    // MostAbundant,
 }
 
 /// Element.
@@ -25,17 +24,16 @@ enum MassMode {
 /// symbol : str
 ///
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Element(rustyms::Element);
 
 #[pymethods]
 impl Element {
     #[new]
     fn new(symbol: &str) -> PyResult<Self> {
-        match rustyms::Element::try_from(symbol) {
-            Ok(element) => Ok(Element(element)),
-            Err(_) => Err(PyValueError::new_err("Invalid element symbol.")),
-        }
+        rustyms::Element::try_from(symbol)
+            .map(Element)
+            .map_err(|_| PyValueError::new_err("Invalid element symbol."))
     }
 
     fn __repr__(&self) -> String {
@@ -89,27 +87,6 @@ impl Element {
     fn average_weight(&self, isotope: Option<u16>) -> Option<f64> {
         self.0.average_weight(isotope).map(|mass| mass.value)
     }
-
-    // TODO: Should first be fixed upstream before exposing.
-    // /// Gives the most abundant mass based on the number of this isotope
-    // ///
-    // /// Parameters
-    // /// ----------
-    // /// n : int
-    // ///   The number of atoms of this element. // //[TODO] CORRECT?
-    // /// isotope : int
-    // ///   The isotope number.
-    // ///
-    // /// Returns
-    // /// -------
-    // /// float | None
-    // ///
-    // fn most_abundant_mass(&self, n: i16, isotope: u16) -> Option<f64> {
-    //     match self.0.most_abundant_mass(n, isotope) {
-    //         Some(mass) => Some(mass.value),
-    //         None => None,
-    //     }
-    // }
 }
 
 impl std::fmt::Display for Element {
@@ -123,15 +100,37 @@ impl std::fmt::Display for Element {
 /// A molecular formula: a selection of elements of specified isotopes together forming a structure.
 ///
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MolecularFormula(rustyms::MolecularFormula);
 
 #[pymethods]
 impl MolecularFormula {
-    // #[new]
-    // fn new(formula: &str) -> PyResult<Self> {
-    //     todo!()
-    // }
+    /// Create a new molecular formula.
+    ///
+    /// Parameters
+    /// ----------
+    /// elements : list[tuple[Element, int | None, int]]
+    ///     List of tuples of elements, isotope numbers and counts.
+    ///
+    /// Returns
+    /// -------
+    /// MolecularFormula
+    ///
+    /// Raises
+    /// ------
+    /// ValueError
+    ///    If an isotope is invalid.
+    ///
+    #[new]
+    fn new(elements: Vec<(Element, Option<u16>, i16)>) -> PyResult<Self> {
+        let elements = elements
+            .iter()
+            .map(|(e, i, n)| (e.0, *i, *n))
+            .collect::<Vec<_>>();
+        let formula = rustyms::MolecularFormula::new(elements.as_slice())
+            .ok_or_else(|| PyValueError::new_err("Invalid isotopes"))?;
+        Ok(MolecularFormula(formula))
+    }
 
     fn __repr__(&self) -> String {
         format!("MolecularFormula({})", self.0)
@@ -180,16 +179,24 @@ impl MolecularFormula {
             .collect()
     }
 
-    // TODO: Get this working (issues with slice type and pyo3)
-    // /// Create a new molecular formula with the given global isotope modifications.
-    // fn with_global_isotope_modifications(&self, substitutions: Vec<(Element, u16)>) -> Self {
-    //     let substitutions = substitutions
-    //         .iter()
-    //         .map(|(e, i)| (e.0.clone(), *i))
-    //         .collect::<Vec<_>>()
-    //         .as_slice();
-    //     MolecularFormula(self.0.with_global_isotope_modifications(&substitutions))
-    // }
+    /// Create a new molecular formula with the given global isotope modifications.
+    fn with_global_isotope_modifications(
+        &self,
+        substitutions: Vec<(Element, Option<u16>)>,
+    ) -> PyResult<Self> {
+        match self.0.with_global_isotope_modifications(
+            substitutions
+                .iter()
+                .map(|(e, i)| (e.0, *i))
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ) {
+            Some(formula) => Ok(MolecularFormula(formula)),
+            None => Err(PyValueError::new_err(
+                "Invalid global isotope modifications",
+            )),
+        }
+    }
 
     /// Get the number of electrons (the only charged species, any ionic species is saved as that element +/- the correct number of electrons). The inverse of that number is given as the charge.
     ///
@@ -221,17 +228,6 @@ impl MolecularFormula {
         self.0.average_weight().value
     }
 
-    // Broken upstream. TODO: Keep or remove?
-    // /// The most abundant mass, meaning the isotope that will have the highest intensity.
-    // ///
-    // /// Returns
-    // /// -------
-    // /// float | None
-    // ///
-    // fn most_abundant_mass(&self) -> Option<f64> {
-    //     self.0.most_abundant_mass().map(|m| m.value)
-    // }
-
     /// Get the mass in the given mode.
     ///
     /// Parameters
@@ -253,7 +249,6 @@ impl MolecularFormula {
         match mode {
             MassMode::Monoisotopic => Ok(self.monoisotopic_mass()),
             MassMode::Average => Ok(self.average_weight()),
-            // MassMode::MostAbundant => Ok(self.most_abundant_mass()),
         }
     }
 
@@ -285,23 +280,76 @@ impl MolecularFormula {
     }
 }
 
-// TODO: Can only be implemented if molecular_charge is exposed upstream.
-// #[pyclass]
-// /// A selection of ions that together define the charge of a peptide.
-// pub struct MolecularCharge(rustyms::MolecularCharge);
+/// A selection of ions that together define the charge of a peptide.
+#[pyclass]
+pub struct MolecularCharge(rustyms::MolecularCharge);
 
-// #[pymethods]
-// impl MolecularCharge {
-//     /// List of counts and molecular formulas for the charge carriers.
-//     #[getter]
-//     fn charge_carriers(&self) -> Vec<(i16, MolecularFormula)> {
-//         self.0
-//             .charge_carriers
-//             .iter()
-//             .map(|(n, mol)| (*n, mol.clone()))
-//             .collect()
-//     }
-// }
+#[pymethods]
+impl MolecularCharge {
+    /// Create a charge state with the given ions.
+    ///
+    /// Parameters
+    /// ----------
+    /// charge_carriers : list[tuple[int, MolecularFormula]]
+    ///   The charge carriers.
+    ///
+    /// Returns
+    /// -------
+    /// MolecularCharge
+    ///
+    #[new]
+    fn new(charge_carriers: Vec<(i32, MolecularFormula)>) -> Self {
+        MolecularCharge(rustyms::MolecularCharge {
+            charge_carriers: charge_carriers
+                .iter()
+                .map(|(n, mol)| (*n as isize, mol.0.clone()))
+                .collect(),
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "MolecularCharge(charge_carriers={})",
+            self.0
+                .charge_carriers
+                .iter()
+                .map(|(n, mol)| format!("({}, {})", n, mol))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    // Create a default charge state with only protons.
+    ///
+    /// Parameters
+    /// ----------
+    /// charge : int
+    ///    The charge.
+    ///
+    /// Returns
+    /// -------
+    /// MolecularCharge
+    ///
+    #[classmethod]
+    fn proton(_cls: &PyType, charge: i32) -> Self {
+        MolecularCharge(rustyms::MolecularCharge::proton(charge as isize))
+    }
+
+    /// List of counts and molecular formulas for the charge carriers.
+    ///
+    /// Returns
+    /// -------
+    /// list[tuple[int, MolecularFormula]]
+    ///     The charge carriers.
+    #[getter]
+    fn charge_carriers(&self) -> Vec<(i32, MolecularFormula)> {
+        self.0
+            .charge_carriers
+            .iter()
+            .map(|(n, mol)| (*n as i32, MolecularFormula(mol.clone())))
+            .collect()
+    }
+}
 
 /// Amino acid.
 ///
@@ -1235,7 +1283,6 @@ impl RawSpectrum {
             match mode {
                 MassMode::Monoisotopic => rustyms::MassMode::Monoisotopic,
                 MassMode::Average => rustyms::MassMode::Average,
-                // MassMode::MostAbundant => rustyms::MassMode::MostAbundant,
             },
         )))
     }
@@ -1336,6 +1383,7 @@ fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MassMode>()?;
     m.add_class::<Element>()?;
     m.add_class::<MolecularFormula>()?;
+    m.add_class::<MolecularCharge>()?;
     m.add_class::<AminoAcid>()?;
     m.add_class::<Modification>()?;
     m.add_class::<AmbiguousModification>()?;
