@@ -1122,46 +1122,59 @@ pub struct RawSpectrum(rustyms::RawSpectrum);
 
 #[pymethods]
 impl RawSpectrum {
-    // TODO: How to implement with private spectrum field?
-    // /// Create a new raw spectrum.
-    // #[new]
-    // fn new(
-    //     title: &str,
-    //     num_scans: u64,
-    //     rt: f64,
-    //     precursor_charge: f64,
-    //     precursor_mass: f64,
-    //     mz_array: Vec<f64>,
-    //     intensity_array: Vec<f64>,
-    // ) -> Self {
-    //     RawSpectrum(rustyms::RawSpectrum {
-    //         title: title.to_string(),
-    //         num_scans,
-    //         rt: rustyms::system::Time::new::<rustyms::system::s>(rt),
-    //         charge: rustyms::system::Charge::new::<rustyms::system::e>(precursor_charge),
-    //         mass: rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass),
-    //         spectrum: mz_array
-    //             .into_iter()
-    //             .zip(intensity_array)
-    //             .map(|(mz, i)| rustyms::spectrum::RawPeak {
-    //                 charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
-    //                 mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
-    //                 intensity: OrderedFloat(i),
-    //             })
-    //             .collect(),
-    //         intensity: None,
-    //         sequence: None,
-    //         raw_file: None,
-    //         raw_scan_number: None,
-    //         raw_index: None,
-    //         sample: None,
-    //         period: None,
-    //         cycle: None,
-    //         experiment: None,
-    //         controller_type: None,
-    //         controller_number: None,
-    //     })
-    // }
+    /// Create a new raw spectrum.
+    ///
+    /// Parameters
+    /// ----------
+    /// title : str
+    ///     The title of the spectrum.
+    /// num_scans : int
+    ///     The number of scans.
+    /// rt : float
+    ///     The retention time.
+    /// precursor_charge : float
+    ///     The found precursor charge.
+    /// precursor_mass : float
+    ///     The found precursor mass.
+    /// mz_array : list[float]
+    ///     The m/z values of the peaks.
+    /// intensity_array : list[float]
+    ///     The intensities of the peaks.
+    ///
+    /// Returns
+    /// -------
+    /// RawSpectrum
+    ///
+    #[new]
+    fn new(
+        title: &str,
+        num_scans: u64,
+        rt: f64,
+        precursor_charge: f64,
+        precursor_mass: f64,
+        mz_array: Vec<f64>,
+        intensity_array: Vec<f64>,
+    ) -> Self {
+        let mut spectrum = rustyms::RawSpectrum::default();
+        spectrum.title = title.to_string();
+        spectrum.num_scans = num_scans;
+        spectrum.rt = rustyms::system::Time::new::<rustyms::system::s>(rt);
+        spectrum.charge = rustyms::system::Charge::new::<rustyms::system::e>(precursor_charge);
+        spectrum.mass = rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass);
+
+        let peaks = mz_array
+            .into_iter()
+            .zip(intensity_array)
+            .map(|(mz, i)| rustyms::spectrum::RawPeak {
+                charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
+                mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
+                intensity: OrderedFloat(i),
+            })
+            .collect::<Vec<_>>();
+
+        spectrum.extend(peaks);
+        RawSpectrum(spectrum)
+    }
 
     fn __repr__(&self) -> String {
         format!(
