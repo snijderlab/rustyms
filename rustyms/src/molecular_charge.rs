@@ -16,7 +16,7 @@ impl MolecularCharge {
             charge_carriers: vec![(
                 charge,
                 MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
-                .unwrap(),
+                    .unwrap(),
             )],
         }
     }
