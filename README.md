@@ -1,6 +1,5 @@
-[![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
-[![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms)
-[![PyPI version](https://badge.fury.io/py/rustyms.svg)](https://badge.fury.io/py/rustyms)
+🦀 Rust:  [![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms) [![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
+🐍 Python: [![PyPI version](https://badge.fury.io/py/rustyms.svg)](https://badge.fury.io/py/rustyms) [![Python Docs](https://readthedocs.org/projects/rustyms/badge/?version=latest)](https://rustyms.readthedocs.io/)
 
 # Match those fragments!
 
@@ -16,7 +15,9 @@ A peptide fragmentation matching library for rust. Split into multiple smaller c
  - Read mgf files
  - Match spectra to the generated fragments
  - Extensive use of `uom` for compile time unit checking
- - Align peptides based on mass (algorithm will be tweaked extensively over time) (see `Stitch` for more information, but the algorithm has been improved)
+ - Align peptides based on mass
+ - Fast access to the IMGT database of antibody germlines
+ - Reading of multiple identified peptide file formats (both de novo and database matching)
 
 ## Python bindings
 
