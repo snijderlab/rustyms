@@ -23,11 +23,10 @@ use rustyms::{
 };
 
 fn main() {
-    let file = File::open("../rustyms/databases/imgt.dat")
+    let file = File::open("rustyms/databases/imgt.dat")
         .expect("Please provide the 'imgt.dat' file in the 'rustyms/databases' directory.");
-    let mut output = BufWriter::new(File::create("../rustyms/src/imgt/germlines/mod.rs").unwrap());
-    let mut docs =
-        BufWriter::new(File::create("../rustyms/src/imgt/germlines/germlines.md").unwrap());
+    let mut output = BufWriter::new(File::create("rustyms/src/imgt/germlines/mod.rs").unwrap());
+    let mut docs = BufWriter::new(File::create("rustyms/src/imgt/germlines/germlines.md").unwrap());
     let mut error = BufWriter::new(File::create("errors.dat").unwrap());
     let data = parse_dat(BufReader::new(file));
     let mut grouped = HashMap::new();
@@ -71,7 +70,7 @@ fn main() {
     // Save temp seqs in final data structure
     for (species, entry) in deduped_temp {
         if species == Species::HomoSapiens
-            && entry.name.gene == GeneType::V//C(Some(Constant::A))
+            && entry.name.gene == GeneType::C(Some(Constant::M))
             && entry.name.chain == ChainType::Heavy
         {
             println!("{}", entry);
@@ -141,7 +140,7 @@ _Number of genes / number of alleles_
         found_species.push(species);
 
         let mut file =
-            std::fs::File::create(format!("../rustyms/src/imgt/germlines/{species}.bin")).unwrap();
+            std::fs::File::create(format!("rustyms/src/imgt/germlines/{species}.bin")).unwrap();
         file.write_all(&bincode::serialize::<Germlines>(&germlines).unwrap())
             .unwrap();
     }
@@ -789,10 +788,10 @@ impl IMGTGene {
             } else if self.regions.contains_key("H-CH2") {
                 possibly_add(shared::Region::H_CH2, "H-CH2", false)?;
             } else {
-                possibly_add(shared::Region::H, "H1", false)?;
-                possibly_add(shared::Region::H, "H2", false)?;
-                possibly_add(shared::Region::H, "H3", false)?;
-                possibly_add(shared::Region::H, "H4", false)?;
+                possibly_add(shared::Region::H1, "H1", false)?;
+                possibly_add(shared::Region::H2, "H2", false)?;
+                possibly_add(shared::Region::H3, "H3", false)?;
+                possibly_add(shared::Region::H4, "H4", false)?;
                 possibly_add(shared::Region::CH2, "CH2", false)?;
             }
             let mut secretory = false;
