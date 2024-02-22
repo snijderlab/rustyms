@@ -1,5 +1,6 @@
 [![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
 [![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms)
+[![PyPI version](https://badge.fury.io/py/rustyms.svg)](https://badge.fury.io/py/rustyms)
 
 # Match those fragments!
 
