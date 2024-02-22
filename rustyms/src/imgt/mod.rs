@@ -19,6 +19,7 @@
 //! ```
 
 mod fancy;
+#[rustfmt::skip]
 mod germlines;
 mod select;
 mod shared;
