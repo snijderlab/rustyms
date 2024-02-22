@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 /// A selection of ions that together define the charge of a peptide
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct MolecularCharge {
-    pub(crate) charge_carriers: Vec<(isize, MolecularFormula)>,
+    /// The ions that together define the charge of the peptide
+    pub charge_carriers: Vec<(isize, MolecularFormula)>,
 }
 
 impl MolecularCharge {

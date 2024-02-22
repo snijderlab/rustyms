@@ -1,6 +1,8 @@
 /target
-/Cargo.lock
+Cargo.lock
 */target/
 errors.dat
 imgt.dat.Z
 imgt.dat
+.venv/
+docs/**/_build/
