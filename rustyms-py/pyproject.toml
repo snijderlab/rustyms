@@ -13,6 +13,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dynamic = ["version"]
+description = "A library to handle proteomic mass spectrometry data and match peptides to spectra."
+license = {text = "MIT OR Apache-2.0"}
+
+[project.urls]
+Homepage = "https://github.com/snijderlab/rustyms"
+Documentation = "https://rustyms.readthedocs.io/"
+Repository = "https://github.com/snijderlab/rustyms.git"
 
 [project.optional-dependencies]
 dev = ["maturin"]
