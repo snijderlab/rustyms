@@ -6,12 +6,19 @@ macro_rules! parse_test {
         #[test]
         fn $name() {
             let res = ComplexPeptide::pro_forma($case);
+            println!("{}", $case);
+            assert!(res.is_ok());
+            let back = res.as_ref().unwrap().to_string();
+            let res_back = ComplexPeptide::pro_forma(&back);
+            assert_eq!(res, res_back, "{} != {back}", $case);
+        }
+    };
+    (single $case:literal, $name:ident) => {
+        #[test]
+        fn $name() {
+            let res = ComplexPeptide::pro_forma($case);
             println!("{}\n{:?}", $case, res);
             assert!(res.is_ok());
-            // TODO: when ready activate below and start debugging!
-            // let back = res.as_ref().unwrap().to_string();
-            // let res_back = ComplexPeptide::pro_forma(&back);
-            // assert_eq!(res, res_back, "{} != {back}", $case);
         }
     };
 }
@@ -44,8 +51,8 @@ parse_test!(
     summary_1_6_01
 );
 parse_test!("<[MOD:01090]@C>ATPEILTCNSIGCLK", summary_1_6_02);
-parse_test!("[Phospho]?EM[Oxidation]EVTSESPEK", summary_2_1_01);
-parse_test!(
+parse_test!(single "[Phospho]?EM[Oxidation]EVTSESPEK", summary_2_1_01);
+parse_test!(single
     "[Phospho][Phospho]?[Acetyl]-EM[Oxidation]EVTSESPEK",
     summary_2_1_02
 );
@@ -61,8 +68,8 @@ parse_test!(
 //     "[Phospho#s1]?EM[Oxidation]EVT[#s1(0.01)]S[#s1(0.90)]ES[#s1(0.90)]PEK",
 //     summary_2_3
 // );  TODO: Not implemented yet: global ambiguous with localised positions
-parse_test!("PROT(EOSFORMS)[+19.0523]ISK", summary_2_4_01);
-parse_test!(
+parse_test!(single "PROT(EOSFORMS)[+19.0523]ISK", summary_2_4_01);
+parse_test!(single
     "PROT(EOC[Carbamidomethyl]FORMS)[+19.0523]ISK",
     summary_2_4_02
 );

@@ -66,6 +66,57 @@ impl Chemical for MolecularCharge {
     }
 }
 
+impl std::fmt::Display for MolecularCharge {
+    /// Is not guaranteed to fully conform to the Pro Forma standard. Because the data structure accepts more than the standard.
+    /// So adducts with other than +1/-1 charge states, or adducts with complex formula (not a single element) will not adhere to the standard.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.charge_carriers.iter().map(|c| c.0).sum::<isize>()
+        )?;
+        if !self.charge_carriers.iter().all(|c| {
+            c.1 == MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
+                .unwrap()
+        }) {
+            write!(f, "[")?;
+            let mut first = true;
+            for (amount, formula) in &self.charge_carriers {
+                if first {
+                    first = false;
+                } else {
+                    write!(f, ",")?;
+                }
+                let electron_index = formula
+                    .elements()
+                    .iter()
+                    .position(|e| e.0 == Element::Electron);
+                let charge = electron_index.map(|ei| match -formula.elements()[ei].2 {
+                    1 => "+".to_string(),
+                    -1 => "-".to_string(),
+                    n => n.to_string(),
+                });
+                if let (Some(electron_index), Some(charge), 2) =
+                    (electron_index, &charge, formula.elements().len())
+                {
+                    let element_index = 1 - electron_index;
+                    write!(
+                        f,
+                        "{}{}{}",
+                        amount,
+                        formula.elements()[element_index].0,
+                        charge
+                    )?;
+                } else {
+                    write!(f, "{}({}){}", amount, formula, charge.unwrap_or_default())?;
+                }
+            }
+            write!(f, "]")?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {

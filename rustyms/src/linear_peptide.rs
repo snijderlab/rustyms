@@ -776,10 +776,21 @@ impl MultiChemical for LinearPeptide {
 
 impl Display for LinearPeptide {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut placed = Vec::new();
+        for (element, isotope) in &self.global {
+            write!(
+                f,
+                "<{}{}>",
+                isotope.map(|i| i.to_string()).unwrap_or_default(),
+                element
+            )?;
+        }
+        for labile in &self.labile {
+            write!(f, "{{{labile}}}")?;
+        }
         if let Some(m) = &self.n_term {
             write!(f, "[{m}]-")?;
         }
+        let mut placed = Vec::new();
         let mut last_ambiguous = None;
         for position in &self.sequence {
             placed.extend(position.display(f, &placed, last_ambiguous)?);
@@ -790,6 +801,9 @@ impl Display for LinearPeptide {
         }
         if let Some(m) = &self.c_term {
             write!(f, "-[{m}]")?;
+        }
+        if let Some(c) = &self.charge_carriers {
+            write!(f, "/{c}")?;
         }
         Ok(())
     }
