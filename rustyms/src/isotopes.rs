@@ -30,10 +30,10 @@ impl MolecularFormula {
                 .map(|i| (i.0 - base.0, i.2))
                 .collect_vec();
 
-            dbg!(&isotopes);
+            // dbg!(&isotopes);
 
             for isotope in isotopes {
-                // Generate distribution (based on chosen number?)
+                // Generate distribution (take already chosen into account?)
                 let binom = Binomial::new(usize::try_from(*amount).unwrap(), isotope.1);
                 let mut last: Option<f64> = None;
                 let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
@@ -78,12 +78,13 @@ impl MolecularFormula {
 
                 // Combine distribution with previous distribution
                 let mut new = Array1::zeros(result.len());
+                let shift = 0; // (isotope.0 - 1) as usize;
                 for (i, a) in distribution.into_iter().enumerate() {
                     new += &(concatenate(
                         Axis(0),
                         &[
-                            Array1::zeros(i).view(),
-                            result.slice(s![0..result.len() - i]),
+                            Array1::zeros((i + shift).min(result.len())).view(),
+                            result.slice(s![0..result.len().saturating_sub(i + shift)]),
                         ],
                     )
                     .unwrap()
@@ -144,8 +145,11 @@ mod tests {
 
     #[test]
     fn distribution() {
-        let formula = molecular_formula!(C 100 H 100).unwrap();
-        dbg!(formula.isotopic_distribution(0.0001));
+        let formula = molecular_formula!(S 100).unwrap();
+        dbg!(
+            formula.monoisotopic_mass(),
+            formula.isotopic_distribution(0.0001)
+        );
         panic!();
     }
 
