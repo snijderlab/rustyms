@@ -294,7 +294,7 @@ impl Model {
             c: (Location::SkipC(1), Vec::new()),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
-            w: (Location::None, Vec::new()),
+            w: (Location::None, Vec::new()), // TODO: Are w ions also formed here?
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),

@@ -1,111 +1,99 @@
 use crate::{element::Element, system::da, system::Mass, MolecularFormula};
+use itertools::Itertools;
+use ndarray::{arr1, concatenate, s, Array1, Axis, OwnedRepr};
 use probability::distribution::{Binomial, Discrete};
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
 impl MolecularFormula {
-    #[allow(clippy::fn_params_excessive_bools, clippy::missing_panics_doc)]
-    fn isotopic_distribution(
-        &self,
-        threshold: f64,
-        use_h: bool,
-        use_c: bool,
-        use_n: bool,
-        use_o: bool,
-    ) -> Vec<(Self, f64, String)> {
-        let h = Element::H.isotopes();
-        let c = Element::C.isotopes();
-        let n = Element::N.isotopes();
-        let o = Element::O.isotopes();
-        let additional_mass: Self = self
-            .elements()
-            .iter()
-            .filter(|i| {
-                i.1.is_none()
-                    && (i.0 != Element::H
-                        && i.0 != Element::C
-                        && i.0 != Element::N
-                        && i.0 != Element::O)
-            })
-            .fold(Self::default(), |mut acc, s| {
-                assert!(acc.add(*s));
-                acc
-            });
-        let mut isotopes = Vec::new();
-        let present_h = self
-            .elements()
-            .iter()
-            .find(|i| i.0 == Element::H && i.1.is_none())
-            .map_or(0, |i| i.2);
-        let present_c = self
-            .elements()
-            .iter()
-            .find(|i| i.0 == Element::C && i.1.is_none())
-            .map_or(0, |i| i.2);
-        let present_n = self
-            .elements()
-            .iter()
-            .find(|i| i.0 == Element::N && i.1.is_none())
-            .map_or(0, |i| i.2);
-        let present_o = self
-            .elements()
-            .iter()
-            .find(|i| i.0 == Element::O && i.1.is_none())
-            .map_or(0, |i| i.2);
-        let max_h = if use_h { present_h } else { 0 };
-        let max_c = if use_c { present_c } else { 0 };
-        let max_n = if use_n { present_n } else { 0 };
-        let max_o = if use_o { present_o } else { 0 };
-
-        for num_h in 0..=max_h {
-            let h_chance = binom(num_h, max_h, h[1].2);
-            if h_chance < threshold {
+    /// Get the isotopic distribution, using the natural distribution as defined by CIAAW.
+    /// All elements are considered. The return is the mass offset (as integer offset in
+    /// dalton from the base peak) with its theoretical occurrence.
+    fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
+        let mut result = arr1(&[1.0]);
+        for (element, isotope, amount) in self.elements() {
+            if isotope.is_some() || *amount <= 0 {
+                // TODO: think about negative numbers?
                 continue;
             }
-            for num_c in 0..=max_c {
-                let c_chance = binom(num_c, max_c, c[1].2);
-                if h_chance * c_chance < threshold {
-                    continue;
-                }
-                for num_n in 0..=max_n {
-                    let n_chance = binom(num_n, max_n, n[1].2);
-                    if h_chance * c_chance * n_chance < threshold {
-                        continue;
-                    }
-                    for num_o_1 in 0..=max_o {
-                        let o_1_chance = binom(num_o_1, max_o, o[1].2);
-                        if h_chance * c_chance * n_chance * o_1_chance < threshold {
-                            continue;
+            let isotopes = element
+                .isotopes()
+                .iter()
+                .filter(|i| i.2 != 0.0)
+                .collect_vec();
+            if isotopes.len() < 2 {
+                continue;
+            }
+            let base = isotopes[0];
+            let isotopes = isotopes
+                .into_iter()
+                .skip(1)
+                .map(|i| (i.0 - base.0, i.2))
+                .collect_vec();
+
+            dbg!(&isotopes);
+
+            for isotope in isotopes {
+                // Generate distribution (based on chosen number?)
+                let binom = Binomial::new(usize::try_from(*amount).unwrap(), isotope.1);
+                let mut last: Option<f64> = None;
+                let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
+                    .map(|t| binom.mass(t))
+                    .take_while(|a| {
+                        if let Some(last) = &last {
+                            *last < threshold || *a > threshold
+                        } else {
+                            last = Some(*a);
+                            true
                         }
-                        for num_o_2 in 0..=max_o - num_o_1 {
-                            let o_2_chance = binom(num_o_2, max_o, o[2].2);
-                            let chance = h_chance * c_chance * n_chance * o_1_chance * o_2_chance;
-                            if chance < threshold {
-                                continue;
-                            }
-                            // Do the calc
-                            let formula = Self::new(&[
-                                (Element::H, Some(1), present_h - num_h),
-                                (Element::H, Some(2), num_h),
-                                (Element::C, Some(12), present_c - num_c),
-                                (Element::C, Some(13), num_c),
-                                (Element::N, Some(14), present_n - num_n),
-                                (Element::N, Some(15), num_n),
-                                (Element::O, Some(16), present_o - num_o_1 - num_o_2),
-                                (Element::O, Some(17), num_o_1),
-                                (Element::O, Some(18), num_o_2),
-                            ]);
-                            isotopes.push((
-                                &formula.unwrap() + &additional_mass,
-                                chance,
-                                format!("[2H{num_h}][13C{num_c}][15N{num_n}][17O{num_o_1}][18O{num_o_2}]"),
-                            ));
+                    })
+                    .collect();
+                // let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
+                //     .map(|t| binom.mass(t))
+                //     .circular_tuple_windows()
+                //     .take_while(|(a, b)| *a < threshold || *b > threshold)
+                //     .map(|(a, _)| a)
+                //     .collect();
+                dbg!(&result, &distribution);
+                // Make the lengths equal
+                match result.len().cmp(&distribution.len()) {
+                    Ordering::Less => {
+                        let mut zeros = Array1::zeros(distribution.len());
+                        for (z, r) in zeros.iter_mut().zip(result) {
+                            *z = r;
                         }
+                        result = zeros;
                     }
+                    Ordering::Greater => {
+                        let mut zeros = Array1::zeros(result.len());
+                        // dbg!(&zeros, &distribution);
+                        for (z, d) in zeros.iter_mut().zip(distribution) {
+                            *z = d;
+                        }
+                        // zeros += &distribution;
+                        distribution = zeros;
+                    }
+                    Ordering::Equal => (),
                 }
+                dbg!(&result, &distribution);
+
+                // Combine distribution with previous distribution
+                let mut new = Array1::zeros(result.len());
+                for (i, a) in distribution.into_iter().enumerate() {
+                    new += &(concatenate(
+                        Axis(0),
+                        &[
+                            Array1::zeros(i).view(),
+                            result.slice(s![0..result.len() - i]),
+                        ],
+                    )
+                    .unwrap()
+                        * a);
+                }
+
+                result = new;
             }
         }
-        isotopes.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
-        isotopes
+        result
     }
 }
 
@@ -154,141 +142,180 @@ mod tests {
         io::{BufWriter, Write},
     };
 
-    //#[test]
-    fn simple_isotope_pattern() {
-        // EVQLVESGGGLVQPGG start 16 AA of herceptin
-        let peptide = MolecularFormula::new(&[
-            (Element::H, None, 108),
-            (Element::C, None, 65),
-            (Element::N, None, 18),
-            (Element::O, None, 24),
-        ])
-        .unwrap();
-        let isotopes = peptide.isotopic_distribution(1e-6, true, true, true, true);
-        save_combinations(
-            &combined_pattern(&isotopes),
-            "target/peptide_combined_all.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&peptide.isotopic_distribution(1e-5, true, false, false, false)),
-            "target/peptide_combined_only_H.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&peptide.isotopic_distribution(1e-5, false, true, false, false)),
-            "target/peptide_combined_only_C.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, true, false)),
-            "target/peptide_combined_only_N.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, false, true)),
-            "target/peptide_combined_only_O.tsv",
-        );
-        println!(
-            "MonoIsotopic mass: {} average mass: {}",
-            peptide.monoisotopic_mass().value,
-            peptide.average_weight().value
-        );
+    #[test]
+    fn distribution() {
+        let formula = molecular_formula!(C 100 H 100).unwrap();
+        dbg!(formula.isotopic_distribution(0.0001));
+        panic!();
     }
 
     //#[test]
-    fn sars_cov_2_spike_isotope_pattern() {
-        // MFVFLVLLPLVSSQCVNLTTRTQLPPAYTNSFTRGVYYPDKVFRSSVLHSTQDLFLPFFSNVTWFHAIHVSGTNGTKRFDNPVLPFNDGVYFASTEKSNIIRGWIFGTTLDSKTQSLLIVNNATNVVIKVCEFQFCNDPFLGVYYHKNNKSWMESEFRVYSSANNCTFEYVSQPFLMDLEGKQGNFKNLREFVFKNIDGYFKIYSKHTPINLVRDLPQGFSALEPLVDLPIGINITRFQTLLALHRSYLTPGDSSSGWTAGAAAYYVGYLQPRTFLLKYNENGTITDAVDCALDPLSETKCTLKSFTVEKGIYQTSNFRVQPTESIVRFPNITNLCPFGEVFNATRFASVYAWNRKRISNCVADYSVLYNSASFSTFKCYGVSPTKLNDLCFTNVYADSFVIRGDEVRQIAPGQTGKIADYNYKLPDDFTGCVIAWNSNNLDSKVGGNYNYLYRLFRKSNLKPFERDISTEIYQAGSTPCNGVEGFNCYFPLQSYGFQPTNGVGYQPYRVVVLSFELLHAPATVCGPKKSTNLVKNKCVNFNFNGLTGTGVLTESNKKFLPFQQFGRDIADTTDAVRDPQTLEILDITPCSFGGVSVITPGTNTSNQVAVLYQDVNCTEVPVAIHADQLTPTWRVYSTGSNVFQTRAGCLIGAEHVNNSYECDIPIGAGICASYQTQTNSPRRARSVASQSIIAYTMSLGAENSVAYSNNSIAIPTNFTISVTTEILPVSMTKTSVDCTMYICGDSTECSNLLLQYGSFCTQLNRALTGIAVEQDKNTQEVFAQVKQIYKTPPIKDFGGFNFSQILPDPSKPSKRSFIEDLLFNKVTLADAGFIKQYGDCLGDIAARDLICAQKFNGLTVLPPLLTDEMIAQYTSALLAGTITSGWTFGAGAALQIPFAMQMAYRFNGIGVTQNVLYENQKLIANQFNSAIGKIQDSLSSTASALGKLQDVVNQNAQALNTLVKQLSSNFGAISSVLNDILSRLDKVEAEVQIDRLITGRLQSLQTYVTQQLIRAAEIRASANLAATKMSECVLGQSKRVDFCGKGYHLMSFPQSAPHGVVFLHVTYVPAQEKNFTTAPAICHDGKAHFPREGVFVSNGTHWFVTQRNFYEPQIITTDNTFVSGNCDVVIGIVNNTVYDPLQPELDSFKEELDKYFKNHTSPDVDLGDISGINASVVNIQKEIDRLNEVAKNLNESLIDLQELGKYEQYIKWPWYIWLGFIAGLIAIVMVTIMLCCMTSCCSCLKGCCSCGSCCKFDEDDSEPVLKGVKLHYT
-        let spike = MolecularFormula::new(&[
-            (Element::H, None, 9770),
-            (Element::C, None, 6336),
-            (Element::N, None, 1656),
-            (Element::O, None, 1894),
-            (Element::S, None, 54),
-        ])
-        .unwrap();
-        let isotopes = spike.isotopic_distribution(1e-5, true, true, true, true);
-        let file_handler = File::create("target/spike_isotopes.tsv").unwrap();
-        let mut writer = BufWriter::new(file_handler);
-        writeln!(writer, "Name\tMass\tProbability").unwrap();
-        for isotope in &isotopes {
-            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
-        }
-        let combined = combined_pattern(&isotopes);
-        save_combinations(&combined, "target/spike_combined_all.tsv");
-        save_combinations(
-            &combined_pattern(&spike.isotopic_distribution(1e-5, true, false, false, false)),
-            "target/spike_combined_only_H.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&spike.isotopic_distribution(1e-5, false, true, false, false)),
-            "target/spike_combined_only_C.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, true, false)),
-            "target/spike_combined_only_N.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, false, true)),
-            "target/spike_combined_only_O.tsv",
-        );
-        println!(
-            "MonoIsotopic mass: {} average mass: {}",
-            spike.monoisotopic_mass().value,
-            spike.average_weight().value
-        );
-    }
+    // fn simple_isotope_pattern() {
+    //     // EVQLVESGGGLVQPGG start 16 AA of herceptin
+    //     let peptide = MolecularFormula::new(&[
+    //         (Element::H, None, 108),
+    //         (Element::C, None, 65),
+    //         (Element::N, None, 18),
+    //         (Element::O, None, 24),
+    //     ])
+    //     .unwrap();
+    //     let isotopes = peptide.isotopic_distribution(1e-6, true, true, true, true);
+    //     save_combinations(
+    //         &combined_pattern(&isotopes),
+    //         "target/peptide_combined_all.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, true, false, false, false)),
+    //         "target/peptide_combined_only_H.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, true, false, false)),
+    //         "target/peptide_combined_only_C.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, true, false)),
+    //         "target/peptide_combined_only_N.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, false, true)),
+    //         "target/peptide_combined_only_O.tsv",
+    //     );
+    //     println!(
+    //         "MonoIsotopic mass: {} average mass: {}",
+    //         peptide.monoisotopic_mass().value,
+    //         peptide.average_weight().value
+    //     );
+    // }
 
-    fn save_combinations(data: &[(Mass, f64, usize, String)], name: &str) {
-        let file_handler = File::create(name).unwrap();
-        let mut writer = BufWriter::new(file_handler);
-        writeln!(writer, "Name\tMass\tProbability\tTotalIsotopes").unwrap();
-        for isotope in data {
-            writeln!(
-                writer,
-                "{}\t{}\t{}\t{}",
-                isotope.3, isotope.0.value, isotope.1, isotope.2
-            )
-            .unwrap();
-        }
-    }
+    // //#[test]
+    // fn sars_cov_2_spike_isotope_pattern() {
+    //     // MFVFLVLLPLVSSQCVNLTTRTQLPPAYTNSFTRGVYYPDKVFRSSVLHSTQDLFLPFFSNVTWFHAIHVSGTNGTKRFDNPVLPFNDGVYFASTEKSNIIRGWIFGTTLDSKTQSLLIVNNATNVVIKVCEFQFCNDPFLGVYYHKNNKSWMESEFRVYSSANNCTFEYVSQPFLMDLEGKQGNFKNLREFVFKNIDGYFKIYSKHTPINLVRDLPQGFSALEPLVDLPIGINITRFQTLLALHRSYLTPGDSSSGWTAGAAAYYVGYLQPRTFLLKYNENGTITDAVDCALDPLSETKCTLKSFTVEKGIYQTSNFRVQPTESIVRFPNITNLCPFGEVFNATRFASVYAWNRKRISNCVADYSVLYNSASFSTFKCYGVSPTKLNDLCFTNVYADSFVIRGDEVRQIAPGQTGKIADYNYKLPDDFTGCVIAWNSNNLDSKVGGNYNYLYRLFRKSNLKPFERDISTEIYQAGSTPCNGVEGFNCYFPLQSYGFQPTNGVGYQPYRVVVLSFELLHAPATVCGPKKSTNLVKNKCVNFNFNGLTGTGVLTESNKKFLPFQQFGRDIADTTDAVRDPQTLEILDITPCSFGGVSVITPGTNTSNQVAVLYQDVNCTEVPVAIHADQLTPTWRVYSTGSNVFQTRAGCLIGAEHVNNSYECDIPIGAGICASYQTQTNSPRRARSVASQSIIAYTMSLGAENSVAYSNNSIAIPTNFTISVTTEILPVSMTKTSVDCTMYICGDSTECSNLLLQYGSFCTQLNRALTGIAVEQDKNTQEVFAQVKQIYKTPPIKDFGGFNFSQILPDPSKPSKRSFIEDLLFNKVTLADAGFIKQYGDCLGDIAARDLICAQKFNGLTVLPPLLTDEMIAQYTSALLAGTITSGWTFGAGAALQIPFAMQMAYRFNGIGVTQNVLYENQKLIANQFNSAIGKIQDSLSSTASALGKLQDVVNQNAQALNTLVKQLSSNFGAISSVLNDILSRLDKVEAEVQIDRLITGRLQSLQTYVTQQLIRAAEIRASANLAATKMSECVLGQSKRVDFCGKGYHLMSFPQSAPHGVVFLHVTYVPAQEKNFTTAPAICHDGKAHFPREGVFVSNGTHWFVTQRNFYEPQIITTDNTFVSGNCDVVIGIVNNTVYDPLQPELDSFKEELDKYFKNHTSPDVDLGDISGINASVVNIQKEIDRLNEVAKNLNESLIDLQELGKYEQYIKWPWYIWLGFIAGLIAIVMVTIMLCCMTSCCSCLKGCCSCGSCCKFDEDDSEPVLKGVKLHYT
+    //     let spike = MolecularFormula::new(&[
+    //         (Element::H, None, 9770),
+    //         (Element::C, None, 6336),
+    //         (Element::N, None, 1656),
+    //         (Element::O, None, 1894),
+    //         (Element::S, None, 54),
+    //     ])
+    //     .unwrap();
+    //     let isotopes = spike.isotopic_distribution(1e-5, true, true, true, true);
+    //     let file_handler = File::create("target/spike_isotopes.tsv").unwrap();
+    //     let mut writer = BufWriter::new(file_handler);
+    //     writeln!(writer, "Name\tMass\tProbability").unwrap();
+    //     for isotope in &isotopes {
+    //         writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
+    //     }
+    //     let combined = combined_pattern(&isotopes);
+    //     save_combinations(&combined, "target/spike_combined_all.tsv");
+    //     save_combinations(
+    //         &combined_pattern(&spike.isotopic_distribution(1e-5, true, false, false, false)),
+    //         "target/spike_combined_only_H.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, true, false, false)),
+    //         "target/spike_combined_only_C.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, true, false)),
+    //         "target/spike_combined_only_N.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, false, true)),
+    //         "target/spike_combined_only_O.tsv",
+    //     );
+    //     println!(
+    //         "MonoIsotopic mass: {} average mass: {}",
+    //         spike.monoisotopic_mass().value,
+    //         spike.average_weight().value
+    //     );
+    // }
 
-    //#[test]
-    fn herceptin_v_heavy_isotope_pattern() {
-        // EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTK
-        let herceptin = MolecularFormula::new(&[
-            (Element::H, None, 915),
-            (Element::C, None, 602),
-            (Element::N, None, 165),
-            (Element::O, None, 185),
-            (Element::S, None, 4),
-        ])
-        .unwrap();
-        let isotopes = herceptin.isotopic_distribution(1e-5, true, true, true, true);
-        let file_handler = File::create("target/herceptin_isotopes.tsv").unwrap();
-        let mut writer = BufWriter::new(file_handler);
-        writeln!(writer, "Name\tMass\tProbability").unwrap();
-        for isotope in &isotopes {
-            writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
-        }
-        let combined = combined_pattern(&isotopes);
-        save_combinations(&combined, "target/herceptin_combined_all.tsv");
-        save_combinations(
-            &combined_pattern(&herceptin.isotopic_distribution(1e-5, true, false, false, false)),
-            "target/herceptin_combined_only_H.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, true, false, false)),
-            "target/herceptin_combined_only_C.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, true, false)),
-            "target/herceptin_combined_only_N.tsv",
-        );
-        save_combinations(
-            &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, false, true)),
-            "target/herceptin_combined_only_O.tsv",
-        );
-        println!(
-            "MonoIsotopic mass: {} average mass: {}",
-            herceptin.monoisotopic_mass().value,
-            herceptin.average_weight().value
-        );
-    }
+    // fn save_combinations(data: &[(Mass, f64, usize, String)], name: &str) {
+    //     let file_handler = File::create(name).unwrap();
+    //     let mut writer = BufWriter::new(file_handler);
+    //     writeln!(writer, "Name\tMass\tProbability\tTotalIsotopes").unwrap();
+    //     for isotope in data {
+    //         writeln!(
+    //             writer,
+    //             "{}\t{}\t{}\t{}",
+    //             isotope.3, isotope.0.value, isotope.1, isotope.2
+    //         )
+    //         .unwrap();
+    //     }
+    // }
+
+    // //#[test]
+    // fn herceptin_v_heavy_isotope_pattern() {
+    //     // EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTK
+    //     let herceptin = MolecularFormula::new(&[
+    //         (Element::H, None, 915),
+    //         (Element::C, None, 602),
+    //         (Element::N, None, 165),
+    //         (Element::O, None, 185),
+    //         (Element::S, None, 4),
+    //     ])
+    //     .unwrap();
+    //     let isotopes = herceptin.isotopic_distribution(1e-5, true, true, true, true);
+    //     let file_handler = File::create("target/herceptin_isotopes.tsv").unwrap();
+    //     let mut writer = BufWriter::new(file_handler);
+    //     writeln!(writer, "Name\tMass\tProbability").unwrap();
+    //     for isotope in &isotopes {
+    //         writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
+    //     }
+    //     let combined = combined_pattern(&isotopes);
+    //     save_combinations(&combined, "target/herceptin_combined_all.tsv");
+    //     save_combinations(
+    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, true, false, false, false)),
+    //         "target/herceptin_combined_only_H.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, true, false, false)),
+    //         "target/herceptin_combined_only_C.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, true, false)),
+    //         "target/herceptin_combined_only_N.tsv",
+    //     );
+    //     save_combinations(
+    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, false, true)),
+    //         "target/herceptin_combined_only_O.tsv",
+    //     );
+    //     println!(
+    //         "MonoIsotopic mass: {} average mass: {}",
+    //         herceptin.monoisotopic_mass().value,
+    //         herceptin.average_weight().value
+    //     );
+    // }
+
+    // #[test]
+    // fn isotope_masses() {
+    //     use itertools::Itertools;
+    //     fn show(element: Element) {
+    //         let isotopes = element
+    //             .isotopes()
+    //             .iter()
+    //             .filter(|i| i.2 != 0.0)
+    //             .collect_vec();
+    //         if isotopes.len() < 2 {
+    //             return;
+    //         }
+    //         print!("{element}\t");
+    //         let first = isotopes[0].1.value;
+    //         let base = isotopes[0].0;
+    //         for (isotope, mass, fraction) in isotopes {
+    //             print!(
+    //                 "{}\t{}\t{}\t{}\t",
+    //                 isotope,
+    //                 mass.value,
+    //                 (1.0 - (mass.value - first) / (isotope - base) as f64).abs(),
+    //                 fraction,
+    //             );
+    //         }
+    //         println!();
+    //     }
+    //     for element in (Element::H as usize)..=(Element::Og as usize) {
+    //         show(Element::try_from(element).unwrap());
+    //     }
+    //     panic!()
+    // }
 }
