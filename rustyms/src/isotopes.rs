@@ -1,13 +1,14 @@
-use crate::{element::Element, system::da, system::Mass, MolecularFormula};
+use crate::{system::da, system::Mass, MolecularFormula};
 use itertools::Itertools;
-use ndarray::{arr1, concatenate, s, Array1, Axis, OwnedRepr};
+use ndarray::{arr1, concatenate, s, Array1, Axis};
 use probability::distribution::{Binomial, Discrete};
 use std::{cmp::Ordering, collections::HashMap};
 
 impl MolecularFormula {
     /// Get the isotopic distribution, using the natural distribution as defined by CIAAW.
-    /// All elements are considered. The return is the mass offset (as integer offset in
-    /// dalton from the base peak) with its theoretical occurrence.
+    /// All elements are considered. The return is an array with the probability per offset.
+    /// The first element of the array is the base peak, every consecutive peak is 1 dalton heavier.
+    /// The probability os normalized to (approximately) 1 total area.
     fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
         let mut result = arr1(&[1.0]);
         for (element, isotope, amount) in self.elements() {
@@ -21,8 +22,10 @@ impl MolecularFormula {
                 .filter(|i| i.2 != 0.0)
                 .collect_vec();
             if isotopes.len() < 2 {
+                // Only a single species, so no distribution is needed
                 continue;
             }
+            // Get the probability and base offset (weight) for all non base isotopes
             let base = isotopes[0];
             let isotopes = isotopes
                 .into_iter()
@@ -30,15 +33,14 @@ impl MolecularFormula {
                 .map(|i| (i.0 - base.0, i.2))
                 .collect_vec();
 
-            // dbg!(&isotopes);
-
             for isotope in isotopes {
                 // Generate distribution (take already chosen into account?)
-                let binom = Binomial::new(usize::try_from(*amount).unwrap(), isotope.1);
+                let binomial = Binomial::new(usize::try_from(*amount).unwrap(), isotope.1);
                 let mut last: Option<f64> = None;
                 let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
-                    .map(|t| binom.mass(t))
+                    .map(|t| binomial.mass(t))
                     .take_while(|a| {
+                        // Take all numbers until the threshold is crossed at the tail end of the distribution
                         if let Some(last) = &last {
                             *last < threshold || *a > threshold
                         } else {
@@ -46,14 +48,14 @@ impl MolecularFormula {
                             true
                         }
                     })
+                    .flat_map(|a| {
+                        // Interweave the probability of this isotope with the mass difference to generate the correct distribution
+                        std::iter::once(a)
+                            .chain(std::iter::repeat(0.0))
+                            .take(isotope.0 as usize)
+                    })
                     .collect();
-                // let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
-                //     .map(|t| binom.mass(t))
-                //     .circular_tuple_windows()
-                //     .take_while(|(a, b)| *a < threshold || *b > threshold)
-                //     .map(|(a, _)| a)
-                //     .collect();
-                dbg!(&result, &distribution);
+
                 // Make the lengths equal
                 match result.len().cmp(&distribution.len()) {
                     Ordering::Less => {
@@ -65,16 +67,13 @@ impl MolecularFormula {
                     }
                     Ordering::Greater => {
                         let mut zeros = Array1::zeros(result.len());
-                        // dbg!(&zeros, &distribution);
                         for (z, d) in zeros.iter_mut().zip(distribution) {
                             *z = d;
                         }
-                        // zeros += &distribution;
                         distribution = zeros;
                     }
                     Ordering::Equal => (),
                 }
-                dbg!(&result, &distribution);
 
                 // Combine distribution with previous distribution
                 let mut new = Array1::zeros(result.len());
@@ -138,14 +137,10 @@ fn stupid_f64_factorial(num: u16) -> f64 {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
-    use std::{
-        fs::File,
-        io::{BufWriter, Write},
-    };
 
     #[test]
     fn distribution() {
-        let formula = molecular_formula!(S 100).unwrap();
+        let formula = molecular_formula!(H 10 C 10 O 10).unwrap();
         dbg!(
             formula.monoisotopic_mass(),
             formula.isotopic_distribution(0.0001)
