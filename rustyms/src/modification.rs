@@ -185,20 +185,20 @@ impl Modification {
                 tolerance,
                 [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                     .iter()
-                    .flat_map(|o| o.lookup())
-                    .filter(|(_, _, m)| {
+                    .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
+                    .filter(|(_, _, _, m)| {
                         tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
                     })
-                    .cloned()
+                    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
             ),
             Self::Formula(formula) => ModificationSearchResult::Formula(
                 formula.clone(),
                 [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                     .iter()
-                    .flat_map(|o| o.lookup())
-                    .filter(|(_, _, m)| *formula == m.formula())
-                    .cloned()
+                    .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
+                    .filter(|(_, _, _, m)| *formula == m.formula())
+                    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
             ),
             Self::Glycan(glycan) => ModificationSearchResult::Glycan(
@@ -213,7 +213,7 @@ impl Modification {
                             false
                         }
                     })
-                    .cloned()
+                    .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
                     .collect(),
             ),
             m => ModificationSearchResult::Single(m.clone()),
@@ -226,13 +226,20 @@ pub enum ModificationSearchResult {
     /// The modification was already defined
     Single(Modification),
     /// All modifications with the same mass, within the tolerance
-    Mass(Mass, Tolerance, Vec<(usize, String, Modification)>),
+    Mass(
+        Mass,
+        Tolerance,
+        Vec<(Ontology, usize, String, Modification)>,
+    ),
     /// All modifications with the same formula
-    Formula(MolecularFormula, Vec<(usize, String, Modification)>),
+    Formula(
+        MolecularFormula,
+        Vec<(Ontology, usize, String, Modification)>,
+    ),
     /// All modifications with the same glycan composition
     Glycan(
         Vec<(MonoSaccharide, isize)>,
-        Vec<(usize, String, Modification)>,
+        Vec<(Ontology, usize, String, Modification)>,
     ),
 }
 
