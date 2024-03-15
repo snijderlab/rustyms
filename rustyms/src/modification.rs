@@ -13,7 +13,7 @@ use crate::{
     helper_functions::*,
     placement_rule::PlacementRule,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, Element, MolecularFormula, SequenceElement,
+    AminoAcid, Chemical, Element, MassComparable, MolecularFormula, SequenceElement, Tolerance,
 };
 
 include!("shared/modification.rs");
@@ -40,6 +40,26 @@ impl Chemical for Modification {
 }
 
 impl Modification {
+    /// Get a url for more information on this modification. Only defined for modifications from ontologies.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn ontology_url(&self) -> Option<String> {
+        match self {
+            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
+            Self::Predefined(_, _, ontology, _, id) => match ontology {
+                Ontology::Psimod => Some(format!(
+                    "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{id:5}",
+                )),
+                Ontology::Unimod => Some(format!(
+                    "https://www.unimod.org/modifications_view.php?editid1={id}",
+                )),
+                Ontology::Gnome => panic!("Not reachable"),
+            },
+            Self::Gno(_, name) => Some(format!(
+                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
+            )),
+        }
+    }
+
     /// Try to parse the modification. Any ambiguous modification will be numbered
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
@@ -153,6 +173,67 @@ impl Modification {
         }
         true
     }
+
+    /// Search matching modification based on what modification is provided. If a mass modification is provided
+    /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
+    /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
+    /// that composition. Otherwise it returns the modification itself.
+    pub fn search(modification: &Self, tolerance: Tolerance) -> ModificationSearchResult {
+        match modification {
+            Self::Mass(mass) => ModificationSearchResult::Mass(
+                mass.into_inner(),
+                tolerance,
+                [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
+                    .iter()
+                    .flat_map(|o| o.lookup())
+                    .filter(|(_, _, m)| {
+                        tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
+                    })
+                    .cloned()
+                    .collect(),
+            ),
+            Self::Formula(formula) => ModificationSearchResult::Formula(
+                formula.clone(),
+                [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
+                    .iter()
+                    .flat_map(|o| o.lookup())
+                    .filter(|(_, _, m)| *formula == m.formula())
+                    .cloned()
+                    .collect(),
+            ),
+            Self::Glycan(glycan) => ModificationSearchResult::Glycan(
+                glycan.clone(),
+                Ontology::Gnome
+                    .lookup()
+                    .iter()
+                    .filter(|(_, _, m)| {
+                        if let Self::Gno(GnoComposition::Structure(structure), _) = m {
+                            structure.composition() == *glycan
+                        } else {
+                            false
+                        }
+                    })
+                    .cloned()
+                    .collect(),
+            ),
+            m => ModificationSearchResult::Single(m.clone()),
+        }
+    }
+}
+
+/// The result of a modification search, see [`Modification::search`].
+pub enum ModificationSearchResult {
+    /// The modification was already defined
+    Single(Modification),
+    /// All modifications with the same mass, within the tolerance
+    Mass(Mass, Tolerance, Vec<(usize, String, Modification)>),
+    /// All modifications with the same formula
+    Formula(MolecularFormula, Vec<(usize, String, Modification)>),
+    /// All modifications with the same glycan composition
+    Glycan(
+        Vec<(MonoSaccharide, isize)>,
+        Vec<(usize, String, Modification)>,
+    ),
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
@@ -263,11 +344,11 @@ fn parse_single_modification(
                     })?,
                 ))),
                 ("glycan", tail) => Ok(Some(Modification::Glycan(
-                    parse_named_counter(tail, glycan_parse_list(), false).map_err(|e| {
+                    MonoSaccharide::simplify_composition(parse_named_counter(tail, glycan_parse_list(), false).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid glycan: {e}"
                         ))
-                    })?,
+                    })?),
                 ))),
                 ("glycanstructure", _) => {
                     GlycanStructure::parse(line, offset + tail.1..offset + tail.1 + tail.2)
