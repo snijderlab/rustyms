@@ -2,8 +2,6 @@
 
 use std::str::FromStr;
 
-use itertools::Itertools;
-
 use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,

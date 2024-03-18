@@ -201,21 +201,25 @@ impl Modification {
                     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
             ),
-            Self::Glycan(glycan) => ModificationSearchResult::Glycan(
-                glycan.clone(),
-                Ontology::Gnome
-                    .lookup()
-                    .iter()
-                    .filter(|(_, _, m)| {
-                        if let Self::Gno(GnoComposition::Structure(structure), _) = m {
-                            structure.composition() == *glycan
-                        } else {
-                            false
-                        }
-                    })
-                    .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
-                    .collect(),
-            ),
+            Self::Glycan(glycan) => {
+                let search = MonoSaccharide::search_composition(glycan.clone());
+                ModificationSearchResult::Glycan(
+                    glycan.clone(),
+                    Ontology::Gnome
+                        .lookup()
+                        .iter()
+                        .filter(|(_, _, m)| {
+                            if let Self::Gno(GnoComposition::Structure(structure), _) = m {
+                                MonoSaccharide::search_composition(structure.composition())
+                                    == *search
+                            } else {
+                                false
+                            }
+                        })
+                        .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
+                        .collect(),
+                )
+            }
             m => ModificationSearchResult::Single(m.clone()),
         }
     }
