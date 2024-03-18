@@ -23,8 +23,8 @@ use rustyms::{
 };
 
 fn main() {
-    let file = File::open("rustyms/databases/imgt.dat")
-        .expect("Please provide the 'imgt.dat' file in the 'rustyms/databases' directory.");
+    let file = File::open("data/imgt.dat")
+        .expect("Please provide the 'imgt.dat' file in the 'data' directory in the root.");
     let mut output = BufWriter::new(File::create("rustyms/src/imgt/germlines/mod.rs").unwrap());
     let mut docs = BufWriter::new(File::create("rustyms/src/imgt/germlines/germlines.md").unwrap());
     let mut error = BufWriter::new(File::create("errors.dat").unwrap());
