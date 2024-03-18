@@ -1,6 +1,5 @@
 use std::{fmt::Display, hash::Hash, ops::Range, sync::OnceLock};
 
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -251,60 +250,6 @@ impl MonoSaccharide {
     //         _ => '⬡', // ⬢
     //     }
     // }
-
-    /// Generate the composition used for searching on glycans
-    pub(crate) fn simplify_composition(mut composition: Vec<(Self, isize)>) -> Vec<(Self, isize)> {
-        // Sort on monosaccharide
-        composition.retain(|el| el.1 != 0);
-        composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-
-        // Deduplicate
-        let mut max = composition.len().saturating_sub(1);
-        let mut index = 0;
-        while index < max {
-            let this = &composition[index];
-            let next = &composition[index + 1];
-            if this.0 == next.0 {
-                composition[index].1 += next.1;
-                composition.remove(index + 1);
-                max = max.saturating_sub(1);
-            } else {
-                index += 1;
-            }
-        }
-        composition.retain(|el| el.1 != 0);
-        composition
-    }
-
-    /// Generate the composition used for searching on glycans
-    pub(crate) fn search_composition(
-        mut composition: Vec<(Self, isize)>,
-    ) -> Vec<(MolecularFormula, isize)> {
-        // Sort on monosaccharide
-        composition.retain(|el| el.1 != 0);
-        let mut composition = composition
-            .into_iter()
-            .map(|(m, n)| (m.formula(), n))
-            .collect_vec();
-        composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-
-        // Deduplicate
-        let mut max = composition.len().saturating_sub(1);
-        let mut index = 0;
-        while index < max {
-            let this = &composition[index];
-            let next = &composition[index + 1];
-            if this.0 == next.0 {
-                composition[index].1 += next.1;
-                composition.remove(index + 1);
-                max = max.saturating_sub(1);
-            } else {
-                index += 1;
-            }
-        }
-        composition.retain(|el| el.1 != 0);
-        composition
-    }
 }
 
 trait ParseHelper {
@@ -1417,19 +1362,6 @@ impl GlycanStructure {
             }
         }
         offset
-    }
-
-    /// Get the composition of a `GlycanStructure`. The result is normalised (sorted and deduplicated).
-    pub fn composition(&self) -> Vec<(MonoSaccharide, isize)> {
-        let mut composition = self.composition_inner();
-        MonoSaccharide::simplify_composition(composition)
-    }
-
-    /// Get the composition in monosaccharides of this glycan
-    fn composition_inner(&self) -> Vec<(MonoSaccharide, isize)> {
-        let mut output = vec![(self.sugar.clone(), 1)];
-        output.extend(self.branches.iter().flat_map(|c| c.composition_inner()));
-        output
     }
 }
 
