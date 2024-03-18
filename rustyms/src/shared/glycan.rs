@@ -262,7 +262,7 @@ impl MonoSaccharide {
         while index < max {
             let this = &composition[index];
             let next = &composition[index + 1];
-            if this.0 == next.0 && this.1 == next.1 {
+            if this.0 == next.0 {
                 composition[index].1 += next.1;
                 composition.remove(index + 1);
                 max = max.saturating_sub(1);
@@ -272,6 +272,19 @@ impl MonoSaccharide {
         }
         composition.retain(|el| el.1 != 0);
         composition
+    }
+
+    pub(crate) fn convert_to_base_sugars(composition: &mut Vec<(Self, isize)>) {
+        for (s, _) in composition {
+            s.base_sugar = match &s.base_sugar {
+                BaseSugar::Tetrose(_) => BaseSugar::Tetrose(None),
+                BaseSugar::Pentose(_) => BaseSugar::Pentose(None),
+                BaseSugar::Hexose(_) => BaseSugar::Hexose(None),
+                BaseSugar::Heptose(_) => BaseSugar::Heptose(None),
+                bs => bs.clone(),
+            };
+            s.furanose = false;
+        }
     }
 }
 
@@ -1388,8 +1401,9 @@ impl GlycanStructure {
     }
 
     /// Get the composition of a `GlycanStructure`. The result is normalised (sorted and deduplicated).
-    pub(crate) fn composition(&self) -> Vec<(MonoSaccharide, isize)> {
-        let composition = self.composition_inner();
+    pub fn composition(&self) -> Vec<(MonoSaccharide, isize)> {
+        let mut composition = self.composition_inner();
+        MonoSaccharide::convert_to_base_sugars(&mut composition);
         MonoSaccharide::simplify_composition(composition)
     }
 

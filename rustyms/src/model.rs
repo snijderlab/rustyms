@@ -167,9 +167,10 @@ impl Model {
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Loss(
-                molecular_formula!(H 2 O 1).unwrap(),
-            )]),
+            glycan_fragmentation: Some(vec![
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
+            ]),
         }
     }
 
@@ -218,11 +219,12 @@ impl Model {
                 Location::SkipN(1),
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
-            precursor: Vec::new(),
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![NeutralLoss::Loss(
-                molecular_formula!(H 2 O 1).unwrap(),
-            )]),
+            glycan_fragmentation: Some(vec![
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
+            ]),
         }
     }
 
@@ -238,7 +240,10 @@ impl Model {
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             c: (Location::None, Vec::new()),
-            d: (Location::TakeN { skip: 1, take: 1 }, Vec::new()),
+            d: (
+                Location::TakeN { skip: 1, take: 1 },
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            ),
             v: (Location::None, Vec::new()),
             w: (Location::None, Vec::new()),
             x: (Location::None, Vec::new()),
@@ -254,6 +259,7 @@ impl Model {
     }
 
     /// ETCID
+    #[deprecated(since = "0.8.3", note = "merged with `ethcd`")]
     pub fn etcid() -> Self {
         Self {
             a: (Location::None, Vec::new()),
@@ -291,7 +297,10 @@ impl Model {
         Self {
             a: (Location::None, Vec::new()),
             b: (Location::None, Vec::new()),
-            c: (Location::SkipC(1), Vec::new()),
+            c: (
+                Location::SkipC(1),
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
             w: (Location::None, Vec::new()),
