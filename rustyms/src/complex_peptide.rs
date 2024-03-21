@@ -26,7 +26,7 @@ pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),
     /// A chimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
-    Multimeric(Vec<LinearPeptide>), // TODO: rename to Chimeric (breaking change)
+    Chimeric(Vec<LinearPeptide>),
 }
 
 impl MultiChemical for ComplexPeptide {
@@ -36,7 +36,7 @@ impl MultiChemical for ComplexPeptide {
     fn formulas(&self) -> Multi<MolecularFormula> {
         match self {
             Self::Singular(peptide) => peptide.formulas(),
-            Self::Multimeric(peptides) => {
+            Self::Chimeric(peptides) => {
                 let mut formulas = Multi::default();
                 for peptide in peptides {
                     formulas *= peptide.formulas();
@@ -51,7 +51,7 @@ impl Display for ComplexPeptide {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Singular(s) => write!(f, "{s}"),
-            Self::Multimeric(m) => {
+            Self::Chimeric(m) => {
                 let mut first = true;
                 for pep in m {
                     if !first {
@@ -87,7 +87,7 @@ impl ComplexPeptide {
             start = tail;
         }
         Ok(if peptides.len() > 1 {
-            Self::Multimeric(peptides)
+            Self::Chimeric(peptides)
         } else {
             Self::Singular(peptides.pop().ok_or_else(|| {
                 CustomError::error(
@@ -513,7 +513,7 @@ impl ComplexPeptide {
     pub fn singular(self) -> Option<LinearPeptide> {
         match self {
             Self::Singular(pep) => Some(pep),
-            Self::Multimeric(_) => None,
+            Self::Chimeric(_) => None,
         }
     }
 
@@ -521,7 +521,7 @@ impl ComplexPeptide {
     pub fn peptides(&self) -> &[LinearPeptide] {
         match self {
             Self::Singular(pep) => std::slice::from_ref(pep),
-            Self::Multimeric(peptides) => peptides,
+            Self::Chimeric(peptides) => peptides,
         }
     }
 
