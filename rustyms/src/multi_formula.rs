@@ -1,4 +1,6 @@
-use crate::{MolecularFormula, Multi};
+use serde::{Deserialize, Serialize};
+
+use crate::{fragment::Position, AminoAcid, MolecularFormula, Multi};
 
 /// Any item that has a number of potential chemical formulas
 pub trait MultiChemical {
@@ -14,28 +16,23 @@ pub trait MultiChemical {
     }
 }
 
-// #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-struct AmbiguousLabels<Position, Option>(Vec<AmbiguousLabel<Position, Option>>);
-
-struct AmbiguousLabel<Position, Option> {
-    position: Position,
-    option: Option,
-}
-
-impl<Position, Option> AmbiguousLabel<Position, Option> {
-    pub const fn position(&self) -> &Position {
-        &self.position
-    }
-    pub const fn option(&self) -> &Option {
-        &self.option
-    }
-}
-
-impl<Position: Clone, Option: Clone> Clone for AmbiguousLabel<Position, Option> {
-    fn clone(&self) -> Self {
-        Self {
-            position: self.position.clone(),
-            option: self.option.clone(),
-        }
-    }
+/// Keep track of what ambiguous option is used
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+enum AmbiguousLocation {
+    /// A ambiguous amino acid, with the actual amino acid used tracked
+    AminoAcid {
+        /// Which amino acid is used
+        option: AminoAcid,
+        /// What location in the sequence are we talking about
+        location: Position,
+    },
+    /// A ambiguous modification, with the actual position
+    Modification {
+        /// Which ambiguous modification
+        id: usize,
+        /// Which location
+        location: Position,
+    },
+    /// The actual charge used, when there are multiple charge carriers
+    ChargeCarrier(MolecularFormula),
 }
