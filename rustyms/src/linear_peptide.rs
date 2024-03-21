@@ -102,13 +102,13 @@ impl LinearPeptide {
     /// Convenience wrapper to parse a linear peptide in pro forma notation, to handle all possible pro forma sequences look at [`ComplexPeptide::pro_forma`].
     /// # Errors
     /// It gives an error when the peptide is not correctly formatted. (Also see the `ComplexPeptide` main function for this.)
-    /// It additionally gives an error if the peptide specified was multimeric (see [`ComplexPeptide::singular`]).
+    /// It additionally gives an error if the peptide specified was chimeric (see [`ComplexPeptide::singular`]).
     pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
         let complex = ComplexPeptide::pro_forma(value)?;
         complex.singular().ok_or_else(|| {
             CustomError::error(
                 "Complex peptide found",
-                "A linear peptide was expected but a multimeric peptide was found.",
+                "A linear peptide was expected but a chimeric peptide was found.",
                 crate::error::Context::Show {
                     line: value.to_string(),
                 },

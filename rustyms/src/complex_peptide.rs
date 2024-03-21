@@ -25,8 +25,8 @@ use crate::{
 pub enum ComplexPeptide {
     /// A single linear peptide
     Singular(LinearPeptide),
-    /// A multimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
-    Multimeric(Vec<LinearPeptide>),
+    /// A chimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
+    Multimeric(Vec<LinearPeptide>), // TODO: rename to Chimeric (breaking change)
 }
 
 impl MultiChemical for ComplexPeptide {
@@ -80,7 +80,7 @@ impl ComplexPeptide {
         start = tail;
         peptides.push(peptide);
 
-        // Parse any following multimeric species
+        // Parse any following chimeric species
         while start < value.len() {
             let (peptide, tail) = Self::pro_forma_inner(value, start)?;
             peptides.push(peptide);
@@ -377,7 +377,7 @@ impl ComplexPeptide {
                         peptide.charge_carriers = Some(MolecularCharge::new(&charge_carriers));
                         index = end_index+1;
                         if index < chars.len() && chars[index] == b'+' {
-                            index+=1; // If a peptide in a multimeric definition contains a charge state modification
+                            index+=1; // If a peptide in a chimeric definition contains a charge state modification
                         }
                         break; // Nothing else to do, the total charge of the adduct ions should sum up to the charge as provided and this definitively is the last thing in a sequence 
                     }
@@ -385,7 +385,7 @@ impl ComplexPeptide {
                     peptide.charge_carriers = Some(MolecularCharge::proton(charge));
                     index += charge_len+1;
                     if index < chars.len() && chars[index] == b'+' {
-                        index+=1; // If a peptide in a multimeric definition contains a charge state modification
+                        index+=1; // If a peptide in a chimeric definition contains a charge state modification
                     }
                     break;
                 }
@@ -409,7 +409,7 @@ impl ComplexPeptide {
                                 Context::line(0, line, start_index, start_index - index - 1),
                             ))?);
                             if index < chars.len() && chars[index] == b'+' {
-                                index+=1; // If a peptide in a multimeric definition contains a C terminal modification
+                                index+=1; // If a peptide in a chimeric definition contains a C terminal modification
                             }
                         break; // TODO: Technically a charge state could follow the C term mods
                     }
@@ -439,7 +439,7 @@ impl ComplexPeptide {
                     index += 1;
                 }
                 (false, b'+') => {
-                    // Multimeric spectrum stop for now, remove the plus
+                    // Chimeric spectrum stop for now, remove the plus
                     index += 1;
                     break;
                 }
@@ -759,7 +759,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_multimeric() {
+    fn parse_chimeric() {
         let dimeric = ComplexPeptide::pro_forma("A+AA").unwrap();
         let trimeric = dbg!(ComplexPeptide::pro_forma("A+AA-[+2]+AAA").unwrap());
         assert_eq!(dimeric.peptides().len(), 2);
