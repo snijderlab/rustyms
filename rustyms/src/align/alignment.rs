@@ -13,7 +13,6 @@ use crate::system::Mass;
 use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;
-use crate::MultiChemical;
 
 /// An alignment of two reads. Which has a reference to the sequences.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -206,7 +205,7 @@ pub trait Alignment: PrivateAlignment {
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
     fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_a() && self.align_type().right.global_a() {
-            self.seq_a().formulas()
+            self.seq_a().bare_formulas()
         } else {
             let mut placed_a = vec![false; self.seq_a().ambiguous_modifications.len()];
             self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
@@ -220,7 +219,7 @@ pub trait Alignment: PrivateAlignment {
     /// The mass(es) for the matched portion of the second sequence
     fn mass_b(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_b() && self.align_type().right.global_b() {
-            self.seq_b().formulas()
+            self.seq_b().bare_formulas()
         } else {
             let mut placed_b = vec![false; self.seq_b().ambiguous_modifications.len()];
             self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
