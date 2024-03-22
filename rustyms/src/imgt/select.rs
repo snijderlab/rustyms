@@ -74,7 +74,11 @@ impl Selection {
             .flat_map(|g| g.into_iter().map(|c| (g.species, c.0, c.1)))
             .filter(move |(_, kind, _)| self.chains.as_ref().map_or(true, |k| k.contains(kind)))
             .flat_map(|(species, _, c)| c.into_iter().map(move |g| (species, g.0, g.1)))
-            .filter(move |(_, gene, _)| self.genes.as_ref().map_or(true, |s| s.contains(gene)))
+            .filter(move |(_, gene, _)| {
+                self.genes
+                    .as_ref()
+                    .map_or(true, |s| contains_gene(s, *gene))
+            })
             .flat_map(|(species, _, germlines)| germlines.iter().map(move |a| (species, a)))
             .flat_map(move |(species, germline)| {
                 germline
@@ -97,7 +101,11 @@ impl Selection {
             .flat_map(|g| g.into_par_iter().map(|c| (g.species, c.0, c.1)))
             .filter(move |(_, kind, _)| self.chains.as_ref().map_or(true, |k| k.contains(kind)))
             .flat_map(|(species, _, c)| c.into_par_iter().map(move |g| (species, g.0, g.1)))
-            .filter(move |(_, gene, _)| self.genes.as_ref().map_or(true, |s| s.contains(gene)))
+            .filter(move |(_, gene, _)| {
+                self.genes
+                    .as_ref()
+                    .map_or(true, |s| contains_gene(s, *gene))
+            })
             .flat_map(|(species, _, germlines)| {
                 germlines.into_par_iter().map(move |a| (species, a))
             })
@@ -109,6 +117,10 @@ impl Selection {
             })
             .map(Into::into)
     }
+}
+
+fn contains_gene(s: &HashSet<GeneType>, gene: GeneType) -> bool {
+    s.contains(&gene) || matches!(gene, GeneType::C(_)) && s.contains(&GeneType::C(None))
 }
 
 impl Default for Selection {
@@ -220,7 +232,14 @@ impl Germlines {
         let genes = match gene.gene {
             GeneType::V => &chain.variable,
             GeneType::J => &chain.joining,
-            GeneType::C(_) => &chain.constant,
+            GeneType::C(None) => &chain.c,
+            GeneType::C(Some(Constant::A)) => &chain.a,
+            GeneType::C(Some(Constant::D)) => &chain.d,
+            GeneType::C(Some(Constant::E)) => &chain.e,
+            GeneType::C(Some(Constant::G)) => &chain.g,
+            GeneType::C(Some(Constant::M)) => &chain.m,
+            GeneType::C(Some(Constant::O)) => &chain.o,
+            GeneType::C(Some(Constant::T)) => &chain.t,
         };
         genes
             .binary_search_by(|g| g.name.cmp(&gene))
@@ -245,6 +264,10 @@ impl Germlines {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
+    use std::collections::HashSet;
+
+    use crate::imgt::select::contains_gene;
+
     use super::Selection;
     use super::{ChainType, GeneType, Species};
 
@@ -256,5 +279,39 @@ mod tests {
             .gene([GeneType::V]);
         let first = selection.germlines().next().unwrap();
         assert_eq!(first.name(), "IGHV1-2*01");
+    }
+
+    #[test]
+    fn try_first_g_human() {
+        let selection = Selection::default()
+            .species([Species::HomoSapiens])
+            .chain([ChainType::Heavy])
+            .gene([GeneType::C(Some(crate::imgt::Constant::G))]);
+        let first = selection.germlines().next().unwrap();
+        assert_eq!(first.name(), "IGG1");
+    }
+
+    #[test]
+    fn gene_selections() {
+        let constant = HashSet::from([GeneType::C(None)]);
+        assert!(contains_gene(&constant, GeneType::C(None)));
+        assert!(contains_gene(
+            &constant,
+            GeneType::C(Some(crate::imgt::Constant::G))
+        ));
+        assert!(contains_gene(
+            &constant,
+            GeneType::C(Some(crate::imgt::Constant::A))
+        ));
+        let constant_g = HashSet::from([GeneType::C(Some(crate::imgt::Constant::G))]);
+        assert!(!contains_gene(&constant_g, GeneType::C(None)));
+        assert!(contains_gene(
+            &constant_g,
+            GeneType::C(Some(crate::imgt::Constant::G))
+        ));
+        assert!(!contains_gene(
+            &constant_g,
+            GeneType::C(Some(crate::imgt::Constant::A))
+        ));
     }
 }

@@ -73,7 +73,14 @@ impl<'a> IntoParallelIterator for &'a Germlines {
 pub(crate) struct Chain {
     pub variable: Vec<Germline>,
     pub joining: Vec<Germline>,
-    pub constant: Vec<Germline>,
+    pub c: Vec<Germline>,
+    pub a: Vec<Germline>,
+    pub d: Vec<Germline>,
+    pub e: Vec<Germline>,
+    pub g: Vec<Germline>,
+    pub m: Vec<Germline>,
+    pub o: Vec<Germline>,
+    pub t: Vec<Germline>,
 }
 
 impl Chain {
@@ -83,7 +90,14 @@ impl Chain {
         let db = match &germline.name.gene {
             GeneType::V => &mut self.variable,
             GeneType::J => &mut self.joining,
-            GeneType::C(_) => &mut self.constant,
+            GeneType::C(None) => &mut self.c,
+            GeneType::C(Some(Constant::A)) => &mut self.a,
+            GeneType::C(Some(Constant::D)) => &mut self.d,
+            GeneType::C(Some(Constant::E)) => &mut self.e,
+            GeneType::C(Some(Constant::G)) => &mut self.g,
+            GeneType::C(Some(Constant::M)) => &mut self.m,
+            GeneType::C(Some(Constant::O)) => &mut self.o,
+            GeneType::C(Some(Constant::T)) => &mut self.t,
         };
 
         match db.binary_search_by_key(&germline.name, |g| g.name.clone()) {
@@ -141,21 +155,42 @@ impl Chain {
             self.variable.iter().map(|g| g.alleles.len()).sum::<usize>(),
             self.joining.len(),
             self.joining.iter().map(|g| g.alleles.len()).sum::<usize>(),
-            self.constant.len(),
-            self.constant.iter().map(|g| g.alleles.len()).sum::<usize>(),
+            self.c.len()
+                + self.a.len()
+                + self.d.len()
+                + self.e.len()
+                + self.g.len()
+                + self.m.len()
+                + self.o.len()
+                + self.t.len(),
+            self.c.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.a.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.d.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.e.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.g.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.m.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.o.iter().map(|g| g.alleles.len()).sum::<usize>()
+                + self.t.iter().map(|g| g.alleles.len()).sum::<usize>(),
         )
     }
 }
 
 impl<'a> IntoIterator for &'a Chain {
-    type IntoIter = std::array::IntoIter<(GeneType, &'a [Germline]), 3>;
+    type IntoIter = std::array::IntoIter<(GeneType, &'a [Germline]), 10>;
     type Item = (GeneType, &'a [Germline]);
 
     fn into_iter(self) -> Self::IntoIter {
         [
             (GeneType::V, self.variable.as_slice()),
             (GeneType::J, self.joining.as_slice()),
-            (GeneType::C(None), self.constant.as_slice()),
+            (GeneType::C(None), self.c.as_slice()),
+            (GeneType::C(Some(Constant::A)), self.a.as_slice()),
+            (GeneType::C(Some(Constant::D)), self.d.as_slice()),
+            (GeneType::C(Some(Constant::E)), self.e.as_slice()),
+            (GeneType::C(Some(Constant::G)), self.g.as_slice()),
+            (GeneType::C(Some(Constant::M)), self.m.as_slice()),
+            (GeneType::C(Some(Constant::O)), self.o.as_slice()),
+            (GeneType::C(Some(Constant::T)), self.t.as_slice()),
         ]
         .into_iter()
     }
@@ -163,14 +198,21 @@ impl<'a> IntoIterator for &'a Chain {
 
 #[cfg(feature = "rayon")]
 impl<'a> IntoParallelIterator for &'a Chain {
-    type Iter = rayon::array::IntoIter<(GeneType, &'a [Germline]), 3>;
+    type Iter = rayon::array::IntoIter<(GeneType, &'a [Germline]), 10>;
     type Item = (GeneType, &'a [Germline]);
 
     fn into_par_iter(self) -> Self::Iter {
         [
             (GeneType::V, self.variable.as_slice()),
             (GeneType::J, self.joining.as_slice()),
-            (GeneType::C(None), self.constant.as_slice()),
+            (GeneType::C(None), self.c.as_slice()),
+            (GeneType::C(Some(Constant::A)), self.a.as_slice()),
+            (GeneType::C(Some(Constant::D)), self.d.as_slice()),
+            (GeneType::C(Some(Constant::E)), self.e.as_slice()),
+            (GeneType::C(Some(Constant::G)), self.g.as_slice()),
+            (GeneType::C(Some(Constant::M)), self.m.as_slice()),
+            (GeneType::C(Some(Constant::O)), self.o.as_slice()),
+            (GeneType::C(Some(Constant::T)), self.t.as_slice()),
         ]
         .into_par_iter()
     }
