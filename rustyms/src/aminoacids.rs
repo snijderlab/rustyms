@@ -40,7 +40,7 @@ impl MultiChemical for AminoAcid {
             Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1).unwrap().into(),
             Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1).unwrap().into(),
             Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3).unwrap().into(),
-            Self::Selenocysteine => molecular_formula!(H 4 C 3 O 1 N 1 Se 1).unwrap().into(),
+            Self::Selenocysteine => molecular_formula!(H 5 C 3 O 1 N 1 Se 1).unwrap().into(),
             Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1).unwrap().into(),
             Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1).unwrap().into(),
             Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2).unwrap().into(),
