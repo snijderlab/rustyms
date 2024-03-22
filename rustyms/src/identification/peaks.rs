@@ -27,7 +27,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&OLD, &X, &XPLUS, &AB], b',';
+    PeaksVersion, [&OLD, &X, &XPLUS, &AB, &XI], b',';
     required {
         scan: Vec<PeaksId>, |location: Location| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
