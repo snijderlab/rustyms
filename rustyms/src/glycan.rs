@@ -1,6 +1,5 @@
 //! Handle glycan related issues, access provided if you want to work with glycans on your own.
 
-use itertools::Itertools;
 use std::str::FromStr;
 
 use crate::{
@@ -226,32 +225,6 @@ impl GlycanStructure {
             .unwrap_or(1)
     }
 
-    /// Recursively show the structure of this glycan
-    fn display_tree(&self) -> String {
-        if self.branches.is_empty() {
-            self.sugar.to_string()
-        } else {
-            format!(
-                "{}({})",
-                self.sugar,
-                self.branches.iter().map(Self::display_tree).join(",")
-            )
-        }
-    }
-
-    // Recursively show the structure of this glycan
-    // fn debug_tree(&self) -> String {
-    //     if self.branches.is_empty() {
-    //         format!("{:?}", self.sugar)
-    //     } else {
-    //         format!(
-    //             "{:?}({})",
-    //             self.sugar,
-    //             self.branches.iter().map(Self::debug_tree).join(",")
-    //         )
-    //     }
-    // }
-
     /// Get the composition of a `GlycanStructure`. The result is normalised (sorted and deduplicated).
     pub fn composition(&self) -> Vec<(MonoSaccharide, isize)> {
         let composition = self.composition_inner();
@@ -266,11 +239,6 @@ impl GlycanStructure {
     }
 }
 
-impl Display for GlycanStructure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_tree())
-    }
-}
 // impl std::fmt::Debug for GlycanStructure {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         write!(f, "{}", self.debug_tree())
@@ -470,6 +438,8 @@ impl PositionedGlycanStructure {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod test {
+    use crate::Modification;
+
     use super::*;
 
     #[test]
@@ -569,5 +539,68 @@ mod test {
             println!("{fragment}");
         }
         assert_eq!(fragments.len(), 31);
+    }
+
+    #[test]
+    fn correct_structure_g43728nl() {
+        // Furanoses added for error detection
+        let structure = GlycanStructure::from_short_iupac(
+            "Neu5Ac(?2-?)Galf(?1-?)GlcNAc(?1-?)Man(?1-?)[Galf(?1-?)GlcNAc(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc", 
+            0..101, 
+            0
+        )
+            .unwrap();
+
+        assert_eq!(
+            structure.to_string(),
+            "HexNAc(HexNAc(Hex(Hex(HexNAc(Hexf(NonNdAAc))),Hex(HexNAc(Hexf)))))"
+        );
+    }
+
+    #[test]
+    fn correct_structure_g36564am() {
+        let structure = GlycanStructure::from_short_iupac(
+            "Gal(?1-?)GlcNAc(?1-?)Man(?1-?)[GlcNAc(?1-?)Man(?1-?)][GlcNAc(?1-?)]Man(?1-?)GlcNAc",
+            0..82,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            structure.to_string(),
+            "HexNAc(Hex(Hex(HexNAc(Hex)),Hex(HexNAc),HexNAc))"
+        );
+    }
+
+    #[test]
+    fn correct_structure_g67881ee() {
+        // Fully specified version of g36564am
+        // Furanoses added for error detection
+        let structure = GlycanStructure::from_short_iupac(
+            "GlcNAc(b1-2)Man(a1-3)[GlcNAc(b1-4)][Galf(b1-4)GlcNAc(b1-2)Man(a1-6)]Man(b1-4)GlcNAc(b1-",
+            0..87,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            structure.to_string(),
+            "HexNAc(Hex(Hex(HexNAc),HexNAc,Hex(HexNAc(Hexf))))"
+        );
+    }
+
+    #[test]
+    fn correct_structure_g11771hd() {
+        let structure = GlycanStructure::from_short_iupac(
+            "GlcNAc(?1-?)[GlcNAc(?1-?)]Man(?1-?)[Man(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc(?1-",
+            0..86,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            structure.to_string(),
+            "HexNAc(HexNAc(Hex(Hex(HexNAc,HexNAc),Hex(Hex))))"
+        );
     }
 }
