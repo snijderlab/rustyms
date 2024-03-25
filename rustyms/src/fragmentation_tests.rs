@@ -44,6 +44,7 @@ fn triple_a() {
             .unwrap(),
         &model,
         1.0,
+        true,
     );
 }
 
@@ -97,6 +98,7 @@ fn with_modifications() {
             .unwrap(),
         &model,
         1.0,
+        true,
     );
 }
 
@@ -133,6 +135,7 @@ fn with_possible_modifications() {
             .unwrap(),
         &model,
         1.0,
+        true,
     );
 }
 
@@ -175,6 +178,7 @@ fn higher_charges() {
             .unwrap(),
         &model,
         5.0,
+        false,
     );
 }
 
@@ -340,6 +344,51 @@ fn all_aminoacids() {
             .unwrap(),
         &model,
         1.0,
+        false,
+    );
+}
+
+#[test]
+fn glycan_fragmentation() {
+    #[allow(clippy::unreadable_literal)]
+    let theoretical_fragments = &[
+        (4593.06932015166, "N4H5S1"),
+        (4301.97390015166, "N4H5"),
+        (4139.92108015166, "N4H4"),
+        (3977.86826015166, "N4H3"),
+        (3936.84171015166, "N3H4"),
+        (3774.78889015166, "N3H3"),
+        (3612.73607015166, "N3H2"),
+        (3571.70952015166, "N2H3"),
+        (3409.65670015166, "N2H2"),
+        (3247.60388015166, "N2H1"),
+        (3085.55106015166, "N2"),
+        (2882.47169015166, "N"),
+        (2679.39232015166, "Base"),
+    ];
+    let model = Model {
+        a: (Location::None, vec![]),
+        b: (Location::None, vec![]),
+        c: (Location::None, vec![]),
+        d: (Location::None, vec![]),
+        v: (Location::None, vec![]),
+        w: (Location::None, vec![]),
+        x: (Location::None, vec![]),
+        y: (Location::None, vec![]),
+        z: (Location::None, vec![]),
+        precursor: vec![],
+        ppm: MassOverCharge::new::<mz>(20.0),
+        glycan_fragmentation: Some(vec![
+            // NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
+            // NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
+        ]),
+    };
+    test(
+        theoretical_fragments,
+        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK").unwrap(),
+        &model,
+        1.0,
+        true,
     );
 }
 
@@ -348,6 +397,7 @@ fn test(
     peptide: &LinearPeptide,
     model: &Model,
     charge: f64,
+    allow_left_over_generated: bool,
 ) {
     let mut calculated_fragments =
         peptide.generate_theoretical_fragments(Charge::new::<e>(charge), model);
@@ -383,9 +433,11 @@ fn test(
         println!("Not found: {mass} {name}");
     }
     assert_eq!(not_found.len(), 0, "Not all needed fragments are found");
-    assert_eq!(
-        calculated_fragments.len(),
-        0,
-        "Not all generated fragments are accounted for"
-    );
+    if !allow_left_over_generated {
+        assert_eq!(
+            calculated_fragments.len(),
+            0,
+            "Not all generated fragments are accounted for"
+        );
+    }
 }

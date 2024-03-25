@@ -281,8 +281,33 @@ impl PositionedGlycanStructure {
             .as_ref()
             .map_or(vec![], |neutral_losses| {
                 // Get all base fragments from this node and all its children
-                let base_fragments =
-                    self.base_theoretical_fragments(peptide_index, full_formula, attachment);
+                let mut base_fragments = self.oxonium_fragments(peptide_index, attachment);
+                // Generate all Y fragments
+                base_fragments.extend(
+                    self.internal_break_points(attachment)
+                        .iter()
+                        .filter(|(_, bonds)| {
+                            bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
+                        })
+                        .flat_map(move |(f, bonds)| {
+                            full_formula.iter().map(move |full| {
+                                Fragment::new(
+                                    full - self.formula() + f,
+                                    Charge::zero(),
+                                    peptide_index,
+                                    FragmentType::Y(
+                                        bonds
+                                            .iter()
+                                            .filter(|b| !matches!(b, GlycanBreakPos::End(_)))
+                                            .map(GlycanBreakPos::position)
+                                            .cloned()
+                                            .collect(),
+                                    ),
+                                    String::new(),
+                                )
+                            })
+                        }),
+                );
                 // Apply all neutral losses and all charge options
                 let charge_options = charge_carriers.all_charge_options();
                 base_fragments
@@ -294,13 +319,12 @@ impl PositionedGlycanStructure {
     }
 
     /// Generate all fragments without charge and neutral loss options
-    fn base_theoretical_fragments(
+    fn oxonium_fragments(
         &self,
         peptide_index: usize,
-        full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
-        // Generate the basic single breakage fragments
+        // Generate the basic single breakage B fragments
         let mut base_fragments = vec![Fragment::new(
             self.formula(),
             Charge::zero(),
@@ -313,20 +337,6 @@ impl PositionedGlycanStructure {
             }),
             String::new(),
         )];
-        base_fragments.extend(full_formula.iter().map(|f| {
-            Fragment::new(
-                f - &self.formula(),
-                Charge::zero(),
-                peptide_index,
-                FragmentType::Y(GlycanPosition {
-                    inner_depth: self.inner_depth,
-                    series_number: self.inner_depth,
-                    branch: self.branch.clone(),
-                    attachment,
-                }),
-                String::new(),
-            )
-        }));
         // Extend with all internal fragments, meaning multiple breaking bonds
         base_fragments.extend(
             self.internal_break_points(attachment)
@@ -364,13 +374,14 @@ impl PositionedGlycanStructure {
         );
         // Extend with the theoretical fragments for all branches of this position
         base_fragments.extend(
-            self.branches.iter().flat_map(|b| {
-                b.base_theoretical_fragments(peptide_index, full_formula, attachment)
-            }),
+            self.branches
+                .iter()
+                .flat_map(|b| b.oxonium_fragments(peptide_index, attachment)),
         );
         base_fragments
     }
 
+    /// All possible bonds that can be broken and the molecular formula that would be held over if these bonds all broke and the broken off parts are lost.
     fn internal_break_points(
         &self,
         attachment: (AminoAcid, usize),
@@ -438,8 +449,6 @@ impl PositionedGlycanStructure {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod test {
-    use crate::Modification;
-
     use super::*;
 
     #[test]
@@ -538,7 +547,18 @@ mod test {
         for fragment in &fragments {
             println!("{fragment}");
         }
-        assert_eq!(fragments.len(), 31);
+        assert_eq!(fragments.len(), 34);
+    }
+
+    #[test]
+    fn correct_masses() {
+        let (sugar, _) = MonoSaccharide::from_short_iupac("Neu5Ac", 0, 0).unwrap();
+        dbg!(&sugar);
+
+        assert_eq!(
+            sugar.formula(),
+            molecular_formula!(C 11 H 17 N 1 O 8).unwrap()
+        );
     }
 
     #[test]
@@ -546,14 +566,14 @@ mod test {
         // Furanoses added for error detection
         let structure = GlycanStructure::from_short_iupac(
             "Neu5Ac(?2-?)Galf(?1-?)GlcNAc(?1-?)Man(?1-?)[Galf(?1-?)GlcNAc(?1-?)Man(?1-?)]Man(?1-?)GlcNAc(?1-?)GlcNAc", 
-            0..101, 
+            0..101,
             0
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(
             structure.to_string(),
-            "HexNAc(HexNAc(Hex(Hex(HexNAc(Hexf(NonNdAAc))),Hex(HexNAc(Hexf)))))"
+            "HexNAc(HexNAc(Hex(Hex(HexNAc(Hexf(NonNAAc))),Hex(HexNAc(Hexf)))))"
         );
     }
 

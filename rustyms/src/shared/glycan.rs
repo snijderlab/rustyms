@@ -528,11 +528,7 @@ const BASE_SUGARS: &[(&str, BaseSugar, &[GlycanSubstituent])] = &[
     (
         "Neu",
         BaseSugar::Nonose,
-        &[
-            GlycanSubstituent::Amino,
-            GlycanSubstituent::Deoxy,
-            GlycanSubstituent::Acid,
-        ],
+        &[GlycanSubstituent::Amino, GlycanSubstituent::Acid],
     ),
     (
         "Sia",
