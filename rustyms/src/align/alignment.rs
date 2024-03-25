@@ -396,3 +396,81 @@ pub struct Score {
     ///    Think of it like this: `align(sequence_a.sequence[start_a..len_a], sequence_a.sequence[start_a..len_a])`.
     pub max: isize,
 }
+
+#[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
+mod tests {
+    use crate::{
+        align::{align, matrix::BLOSUM62, AlignType, Alignment},
+        system::da,
+        AminoAcid, LinearPeptide, MultiChemical,
+    };
+
+    #[test]
+    fn mass_difference() {
+        // Test if the mass difference calculation is correct for some harder alignments.
+        // A has an ambiguous AA, B and C have the two options, while D has a sub peptide of A.
+        let a = LinearPeptide::pro_forma("AABAA").unwrap();
+        let b = LinearPeptide::pro_forma("AANAA").unwrap();
+        let c = LinearPeptide::pro_forma("AADAA").unwrap();
+        let d = LinearPeptide::pro_forma("ADA").unwrap();
+
+        assert!(
+            align::<1>(
+                &a,
+                &b,
+                BLOSUM62,
+                crate::Tolerance::new_absolute(da(0.1)),
+                AlignType::GLOBAL
+            )
+            .mass_difference()
+            .value
+            .abs()
+                < f64::EPSILON
+        );
+        assert!(
+            align::<1>(
+                &a,
+                &c,
+                BLOSUM62,
+                crate::Tolerance::new_absolute(da(0.1)),
+                AlignType::GLOBAL
+            )
+            .mass_difference()
+            .value
+            .abs()
+                < f64::EPSILON
+        );
+        assert!(
+            align::<1>(
+                &a,
+                &d,
+                BLOSUM62,
+                crate::Tolerance::new_absolute(da(0.1)),
+                AlignType::GLOBAL_B
+            )
+            .mass_difference()
+            .value
+            .abs()
+                < f64::EPSILON
+        );
+        let mass_diff_nd = (AminoAcid::N.formulas()[0].monoisotopic_mass()
+            - AminoAcid::D.formulas()[0].monoisotopic_mass())
+        .value
+        .abs();
+        let mass_diff_bc = align::<1>(
+            &b,
+            &c,
+            BLOSUM62,
+            crate::Tolerance::new_absolute(da(0.1)),
+            AlignType::GLOBAL_B,
+        )
+        .mass_difference()
+        .value
+        .abs();
+        assert!(
+            (mass_diff_bc - mass_diff_nd).abs() < 1E-10,
+            "{mass_diff_bc} (peptides) should be equal to {mass_diff_nd} (ND)"
+        );
+    }
+}
