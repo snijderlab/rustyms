@@ -288,6 +288,7 @@ impl PositionedGlycanStructure {
                         .iter()
                         .filter(|(_, bonds)| {
                             bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
+                                && !bonds.iter().all(|b| matches!(b, GlycanBreakPos::End(_)))
                         })
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {

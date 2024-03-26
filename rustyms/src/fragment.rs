@@ -276,7 +276,7 @@ impl FragmentType {
         }
     }
 
-    /// Get the glycan position of this ion (or None nor applicable)
+    /// Get the glycan position of this ion (or None not applicable)
     pub const fn glycan_position(&self) -> Option<&GlycanPosition> {
         match self {
             Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Z(n) => Some(n),
