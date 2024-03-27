@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
+#[non_exhaustive]
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Model {
     /// a series ions
@@ -30,10 +31,12 @@ pub struct Model {
     pub z: (Location, Vec<NeutralLoss>),
     /// precursor ions
     pub precursor: Vec<NeutralLoss>,
+    /// immonium ions
+    pub immonium: bool,
+    /// If some search for glycan (B/Y/Internal) with the given neutral losses
+    pub glycan: Option<Vec<NeutralLoss>>,
     /// The matching tolerance
     pub ppm: MassOverCharge,
-    /// If some search for glycan with the given neutral losses
-    pub glycan_fragmentation: Option<Vec<NeutralLoss>>,
 }
 
 /// A struct to handle all possible fragments that could be generated on a single location
@@ -60,6 +63,8 @@ pub struct PossibleIons<'a> {
     pub z: (bool, &'a [NeutralLoss]),
     /// precursor ions
     pub precursor: &'a [NeutralLoss],
+    /// immonium
+    pub immonium: bool,
 }
 
 impl<'a> PossibleIons<'a> {
@@ -74,6 +79,8 @@ impl<'a> PossibleIons<'a> {
             + usize::from(self.x.0) * (self.x.1.len() + 1)
             + usize::from(self.y.0) * (self.y.1.len() + 1)
             + usize::from(self.z.0) * 2 * (self.z.1.len() + 1)
+            + self.precursor.len()
+            + 1
     }
 }
 
@@ -91,6 +98,7 @@ impl Model {
             y: (self.y.0.possible(index, length), self.y.1.as_slice()),
             z: (self.z.0.possible(index, length), self.z.1.as_slice()),
             precursor: self.precursor.as_slice(),
+            immonium: self.immonium,
         }
     }
 
@@ -107,8 +115,9 @@ impl Model {
         y: (Location, Vec<NeutralLoss>),
         z: (Location, Vec<NeutralLoss>),
         precursor: Vec<NeutralLoss>,
+        immonium: bool,
+        glycan: Option<Vec<NeutralLoss>>,
         ppm: MassOverCharge,
-        glycan_fragmentation: Option<Vec<NeutralLoss>>,
     ) -> Self {
         Self {
             a,
@@ -121,8 +130,9 @@ impl Model {
             y,
             z,
             precursor,
+            immonium,
+            glycan,
             ppm,
-            glycan_fragmentation,
         }
     }
 
@@ -166,11 +176,12 @@ impl Model {
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![
+            immonium: true,
+            glycan: Some(vec![
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
             ]),
+            ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
 
@@ -187,8 +198,9 @@ impl Model {
             y: (Location::None, vec![]),
             z: (Location::None, vec![]),
             precursor: vec![],
+            immonium: false,
+            glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: None,
         }
     }
 
@@ -220,11 +232,12 @@ impl Model {
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: Some(vec![
+            immonium: false,
+            glycan: Some(vec![
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
             ]),
+            ppm: MassOverCharge::new::<mz>(20.0),
         }
     }
 
@@ -253,42 +266,9 @@ impl Model {
             ),
             z: (Location::None, Vec::new()),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            immonium: false,
+            glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: None,
-        }
-    }
-
-    /// ETCID
-    #[deprecated(since = "0.8.3", note = "merged with `ethcd`")]
-    pub fn etcid() -> Self {
-        Self {
-            a: (Location::None, Vec::new()),
-            b: (
-                Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ),
-            c: (
-                Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ),
-            d: (Location::None, Vec::new()),
-            v: (Location::None, Vec::new()),
-            w: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ),
-            x: (Location::None, Vec::new()),
-            y: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ),
-            z: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
-            ),
-            precursor: Vec::new(),
-            ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: None,
         }
     }
 
@@ -317,8 +297,9 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 3 N 1).unwrap()),
             ],
+            immonium: false,
+            glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
-            glycan_fragmentation: None,
         }
     }
 }

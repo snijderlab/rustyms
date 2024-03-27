@@ -276,47 +276,44 @@ impl PositionedGlycanStructure {
         full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
-        model
-            .glycan_fragmentation
-            .as_ref()
-            .map_or(vec![], |neutral_losses| {
-                // Get all base fragments from this node and all its children
-                let mut base_fragments = self.oxonium_fragments(peptide_index, attachment);
-                // Generate all Y fragments
-                base_fragments.extend(
-                    self.internal_break_points(attachment)
-                        .iter()
-                        .filter(|(_, bonds)| {
-                            bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
-                                && !bonds.iter().all(|b| matches!(b, GlycanBreakPos::End(_)))
+        model.glycan.as_ref().map_or(vec![], |neutral_losses| {
+            // Get all base fragments from this node and all its children
+            let mut base_fragments = self.oxonium_fragments(peptide_index, attachment);
+            // Generate all Y fragments
+            base_fragments.extend(
+                self.internal_break_points(attachment)
+                    .iter()
+                    .filter(|(_, bonds)| {
+                        bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
+                            && !bonds.iter().all(|b| matches!(b, GlycanBreakPos::End(_)))
+                    })
+                    .flat_map(move |(f, bonds)| {
+                        full_formula.iter().map(move |full| {
+                            Fragment::new(
+                                full - self.formula() + f,
+                                Charge::zero(),
+                                peptide_index,
+                                FragmentType::Y(
+                                    bonds
+                                        .iter()
+                                        .filter(|b| !matches!(b, GlycanBreakPos::End(_)))
+                                        .map(GlycanBreakPos::position)
+                                        .cloned()
+                                        .collect(),
+                                ),
+                                String::new(),
+                            )
                         })
-                        .flat_map(move |(f, bonds)| {
-                            full_formula.iter().map(move |full| {
-                                Fragment::new(
-                                    full - self.formula() + f,
-                                    Charge::zero(),
-                                    peptide_index,
-                                    FragmentType::Y(
-                                        bonds
-                                            .iter()
-                                            .filter(|b| !matches!(b, GlycanBreakPos::End(_)))
-                                            .map(GlycanBreakPos::position)
-                                            .cloned()
-                                            .collect(),
-                                    ),
-                                    String::new(),
-                                )
-                            })
-                        }),
-                );
-                // Apply all neutral losses and all charge options
-                let charge_options = charge_carriers.all_charge_options();
-                base_fragments
-                    .into_iter()
-                    .flat_map(|f| f.with_neutral_losses(neutral_losses))
-                    .flat_map(|f| charge_options.iter().map(move |c| f.with_charge(c)))
-                    .collect()
-            })
+                    }),
+            );
+            // Apply all neutral losses and all charge options
+            let charge_options = charge_carriers.all_charge_options();
+            base_fragments
+                .into_iter()
+                .flat_map(|f| f.with_neutral_losses(neutral_losses))
+                .flat_map(|f| charge_options.iter().map(move |c| f.with_charge(c)))
+                .collect()
+        })
     }
 
     /// Generate all fragments without charge and neutral loss options
@@ -368,7 +365,7 @@ impl PositionedGlycanStructure {
                         formula,
                         Charge::zero(),
                         peptide_index,
-                        FragmentType::InternalGlycan(breakages),
+                        FragmentType::Oxonium(breakages),
                         String::new(),
                     )
                 }),
@@ -537,7 +534,7 @@ mod test {
             .determine_positions();
         let fragments = glycan.generate_theoretical_fragments(
             &Model {
-                glycan_fragmentation: Some(Vec::new()),
+                glycan: Some(Vec::new()),
                 ..Model::none()
             },
             0,

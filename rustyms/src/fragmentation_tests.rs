@@ -33,8 +33,9 @@ fn triple_a() {
         y: (Location::SkipN(1), vec![]),
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
+        immonium: false,
+        glycan: None,
         ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -87,8 +88,9 @@ fn with_modifications() {
         y: (Location::SkipN(1), vec![]),
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
+        immonium: false,
+        glycan: None,
         ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -124,8 +126,9 @@ fn with_possible_modifications() {
         y: (Location::SkipN(1), vec![]),
         z: (Location::None, vec![]),
         precursor: vec![],
+        immonium: false,
+        glycan: None,
         ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -167,8 +170,9 @@ fn higher_charges() {
         y: (Location::None, vec![]),
         z: (Location::None, vec![]),
         precursor: vec![],
+        immonium: false,
+        glycan: None,
         ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -333,8 +337,9 @@ fn all_aminoacids() {
         y: (Location::SkipN(1), vec![]),
         z: (Location::SkipN(1), vec![]),
         precursor: vec![],
+        immonium: false,
+        glycan: None,
         ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: None,
     };
     test(
         theoretical_fragments,
@@ -377,11 +382,12 @@ fn glycan_fragmentation() {
         y: (Location::None, vec![]),
         z: (Location::None, vec![]),
         precursor: vec![],
-        ppm: MassOverCharge::new::<mz>(20.0),
-        glycan_fragmentation: Some(vec![
+        immonium: false,
+        glycan: Some(vec![
             // NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
             // NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
         ]),
+        ppm: MassOverCharge::new::<mz>(20.0),
     };
     test(
         theoretical_fragments,

@@ -253,7 +253,9 @@ pub enum FragmentType {
     /// glycan Z fragment (Never generated)
     Z(GlycanPosition),
     /// Internal glycan fragment, meaning both a B and Y breakages (and potentially multiple of both), resulting in a set of monosaccharides
-    InternalGlycan(Vec<GlycanBreakPos>),
+    Oxonium(Vec<GlycanBreakPos>),
+    /// Immonium ion
+    immonium(AminoAcid, Position),
     /// precursor
     precursor,
 }
@@ -296,10 +298,11 @@ impl FragmentType {
             | Self::x(n)
             | Self::y(n)
             | Self::z(n)
-            | Self::z·(n) => Some(n.series_number.to_string()),
+            | Self::z·(n)
+            | Self::immonium(_, n) => Some(n.series_number.to_string()),
             Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Z(n) => Some(n.label()),
             Self::Y(bonds) => Some(bonds.iter().map(GlycanPosition::label).join("")),
-            Self::InternalGlycan(breakages) => Some(
+            Self::Oxonium(breakages) => Some(
                 breakages
                     .iter()
                     .map(std::string::ToString::to_string)
@@ -328,7 +331,8 @@ impl FragmentType {
             Self::X(_) => "X",
             Self::Y(_) => "Y",
             Self::Z(_) => "Z",
-            Self::InternalGlycan(_) => "internal_glycan",
+            Self::Oxonium(_) => "oxonium",
+            Self::immonium(_, _) => "immonium",
             Self::precursor => "precursor",
         }
     }
@@ -356,10 +360,11 @@ impl Display for FragmentType {
                 Self::X(pos) => format!("X{}", pos.label()),
                 Self::Y(pos) => format!("Y{}", pos.iter().map(GlycanPosition::label).join("")),
                 Self::Z(pos) => format!("Z{}", pos.label()),
-                Self::InternalGlycan(positions) => positions
+                Self::Oxonium(positions) => positions
                     .iter()
                     .map(std::string::ToString::to_string)
                     .collect(),
+                Self::immonium(aa, pos) => format!("immonium{}{}", aa.char(), pos.series_number),
                 Self::precursor => "precursor".to_string(),
             }
         )

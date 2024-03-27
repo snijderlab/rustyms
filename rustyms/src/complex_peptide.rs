@@ -794,8 +794,9 @@ mod tests {
             (Location::None, Vec::new()),
             (Location::None, Vec::new()),
             Vec::new(),
-            MassOverCharge::new::<mz>(20.0),
+            false,
             None,
+            MassOverCharge::new::<mz>(20.0),
         );
 
         // With two different sequences
