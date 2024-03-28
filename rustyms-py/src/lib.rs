@@ -823,17 +823,15 @@ impl SequenceElement {
 enum FragmentationModel {
     All,
     CidHcd,
-    Etcid,
     Etd,
     Ethcd,
 }
 
-/// Helper function to match a FragmenationModel to a rustyms Model.
+/// Helper function to match a [`FragmentationModel`] to a rustyms Model.
 fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
     match model {
         FragmentationModel::All => Ok(rustyms::Model::all()),
         FragmentationModel::CidHcd => Ok(rustyms::Model::cid_hcd()),
-        FragmentationModel::Etcid => Ok(rustyms::Model::etcid()),
         FragmentationModel::Etd => Ok(rustyms::Model::etd()),
         FragmentationModel::Ethcd => Ok(rustyms::Model::ethcd()),
     }

@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use itertools::Itertools;
 
 use crate::{
+    fragment::PeptidePosition,
     modification::Modification,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
@@ -31,14 +32,13 @@ pub fn building_blocks(
     fn can_be_placed(
         modification: &Modification,
         seq: &SequenceElement,
-        index: usize,
-        length: usize,
+        position: &PeptidePosition,
     ) -> bool {
         if let Modification::Predefined(_, rules, _, _, _) = modification {
             rules.is_empty()
                 || rules
                     .iter()
-                    .any(|(rule, _)| rule.is_possible(seq, index, length))
+                    .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
         } else {
             true
         }
@@ -87,7 +87,9 @@ pub fn building_blocks(
                         if let Modification::Predefined(_, rules, _, _, _) = modification {
                             rules
                                 .iter()
-                                .flat_map(|(pos, _)| position(pos))
+                                .flat_map(|(rules, _, _)| {
+                                    rules.iter().flat_map(position).collect_vec()
+                                })
                                 .unique()
                                 .map(|a| (SequenceElement::new(a, None), modification.clone()))
                                 .collect_vec()
@@ -127,8 +129,19 @@ pub fn building_blocks(
                         .iter()
                         .filter(|&m| {
                             m.1.as_ref().map_or_else(
-                                || can_be_placed(&m.0, &SequenceElement::new(*aa, None), index, 2),
-                                |rule| rule.is_possible(&SequenceElement::new(*aa, None), index, 2),
+                                || {
+                                    can_be_placed(
+                                        &m.0,
+                                        &SequenceElement::new(*aa, None),
+                                        &PeptidePosition::n(index, 2),
+                                    )
+                                },
+                                |rule| {
+                                    rule.is_possible(
+                                        &SequenceElement::new(*aa, None),
+                                        &PeptidePosition::n(index, 2),
+                                    )
+                                },
                             )
                         })
                         .map(|m| SequenceElement {
@@ -151,8 +164,8 @@ pub fn building_blocks(
                         .iter()
                         .filter(|&m| {
                             m.1.as_ref().map_or_else(
-                                || can_be_placed(&m.0, &seq, index, 2),
-                                |rule| rule.is_possible(&seq, index, 2),
+                                || can_be_placed(&m.0, &seq, &PeptidePosition::n(index, 2)),
+                                |rule| rule.is_possible(&seq, &PeptidePosition::n(index, 2)),
                             )
                         })
                         .map(|m| {
@@ -427,11 +440,7 @@ impl Iterator for IsobaricSetIterator {
                     }
                     self.state.1 = Some(c + 1);
                 } else if self.c_term.is_empty()
-                    || self
-                        .base
-                        .as_ref()
-                        .map(|b| b.c_term.is_some())
-                        .unwrap_or_default()
+                    || self.base.as_ref().is_some_and(|b| b.c_term.is_some())
                 {
                     // If the base piece has a defined C term mod do not try possible C term mods in the isobaric generation
                     break;
@@ -447,11 +456,7 @@ impl Iterator for IsobaricSetIterator {
                 }
                 self.state.0 = Some(n + 1);
             } else if self.n_term.is_empty()
-                || self
-                    .base
-                    .as_ref()
-                    .map(|b| b.n_term.is_some())
-                    .unwrap_or_default()
+                || self.base.as_ref().is_some_and(|b| b.n_term.is_some())
             {
                 // If the base piece has a defined N term mod do not try possible N term mods in the isobaric generation
                 break;

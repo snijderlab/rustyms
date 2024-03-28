@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::formula::MolecularFormula;
-use crate::fragment::Position;
+use crate::fragment::PeptidePosition;
 use crate::fragment::{Fragment, FragmentType};
 use crate::molecular_charge::MolecularCharge;
-use crate::{model::*, Chemical, MultiChemical, NeutralLoss};
+use crate::{model::*, MultiChemical, NeutralLoss};
 use crate::{Element, Multi};
 
 include!("shared/aminoacid.rs");
@@ -374,7 +374,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(H 1 C 1 O 1).unwrap())),
                 peptide_index,
-                &FragmentType::a(Position::n(sequence_index, sequence_length)),
+                &FragmentType::a(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
                 ions.a.1,
             ));
@@ -383,7 +383,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(H 1).unwrap())),
                 peptide_index,
-                &FragmentType::b(Position::n(sequence_index, sequence_length)),
+                &FragmentType::b(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
                 ions.b.1,
             ));
@@ -392,7 +392,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications + molecular_formula!(H 2 N 1).unwrap())),
                 peptide_index,
-                &FragmentType::c(Position::n(sequence_index, sequence_length)),
+                &FragmentType::c(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
                 ions.c.1,
             ));
@@ -403,15 +403,16 @@ impl AminoAcid {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat)
+                        .map(|(mass, sat)| mass - sat - modifications)
                         .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 1 C 1 O 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
                         + molecular_formula!(H 1 C 1 O 1).unwrap()
+                        - modifications
                 },
                 peptide_index,
-                &FragmentType::d(Position::n(sequence_index, sequence_length)),
+                &FragmentType::d(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
                 ions.d.1,
             ));
@@ -420,7 +421,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &molecular_formula!(H 3 C 2 N 1 O 1).unwrap().into(), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
                 peptide_index,
-                &FragmentType::v(Position::n(sequence_index, sequence_length)),
+                &FragmentType::v(PeptidePosition::n(sequence_index, sequence_length)),
                 c_term,
                 ions.v.1,
             ));
@@ -431,15 +432,16 @@ impl AminoAcid {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat)
+                        .map(|(mass, sat)| mass - sat - modifications)
                         .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 2 N 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
                         + molecular_formula!(H 2 N 1).unwrap()
+                        - modifications
                 },
                 peptide_index,
-                &FragmentType::w(Position::c(sequence_index, sequence_length)),
+                &FragmentType::w(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.w.1,
             ));
@@ -450,7 +452,7 @@ impl AminoAcid {
                     + (modifications + molecular_formula!(C 1 O 1).unwrap()
                         - molecular_formula!(H 1).unwrap())),
                 peptide_index,
-                &FragmentType::x(Position::c(sequence_index, sequence_length)),
+                &FragmentType::x(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.x.1,
             ));
@@ -459,7 +461,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications + molecular_formula!(H 1).unwrap())),
                 peptide_index,
-                &FragmentType::y(Position::c(sequence_index, sequence_length)),
+                &FragmentType::y(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.y.1,
             ));
@@ -468,14 +470,14 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(H 2 N 1).unwrap())),
                 peptide_index,
-                &FragmentType::z(Position::c(sequence_index, sequence_length)),
+                &FragmentType::z(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(H 1 N 1).unwrap())),
                 peptide_index,
-                &FragmentType::z·(Position::c(sequence_index, sequence_length)),
+                &FragmentType::z·(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
@@ -492,12 +494,12 @@ impl AminoAcid {
             let options = Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(C 1 O 1).unwrap())),
                 peptide_index,
-                &FragmentType::immonium(self, Position::n(sequence_index, sequence_length)),
+                &FragmentType::immonium(self, PeptidePosition::n(sequence_index, sequence_length)),
                 &[(MolecularFormula::default(), String::new())],
-                &self.immonium_losses(),
+                self.immonium_losses().as_slice(),
             );
-            for charge in charge_options.iter().filter(|c| c.formula().charge() == 1) {
-                charged.extend(options.iter().map(|o| o.with_charge(charge)));
+            for charge in charge_carriers.all_single_charge_options() {
+                charged.extend(options.iter().map(|o| o.with_charge(&charge)));
             }
         }
         charged

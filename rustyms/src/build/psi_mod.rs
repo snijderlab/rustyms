@@ -68,15 +68,16 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             for origin in &origins {
                 if origin.len() == 1 {
                     modification.rules.push((
-                        PlacementRule::AminoAcid(
+                        vec![PlacementRule::AminoAcid(
                             vec![(*origin).try_into().unwrap()],
                             term.unwrap_or(Position::Anywhere),
-                        ),
+                        )],
+                        Vec::new(),
                         Vec::new(),
                     ));
                 } else {
                     modification.rules.push((
-                        PlacementRule::PsiModification(
+                        vec![PlacementRule::PsiModification(
                             origin
                                 .split_once(':')
                                 .expect("Incorrect psi mod id, should contain a colon")
@@ -84,7 +85,8 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                                 .parse()
                                 .expect("Incorrect psi mod id, should be numerical"),
                             term.unwrap_or(Position::Anywhere),
-                        ),
+                        )],
+                        Vec::new(),
                         Vec::new(),
                     ));
                 }
@@ -92,9 +94,11 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         }
         if origins.is_empty() || all_aminoacids {
             if let Some(term) = term {
-                modification
-                    .rules
-                    .push((PlacementRule::Terminal(term), Vec::new()))
+                modification.rules.push((
+                    vec![PlacementRule::Terminal(term)],
+                    Vec::new(),
+                    Vec::new(),
+                ))
             }
         }
         mods.push(modification);

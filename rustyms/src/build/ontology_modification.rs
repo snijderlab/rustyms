@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{formula::MolecularFormula, glycan::MonoSaccharide, NeutralLoss};
+use crate::{formula::MolecularFormula, glycan::MonoSaccharide, DiagnosticIon, NeutralLoss};
 
 use super::Modification;
 
@@ -12,7 +12,7 @@ pub struct OntologyModification {
     pub full_name: String,
     pub ontology: Ontology,
     pub id: usize,
-    pub rules: Vec<(PlacementRule, Vec<NeutralLoss>)>,
+    pub rules: Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
 }
 
 impl OntologyModification {
@@ -25,16 +25,30 @@ impl OntologyModification {
             } else {
                 let mut found = false;
                 for new_rule in &mut new {
-                    if let (
-                        (PlacementRule::AminoAcid(aa, pos), losses),
-                        (PlacementRule::AminoAcid(new_aa, new_pos), new_losses),
-                    ) = (rule, new_rule)
-                    {
-                        if *pos == *new_pos && *losses == *new_losses {
-                            new_aa.extend(aa);
-                            new_aa.sort_unstable();
-                            found = true;
-                            break;
+                    // Check if there is a rule with the same neutral loss and diagnostic ions (these can be location specific)
+                    if new_rule.1 == rule.1 && new_rule.2 == rule.2 {
+                        found = true;
+                        // Check if there are other rules in this set of neutral&diagnostic that also use AA placements
+                        // If there are, and they are on the same position, merge the AA set
+                        for position in &rule.0 {
+                            let mut pos_found = false;
+                            for new_position in &mut new_rule.0 {
+                                if let (
+                                    PlacementRule::AminoAcid(new_aa, new_pos),
+                                    PlacementRule::AminoAcid(aa, pos),
+                                ) = (new_position, position)
+                                {
+                                    if *new_pos == *pos {
+                                        new_aa.extend(aa);
+                                        new_aa.sort_unstable();
+                                        pos_found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if !pos_found {
+                                new_rule.0.push(position.clone());
+                            }
                         }
                     }
                 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{fragment::Position, AminoAcid, MolecularFormula, Multi};
+use crate::{fragment::PeptidePosition, AminoAcid, MolecularFormula, Multi};
 
 /// Any item that has a number of potential chemical formulas
 pub trait MultiChemical {
@@ -25,14 +25,14 @@ enum AmbiguousLocation {
         /// Which amino acid is used
         option: AminoAcid,
         /// What location in the sequence are we talking about
-        location: Position,
+        location: PeptidePosition,
     },
     /// A ambiguous modification, with the actual position
     Modification {
         /// Which ambiguous modification
         id: usize,
         /// Which location
-        location: Position,
+        location: PeptidePosition,
     },
     /// The actual charge used, when there are multiple charge carriers
     ChargeCarrier(MolecularFormula),

@@ -13,12 +13,12 @@ pub enum Modification {
     /// A modification from one of the modification ontologies
     Predefined(
         MolecularFormula,
-        Vec<(PlacementRule, Vec<NeutralLoss>)>,
+        Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
         Ontology, // Context
         String,   // Name
         usize,    // Index
     ),
-    /// A modification from one of the modification ontologies
+    /// A modification from the GNOme ontology
     Gno(
         GnoComposition,
         String, // Name

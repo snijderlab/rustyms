@@ -2,6 +2,7 @@
 
 use crate::{
     error::{Context, CustomError},
+    fragment::PeptidePosition,
     modification::AmbiguousModification,
     MolecularFormula, Multi, MultiChemical,
 };
@@ -174,16 +175,16 @@ impl SequenceElement {
     /// If a rule has been broken.
     pub(crate) fn enforce_modification_rules(
         &self,
-        index: usize,
-        length: usize,
+        position: &PeptidePosition,
     ) -> Result<(), CustomError> {
         for modification in &self.modifications {
-            if !modification.is_possible(self, index, length) {
+            if !modification.is_possible(self, position) {
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
                     format!(
-                        "Modification {modification} is not allowed on aminoacid {} index {index}",
-                        self.aminoacid.char()
+                        "Modification {modification} is not allowed on aminoacid {} index {}",
+                        self.aminoacid.char(),
+                        position.sequence_index,
                     ),
                     Context::none(), // TODO: go and give the correct context here
                 ));

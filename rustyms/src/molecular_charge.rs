@@ -28,6 +28,18 @@ impl MolecularCharge {
         }
     }
 
+    /// Generate all possible charge carrier options that have a charge of one,
+    /// used for small ions (immonium/diagnostic/glycan diagnostic) as these are
+    /// not expected to ever have a higher charge.
+    pub fn all_single_charge_options(&self) -> Vec<Self> {
+        self.charge_carriers
+            .iter()
+            .filter_map(|(n, c)| {
+                (*n > 0 && c.charge() == 1).then_some(Self::new(&[(1, c.clone())]))
+            })
+            .collect()
+    }
+
     /// Generate all possible charge carrier options from the selection of ions for use in fragment calculations
     pub fn all_charge_options(&self) -> Vec<Self> {
         let mut options: Vec<Vec<(isize, MolecularFormula)>> = Vec::new();

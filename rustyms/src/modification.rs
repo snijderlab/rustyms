@@ -9,12 +9,13 @@ use regex::Regex;
 
 use crate::{
     error::{Context, CustomError},
+    fragment::PeptidePosition,
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
     placement_rule::PlacementRule,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, Element, MassComparable, MolecularFormula, NeutralLoss, SequenceElement,
-    Tolerance,
+    AminoAcid, Chemical, DiagnosticIon, Element, MassComparable, MolecularFormula, NeutralLoss,
+    SequenceElement, Tolerance,
 };
 
 include!("shared/modification.rs");
@@ -162,17 +163,15 @@ impl Modification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
-        if let Self::Predefined(_, rules, _, _, _) = self {
+    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
+        if let Self::Predefined(_, positions, _, _, _) = self {
             // If any of the rules match the current situation then it can be placed
-            if !rules
+            positions
                 .iter()
-                .any(|(rule, _)| rule.is_possible(seq, index, length))
-            {
-                return false;
-            }
+                .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
+        } else {
+            true
         }
-        true
     }
 
     /// Search matching modification based on what modification is provided. If a mass modification is provided

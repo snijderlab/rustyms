@@ -8,10 +8,11 @@ use std::{
 
 use crate::{
     error::{Context, CustomError},
-    fragment::Position,
+    fragment::PeptidePosition,
     helper_functions::{end_of_enclosure, ResultExtensions},
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
+    placement_rule::PlacementRule,
     ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss, Protease,
     SequenceElement,
 };
@@ -337,8 +338,8 @@ impl LinearPeptide {
     /// # Errors
     /// If a modification rule is broken it returns an error.
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
-        for (index, element) in self.sequence.iter().enumerate() {
-            element.enforce_modification_rules(index, self.sequence.len())?;
+        for (position, seq) in self.iter(..) {
+            seq.enforce_modification_rules(&position)?;
         }
         Ok(())
     }
@@ -586,13 +587,13 @@ impl LinearPeptide {
     fn potential_neutral_losses(
         &self,
         range: impl RangeBounds<usize>,
-    ) -> Vec<(NeutralLoss, Position)> {
+    ) -> Vec<(NeutralLoss, PeptidePosition)> {
         let mut losses = Vec::new();
         for (pos, aa) in self.iter(range) {
             for modification in &aa.modifications {
                 if let Modification::Predefined(_, rules, _, _, _) = modification {
-                    for (rule, rule_losses) in rules {
-                        if rule.is_possible(aa, pos.sequence_index, self.len()) {
+                    for (rules, rule_losses, _) in rules {
+                        if PlacementRule::any_possible(rules, aa, &pos) {
                             losses.extend(rule_losses.iter().map(|loss| (loss.clone(), pos)));
                         }
                     }
@@ -606,7 +607,7 @@ impl LinearPeptide {
     fn iter(
         &self,
         range: impl RangeBounds<usize>,
-    ) -> impl Iterator<Item = (Position, &SequenceElement)> + '_ {
+    ) -> impl Iterator<Item = (PeptidePosition, &SequenceElement)> + '_ {
         let start = match range.start_bound() {
             std::ops::Bound::Unbounded => 0,
             std::ops::Bound::Included(i) => (*i).max(0),
@@ -615,7 +616,7 @@ impl LinearPeptide {
         self.sequence[(range.start_bound().cloned(), range.end_bound().cloned())]
             .iter()
             .enumerate()
-            .map(move |(index, seq)| (Position::n(index + start, self.len()), seq))
+            .map(move |(index, seq)| (PeptidePosition::n(index + start, self.len()), seq))
     }
 
     /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false
@@ -629,18 +630,16 @@ impl LinearPeptide {
             match modification {
                 GlobalModification::Fixed(aa, modification) => {
                     for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
-                        seq.aminoacid == *aa && modification.is_possible(seq, *index, length)
+                        seq.aminoacid == *aa
+                            && modification.is_possible(seq, &PeptidePosition::n(*index, length))
                     }) {
                         seq.modifications.push(modification.clone());
                     }
                 }
                 GlobalModification::Free(modification) => {
-                    for (_, seq) in self
-                        .sequence
-                        .iter_mut()
-                        .enumerate()
-                        .filter(|(index, seq)| modification.is_possible(seq, *index, length))
-                    {
+                    for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
+                        modification.is_possible(seq, &PeptidePosition::n(*index, length))
+                    }) {
                         seq.modifications.push(modification.clone());
                     }
                 }
@@ -666,7 +665,9 @@ impl LinearPeptide {
             self.ambiguous_modifications.push(
                 (0..length)
                     .filter_map(|i| {
-                        if modification.is_possible(&self.sequence[i], i, length) {
+                        if modification
+                            .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
+                        {
                             self.sequence[i]
                                 .possible_modifications
                                 .push(AmbiguousModification {
@@ -731,7 +732,7 @@ impl LinearPeptide {
             // Side effects so the lint does not apply here
             let positions = (*start..=*end)
                 .filter_map(|i| {
-                    if modification.is_possible(&self.sequence[i], i, length) {
+                    if modification.is_possible(&self.sequence[i], &PeptidePosition::n(i, length)) {
                         self.sequence[i]
                             .possible_modifications
                             .push(AmbiguousModification {

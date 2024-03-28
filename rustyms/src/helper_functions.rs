@@ -1,4 +1,4 @@
-use std::{ops::Bound, path::Path};
+use std::path::Path;
 
 pub trait ResultExtensions<T, E> {
     /// # Errors

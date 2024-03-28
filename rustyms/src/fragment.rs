@@ -1,6 +1,9 @@
 //! Handle fragment related issues, access provided if you want to dive deeply into fragments in your own code.
 
-use std::fmt::{Debug, Display};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -141,19 +144,22 @@ impl Display for Fragment {
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug, Serialize, Deserialize,
 )]
-pub struct Position {
+pub struct PeptidePosition {
     /// The sequence index (0 based into the peptide sequence)
     pub sequence_index: usize,
     /// The series number (1 based from the ion series terminal)
     pub series_number: usize,
+    /// The length of the whole sequence
+    sequence_length: usize,
 }
 
-impl Position {
+impl PeptidePosition {
     /// Generate a position for N terminal ion series
-    pub const fn n(sequence_index: usize, _length: usize) -> Self {
+    pub const fn n(sequence_index: usize, length: usize) -> Self {
         Self {
             sequence_index,
             series_number: sequence_index + 1,
+            sequence_length: length,
         }
     }
     /// Generate a position for C terminal ion series
@@ -161,7 +167,16 @@ impl Position {
         Self {
             sequence_index,
             series_number: length - sequence_index,
+            sequence_length: length,
         }
+    }
+    /// Check if this position is on the N terminus
+    pub const fn is_n_terminal(&self) -> bool {
+        self.sequence_index == 0
+    }
+    /// Check if this position is on the C terminus
+    pub const fn is_c_terminal(&self) -> bool {
+        self.sequence_index == self.sequence_length - 1
     }
 }
 
@@ -221,25 +236,25 @@ impl GlycanPosition {
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     /// a
-    a(Position),
+    a(PeptidePosition),
     /// b
-    b(Position),
+    b(PeptidePosition),
     /// c
-    c(Position),
+    c(PeptidePosition),
     /// d
-    d(Position),
+    d(PeptidePosition),
     /// v
-    v(Position),
+    v(PeptidePosition),
     /// w
-    w(Position),
+    w(PeptidePosition),
     /// x
-    x(Position),
+    x(PeptidePosition),
     /// y
-    y(Position),
+    y(PeptidePosition),
     /// z
-    z(Position),
+    z(PeptidePosition),
     /// z·
-    z·(Position),
+    z·(PeptidePosition),
     /// glycan A fragment (Never generated)
     A(GlycanPosition),
     /// glycan B fragment
@@ -255,14 +270,16 @@ pub enum FragmentType {
     /// Internal glycan fragment, meaning both a B and Y breakages (and potentially multiple of both), resulting in a set of monosaccharides
     Oxonium(Vec<GlycanBreakPos>),
     /// Immonium ion
-    immonium(AminoAcid, Position),
+    immonium(AminoAcid, PeptidePosition),
+    /// Precursor with amino acid side chain loss
+    m(AminoAcid, PeptidePosition),
     /// precursor
     precursor,
 }
 
 impl FragmentType {
     /// Get the position of this ion (or None if it is a precursor ion)
-    pub const fn position(&self) -> Option<&Position> {
+    pub const fn position(&self) -> Option<&PeptidePosition> {
         match self {
             Self::a(n)
             | Self::b(n)
@@ -273,7 +290,9 @@ impl FragmentType {
             | Self::x(n)
             | Self::y(n)
             | Self::z(n)
-            | Self::z·(n) => Some(n),
+            | Self::z·(n)
+            | Self::immonium(_, n)
+            | Self::m(_, n) => Some(n),
             _ => None,
         }
     }
@@ -299,7 +318,8 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n)
-            | Self::immonium(_, n) => Some(n.series_number.to_string()),
+            | Self::immonium(_, n)
+            | Self::m(_, n) => Some(n.series_number.to_string()),
             Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Z(n) => Some(n.label()),
             Self::Y(bonds) => Some(bonds.iter().map(GlycanPosition::label).join("")),
             Self::Oxonium(breakages) => Some(
@@ -313,61 +333,63 @@ impl FragmentType {
     }
 
     /// Get the label for this fragment type
-    pub const fn label(&self) -> &str {
+    pub fn label(&self) -> Cow<str> {
         match self {
-            Self::a(_) => "a",
-            Self::b(_) => "b",
-            Self::c(_) => "c",
-            Self::d(_) => "d",
-            Self::v(_) => "v",
-            Self::w(_) => "w",
-            Self::x(_) => "x",
-            Self::y(_) => "y",
-            Self::z(_) => "z",
-            Self::z·(_) => "z·",
-            Self::A(_) => "A",
-            Self::B(_) => "B",
-            Self::C(_) => "C",
-            Self::X(_) => "X",
-            Self::Y(_) => "Y",
-            Self::Z(_) => "Z",
-            Self::Oxonium(_) => "oxonium",
-            Self::immonium(_, _) => "immonium",
-            Self::precursor => "precursor",
+            Self::a(_) => Cow::Borrowed("a"),
+            Self::b(_) => Cow::Borrowed("b"),
+            Self::c(_) => Cow::Borrowed("c"),
+            Self::d(_) => Cow::Borrowed("d"),
+            Self::v(_) => Cow::Borrowed("v"),
+            Self::w(_) => Cow::Borrowed("w"),
+            Self::x(_) => Cow::Borrowed("x"),
+            Self::y(_) => Cow::Borrowed("y"),
+            Self::z(_) => Cow::Borrowed("z"),
+            Self::z·(_) => Cow::Borrowed("z·"),
+            Self::A(_) => Cow::Borrowed("A"),
+            Self::B(_) => Cow::Borrowed("B"),
+            Self::C(_) => Cow::Borrowed("C"),
+            Self::X(_) => Cow::Borrowed("X"),
+            Self::Y(_) => Cow::Borrowed("Y"),
+            Self::Z(_) => Cow::Borrowed("Z"),
+            Self::Oxonium(_) => Cow::Borrowed("oxonium"),
+            Self::immonium(aa, _) => Cow::Owned(format!("i{}", aa.char())),
+            Self::m(aa, _) => Cow::Owned(format!("m{}", aa.char())),
+            Self::precursor => Cow::Borrowed("precursor"),
         }
     }
 }
 
 impl Display for FragmentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::a(pos) => format!("a{}", pos.series_number),
-                Self::b(pos) => format!("b{}", pos.series_number),
-                Self::c(pos) => format!("c{}", pos.series_number),
-                Self::d(pos) => format!("d{}", pos.series_number),
-                Self::v(pos) => format!("v{}", pos.series_number),
-                Self::w(pos) => format!("w{}", pos.series_number),
-                Self::x(pos) => format!("x{}", pos.series_number),
-                Self::y(pos) => format!("y{}", pos.series_number),
-                Self::z(pos) => format!("z{}", pos.series_number),
-                Self::z·(pos) => format!("z·{}", pos.series_number),
-                Self::A(pos) => format!("A{}", pos.label()),
-                Self::B(pos) => format!("B{}", pos.label()),
-                Self::C(pos) => format!("C{}", pos.label()),
-                Self::X(pos) => format!("X{}", pos.label()),
-                Self::Y(pos) => format!("Y{}", pos.iter().map(GlycanPosition::label).join("")),
-                Self::Z(pos) => format!("Z{}", pos.label()),
-                Self::Oxonium(positions) => positions
+        match self {
+            Self::a(pos) => write!(f, "a{}", pos.series_number),
+            Self::b(pos) => write!(f, "b{}", pos.series_number),
+            Self::c(pos) => write!(f, "c{}", pos.series_number),
+            Self::d(pos) => write!(f, "d{}", pos.series_number),
+            Self::v(pos) => write!(f, "v{}", pos.series_number),
+            Self::w(pos) => write!(f, "w{}", pos.series_number),
+            Self::x(pos) => write!(f, "x{}", pos.series_number),
+            Self::y(pos) => write!(f, "y{}", pos.series_number),
+            Self::z(pos) => write!(f, "z{}", pos.series_number),
+            Self::z·(pos) => write!(f, "z·{}", pos.series_number),
+            Self::A(pos) => write!(f, "A{}", pos.label()),
+            Self::B(pos) => write!(f, "B{}", pos.label()),
+            Self::C(pos) => write!(f, "C{}", pos.label()),
+            Self::X(pos) => write!(f, "X{}", pos.label()),
+            Self::Y(pos) => write!(f, "Y{}", pos.iter().map(GlycanPosition::label).join("")),
+            Self::Z(pos) => write!(f, "Z{}", pos.label()),
+            Self::Oxonium(positions) => write!(
+                f,
+                "oxonium{}",
+                positions
                     .iter()
                     .map(std::string::ToString::to_string)
-                    .collect(),
-                Self::immonium(aa, pos) => format!("immonium{}{}", aa.char(), pos.series_number),
-                Self::precursor => "precursor".to_string(),
-            }
-        )
+                    .join("")
+            ),
+            Self::immonium(aa, pos) => write!(f, "immonium{}{}", aa.char(), pos.series_number),
+            Self::m(aa, pos) => write!(f, "m{}{}", aa.char(), pos.series_number),
+            Self::precursor => write!(f, "precursor"),
+        }
     }
 }
 

@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    fragment::PeptidePosition,
     modification::{Modification, Ontology},
     AminoAcid, SequenceElement,
 };
@@ -11,10 +12,10 @@ include!("shared/placement_rule.rs");
 
 impl PlacementRule {
     /// Check if this rule fits with the given location
-    pub fn is_possible(&self, seq: &SequenceElement, index: usize, length: usize) -> bool {
+    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
         match self {
             Self::AminoAcid(aa, r_pos) => {
-                aa.iter().any(|a| *a == seq.aminoacid) && r_pos.is_possible(index, length)
+                aa.iter().any(|a| *a == seq.aminoacid) && r_pos.is_possible(position)
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
@@ -23,21 +24,27 @@ impl PlacementRule {
                     } else {
                         false
                     }
-                }) && r_pos.is_possible(index, length)
+                }) && r_pos.is_possible(position)
             }
             Self::Terminal(r_pos) => {
-                r_pos.is_possible(index, length) && (index == length - 1 || index == 0)
+                r_pos.is_possible(position)
+                    && (position.is_n_terminal() || position.is_c_terminal())
             }
         }
+    }
+
+    /// Check if any of the given rules are possible
+    pub fn any_possible(rules: &[Self], seq: &SequenceElement, position: &PeptidePosition) -> bool {
+        rules.iter().any(|r| r.is_possible(seq, position))
     }
 }
 
 impl Position {
-    const fn is_possible(self, index: usize, length: usize) -> bool {
+    const fn is_possible(self, position: &PeptidePosition) -> bool {
         match self {
             Self::Anywhere => true,
-            Self::AnyNTerm | Self::ProteinNTerm => index == 0,
-            Self::AnyCTerm | Self::ProteinCTerm => index == length - 1,
+            Self::AnyNTerm | Self::ProteinNTerm => position.is_n_terminal(),
+            Self::AnyCTerm | Self::ProteinCTerm => position.is_c_terminal(),
         }
     }
 }
@@ -57,8 +64,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                0,
-                1
+                &PeptidePosition::n(0, 1)
             ),
             "Multi level mod cannot be placed if the dependent mod is not present"
         );
@@ -70,8 +76,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                0,
-                1
+                &PeptidePosition::n(0, 1)
             ),
             "Multi level mod can be placed if the dependent mod is present"
         );
@@ -87,8 +92,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                0,
-                5
+                &PeptidePosition::n(0, 5)
             ),
             "start"
         );
@@ -100,8 +104,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                2,
-                5
+                &PeptidePosition::n(2, 5)
             ),
             "middle"
         );
@@ -113,8 +116,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                4,
-                5
+                &PeptidePosition::n(4, 5)
             ),
             "end"
         );
@@ -126,8 +128,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                4,
-                5
+                &PeptidePosition::n(4, 5)
             ),
             "unimod deamidated at end"
         );
