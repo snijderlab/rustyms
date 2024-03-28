@@ -7,14 +7,7 @@ use crate::{
     formula::MolecularFormula,
 };
 
-/// All possible neutral losses
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub enum NeutralLoss {
-    /// Gain of a specific formula
-    Gain(MolecularFormula),
-    /// Loss of a specific formula
-    Loss(MolecularFormula),
-}
+include!("shared/neutral_loss.rs");
 
 impl NeutralLoss {
     /// Generate a nice HTML notation for this `NeutralLoss`

@@ -8,10 +8,12 @@ use std::{
 
 use crate::{
     error::{Context, CustomError},
+    fragment::Position,
     helper_functions::{end_of_enclosure, ResultExtensions},
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, Protease, SequenceElement,
+    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss, Protease,
+    SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -488,19 +490,22 @@ impl LinearPeptide {
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
+            // TODO: Apply neutral losses and allow control in model
             let n_term = self.ambiguous_patterns(
                 0..=index,
                 &self.sequence[0..index],
                 index,
                 self.get_n_term(),
             );
+            let n_term_losses = self.potential_neutral_losses(0..=index);
 
             let c_term = self.ambiguous_patterns(
-                index..self.sequence.len(),
+                index..self.len(),
                 &self.sequence[index + 1..self.sequence.len()],
                 index,
                 self.get_c_term(),
             );
+            let c_term_losses = self.potential_neutral_losses(index..self.len());
 
             output.append(
                 &mut self.sequence[index].aminoacid.fragments(
@@ -576,6 +581,41 @@ impl LinearPeptide {
         }
 
         output
+    }
+
+    fn potential_neutral_losses(
+        &self,
+        range: impl RangeBounds<usize>,
+    ) -> Vec<(NeutralLoss, Position)> {
+        let mut losses = Vec::new();
+        for (pos, aa) in self.iter(range) {
+            for modification in &aa.modifications {
+                if let Modification::Predefined(_, rules, _, _, _) = modification {
+                    for (rule, rule_losses) in rules {
+                        if rule.is_possible(aa, pos.sequence_index, self.len()) {
+                            losses.extend(rule_losses.iter().map(|loss| (loss.clone(), pos)));
+                        }
+                    }
+                }
+            }
+        }
+        losses.into_iter().unique().collect_vec()
+    }
+
+    /// Iterate over a range in the peptide and keep track of the position
+    fn iter(
+        &self,
+        range: impl RangeBounds<usize>,
+    ) -> impl Iterator<Item = (Position, &SequenceElement)> + '_ {
+        let start = match range.start_bound() {
+            std::ops::Bound::Unbounded => 0,
+            std::ops::Bound::Included(i) => (*i).max(0),
+            std::ops::Bound::Excluded(ex) => (ex + 1).max(0),
+        };
+        self.sequence[(range.start_bound().cloned(), range.end_bound().cloned())]
+            .iter()
+            .enumerate()
+            .map(move |(index, seq)| (Position::n(index + start, self.len()), seq))
     }
 
     /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false

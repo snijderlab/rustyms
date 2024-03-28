@@ -67,26 +67,34 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         if !all_aminoacids {
             for origin in &origins {
                 if origin.len() == 1 {
-                    modification.rules.push(PlacementRule::AminoAcid(
-                        vec![(*origin).try_into().unwrap()],
-                        term.unwrap_or(Position::Anywhere),
+                    modification.rules.push((
+                        PlacementRule::AminoAcid(
+                            vec![(*origin).try_into().unwrap()],
+                            term.unwrap_or(Position::Anywhere),
+                        ),
+                        Vec::new(),
                     ));
                 } else {
-                    modification.rules.push(PlacementRule::PsiModification(
-                        origin
-                            .split_once(':')
-                            .expect("Incorrect psi mod id, should contain a colon")
-                            .1
-                            .parse()
-                            .expect("Incorrect psi mod id, should be numerical"),
-                        term.unwrap_or(Position::Anywhere),
+                    modification.rules.push((
+                        PlacementRule::PsiModification(
+                            origin
+                                .split_once(':')
+                                .expect("Incorrect psi mod id, should contain a colon")
+                                .1
+                                .parse()
+                                .expect("Incorrect psi mod id, should be numerical"),
+                            term.unwrap_or(Position::Anywhere),
+                        ),
+                        Vec::new(),
                     ));
                 }
             }
         }
         if origins.is_empty() || all_aminoacids {
             if let Some(term) = term {
-                modification.rules.push(PlacementRule::Terminal(term))
+                modification
+                    .rules
+                    .push((PlacementRule::Terminal(term), Vec::new()))
             }
         }
         mods.push(modification);

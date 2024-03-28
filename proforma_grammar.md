@@ -45,7 +45,6 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 
 - proper order for global/labile/unknown_position and for additional peptides (xl/cys-xl/branched/chimeric) for MS?
   - A: `<GLOBAL_MOD>[UNKNOWN_POS]?{LABILE_MOD}[N_TERM]-PEPTIDE-[C_TERM]` https://github.com/HUPO-PSI/ProForma/issues/3#issuecomment-906448694
-- what is the mass for B/Z?
 - what defines valid ionic species for ion charge?
 - for ionic charge/adduct ions, is there a way to specify higher charged ionic species? (Ca+2 or Ca2+?)
 
@@ -67,7 +66,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
    - [x] 4.7 Ambiguity in the amino acid sequence. `(?DQ)N`
    - [x] 4.8 INFO tag.
 
-1. Additional Separate Support (Technical name: level 2-ProForma compliant)
+2. Additional Separate Support (Technical name: level 2-ProForma compliant)
    These features are independent from each other:
 
    - [x] 4.1 Unusual amino acids (O and U).
@@ -76,22 +75,22 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
    - [x] 4.2.1 Use of prefixes for Unimod (U:) and PSI-MOD (M:) names.
    - [x] 4.9 Support for the joint representation of experimental data and its interpretation. (see 4.9)
 
-1. Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
+3. Top-Down Extensions (Technical name: level 2-ProForma + top-down compliant)
 
    - [ ] 4.2.1 Additional CV/ontologies for protein modifications: RESID (the prefix R MUST be used for RESID CV/ontology term names)
    - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 
-1. Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
+4. Cross-Linking Extensions (Technical name: level 2-ProForma + cross-linking compliant)
 
    - [ ] 4.2.1/4.2.3 Cross-linked peptides (using the XL-MOD CV/ontology, the prefix X MUST be used for XL-MOD CV/ontology term names).
 
-1. Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
+5. Glycan Extensions (Technical name: level 2-ProForma + glycans compliant)
 
    - [x] 4.2.5 Additional CV/ontologies for protein modifications: GNO (the prefix G MUST be used for GNO CV/ontology term names)
    - [x] 4.2.9 Glycan composition.
    - [x] 4.2.8 Chemical formulas (this feature occurs in two places in this list).
 
-1. Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
+6. Spectral Support (Technical name: level 2-ProForma + mass spectrum compliant)
 
     - [x] 7 Charge and chimeric spectra are special cases (see Appendix II).
         - [x] Parse chimeric spectra
@@ -113,9 +112,9 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 - [x] Enforce ontology modification placement rules
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
 - [x] Better error data, allowing the construction of rust-like error messages
-- [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Modification specific neutral losses, phospho: fully deleted
+- [x] Modification specific neutral losses, phospho: fully deleted
 - [ ] Modification diagnostic peaks
+- [ ] 4.2.4 Branched peptides, similar to cross linking
 - [ ] Match isotope patterns in fragmentation matching
 - [ ] Custom modifications defined using a CV grammar but loaded at runtime
 
@@ -137,10 +136,10 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 
 ## Ontologies
 
-| Name    | Modifications | Numbered | Rules |
-| ------- | ------------- | -------- | ----- |
-| Unimod  | Yes           | Yes      | Yes   |
-| PSI-MOD | Yes           | Yes      | Yes   |
-| RESID   | -             | -        | -     |
-| XL-MOD  | -             | -        | -     |
-| GNO     | Yes           | NA       | NA    |
+| Name    | Modifications | Numbered | Rules | Diagnostic ions / neutral losses |
+| ------- | ------------- | -------- | ----- | -------------------------------- |
+| Unimod  | Yes           | Yes      | Yes   | Yes (neutral losses)             |
+| PSI-MOD | Yes           | Yes      | Yes   | NA                               |
+| RESID   | -             | -        | -     | -                                |
+| XL-MOD  | -             | -        | -     | -                                |
+| GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      |

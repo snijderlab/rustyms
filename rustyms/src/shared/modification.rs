@@ -13,7 +13,7 @@ pub enum Modification {
     /// A modification from one of the modification ontologies
     Predefined(
         MolecularFormula,
-        Vec<PlacementRule>,
+        Vec<(PlacementRule, Vec<NeutralLoss>)>,
         Ontology, // Context
         String,   // Name
         usize,    // Index

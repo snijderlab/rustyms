@@ -38,7 +38,7 @@ pub fn building_blocks(
             rules.is_empty()
                 || rules
                     .iter()
-                    .any(|rule| rule.is_possible(seq, index, length))
+                    .any(|(rule, _)| rule.is_possible(seq, index, length))
         } else {
             true
         }
@@ -87,7 +87,7 @@ pub fn building_blocks(
                         if let Modification::Predefined(_, rules, _, _, _) = modification {
                             rules
                                 .iter()
-                                .flat_map(position)
+                                .flat_map(|(pos, _)| position(pos))
                                 .unique()
                                 .map(|a| (SequenceElement::new(a, None), modification.clone()))
                                 .collect_vec()

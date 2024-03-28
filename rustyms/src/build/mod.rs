@@ -23,6 +23,7 @@ use crate::{
     system::OrderedMass,
 };
 
+include!("../shared/neutral_loss.rs");
 include!("../shared/modification.rs");
 
 impl crate::Element {

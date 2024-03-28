@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::formula::MolecularFormula;
@@ -286,6 +285,7 @@ impl AminoAcid {
     /// |       | 44                                                                                                                        |                             |                                                |                                          |                                                                       |                                         |                             |                              |                   |                                                                          |                                                                     |                         |                         |                   |                                                                          |                              | 1       |        44 |              | 28.0811  |              | C1H2N1           |                         | C1H2N1     |
     /// |       |                                                                                                                           |                             |                                                | 41                                       |                                                                       | 41                                      |                             |                              |                   |                                                                          | 41.0391                                                             |                         |                         |                   |                                                                          |                              | 3       |   41.0391 |              | 31.0420  |              | C1H5N1           |                         | C1H5N1     |
     fn immonium_losses(self) -> Vec<NeutralLoss> {
+        // TODO: For B/Z there are common immonium ions, but the mass is the same (meaning the loss is different), find a way of representing that
         match self {
             Self::Arginine => vec![
                 NeutralLoss::Gain(molecular_formula!(C 2 O 2).unwrap()),

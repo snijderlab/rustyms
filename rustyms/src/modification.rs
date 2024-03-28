@@ -13,7 +13,8 @@ use crate::{
     helper_functions::*,
     placement_rule::PlacementRule,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, Element, MassComparable, MolecularFormula, SequenceElement, Tolerance,
+    AminoAcid, Chemical, Element, MassComparable, MolecularFormula, NeutralLoss, SequenceElement,
+    Tolerance,
 };
 
 include!("shared/modification.rs");
@@ -166,7 +167,7 @@ impl Modification {
             // If any of the rules match the current situation then it can be placed
             if !rules
                 .iter()
-                .any(|rule| rule.is_possible(seq, index, length))
+                .any(|(rule, _)| rule.is_possible(seq, index, length))
             {
                 return false;
             }

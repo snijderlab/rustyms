@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{formula::MolecularFormula, glycan::MonoSaccharide};
+use crate::{formula::MolecularFormula, glycan::MonoSaccharide, NeutralLoss};
 
 use super::Modification;
 
@@ -12,7 +12,7 @@ pub struct OntologyModification {
     pub full_name: String,
     pub ontology: Ontology,
     pub id: usize,
-    pub rules: Vec<PlacementRule>,
+    pub rules: Vec<(PlacementRule, Vec<NeutralLoss>)>,
 }
 
 impl OntologyModification {
@@ -26,11 +26,11 @@ impl OntologyModification {
                 let mut found = false;
                 for new_rule in &mut new {
                     if let (
-                        PlacementRule::AminoAcid(aa, pos),
-                        PlacementRule::AminoAcid(new_aa, new_pos),
+                        (PlacementRule::AminoAcid(aa, pos), losses),
+                        (PlacementRule::AminoAcid(new_aa, new_pos), new_losses),
                     ) = (rule, new_rule)
                     {
-                        if *pos == *new_pos {
+                        if *pos == *new_pos && *losses == *new_losses {
                             new_aa.extend(aa);
                             new_aa.sort_unstable();
                             found = true;
