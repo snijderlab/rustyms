@@ -77,23 +77,28 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                     rules[index].0.push_str(&site);
                 } else if let Some(groups) = re_neutral_loss.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
-                    let formula =
-                        parse_unimod_composition(groups.get(2).unwrap().as_str()).unwrap();
-                    let loss = NeutralLoss::Loss(
-                        formula.0
-                            + formula
-                                .1
-                                .iter()
-                                .map(|(m, n)| m.formula() * *n)
-                                .sum::<MolecularFormula>(),
-                    );
-                    if rules.len() <= index {
-                        rules.extend(
-                            iter::repeat((String::new(), String::new(), Vec::new()))
-                                .take(index + 1 - rules.len()),
+                    if !groups
+                        .get(2)
+                        .is_some_and(|g| g.is_empty() || g.as_str() == "0")
+                    {
+                        let formula =
+                            parse_unimod_composition(groups.get(2).unwrap().as_str()).unwrap();
+                        let loss = NeutralLoss::Loss(
+                            formula.0
+                                + formula
+                                    .1
+                                    .iter()
+                                    .map(|(m, n)| m.formula() * *n)
+                                    .sum::<MolecularFormula>(),
                         );
+                        if rules.len() <= index {
+                            rules.extend(
+                                iter::repeat((String::new(), String::new(), Vec::new()))
+                                    .take(index + 1 - rules.len()),
+                            );
+                        }
+                        rules[index].2.push(loss);
                     }
-                    rules[index].2.push(loss);
                 } else {
                     continue;
                 }

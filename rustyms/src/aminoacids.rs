@@ -498,9 +498,12 @@ impl AminoAcid {
                 &[(MolecularFormula::default(), String::new())],
                 self.immonium_losses().as_slice(),
             );
-            for charge in charge_carriers.all_single_charge_options() {
-                charged.extend(options.iter().map(|o| o.with_charge(&charge)));
-            }
+            let single_charges = charge_carriers.all_single_charge_options();
+            charged.extend(
+                options
+                    .into_iter()
+                    .flat_map(|o| o.with_charges(&single_charges)),
+            );
         }
         charged
     }

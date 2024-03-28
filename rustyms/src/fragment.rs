@@ -99,6 +99,12 @@ impl Fragment {
         }
     }
 
+    /// Create a copy of this fragment with the given charges
+    #[must_use]
+    pub fn with_charges(self, charges: &[MolecularCharge]) -> impl Iterator<Item = Self> + '_ {
+        charges.iter().map(move |c| self.with_charge(c))
+    }
+
     /// Create a copy of this fragment with the given neutral loss
     #[must_use]
     pub fn with_neutral_loss(&self, neutral_loss: &NeutralLoss) -> Self {
@@ -273,6 +279,8 @@ pub enum FragmentType {
     immonium(AminoAcid, PeptidePosition),
     /// Precursor with amino acid side chain loss
     m(AminoAcid, PeptidePosition),
+    /// Diagnostic ion for a given position
+    diagnostic(PeptidePosition),
     /// precursor
     precursor,
 }
@@ -291,6 +299,7 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n)
+            | Self::diagnostic(n)
             | Self::immonium(_, n)
             | Self::m(_, n) => Some(n),
             _ => None,
@@ -318,6 +327,7 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n)
+            | Self::diagnostic(n)
             | Self::immonium(_, n)
             | Self::m(_, n) => Some(n.series_number.to_string()),
             Self::A(n) | Self::B(n) | Self::C(n) | Self::X(n) | Self::Z(n) => Some(n.label()),
@@ -351,6 +361,7 @@ impl FragmentType {
             Self::X(_) => Cow::Borrowed("X"),
             Self::Y(_) => Cow::Borrowed("Y"),
             Self::Z(_) => Cow::Borrowed("Z"),
+            Self::diagnostic(_) => Cow::Borrowed("diagnostic"),
             Self::Oxonium(_) => Cow::Borrowed("oxonium"),
             Self::immonium(aa, _) => Cow::Owned(format!("i{}", aa.char())),
             Self::m(aa, _) => Cow::Owned(format!("m{}", aa.char())),
@@ -388,6 +399,7 @@ impl Display for FragmentType {
             ),
             Self::immonium(aa, pos) => write!(f, "immonium{}{}", aa.char(), pos.series_number),
             Self::m(aa, pos) => write!(f, "m{}{}", aa.char(), pos.series_number),
+            Self::diagnostic(pos) => write!(f, "diagnostic{}", pos.series_number),
             Self::precursor => write!(f, "precursor"),
         }
     }

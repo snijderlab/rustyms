@@ -13,8 +13,8 @@ use crate::{
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
     placement_rule::PlacementRule,
-    ComplexPeptide, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss, Protease,
-    SequenceElement,
+    ComplexPeptide, DiagnosticIon, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss,
+    Protease, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -349,8 +349,8 @@ impl LinearPeptide {
     /// The global isotope modifications are NOT applied.
     fn ambiguous_patterns(
         &self,
+        range: impl RangeBounds<usize>,
         aa_range: impl RangeBounds<usize>,
-        aa: &[SequenceElement],
         index: usize,
         base: MolecularFormula,
     ) -> Vec<(MolecularFormula, String)> {
@@ -362,23 +362,19 @@ impl LinearPeptide {
                 acc.into_iter()
                     .flat_map(|path| {
                         let mut path_clone = path.clone();
-                        let options = possibilities
-                            .iter()
-                            .filter(|pos| aa_range.contains(pos))
-                            .map(move |pos| {
+                        let options = possibilities.iter().filter(|pos| range.contains(pos)).map(
+                            move |pos| {
                                 let mut new = path.clone();
                                 new.push((id, *pos));
                                 new
-                            });
-                        options.chain(
-                            possibilities
-                                .iter()
-                                .find(|pos| !aa_range.contains(pos))
-                                .map(move |pos| {
-                                    path_clone.push((id, *pos));
-                                    path_clone
-                                }),
-                        )
+                            },
+                        );
+                        options.chain(possibilities.iter().find(|pos| !range.contains(pos)).map(
+                            move |pos| {
+                                path_clone.push((id, *pos));
+                                path_clone
+                            },
+                        ))
                     })
                     .collect()
             })
@@ -388,7 +384,11 @@ impl LinearPeptide {
                     .iter()
                     .filter_map(|(id, pos)| (*pos == index).then_some(id))
                     .collect::<Vec<_>>();
-                aa.iter()
+                self.sequence[(
+                    aa_range.start_bound().cloned(),
+                    aa_range.end_bound().cloned(),
+                )]
+                    .iter()
                     .enumerate()
                     .fold(Multi::default(), |acc, (index, aa)| {
                         acc * aa.formulas(
@@ -488,25 +488,14 @@ impl LinearPeptide {
 
         let default_charge = MolecularCharge::proton(max_charge.value as isize);
         let charge_carriers = self.charge_carriers.as_ref().unwrap_or(&default_charge);
+        let single_charges = charge_carriers.all_single_charge_options();
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
             // TODO: Apply neutral losses and allow control in model
-            let n_term = self.ambiguous_patterns(
-                0..=index,
-                &self.sequence[0..index],
-                index,
-                self.get_n_term(),
-            );
-            let n_term_losses = self.potential_neutral_losses(0..=index);
+            let n_term = self.all_masses(..=index, ..index, index, self.get_n_term());
 
-            let c_term = self.ambiguous_patterns(
-                index..self.len(),
-                &self.sequence[index + 1..self.sequence.len()],
-                index,
-                self.get_c_term(),
-            );
-            let c_term_losses = self.potential_neutral_losses(index..self.len());
+            let c_term = self.all_masses(index.., index + 1.., index, self.get_c_term());
 
             output.append(
                 &mut self.sequence[index].aminoacid.fragments(
@@ -581,9 +570,54 @@ impl LinearPeptide {
             }
         }
 
+        // Add all modification diagnostic ions
+        output.extend(self.diagnostic_ions().into_iter().flat_map(|(dia, pos)| {
+            Fragment {
+                formula: dia.0,
+                charge: Charge::default(),
+                ion: FragmentType::diagnostic(pos),
+                peptide_index,
+                neutral_loss: None,
+                label: String::new(),
+            }
+            .with_charges(&single_charges)
+        }));
+
         output
     }
 
+    /// Generate all potential masses for the given stretch of amino acids.
+    /// Applies ambiguous aminoacids and modifications, and neutral losses.
+    fn all_masses(
+        &self,
+        range: impl RangeBounds<usize> + Clone,
+        aa_range: impl RangeBounds<usize>,
+        index: usize,
+        base: MolecularFormula,
+    ) -> Vec<(MolecularFormula, String)> {
+        let ambiguous_mods_masses = self.ambiguous_patterns(range.clone(), aa_range, index, base);
+        let neutral_losses = self.potential_neutral_losses(range);
+        let mut all_masses =
+            Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
+        all_masses.extend(ambiguous_mods_masses.iter().cloned());
+        for loss in &neutral_losses {
+            for option in &ambiguous_mods_masses {
+                all_masses.push((
+                    &option.0 + &loss.0,
+                    format!(
+                        "{}{}{}({})",
+                        option.1,
+                        option.1.is_empty().then_some(",").unwrap_or_default(),
+                        loss.0,
+                        loss.1.sequence_index
+                    ),
+                ));
+            }
+        }
+        all_masses
+    }
+
+    /// Find all neutral losses in the given stretch of peptide
     fn potential_neutral_losses(
         &self,
         range: impl RangeBounds<usize>,
@@ -600,14 +634,31 @@ impl LinearPeptide {
                 }
             }
         }
-        losses.into_iter().unique().collect_vec()
+        losses
+    }
+
+    /// Find all diagnostic ions for this full peptide
+    fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, PeptidePosition)> {
+        let mut diagnostic = Vec::new();
+        for (pos, aa) in self.iter(..) {
+            for modification in &aa.modifications {
+                if let Modification::Predefined(_, rules, _, _, _) = modification {
+                    for (rules, _, rule_diagnostic) in rules {
+                        if PlacementRule::any_possible(rules, aa, &pos) {
+                            diagnostic.extend(rule_diagnostic.iter().map(|d| (d.clone(), pos)));
+                        }
+                    }
+                }
+            }
+        }
+        diagnostic
     }
 
     /// Iterate over a range in the peptide and keep track of the position
     fn iter(
         &self,
         range: impl RangeBounds<usize>,
-    ) -> impl Iterator<Item = (PeptidePosition, &SequenceElement)> + '_ {
+    ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &SequenceElement)> + '_ {
         let start = match range.start_bound() {
             std::ops::Bound::Unbounded => 0,
             std::ops::Bound::Included(i) => (*i).max(0),

@@ -9,4 +9,4 @@ pub enum NeutralLoss {
 
 /// A diagnostic ion, defined in M (not MH+) chemical formula
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub struct DiagnosticIon(MolecularFormula);
+pub struct DiagnosticIon(pub MolecularFormula);
