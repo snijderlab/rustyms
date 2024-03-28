@@ -33,6 +33,12 @@ pub struct Model {
     pub precursor: Vec<NeutralLoss>,
     /// immonium ions
     pub immonium: bool,
+    /// m ions, loss of the amino acid side chain from the precursor
+    pub m: bool,
+    /// If the neutral losses specific for modifications should be generated
+    pub modification_specific_neutral_losses: bool,
+    /// If the diagnostic ions specific for modifications should be generated
+    pub modification_specific_diagnostic_ions: bool,
     /// If some search for glycan (B/Y/Internal) with the given neutral losses
     pub glycan: Option<Vec<NeutralLoss>>,
     /// The matching tolerance
@@ -116,6 +122,9 @@ impl Model {
         z: (Location, Vec<NeutralLoss>),
         precursor: Vec<NeutralLoss>,
         immonium: bool,
+        m: bool,
+        modification_specific_diagnostic_ions: bool,
+        modification_specific_neutral_losses: bool,
         glycan: Option<Vec<NeutralLoss>>,
         ppm: MassOverCharge,
     ) -> Self {
@@ -131,6 +140,9 @@ impl Model {
             z,
             precursor,
             immonium,
+            m,
+            modification_specific_neutral_losses,
+            modification_specific_diagnostic_ions,
             glycan,
             ppm,
         }
@@ -177,6 +189,9 @@ impl Model {
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             immonium: true,
+            m: true,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: true,
             glycan: Some(vec![
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
@@ -199,6 +214,9 @@ impl Model {
             z: (Location::None, vec![]),
             precursor: vec![],
             immonium: false,
+            m: false,
+            modification_specific_neutral_losses: false,
+            modification_specific_diagnostic_ions: false,
             glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
         }
@@ -233,6 +251,9 @@ impl Model {
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             immonium: false,
+            m: false,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: true,
             glycan: Some(vec![
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
@@ -267,6 +288,9 @@ impl Model {
             z: (Location::None, Vec::new()),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
             immonium: false,
+            m: false,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: true,
             glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
         }
@@ -298,6 +322,9 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 3 N 1).unwrap()),
             ],
             immonium: false,
+            m: false,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: true,
             glycan: None,
             ppm: MassOverCharge::new::<mz>(20.0),
         }

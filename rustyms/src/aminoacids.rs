@@ -403,13 +403,12 @@ impl AminoAcid {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat - modifications)
+                        .map(|(mass, sat)| mass - sat)
                         .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 1 C 1 O 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
                         + molecular_formula!(H 1 C 1 O 1).unwrap()
-                        - modifications
                 },
                 peptide_index,
                 &FragmentType::d(PeptidePosition::n(sequence_index, sequence_length)),
@@ -432,13 +431,12 @@ impl AminoAcid {
                     self.formulas()
                         .iter()
                         .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat - modifications)
+                        .map(|(mass, sat)| mass - sat)
                         .collect::<Multi<MolecularFormula>>()
                         + molecular_formula!(H 2 N 1).unwrap()
                 } else {
                     -self.satellite_ion_fragments() * self.formulas()
                         + molecular_formula!(H 2 N 1).unwrap()
-                        - modifications
                 },
                 peptide_index,
                 &FragmentType::w(PeptidePosition::c(sequence_index, sequence_length)),

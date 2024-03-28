@@ -615,11 +615,7 @@ fn unknown_position_mods(
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{
-        model::Location,
-        system::{e, mz, MassOverCharge},
-        ComplexPeptide, Element, MolecularFormula,
-    };
+    use crate::{model::Location, system::e, ComplexPeptide, Element, MolecularFormula};
 
     use super::*;
 
@@ -783,21 +779,10 @@ mod tests {
     #[test]
     fn dimeric_peptide() {
         // Only generate a single series, easier to reason about
-        let test_model = Model::new(
-            (Location::SkipN(1), Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            (Location::None, Vec::new()),
-            Vec::new(),
-            false,
-            None,
-            MassOverCharge::new::<mz>(20.0),
-        );
+        let test_model = Model {
+            a: (Location::SkipN(1), Vec::new()),
+            ..Model::none()
+        };
 
         // With two different sequences
         let dimeric = ComplexPeptide::pro_forma("AA+CC").unwrap();

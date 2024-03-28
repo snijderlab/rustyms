@@ -100,7 +100,6 @@ impl Fragment {
     }
 
     /// Create a copy of this fragment with the given charges
-    #[must_use]
     pub fn with_charges(self, charges: &[MolecularCharge]) -> impl Iterator<Item = Self> + '_ {
         charges.iter().map(move |c| self.with_charge(c))
     }

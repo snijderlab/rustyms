@@ -493,26 +493,62 @@ impl LinearPeptide {
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
             // TODO: Apply neutral losses and allow control in model
-            let n_term = self.all_masses(..=index, ..index, index, self.get_n_term());
-
-            let c_term = self.all_masses(index.., index + 1.., index, self.get_c_term());
-
-            output.append(
-                &mut self.sequence[index].aminoacid.fragments(
-                    &n_term,
-                    &c_term,
-                    &self.sequence[index]
-                        .modifications
-                        .iter()
-                        .map(Chemical::formula)
-                        .sum(),
-                    charge_carriers,
-                    index,
-                    self.sequence.len(),
-                    &model.ions(index, self.sequence.len()),
-                    peptide_index,
-                ),
+            let n_term = self.all_masses(
+                ..=index,
+                ..index,
+                index,
+                self.get_n_term(),
+                model.modification_specific_neutral_losses,
             );
+            let c_term = self.all_masses(
+                index..,
+                index + 1..,
+                index,
+                self.get_c_term(),
+                model.modification_specific_neutral_losses,
+            );
+            let modifications_total = self.sequence[index]
+                .modifications
+                .iter()
+                .map(Chemical::formula)
+                .sum();
+
+            output.append(&mut self.sequence[index].aminoacid.fragments(
+                &n_term,
+                &c_term,
+                &modifications_total,
+                charge_carriers,
+                index,
+                self.sequence.len(),
+                &model.ions(index, self.sequence.len()),
+                peptide_index,
+            ));
+
+            if model.m {
+                // m fragment: precursor amino acid side chain losses
+                output.extend(self.formulas().iter().flat_map(|m| {
+                    self.sequence[index]
+                        .aminoacid
+                        .formulas()
+                        .iter()
+                        .flat_map(|aa| {
+                            Fragment::new(
+                                m.clone() - aa.clone() - modifications_total.clone()
+                                    + molecular_formula!(C 2 H 2 N 1 O 1).unwrap(),
+                                Charge::zero(),
+                                peptide_index,
+                                FragmentType::m(
+                                    self.sequence[index].aminoacid,
+                                    PeptidePosition::n(index, self.len()),
+                                ),
+                                String::new(),
+                            )
+                            .with_charge(charge_carriers)
+                            .with_neutral_losses(&model.precursor)
+                        })
+                        .collect_vec()
+                }));
+            }
         }
         for fragment in &mut output {
             fragment.formula = fragment
@@ -570,51 +606,58 @@ impl LinearPeptide {
             }
         }
 
-        // Add all modification diagnostic ions
-        output.extend(self.diagnostic_ions().into_iter().flat_map(|(dia, pos)| {
-            Fragment {
-                formula: dia.0,
-                charge: Charge::default(),
-                ion: FragmentType::diagnostic(pos),
-                peptide_index,
-                neutral_loss: None,
-                label: String::new(),
-            }
-            .with_charges(&single_charges)
-        }));
+        if model.modification_specific_diagnostic_ions {
+            // Add all modification diagnostic ions
+            output.extend(self.diagnostic_ions().into_iter().flat_map(|(dia, pos)| {
+                Fragment {
+                    formula: dia.0,
+                    charge: Charge::default(),
+                    ion: FragmentType::diagnostic(pos),
+                    peptide_index,
+                    neutral_loss: None,
+                    label: String::new(),
+                }
+                .with_charges(&single_charges)
+            }));
+        }
 
         output
     }
 
     /// Generate all potential masses for the given stretch of amino acids.
-    /// Applies ambiguous aminoacids and modifications, and neutral losses.
+    /// Applies ambiguous aminoacids and modifications, and neutral losses (if allowed in the model).
     fn all_masses(
         &self,
         range: impl RangeBounds<usize> + Clone,
         aa_range: impl RangeBounds<usize>,
         index: usize,
         base: MolecularFormula,
+        apply_neutral_losses: bool,
     ) -> Vec<(MolecularFormula, String)> {
         let ambiguous_mods_masses = self.ambiguous_patterns(range.clone(), aa_range, index, base);
-        let neutral_losses = self.potential_neutral_losses(range);
-        let mut all_masses =
-            Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
-        all_masses.extend(ambiguous_mods_masses.iter().cloned());
-        for loss in &neutral_losses {
-            for option in &ambiguous_mods_masses {
-                all_masses.push((
-                    &option.0 + &loss.0,
-                    format!(
-                        "{}{}{}({})",
-                        option.1,
-                        option.1.is_empty().then_some(",").unwrap_or_default(),
-                        loss.0,
-                        loss.1.sequence_index
-                    ),
-                ));
+        if apply_neutral_losses {
+            let neutral_losses = self.potential_neutral_losses(range);
+            let mut all_masses =
+                Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
+            all_masses.extend(ambiguous_mods_masses.iter().cloned());
+            for loss in &neutral_losses {
+                for option in &ambiguous_mods_masses {
+                    all_masses.push((
+                        &option.0 + &loss.0,
+                        format!(
+                            "{}{}{}({})",
+                            option.1,
+                            option.1.is_empty().then_some(",").unwrap_or_default(),
+                            loss.0,
+                            loss.1.sequence_index
+                        ),
+                    ));
+                }
             }
+            all_masses
+        } else {
+            ambiguous_mods_masses
         }
-        all_masses
     }
 
     /// Find all neutral losses in the given stretch of peptide
