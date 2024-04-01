@@ -397,7 +397,7 @@ impl AminoAcid {
                 ions.c.1,
             ));
         }
-        if ions.d.0 && modifications.is_empty() {
+        if ions.d.0 {
             base_fragments.extend(Fragment::generate_all(
                 &if self == Self::B || self == Self::Z {
                     self.formulas()
@@ -416,7 +416,7 @@ impl AminoAcid {
                 ions.d.1,
             ));
         }
-        if ions.v.0 && modifications.is_empty() {
+        if ions.v.0 {
             base_fragments.extend(Fragment::generate_all(
                 &molecular_formula!(H 3 C 2 N 1 O 1).unwrap().into(), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
                 peptide_index,
@@ -425,7 +425,7 @@ impl AminoAcid {
                 ions.v.1,
             ));
         }
-        if ions.w.0 && modifications.is_empty() {
+        if ions.w.0 {
             base_fragments.extend(Fragment::generate_all(
                 &if self == Self::B || self == Self::Z {
                     self.formulas()
