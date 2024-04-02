@@ -10,6 +10,7 @@ mod maxquant;
 mod novor;
 mod opair;
 mod peaks;
+mod sage;
 
 use crate::*;
 pub use fasta::*;
@@ -18,6 +19,7 @@ pub use maxquant::*;
 pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
+pub use sage::*;
 
 #[cfg(test)]
 mod maxquant_tests;
@@ -27,3 +29,5 @@ mod novor_tests;
 mod opair_tests;
 #[cfg(test)]
 mod peaks_tests;
+#[cfg(test)]
+mod sage_tests;

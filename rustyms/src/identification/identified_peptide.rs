@@ -4,7 +4,7 @@ use super::fasta::FastaData;
 use super::novor::NovorData;
 use super::opair::OpairData;
 use super::peaks::PeaksData;
-use super::MaxQuantData;
+use super::{MaxQuantData, SageData};
 use crate::error::CustomError;
 use crate::system::Charge;
 use crate::LinearPeptide;
@@ -32,12 +32,14 @@ pub enum MetaData {
     Peaks(PeaksData),
     /// Novor metadata
     Novor(NovorData),
-    /// Novor metadata
+    /// OPair metadata
     Opair(OpairData),
-    /// Novor metadata
+    /// Fasta metadata
     Fasta(FastaData),
-    /// Novor metadata
+    /// MaxQuant metadata
     MaxQuant(MaxQuantData),
+    /// Sage metadata
+    Sage(SageData),
     // TODO: build Casanovo support at some point
 }
 
@@ -48,6 +50,7 @@ impl MetaData {
             Self::Peaks(PeaksData { z, .. })
             | Self::Novor(NovorData { z, .. })
             | Self::Opair(OpairData { z, .. })
+            | Self::Sage(SageData { z, .. })
             | Self::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
             Self::Fasta(_) | Self::None => None,
         }
@@ -70,7 +73,7 @@ impl MetaData {
                 Some(*scan)
             }
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
-            Self::Fasta(_) | Self::None => None,
+            Self::Fasta(_) | Self::None | Self::Sage(_) => None,
         }
     }
 }
