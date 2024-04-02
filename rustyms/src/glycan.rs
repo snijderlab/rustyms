@@ -6,7 +6,7 @@ use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
     system::Charge,
-    AminoAcid, Model, Multi,
+    AminoAcid, DiagnosticIon, Model, Multi, NeutralLoss,
 };
 
 use crate::uom::num_traits::Zero;
@@ -66,6 +66,72 @@ impl MonoSaccharide {
         }
         composition.retain(|el| el.1 != 0);
         composition
+    }
+
+    /// Generate all uncharged diagnostic ions for this monosaccharide.
+    /// According to: <https://doi.org/10.1016/j.trac.2018.09.007>.
+    fn diagnostic_ions(&self, peptide_index: usize, position: GlycanPosition) -> Vec<Fragment> {
+        let base = Fragment::new(
+            self.formula(),
+            Charge::default(),
+            peptide_index,
+            FragmentType::diagnostic(crate::fragment::AnyPosition::Glycan(position)),
+            String::new(),
+        );
+        if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
+            vec![
+                base.clone(),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap())),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 1 H 6 O 3).unwrap(),
+                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 2 H 6 O 3).unwrap(),
+                )),
+            ]
+        } else if matches!(self.base_sugar, BaseSugar::Hexose(_))
+            && self.substituents == [GlycanSubstituent::NAcetyl]
+        {
+            vec![
+                base.clone(),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap())),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 2 H 4 O 2).unwrap(),
+                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 1 H 6 O 3).unwrap(),
+                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 2 H 6 O 3).unwrap(),
+                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(
+                    molecular_formula!(C 4 H 8 O 4).unwrap(),
+                )),
+            ]
+        } else if matches!(self.base_sugar, BaseSugar::Nonose)
+            && (self.substituents
+                == [
+                    GlycanSubstituent::Amino,
+                    GlycanSubstituent::Acetyl,
+                    GlycanSubstituent::Acid,
+                ]
+                || self.substituents
+                    == [
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Glycolyl,
+                        GlycanSubstituent::Acid,
+                    ])
+        {
+            // Neu5Ac and Neu5Gc
+            vec![
+                base.clone(),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
+            ]
+        } else {
+            Vec::new()
+        }
     }
 }
 
@@ -276,9 +342,16 @@ impl PositionedGlycanStructure {
         full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
+        let single_charges = charge_carriers.all_single_charge_options();
+        let all_charges = charge_carriers.all_charge_options();
         model.glycan.as_ref().map_or(vec![], |neutral_losses| {
             // Get all base fragments from this node and all its children
-            let mut base_fragments = self.oxonium_fragments(peptide_index, attachment);
+            let mut base_fragments = self
+                .oxonium_fragments(peptide_index, attachment)
+                .into_iter()
+                .flat_map(|f| f.with_charges(&single_charges))
+                .flat_map(|f| f.with_neutral_losses(neutral_losses))
+                .collect_vec();
             // Generate all Y fragments
             base_fragments.extend(
                 self.internal_break_points(attachment)
@@ -304,16 +377,36 @@ impl PositionedGlycanStructure {
                                 String::new(),
                             )
                         })
-                    }),
+                    })
+                    .flat_map(|f| f.with_charges(&all_charges))
+                    .flat_map(|f| f.with_neutral_losses(neutral_losses)),
             );
-            // Apply all neutral losses and all charge options
-            let charge_options = charge_carriers.all_charge_options();
+            // Generate all diagnostic ions
+            base_fragments.extend(
+                self.diagnostic_ions(peptide_index, attachment)
+                    .into_iter()
+                    .flat_map(|f| f.with_charges(&single_charges)),
+            );
             base_fragments
-                .into_iter()
-                .flat_map(|f| f.with_neutral_losses(neutral_losses))
-                .flat_map(|f| charge_options.iter().map(move |c| f.with_charge(c)))
-                .collect()
         })
+    }
+
+    /// Get uncharged diagnostic ions from all positions
+    fn diagnostic_ions(
+        &self,
+        peptide_index: usize,
+        attachment: (AminoAcid, usize),
+    ) -> Vec<Fragment> {
+        let mut output = self
+            .sugar
+            .diagnostic_ions(peptide_index, self.position(attachment));
+        output.extend(
+            self.branches
+                .iter()
+                .flat_map(|b| b.diagnostic_ions(peptide_index, attachment)),
+        );
+
+        output
     }
 
     /// Generate all fragments without charge and neutral loss options
@@ -327,12 +420,7 @@ impl PositionedGlycanStructure {
             self.formula(),
             Charge::zero(),
             peptide_index,
-            FragmentType::B(GlycanPosition {
-                inner_depth: self.inner_depth,
-                series_number: self.outer_depth + 1,
-                branch: self.branch.clone(),
-                attachment,
-            }),
+            FragmentType::B(self.position(attachment)),
             String::new(),
         )];
         // Extend with all internal fragments, meaning multiple breaking bonds
@@ -348,16 +436,7 @@ impl PositionedGlycanStructure {
                 .map(|(m, b)| {
                     (
                         m,
-                        [
-                            b,
-                            vec![GlycanBreakPos::B(GlycanPosition {
-                                inner_depth: self.inner_depth,
-                                series_number: self.outer_depth + 1,
-                                branch: self.branch.clone(),
-                                attachment,
-                            })],
-                        ]
-                        .concat(),
+                        [b, vec![GlycanBreakPos::B(self.position(attachment))]].concat(),
                     )
                 })
                 .map(|(formula, breakages)| {
@@ -390,21 +469,11 @@ impl PositionedGlycanStructure {
             vec![
                 (
                     self.formula(),
-                    vec![GlycanBreakPos::End(GlycanPosition {
-                        inner_depth: self.inner_depth,
-                        series_number: self.inner_depth,
-                        branch: self.branch.clone(),
-                        attachment,
-                    })],
+                    vec![GlycanBreakPos::End(self.position(attachment))],
                 ),
                 (
                     MolecularFormula::default(),
-                    vec![GlycanBreakPos::Y(GlycanPosition {
-                        inner_depth: self.inner_depth,
-                        series_number: self.inner_depth,
-                        branch: self.branch.clone(),
-                        attachment,
-                    })],
+                    vec![GlycanBreakPos::Y(self.position(attachment))],
                 ),
             ]
         } else {
@@ -432,14 +501,18 @@ impl PositionedGlycanStructure {
                 .chain(std::iter::once((
                     // add the option of it breaking here
                     MolecularFormula::default(),
-                    vec![GlycanBreakPos::Y(GlycanPosition {
-                        inner_depth: self.inner_depth,
-                        series_number: self.inner_depth,
-                        branch: self.branch.clone(),
-                        attachment,
-                    })],
+                    vec![GlycanBreakPos::Y(self.position(attachment))],
                 )))
                 .collect()
+        }
+    }
+
+    fn position(&self, attachment: (AminoAcid, usize)) -> GlycanPosition {
+        GlycanPosition {
+            inner_depth: self.inner_depth,
+            series_number: self.outer_depth + 1,
+            branch: self.branch.clone(),
+            attachment,
         }
     }
 }

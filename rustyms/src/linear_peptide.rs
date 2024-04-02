@@ -531,7 +531,7 @@ impl LinearPeptide {
                         .aminoacid
                         .formulas()
                         .iter()
-                        .flat_map(|aa| {
+                        .map(|aa| {
                             Fragment::new(
                                 m.clone() - aa.clone() - modifications_total.clone()
                                     + molecular_formula!(C 2 H 2 N 1 O 1).unwrap(),
@@ -544,7 +544,6 @@ impl LinearPeptide {
                                 String::new(),
                             )
                             .with_charge(charge_carriers)
-                            .with_neutral_losses(&model.precursor)
                         })
                         .collect_vec()
                 }));
@@ -612,7 +611,7 @@ impl LinearPeptide {
                 Fragment {
                     formula: dia.0,
                     charge: Charge::default(),
-                    ion: FragmentType::diagnostic(pos),
+                    ion: FragmentType::diagnostic(crate::fragment::AnyPosition::Peptide(pos)),
                     peptide_index,
                     neutral_loss: None,
                     label: String::new(),
