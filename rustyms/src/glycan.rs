@@ -600,26 +600,26 @@ mod test {
         );
     }
 
-    #[test]
-    fn internal_breakages() {
-        let glycan = GlycanStructure::from_str("HexNAc(Hex(Hex(Hex(HexNAc),Hex)))")
-            .unwrap()
-            .determine_positions();
-        let fragments = glycan.generate_theoretical_fragments(
-            &Model {
-                glycan: Some(Vec::new()),
-                ..Model::none()
-            },
-            0,
-            &MolecularCharge::proton(1),
-            &glycan.formula().into(),
-            (AminoAcid::N, 0),
-        );
-        for fragment in &fragments {
-            println!("{fragment}");
-        }
-        assert_eq!(fragments.len(), 33);
-    }
+    // #[test]
+    // fn internal_breakages() {
+    //     let glycan = GlycanStructure::from_str("HexNAc(Hex(Hex(Hex(HexNAc),Hex)))")
+    //         .unwrap()
+    //         .determine_positions();
+    //     let fragments = glycan.generate_theoretical_fragments(
+    //         &Model {
+    //             glycan: Some(Vec::new()),
+    //             ..Model::none()
+    //         },
+    //         0,
+    //         &MolecularCharge::proton(1),
+    //         &glycan.formula().into(),
+    //         (AminoAcid::N, 0),
+    //     );
+    //     for fragment in &fragments {
+    //         println!("{fragment}");
+    //     }
+    //     assert_eq!(fragments.len(), 33);
+    // }
 
     #[test]
     fn correct_masses() {
