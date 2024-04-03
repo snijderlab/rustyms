@@ -75,7 +75,7 @@ impl MonoSaccharide {
             self.formula(),
             Charge::default(),
             peptide_index,
-            FragmentType::diagnostic(crate::fragment::AnyPosition::Glycan(position)),
+            FragmentType::diagnostic(crate::fragment::AnyPosition::Glycan(position, self.clone())),
             String::new(),
         );
         if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {

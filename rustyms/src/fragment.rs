@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
-    molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical, MassMode,
-    MolecularFormula, Multi, NeutralLoss,
+    glycan::MonoSaccharide, molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical,
+    MassMode, MolecularFormula, Multi, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -240,9 +240,9 @@ impl GlycanPosition {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum AnyPosition {
     /// A position on a glycan
-    Glycan(GlycanPosition),
+    Glycan(GlycanPosition, MonoSaccharide),
     /// A position on a peptide
-    Peptide(PeptidePosition),
+    Peptide(PeptidePosition, AminoAcid),
 }
 
 /// The possible types of fragments
@@ -307,7 +307,7 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n)
-            | Self::diagnostic(AnyPosition::Peptide(n))
+            | Self::diagnostic(AnyPosition::Peptide(n, _))
             | Self::immonium(_, n)
             | Self::m(_, n) => Some(n),
             _ => None,
@@ -322,7 +322,7 @@ impl FragmentType {
             | Self::C(n)
             | Self::X(n)
             | Self::Z(n)
-            | Self::diagnostic(AnyPosition::Glycan(n)) => Some(n),
+            | Self::diagnostic(AnyPosition::Glycan(n, _)) => Some(n),
             _ => None,
         }
     }
@@ -340,7 +340,7 @@ impl FragmentType {
             | Self::y(n)
             | Self::z(n)
             | Self::z·(n)
-            | Self::diagnostic(AnyPosition::Peptide(n))
+            | Self::diagnostic(AnyPosition::Peptide(n, _))
             | Self::immonium(_, n)
             | Self::m(_, n) => Some(n.series_number.to_string()),
             Self::A(n)
@@ -348,7 +348,7 @@ impl FragmentType {
             | Self::C(n)
             | Self::X(n)
             | Self::Z(n)
-            | Self::diagnostic(AnyPosition::Glycan(n)) => Some(n.label()),
+            | Self::diagnostic(AnyPosition::Glycan(n, _)) => Some(n.label()),
             Self::Y(bonds) => Some(bonds.iter().map(GlycanPosition::label).join("")),
             Self::Oxonium(breakages) => Some(
                 breakages
@@ -379,7 +379,8 @@ impl FragmentType {
             Self::X(_) => Cow::Borrowed("X"),
             Self::Y(_) => Cow::Borrowed("Y"),
             Self::Z(_) => Cow::Borrowed("Z"),
-            Self::diagnostic(_) => Cow::Borrowed("diagnostic"),
+            Self::diagnostic(AnyPosition::Peptide(_, aa)) => Cow::Owned(format!("d{}", aa.char())),
+            Self::diagnostic(AnyPosition::Glycan(_, sug)) => Cow::Owned(format!("d{sug}")),
             Self::Oxonium(_) => Cow::Borrowed("oxonium"),
             Self::immonium(aa, _) => Cow::Owned(format!("i{}", aa.char())),
             Self::m(aa, _) => Cow::Owned(format!("m{}", aa.char())),
@@ -417,10 +418,10 @@ impl Display for FragmentType {
             ),
             Self::immonium(aa, pos) => write!(f, "immonium{}{}", aa.char(), pos.series_number),
             Self::m(aa, pos) => write!(f, "m{}{}", aa.char(), pos.series_number),
-            Self::diagnostic(AnyPosition::Peptide(pos)) => {
-                write!(f, "diagnostic{}", pos.series_number)
+            Self::diagnostic(AnyPosition::Peptide(pos, aa)) => {
+                write!(f, "d{}{}", aa.char(), pos.series_number)
             }
-            Self::diagnostic(AnyPosition::Glycan(pos)) => write!(f, "diagnostic{}", pos.label()),
+            Self::diagnostic(AnyPosition::Glycan(pos, sug)) => write!(f, "d{sug}{}", pos.label()),
             Self::precursor => write!(f, "precursor"),
         }
     }

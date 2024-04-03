@@ -607,17 +607,23 @@ impl LinearPeptide {
 
         if model.modification_specific_diagnostic_ions {
             // Add all modification diagnostic ions
-            output.extend(self.diagnostic_ions().into_iter().flat_map(|(dia, pos)| {
-                Fragment {
-                    formula: dia.0,
-                    charge: Charge::default(),
-                    ion: FragmentType::diagnostic(crate::fragment::AnyPosition::Peptide(pos)),
-                    peptide_index,
-                    neutral_loss: None,
-                    label: String::new(),
-                }
-                .with_charges(&single_charges)
-            }));
+            output.extend(
+                self.diagnostic_ions()
+                    .into_iter()
+                    .flat_map(|(dia, pos, aa)| {
+                        Fragment {
+                            formula: dia.0,
+                            charge: Charge::default(),
+                            ion: FragmentType::diagnostic(crate::fragment::AnyPosition::Peptide(
+                                pos, aa,
+                            )),
+                            peptide_index,
+                            neutral_loss: None,
+                            label: String::new(),
+                        }
+                        .with_charges(&single_charges)
+                    }),
+            );
         }
 
         output
@@ -680,14 +686,18 @@ impl LinearPeptide {
     }
 
     /// Find all diagnostic ions for this full peptide
-    fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, PeptidePosition)> {
+    fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, PeptidePosition, AminoAcid)> {
         let mut diagnostic = Vec::new();
         for (pos, aa) in self.iter(..) {
             for modification in &aa.modifications {
                 if let Modification::Predefined(_, rules, _, _, _) = modification {
                     for (rules, _, rule_diagnostic) in rules {
                         if PlacementRule::any_possible(rules, aa, &pos) {
-                            diagnostic.extend(rule_diagnostic.iter().map(|d| (d.clone(), pos)));
+                            diagnostic.extend(
+                                rule_diagnostic
+                                    .iter()
+                                    .map(|d| (d.clone(), pos, aa.aminoacid)),
+                            );
                         }
                     }
                 }

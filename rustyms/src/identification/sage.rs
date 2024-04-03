@@ -28,7 +28,6 @@ format_family!(
         psm_id: usize, |location: Location| location.parse(NUMBER_ERROR);
         peptide: LinearPeptide, |location: Location| LinearPeptide::pro_forma(location.as_str());
         proteins: Vec<String>, |location: Location| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
-        num_proteins: usize, |location: Location| location.parse(NUMBER_ERROR);
         filename: String, |location: Location| Ok(location.get_string());
         scan_nr: (usize,usize,usize), |location: Location|
         location.parse_regex(
@@ -88,7 +87,6 @@ pub const VERSION_0_14: SageFormat = SageFormat {
     psm_id: "psm_id",
     peptide: "peptide",
     proteins: "proteins",
-    num_proteins: "num_proteins",
     filename: "filename",
     scan_nr: "scannr",
     rank: "rank",
