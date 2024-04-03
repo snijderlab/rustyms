@@ -6,7 +6,7 @@ use super::opair::OpairData;
 use super::peaks::PeaksData;
 use super::{MaxQuantData, SageData};
 use crate::error::CustomError;
-use crate::system::Charge;
+use crate::system::usize::Charge;
 use crate::LinearPeptide;
 
 /// A peptide that is identified by a de novo or database matching program
@@ -16,7 +16,7 @@ pub struct IdentifiedPeptide {
     pub peptide: LinearPeptide,
     /// The local confidence of this peptide (same length as the peptide)
     pub local_confidence: Option<Vec<f64>>,
-    /// The score [0-1] if available in the original format
+    /// The score -1.0..=1.0 if available in the original format
     pub score: Option<f64>,
     /// The full metadata of this peptide
     pub metadata: MetaData,
@@ -73,7 +73,8 @@ impl MetaData {
                 Some(*scan)
             }
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
-            Self::Fasta(_) | Self::None | Self::Sage(_) => None,
+            Self::Sage(SageData { scan_nr, .. }) => Some(scan_nr.2),
+            Self::Fasta(_) | Self::None => None,
         }
     }
 }

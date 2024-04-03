@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    system::{Charge, Mass, MassOverCharge, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
 use itertools::Itertools;
@@ -40,7 +40,7 @@ format_family!(
         alc: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         length: usize, |location: Location| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
+        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         area: Option<f64>, |location: Location| location.or_empty().parse(NUMBER_ERROR);

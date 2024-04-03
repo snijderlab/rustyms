@@ -6,7 +6,7 @@ use super::{
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    system::{Charge, Mass, MassOverCharge, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
@@ -24,12 +24,12 @@ format_family!(
     NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',';
     required {
         scan: usize, |location: Location| location.parse(NUMBER_ERROR);
-        mz:MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
-        mass:  Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        ppm: f64, |location: Location| location.parse(NUMBER_ERROR);
-        score: f64, |location: Location| location        .parse::<f64>(NUMBER_ERROR)        .map(|f| f / 100.0);
-        peptide:  LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
+        mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        ppm: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
+        score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         );
@@ -63,7 +63,7 @@ impl From<NovorData> for IdentifiedPeptide {
         Self {
             peptide: value.peptide.clone(),
             local_confidence: value.local_confidence.clone(),
-            score: Some(value.score),
+            score: Some(value.score.clamp(-1.0, 1.0)),
             metadata: MetaData::Novor(value),
         }
     }

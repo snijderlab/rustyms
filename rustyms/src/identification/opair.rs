@@ -6,7 +6,7 @@ use super::{
 use crate::{
     error::Context,
     error::CustomError,
-    system::{Charge, Mass, MassOverCharge, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ format_family!(
         rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         precursor_scan_number: usize, |location: Location| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
+        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         accession: String, |location: Location| Ok(location.get_string());
         organism: String, |location: Location| Ok(location.get_string());

@@ -1,7 +1,7 @@
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    system::{Charge, Mass, MassOverCharge, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ format_family!(
             location.full_line(),
             location.location.clone(),
         ));
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
+        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         fragmentation: String, |location: Location| Ok(location.get_string());
         mass_analyser: String, |location: Location| Ok(location.get_string());
         ty: String, |location: Location| Ok(location.get_string());
@@ -52,7 +52,7 @@ format_family!(
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         mass_error_da: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        mass_error_ppm: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
+        mass_error_ppm: Ratio, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         simple_mass_error_ppm: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         retention_time:Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         number_of_matches: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);

@@ -1,3 +1,5 @@
+use regex::{Captures, Regex};
+
 use crate::error::CustomError;
 use std::{ops::Range, str::FromStr};
 
@@ -163,6 +165,22 @@ impl<'a> Location<'a> {
         f: impl Fn(Self) -> Result<T, CustomError>,
     ) -> Result<T, CustomError> {
         f(self)
+    }
+
+    /// # Errors
+    /// If the Regex does not match.
+    pub fn parse_regex(
+        &'a self,
+        regex: &Regex,
+        base_error: (&str, &str),
+    ) -> Result<Captures<'a>, CustomError> {
+        regex.captures(self.as_str()).ok_or_else(|| {
+            CustomError::error(
+                base_error.0,
+                base_error.1,
+                self.line.range_context(self.location.clone()),
+            )
+        })
     }
 
     /// # Errors

@@ -1,9 +1,10 @@
 use crate::{
     error::CustomError,
-    system::{Charge, Mass, Time},
+    system::{usize::Charge, Mass, Ratio, Time},
     LinearPeptide,
 };
 use itertools::Itertools;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -17,7 +18,6 @@ static NUMBER_ERROR: (&str, &str) = (
     "This column is not a number but it is required to be a number in this Sage format",
 );
 
-// TODO: Handle scan number parsing, think about score
 format_family!(
     /// The format for any Sage file
     SageFormat,
@@ -30,23 +30,27 @@ format_family!(
         proteins: Vec<String>, |location: Location| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
         num_proteins: usize, |location: Location| location.parse(NUMBER_ERROR);
         filename: String, |location: Location| Ok(location.get_string());
-        scan_nr: String, |location: Location| Ok(location.get_string());
+        scan_nr: (usize,usize,usize), |location: Location|
+        location.parse_regex(
+            &Regex::new("controllerType=(\\d+) controllerNumber=(\\d+) scan=(\\d+)").unwrap(),
+             ("Invalid Sage line", "Scan number does not correspond to the expected pattern 'controllerType=0 controllerNumber=1 scan=17666'."))
+             .map(|groups| (groups[1].parse().unwrap(), groups[2].parse().unwrap(), groups[3].parse().unwrap()));
         rank: usize, |location: Location| location.parse(NUMBER_ERROR);
-        label: i8, |location: Location| location.parse(NUMBER_ERROR);
+        decoy: bool, |location: Location| location.parse::<i8>(NUMBER_ERROR).map(|v| v == -1);
         experimental_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         theoretical_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(|c| Charge::new::<crate::system::e>(c as f64));
+        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         missed_cleavages: usize, |location: Location| location.parse(NUMBER_ERROR);
         semi_enzymatic: bool, |location: Location| location.parse::<u8>(NUMBER_ERROR).map(|n| n != 0);
         isotope_error: f64, |location: Location| location.parse(NUMBER_ERROR);
-        precursor_ppm: f64, |location: Location| location.parse(NUMBER_ERROR);
-        fragment_ppm: f64, |location: Location| location.parse(NUMBER_ERROR);
+        precursor_ppm: Ratio, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
+        fragment_ppm: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         hyperscore: f64, |location: Location| location.parse(NUMBER_ERROR);
         delta_next: f64, |location: Location| location.parse(NUMBER_ERROR);
         delta_best: f64, |location: Location| location.parse(NUMBER_ERROR);
         rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        aligned_rt: f64, |location: Location| location.parse(NUMBER_ERROR);
-        predicted_rt: f64, |location: Location| location.parse(NUMBER_ERROR);
+        aligned_rt: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
+        predicted_rt: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         delta_rt_model: f64, |location: Location| location.parse(NUMBER_ERROR);
         ion_mobility: f64, |location: Location| location.parse(NUMBER_ERROR);
         predicted_mobility: f64, |location: Location| location.parse(NUMBER_ERROR);
@@ -54,8 +58,7 @@ format_family!(
         matched_peaks: usize, |location: Location| location.parse(NUMBER_ERROR);
         longest_b: usize, |location: Location| location.parse(NUMBER_ERROR);
         longest_y: usize, |location: Location| location.parse(NUMBER_ERROR);
-        longest_y_pct: f64, |location: Location| location.parse(NUMBER_ERROR);
-        matched_intensity_pct: f64, |location: Location| location.parse(NUMBER_ERROR);
+        matched_intensity_pct: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::percent>);
         scored_candidates: usize, |location: Location| location.parse(NUMBER_ERROR);
         poisson: f64, |location: Location| location.parse(NUMBER_ERROR);
         sage_discriminant_score: f64, |location: Location| location.parse(NUMBER_ERROR);
@@ -73,7 +76,7 @@ impl From<SageData> for IdentifiedPeptide {
         Self {
             peptide: value.peptide.clone(),
             local_confidence: None,
-            score: None,
+            score: Some(value.sage_discriminant_score.clamp(-1.0, 1.0)),
             metadata: MetaData::Sage(value),
         }
     }
@@ -89,7 +92,7 @@ pub const VERSION_0_14: SageFormat = SageFormat {
     filename: "filename",
     scan_nr: "scannr",
     rank: "rank",
-    label: "label",
+    decoy: "label",
     experimental_mass: "expmass",
     theoretical_mass: "calcmass",
     z: "charge",
@@ -111,7 +114,6 @@ pub const VERSION_0_14: SageFormat = SageFormat {
     matched_peaks: "matched_peaks",
     longest_b: "longest_b",
     longest_y: "longest_y",
-    longest_y_pct: "longest_y_pct",
     matched_intensity_pct: "matched_intensity_pct",
     scored_candidates: "scored_candidates",
     poisson: "poisson",
