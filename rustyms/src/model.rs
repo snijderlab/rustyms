@@ -3,8 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    system::{f64::MassOverCharge, mass_over_charge::mz},
-    Element, MolecularFormula, NeutralLoss,
+    fragment::PeptidePosition, system::f64::MassOverCharge, Element, MolecularFormula, NeutralLoss,
+    Tolerance,
 };
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
@@ -42,12 +42,13 @@ pub struct Model {
     /// If some search for glycan (B/Y/Internal) with the given neutral losses
     pub glycan: Option<Vec<NeutralLoss>>,
     /// The matching tolerance
-    pub ppm: MassOverCharge,
+    pub tolerance: Tolerance<MassOverCharge>,
 }
 
 /// A struct to handle all possible fragments that could be generated on a single location
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[non_exhaustive]
 pub struct PossibleIons<'a> {
     /// a series ions
     pub a: (bool, &'a [NeutralLoss]),
@@ -90,61 +91,150 @@ impl<'a> PossibleIons<'a> {
     }
 }
 
+/// Builder style methods
 impl Model {
-    /// Give all possible ions for the given position
-    pub fn ions(&self, index: usize, length: usize) -> PossibleIons {
-        PossibleIons {
-            a: (self.a.0.possible(index, length), self.a.1.as_slice()),
-            b: (self.b.0.possible(index, length), self.b.1.as_slice()),
-            c: (self.c.0.possible(index, length), self.c.1.as_slice()),
-            d: (self.d.0.possible(index, length), self.d.1.as_slice()),
-            v: (self.v.0.possible(index, length), self.v.1.as_slice()),
-            w: (self.w.0.possible(index, length), self.w.1.as_slice()),
-            x: (self.x.0.possible(index, length), self.x.1.as_slice()),
-            y: (self.y.0.possible(index, length), self.y.1.as_slice()),
-            z: (self.z.0.possible(index, length), self.z.1.as_slice()),
-            precursor: self.precursor.as_slice(),
-            immonium: self.immonium,
+    /// Set a to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn a(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            a: (location, neutral_loss),
+            ..self
         }
     }
-
-    /// Build a new model
-    #[allow(clippy::too_many_arguments, clippy::many_single_char_names)]
-    pub fn new(
-        a: (Location, Vec<NeutralLoss>),
-        b: (Location, Vec<NeutralLoss>),
-        c: (Location, Vec<NeutralLoss>),
-        d: (Location, Vec<NeutralLoss>),
-        v: (Location, Vec<NeutralLoss>),
-        w: (Location, Vec<NeutralLoss>),
-        x: (Location, Vec<NeutralLoss>),
-        y: (Location, Vec<NeutralLoss>),
-        z: (Location, Vec<NeutralLoss>),
-        precursor: Vec<NeutralLoss>,
-        immonium: bool,
-        m: bool,
-        modification_specific_diagnostic_ions: bool,
-        modification_specific_neutral_losses: bool,
-        glycan: Option<Vec<NeutralLoss>>,
-        ppm: MassOverCharge,
-    ) -> Self {
+    /// Set b to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn b(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
         Self {
-            a,
-            b,
-            c,
-            d,
-            v,
-            w,
-            x,
-            y,
-            z,
-            precursor,
-            immonium,
-            m,
-            modification_specific_neutral_losses,
-            modification_specific_diagnostic_ions,
-            glycan,
-            ppm,
+            b: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set c to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn c(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            c: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set d to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn d(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            d: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set v to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn v(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            v: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set w to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn w(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            w: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set x to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn x(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            x: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set y to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn y(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            y: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Set z to the given location and overwrite the neutral losses
+    #[must_use]
+    pub fn z(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            z: (location, neutral_loss),
+            ..self
+        }
+    }
+    /// Overwrite the precursor neutral losses
+    #[must_use]
+    pub fn precursor(self, neutral_loss: Vec<NeutralLoss>) -> Self {
+        Self {
+            precursor: neutral_loss,
+            ..self
+        }
+    }
+    /// Set immonium
+    #[must_use]
+    pub fn immonium(self, state: bool) -> Self {
+        Self {
+            immonium: state,
+            ..self
+        }
+    }
+    /// Set m
+    #[must_use]
+    pub fn m(self, state: bool) -> Self {
+        Self { m: state, ..self }
+    }
+    /// Set modification specific neutral losses
+    #[must_use]
+    pub fn modification_specific_neutral_losses(self, state: bool) -> Self {
+        Self {
+            modification_specific_neutral_losses: state,
+            ..self
+        }
+    }
+    /// Set modification specific diagnostic ions
+    #[must_use]
+    pub fn modification_specific_diagnostic_ions(self, state: bool) -> Self {
+        Self {
+            modification_specific_diagnostic_ions: state,
+            ..self
+        }
+    }
+    /// Set glycans, `None` makes no fragments, `Some(_)` makes fragments, with the given neutral losses
+    #[must_use]
+    pub fn glycan(self, neutral_losses: Option<Vec<NeutralLoss>>) -> Self {
+        Self {
+            glycan: neutral_losses,
+            ..self
+        }
+    }
+    /// Set the tolerance
+    #[must_use]
+    pub fn tolerance(self, tolerance: impl Into<Tolerance<MassOverCharge>>) -> Self {
+        Self {
+            tolerance: tolerance.into(),
+            ..self
+        }
+    }
+}
+
+impl Model {
+    /// Give all possible ions for the given position
+    pub fn ions(&self, position: PeptidePosition) -> PossibleIons {
+        PossibleIons {
+            a: (self.a.0.possible(position), self.a.1.as_slice()),
+            b: (self.b.0.possible(position), self.b.1.as_slice()),
+            c: (self.c.0.possible(position), self.c.1.as_slice()),
+            d: (self.d.0.possible(position), self.d.1.as_slice()),
+            v: (self.v.0.possible(position), self.v.1.as_slice()),
+            w: (self.w.0.possible(position), self.w.1.as_slice()),
+            x: (self.x.0.possible(position), self.x.1.as_slice()),
+            y: (self.y.0.possible(position), self.y.1.as_slice()),
+            z: (self.z.0.possible(position), self.z.1.as_slice()),
+            precursor: self.precursor.as_slice(),
+            immonium: self.immonium,
         }
     }
 
@@ -196,7 +286,7 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
             ]),
-            ppm: MassOverCharge::new::<mz>(20.0),
+            tolerance: Tolerance::new_ppm(20.0),
         }
     }
 
@@ -218,7 +308,7 @@ impl Model {
             modification_specific_neutral_losses: false,
             modification_specific_diagnostic_ions: false,
             glycan: None,
-            ppm: MassOverCharge::new::<mz>(20.0),
+            tolerance: Tolerance::new_ppm(20.0),
         }
     }
 
@@ -258,7 +348,7 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
             ]),
-            ppm: MassOverCharge::new::<mz>(20.0),
+            tolerance: Tolerance::new_ppm(20.0),
         }
     }
 
@@ -292,7 +382,7 @@ impl Model {
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: None,
-            ppm: MassOverCharge::new::<mz>(20.0),
+            tolerance: Tolerance::new_ppm(20.0),
         }
     }
 
@@ -326,7 +416,7 @@ impl Model {
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: None,
-            ppm: MassOverCharge::new::<mz>(20.0),
+            tolerance: Tolerance::new_ppm(20.0),
         }
     }
 }
@@ -358,13 +448,18 @@ pub enum Location {
 
 impl Location {
     /// Determine if an ion is possible on this location
-    pub const fn possible(&self, index: usize, length: usize) -> bool {
+    pub const fn possible(&self, position: PeptidePosition) -> bool {
         match self {
-            Self::SkipN(n) => index >= *n,
-            Self::SkipNC(n, c) => index >= *n && length - index > *c,
-            Self::TakeN { skip, take } => index >= *skip && index < *skip + *take,
-            Self::SkipC(n) => length - index > *n,
-            Self::TakeC(n) => length - index <= *n,
+            Self::SkipN(n) => position.sequence_index >= *n,
+            Self::SkipNC(n, c) => {
+                position.sequence_index >= *n
+                    && position.sequence_length - position.sequence_index > *c
+            }
+            Self::TakeN { skip, take } => {
+                position.sequence_index >= *skip && position.sequence_index < *skip + *take
+            }
+            Self::SkipC(n) => position.sequence_length - position.sequence_index > *n,
+            Self::TakeC(n) => position.sequence_length - position.sequence_index <= *n,
             Self::All => true,
             Self::None => false,
         }

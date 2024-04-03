@@ -149,13 +149,14 @@ impl Display for Fragment {
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default, Debug, Serialize, Deserialize,
 )]
+#[non_exhaustive]
 pub struct PeptidePosition {
     /// The sequence index (0 based into the peptide sequence)
     pub sequence_index: usize,
     /// The series number (1 based from the ion series terminal)
     pub series_number: usize,
     /// The length of the whole sequence
-    sequence_length: usize,
+    pub sequence_length: usize,
 }
 
 impl PeptidePosition {

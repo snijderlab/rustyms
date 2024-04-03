@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use crate::{
-    system::Mass, AminoAcid, LinearPeptide, MassComparable, MolecularFormula, Multi,
-    SequenceElement, Tolerance,
+    system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi, SequenceElement, Tolerance,
+    WithinTolerance,
 };
 
 use super::alignment::Score;
@@ -25,7 +25,7 @@ pub fn align<'a, const STEPS: u16>(
     seq_a: &'a LinearPeptide,
     seq_b: &'a LinearPeptide,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
     align_type: AlignType,
 ) -> RefAlignment<'a> {
     // Enforce some assumptions
@@ -201,7 +201,7 @@ fn score_pair(
     b: (&SequenceElement, &Multi<Mass>),
     alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     score: isize,
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
 ) -> Piece {
     match (a.0 == b.0, tolerance.within(a.1, b.1)) {
         (true, true) => {
@@ -227,7 +227,7 @@ fn score(
     a: (&[SequenceElement], &Multi<Mass>),
     b: (&[SequenceElement], &Multi<Mass>),
     score: isize,
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
 ) -> Option<Piece> {
     if tolerance.within(a.1, b.1) {
         let rotated = {

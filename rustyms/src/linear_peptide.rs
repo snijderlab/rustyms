@@ -492,7 +492,7 @@ impl LinearPeptide {
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for index in 0..self.sequence.len() {
-            // TODO: Apply neutral losses and allow control in model
+            let position = PeptidePosition::n(index, self.len());
             let n_term = self.all_masses(
                 ..=index,
                 ..index,
@@ -520,7 +520,7 @@ impl LinearPeptide {
                 charge_carriers,
                 index,
                 self.sequence.len(),
-                &model.ions(index, self.sequence.len()),
+                &model.ions(position),
                 peptide_index,
             ));
 
@@ -537,10 +537,7 @@ impl LinearPeptide {
                                     + molecular_formula!(C 2 H 2 N 1 O 1).unwrap(),
                                 Charge::zero(),
                                 peptide_index,
-                                FragmentType::m(
-                                    self.sequence[index].aminoacid,
-                                    PeptidePosition::n(index, self.len()),
-                                ),
+                                FragmentType::m(self.sequence[index].aminoacid, position),
                                 String::new(),
                             )
                             .with_charge(charge_carriers)

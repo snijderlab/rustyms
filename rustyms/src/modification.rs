@@ -14,8 +14,8 @@ use crate::{
     helper_functions::*,
     placement_rule::PlacementRule,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, DiagnosticIon, Element, MassComparable, MolecularFormula, NeutralLoss,
-    SequenceElement, Tolerance,
+    AminoAcid, Chemical, DiagnosticIon, Element, MolecularFormula, NeutralLoss, SequenceElement,
+    Tolerance, WithinTolerance,
 };
 
 include!("shared/modification.rs");
@@ -178,7 +178,7 @@ impl Modification {
     /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
     /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
     /// that composition. Otherwise it returns the modification itself.
-    pub fn search(modification: &Self, tolerance: Tolerance) -> ModificationSearchResult {
+    pub fn search(modification: &Self, tolerance: Tolerance<Mass>) -> ModificationSearchResult {
         match modification {
             Self::Mass(mass) => ModificationSearchResult::Mass(
                 mass.into_inner(),
@@ -232,7 +232,7 @@ pub enum ModificationSearchResult {
     /// All modifications with the same mass, within the tolerance
     Mass(
         Mass,
-        Tolerance,
+        Tolerance<Mass>,
         Vec<(Ontology, usize, String, Modification)>,
     ),
     /// All modifications with the same formula

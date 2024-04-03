@@ -1,6 +1,7 @@
 use crate::align::*;
 use crate::imgt::*;
 use crate::itertools_extension::ItertoolsExt;
+use crate::system::Mass;
 use crate::*;
 use std::collections::HashSet;
 
@@ -16,7 +17,7 @@ pub fn consecutive_align<const STEPS: u16>(
     species: Option<HashSet<Species>>,
     chains: Option<HashSet<ChainType>>,
     allele: AlleleSelection,
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
 ) -> Vec<Vec<(Allele<'static>, OwnedAlignment)>> {
@@ -70,7 +71,7 @@ pub fn par_consecutive_align<const STEPS: u16>(
     species: Option<HashSet<Species>>,
     chains: Option<HashSet<ChainType>>,
     allele: AlleleSelection,
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
 ) -> Vec<Vec<(Allele<'static>, OwnedAlignment)>> {

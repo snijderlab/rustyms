@@ -11,7 +11,7 @@ use crate::{
     fragment::Fragment,
     itertools_extension::ItertoolsExt,
     system::{f64::*, mass_over_charge::mz},
-    ComplexPeptide, Model,
+    ComplexPeptide, Model, WithinTolerance,
 };
 
 /// The mode of mass to use
@@ -221,7 +221,10 @@ impl RawSpectrum {
                 }
             }
 
-            if closest.1 < model.ppm.value {
+            if model
+                .tolerance
+                .within(&self.spectrum[closest.0].mz, &fragment.mz(mode))
+            {
                 annotated.spectrum[closest.0]
                     .annotation
                     .push(fragment.clone());
@@ -505,7 +508,11 @@ impl AnnotatedSpectrum {
                     }
                 }
 
-                if closest.1 < model.ppm.value && !peak_annotated[closest.0] {
+                if model
+                    .tolerance
+                    .within(&self.spectrum[closest.0].experimental_mz, mass)
+                    && !peak_annotated[closest.0]
+                {
                     annotated += 1;
                     peak_annotated[closest.0] = true;
                 }

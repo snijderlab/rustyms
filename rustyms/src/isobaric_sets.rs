@@ -6,7 +6,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::Modification,
     placement_rule::{PlacementRule, Position},
-    system::{fraction, Mass, Ratio},
+    system::{fraction, Mass, OrderedMass, Ratio},
     AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
 };
 
@@ -209,7 +209,7 @@ pub fn building_blocks(
 /// base selection is already in the tolerance of the given mass.
 pub fn find_isobaric_sets(
     mass: Mass,
-    tolerance: Tolerance,
+    tolerance: Tolerance<Mass>,
     amino_acids: &[AminoAcid],
     fixed: &[(Modification, Option<PlacementRule>)],
     variable: &[(Modification, Option<PlacementRule>)],
