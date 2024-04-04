@@ -576,7 +576,6 @@ impl AnnotatedSpectrum {
             })
             .chain(
                 [
-                    FragmentKind::B,
                     FragmentKind::Y,
                     FragmentKind::Oxonium,
                     FragmentKind::immonium,
