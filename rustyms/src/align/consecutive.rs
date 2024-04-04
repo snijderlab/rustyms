@@ -10,6 +10,8 @@ use itertools::Itertools;
 /// Only available with if features `align` and `imgt` are turned on.
 /// Align one sequence to multiple consecutive genes. Each gene can be controlled to be global to the left or free to allow unmatched residues between it and the previous gene.
 /// If the sequence is too short to cover all genes only the genes that could be matched are returned.
+/// # Panics
+/// If there are not two or more genes listed.
 #[cfg(feature = "imgt")]
 pub fn consecutive_align<const STEPS: u16>(
     sequence: &LinearPeptide,
@@ -64,6 +66,8 @@ pub fn consecutive_align<const STEPS: u16>(
 /// Only available with if features `align`, `rayon`, and `imgt` are turned on.
 /// Align one sequence to multiple consecutive genes. Each gene can be controlled to be global to the left or free to allow unmatched residues between it and the previous gene.
 /// If the sequence is too short to cover all genes only the genes that could be matched are returned.
+/// # Panics
+/// If there are not two or more genes listed.
 #[cfg(all(feature = "rayon", feature = "imgt"))]
 pub fn par_consecutive_align<const STEPS: u16>(
     sequence: &LinearPeptide,

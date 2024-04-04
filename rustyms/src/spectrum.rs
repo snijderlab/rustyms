@@ -8,10 +8,12 @@ use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
-    fragment::Fragment,
+    fragment::{Fragment, FragmentKind},
+    fragmentation::Fragments,
     itertools_extension::ItertoolsExt,
+    spectrum,
     system::{f64::*, mass_over_charge::mz},
-    ComplexPeptide, Model, WithinTolerance,
+    ComplexPeptide, LinearPeptide, Model, WithinTolerance,
 };
 
 /// The mode of mass to use
@@ -424,51 +426,233 @@ impl PeakSpectrum for AnnotatedSpectrum {
 }
 
 impl AnnotatedSpectrum {
-    /// Get the spectrum scores for this annotated spectrum
-    pub fn scores(&self, fragments: &[Fragment]) -> Vec<Scores> {
-        let mut results = Vec::new();
-        let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
-        for (peptide_index, peptide) in self.peptide.peptides().iter().enumerate() {
-            let (num_annotated, intensity_annotated) = self
-                .spectrum
+    /// Get the spectrum scores for this annotated spectrum.
+    /// The returned tuple has the scores for all peptides combined as first item
+    /// and as second item a vector with for each peptide its individual scores.
+    pub fn scores(&self, fragments: &[Fragment]) -> (Scores, Vec<Scores>) {
+        fn base(
+            spectrum: &[AnnotatedPeak],
+            fragments: &[Fragment],
+            peptide_index: Option<usize>,
+            ion: Option<FragmentKind>,
+        ) -> (Recovered<u32>, Recovered<u32>, f64) {
+            let (peaks_annotated, fragments_found, intensity_annotated) = spectrum
                 .iter()
-                .filter(|p| {
-                    p.annotation
+                .filter_map(|p| {
+                    let number = p
+                        .annotation
                         .iter()
-                        .any(|a| a.peptide_index == peptide_index)
+                        .filter(|a| {
+                            peptide_index.map_or(true, |i| a.peptide_index == i)
+                                && ion.map_or(true, |kind| a.ion.kind() == kind)
+                        })
+                        .count() as u32;
+                    if number == 0 {
+                        None
+                    } else {
+                        Some((number, *p.intensity))
+                    }
                 })
-                .fold((0, 0.0), |(n, intensity), p| {
-                    (n + 1, intensity + *p.intensity)
+                .fold((0u32, 0u32, 0.0), |(n, f, intensity), p| {
+                    (n + 1, f + p.0, intensity + p.1)
                 });
             let total_fragments = fragments
                 .iter()
-                .filter(|f| f.peptide_index == peptide_index)
-                .count();
-            let fragments_found = f64::from(num_annotated) / total_fragments as f64;
-            let peaks_annotated = f64::from(num_annotated) / self.spectrum.len() as f64;
-            let intensity_annotated = intensity_annotated / total_intensity;
-            let positions_covered = self
-                .spectrum
+                .filter(|f| {
+                    peptide_index.map_or(true, |i| f.peptide_index == i)
+                        && ion.map_or(true, |kind| f.ion.kind() == kind)
+                })
+                .count() as u32;
+            (
+                Recovered::new(fragments_found, total_fragments),
+                Recovered::new(peaks_annotated, spectrum.len() as u32),
+                intensity_annotated,
+            )
+        }
+        fn positions(
+            spectrum: &[AnnotatedPeak],
+            peptide_index: usize,
+            ion: Option<FragmentKind>,
+        ) -> u32 {
+            spectrum
                 .iter()
                 .flat_map(|p| {
                     p.annotation
                         .iter()
-                        .filter(|a| a.peptide_index == peptide_index)
+                        .filter(|a| {
+                            a.peptide_index == peptide_index
+                                && ion.map_or(true, |kind| a.ion.kind() == kind)
+                        })
                         .filter_map(|a| a.ion.position())
                 })
                 .map(|pos| pos.sequence_index)
                 .unique()
-                .count() as f64
-                / peptide.len() as f64;
-            results.push(Scores {
-                peptide_index,
-                fragments_found,
-                peaks_annotated,
-                intensity_annotated,
-                positions_covered,
+                .count() as u32
+        }
+        fn unique_formulas(
+            spectrum: &[AnnotatedPeak],
+            fragments: &[Fragment],
+            peptide_index: Option<usize>,
+            ion: Option<FragmentKind>,
+        ) -> Recovered<u32> {
+            let num_annotated = spectrum
+                .iter()
+                .flat_map(|p| {
+                    p.annotation.iter().filter(|a| {
+                        peptide_index.map_or(true, |i| a.peptide_index == i)
+                            && ion.map_or(true, |kind| a.ion.kind() == kind)
+                    })
+                })
+                .map(|f| f.formula.clone())
+                .unique()
+                .count() as u32;
+            let total_fragments = fragments
+                .iter()
+                .filter(|f| {
+                    peptide_index.map_or(true, |i| f.peptide_index == i)
+                        && ion.map_or(true, |kind| f.ion.kind() == kind)
+                })
+                .map(|f| f.formula.clone())
+                .unique()
+                .count() as u32;
+            Recovered::new(num_annotated, total_fragments)
+        }
+        /// Get the scores for the individual ion series
+        fn individual_ions(
+            spectrum: &[AnnotatedPeak],
+            fragments: &[Fragment],
+            peptide: Option<(usize, &LinearPeptide)>,
+            total_intensity: f64,
+        ) -> Vec<(FragmentKind, Score)> {
+            [
+                FragmentKind::a,
+                FragmentKind::b,
+                FragmentKind::c,
+                FragmentKind::d,
+                FragmentKind::v,
+                FragmentKind::w,
+                FragmentKind::x,
+                FragmentKind::y,
+                FragmentKind::z,
+            ]
+            .iter()
+            .copied()
+            .filter_map(|ion| {
+                let (recovered_fragments, peaks, intensity_annotated) = base(
+                    spectrum,
+                    fragments,
+                    peptide.as_ref().map(|p| p.0),
+                    Some(ion),
+                );
+                if let Some((index, peptide)) = peptide {
+                    if recovered_fragments.total > 0 {
+                        let positions = positions(spectrum, index, Some(ion));
+                        Some((
+                            ion,
+                            Score::Position {
+                                fragments: recovered_fragments,
+                                peaks,
+                                intensity: Recovered::new(intensity_annotated, total_intensity),
+                                positions: Recovered::new(positions, peptide.len() as u32),
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                } else if recovered_fragments.total > 0 {
+                    let unique_formulas = unique_formulas(spectrum, fragments, None, Some(ion));
+                    Some((
+                        ion,
+                        Score::UniqueFormulas {
+                            fragments: recovered_fragments,
+                            peaks,
+                            intensity: Recovered::new(intensity_annotated, total_intensity),
+                            unique_formulas,
+                        },
+                    ))
+                } else {
+                    None
+                }
+            })
+            .chain(
+                [
+                    FragmentKind::B,
+                    FragmentKind::Y,
+                    FragmentKind::Oxonium,
+                    FragmentKind::immonium,
+                    FragmentKind::m,
+                    FragmentKind::diagnostic,
+                    FragmentKind::precursor,
+                ]
+                .iter()
+                .copied()
+                .filter_map(|ion| {
+                    let (recovered_fragments, peaks, intensity_annotated) = base(
+                        spectrum,
+                        fragments,
+                        peptide.as_ref().map(|p| p.0),
+                        Some(ion),
+                    );
+                    if recovered_fragments.total > 0 {
+                        let unique_formulas = unique_formulas(
+                            spectrum,
+                            fragments,
+                            peptide.as_ref().map(|p| p.0),
+                            Some(ion),
+                        );
+                        Some((
+                            ion,
+                            Score::UniqueFormulas {
+                                fragments: recovered_fragments,
+                                peaks,
+                                intensity: Recovered::new(intensity_annotated, total_intensity),
+                                unique_formulas,
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                }),
+            )
+            .collect()
+        }
+        let mut individual_peptides = Vec::new();
+        let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
+        for (peptide_index, peptide) in self.peptide.peptides().iter().enumerate() {
+            let (recovered_fragments, peaks, intensity_annotated) =
+                base(&self.spectrum, fragments, Some(peptide_index), None);
+            let positions = positions(&self.spectrum, peptide_index, None);
+            individual_peptides.push(Scores {
+                score: Score::Position {
+                    fragments: recovered_fragments,
+                    peaks,
+                    intensity: Recovered::new(intensity_annotated, total_intensity),
+                    positions: Recovered::new(positions, peptide.len() as u32),
+                },
+                ions: individual_ions(
+                    &self.spectrum,
+                    fragments,
+                    Some((peptide_index, peptide)),
+                    total_intensity,
+                ),
             });
         }
-        results
+        // Get the statistics for the combined peptides
+        let (recovered_fragments, peaks, intensity_annotated) =
+            base(&self.spectrum, fragments, None, None);
+        let unique_formulas = unique_formulas(&self.spectrum, fragments, None, None);
+        (
+            Scores {
+                score: Score::UniqueFormulas {
+                    fragments: recovered_fragments,
+                    peaks,
+                    intensity: Recovered::new(intensity_annotated, total_intensity),
+                    unique_formulas,
+                },
+                ions: individual_ions(&self.spectrum, fragments, None, total_intensity),
+            },
+            individual_peptides,
+        )
     }
 
     /// Get a false discovery rate estimation for this annotation. See the [`Fdr`] struct for all statistics that can be retrieved.
@@ -540,19 +724,69 @@ impl AnnotatedSpectrum {
     }
 }
 
-/// The scores for a single peptide in an annotated spectrum
+/// The scores for an annotated spectrum
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Scores {
-    /// The peptide index
-    pub peptide_index: usize,
-    /// The fraction of the total fragments that could be annotated
-    pub fragments_found: f64,
-    /// The fraction of the total peaks that could be annotated
-    pub peaks_annotated: f64,
-    /// The fraction of the total intensity that could be annotated
-    pub intensity_annotated: f64,
-    /// The fraction of the total positions that has at least one fragment found
-    pub positions_covered: f64,
+    /// The scores, based on unique formulas for all peptides combined or based on positions for single peptides.
+    pub score: Score,
+    /// The scores per [`FragmentKind`], based on unique formulas for all peptides combined or any fragment kind that is not an ion series, or based on positions in the other case.
+    pub ions: Vec<(FragmentKind, Score)>,
+}
+
+/// The scores for a single fragment series for a single peptide in an annotated spectrum
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum Score {
+    Position {
+        /// The fraction of the total fragments that could be annotated
+        fragments: Recovered<u32>,
+        /// The fraction of the total peaks that could be annotated
+        peaks: Recovered<u32>,
+        /// The fraction of the total intensity that could be annotated
+        intensity: Recovered<f64>,
+        /// The fraction of the total positions that has at least one fragment found
+        positions: Recovered<u32>,
+    },
+    UniqueFormulas {
+        /// The fraction of the total fragments that could be annotated
+        fragments: Recovered<u32>,
+        /// The fraction of the total peaks that could be annotated
+        peaks: Recovered<u32>,
+        /// The fraction of the total intensity that could be annotated
+        intensity: Recovered<f64>,
+        /// The fraction of with unique formulas that has been found
+        unique_formulas: Recovered<u32>,
+    },
+}
+/// A single statistic that has a total number and a subset of that found
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Recovered<T> {
+    /// The number actually found
+    pub found: T,
+    /// The total number
+    pub total: T,
+}
+
+impl<T> Recovered<T> {
+    /// Create a new recovered statistic
+    fn new(found: impl Into<T>, total: impl Into<T>) -> Self {
+        Self {
+            found: found.into(),
+            total: total.into(),
+        }
+    }
+}
+
+impl<T> Recovered<T>
+where
+    f64: From<T>,
+    T: Copy,
+{
+    /// Get the recovered amount as fraction
+    pub fn fraction(&self) -> f64 {
+        f64::from(self.found) / f64::from(self.total)
+    }
 }
 
 /// A false discovery rate for an annotation to a spectrum

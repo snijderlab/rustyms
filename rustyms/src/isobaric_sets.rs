@@ -6,7 +6,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::Modification,
     placement_rule::{PlacementRule, Position},
-    system::{fraction, Mass, OrderedMass, Ratio},
+    system::{fraction, Mass, Ratio},
     AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
 };
 

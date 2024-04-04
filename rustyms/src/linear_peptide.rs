@@ -537,7 +537,7 @@ impl LinearPeptide {
                                     + molecular_formula!(C 2 H 2 N 1 O 1).unwrap(),
                                 Charge::zero(),
                                 peptide_index,
-                                FragmentType::m(self.sequence[index].aminoacid, position),
+                                FragmentType::m(position, self.sequence[index].aminoacid),
                                 String::new(),
                             )
                             .with_charge(charge_carriers)

@@ -492,7 +492,7 @@ impl AminoAcid {
             let options = Fragment::generate_all(
                 &(self.formulas() + (modifications - molecular_formula!(C 1 O 1).unwrap())),
                 peptide_index,
-                &FragmentType::immonium(self, PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::immonium(PeptidePosition::n(sequence_index, sequence_length), self),
                 &[(MolecularFormula::default(), String::new())],
                 self.immonium_losses().as_slice(),
             );

@@ -6,7 +6,7 @@ use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
     system::Charge,
-    AminoAcid, DiagnosticIon, Model, Multi, NeutralLoss,
+    AminoAcid, Model, Multi, NeutralLoss,
 };
 
 use crate::uom::num_traits::Zero;

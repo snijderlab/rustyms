@@ -10,6 +10,7 @@ use crate::{
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Model {
     /// a series ions
     pub a: (Location, Vec<NeutralLoss>),
