@@ -736,6 +736,7 @@ pub struct Scores {
 /// The scores for a single fragment series for a single peptide in an annotated spectrum
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Score {
+    /// A score for a something that has peptide position coverage
     Position {
         /// The fraction of the total fragments that could be annotated
         fragments: Recovered<u32>,
@@ -746,6 +747,7 @@ pub enum Score {
         /// The fraction of the total positions that has at least one fragment found
         positions: Recovered<u32>,
     },
+    /// A score for something that does not have position coverage, but instead is scored on the number of unique formulas
     UniqueFormulas {
         /// The fraction of the total fragments that could be annotated
         fragments: Recovered<u32>,

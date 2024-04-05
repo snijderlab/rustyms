@@ -470,6 +470,32 @@ pub enum FragmentKind {
     precursor,
 }
 
+impl Display for FragmentKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::a => "a",
+                Self::b => "b",
+                Self::c => "c",
+                Self::d => "d",
+                Self::x => "x",
+                Self::y => "y",
+                Self::v => "v",
+                Self::w => "w",
+                Self::z => "z",
+                Self::Y => "Y",
+                Self::Oxonium => "oxonium",
+                Self::immonium => "immonium",
+                Self::m => "m",
+                Self::diagnostic => "diagnostic",
+                Self::precursor => "precursor",
+            }
+        )
+    }
+}
+
 /// All positions where a glycan can break
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum GlycanBreakPos {
