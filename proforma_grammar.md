@@ -47,6 +47,7 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
   - A: `<GLOBAL_MOD>[UNKNOWN_POS]?{LABILE_MOD}[N_TERM]-PEPTIDE-[C_TERM]` https://github.com/HUPO-PSI/ProForma/issues/3#issuecomment-906448694
 - what defines valid ionic species for ion charge?
 - for ionic charge/adduct ions, is there a way to specify higher charged ionic species? (Ca+2 or Ca2+?)
+- separation of multiple linear peptides happens with `+` (chimeric) `//` (xl) and `\\` (branch)
 
 ## Levels of support
 
@@ -113,15 +114,8 @@ Here is a full grammar of the pro forma syntax. `\` is used to escape characters
 - [x] Handle isotopes of elements, amongst others for the missing mods of PSI-MOD and global modifications
 - [x] Better error data, allowing the construction of rust-like error messages
 - [x] Modification specific neutral losses, phospho: fully deleted
-- [ ] Modification diagnostic peaks
+- [x] Modification diagnostic peaks
 - [ ] 4.2.4 Branched peptides, similar to cross linking
-- [ ] Match isotope patterns in fragmentation matching
-- [ ] Custom modifications defined using a CV grammar but loaded at runtime
-
-## Bugs
-
-- [x] Allow isotope definition in formulas
-- [ ] Allow for non-named localised ambiguous modifications, using mass or formulas `A[Formula:H-1#g1]AA[#g1]`
 
 ## Sources for the downloaded files
 
