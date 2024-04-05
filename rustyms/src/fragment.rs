@@ -3,7 +3,6 @@
 use std::{
     borrow::Cow,
     fmt::{Debug, Display},
-    ops::RangeInclusive,
 };
 
 use itertools::Itertools;

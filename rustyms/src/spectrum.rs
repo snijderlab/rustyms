@@ -9,9 +9,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     fragment::{Fragment, FragmentKind},
-    fragmentation::Fragments,
     itertools_extension::ItertoolsExt,
-    spectrum,
     system::{f64::*, mass_over_charge::mz},
     ComplexPeptide, LinearPeptide, Model, WithinTolerance,
 };

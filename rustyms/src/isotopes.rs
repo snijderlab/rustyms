@@ -9,6 +9,7 @@ impl MolecularFormula {
     /// All elements are considered. The return is an array with the probability per offset.
     /// The first element of the array is the base peak, every consecutive peak is 1 dalton heavier.
     /// The probability os normalized to (approximately) 1 total area.
+    #[allow(clippy::missing_panics_doc)]
     pub fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
         let mut result = arr1(&[1.0]);
         for (element, isotope, amount) in self.elements() {
@@ -131,21 +132,4 @@ fn memoized_f64_factorial(num: u16, cache: &mut HashMap<u16, f64>) -> f64 {
 
 fn stupid_f64_factorial(num: u16) -> f64 {
     (2..=num).fold(1.0, |acc, i| acc * f64::from(i))
-}
-
-#[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
-mod tests {
-    use super::*;
-    use crate::Element;
-
-    #[test]
-    fn distribution() {
-        let formula = molecular_formula!(H 10 C 10 O 10).unwrap();
-        dbg!(
-            formula.monoisotopic_mass(),
-            formula.isotopic_distribution(0.0001)
-        );
-        panic!();
-    }
 }
