@@ -9,7 +9,7 @@ impl MolecularFormula {
     /// All elements are considered. The return is an array with the probability per offset.
     /// The first element of the array is the base peak, every consecutive peak is 1 dalton heavier.
     /// The probability os normalized to (approximately) 1 total area.
-    fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
+    pub fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
         let mut result = arr1(&[1.0]);
         for (element, isotope, amount) in self.elements() {
             if isotope.is_some() || *amount <= 0 {
@@ -137,6 +137,7 @@ fn stupid_f64_factorial(num: u16) -> f64 {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
+    use crate::Element;
 
     #[test]
     fn distribution() {
@@ -147,174 +148,4 @@ mod tests {
         );
         panic!();
     }
-
-    //#[test]
-    // fn simple_isotope_pattern() {
-    //     // EVQLVESGGGLVQPGG start 16 AA of herceptin
-    //     let peptide = MolecularFormula::new(&[
-    //         (Element::H, None, 108),
-    //         (Element::C, None, 65),
-    //         (Element::N, None, 18),
-    //         (Element::O, None, 24),
-    //     ])
-    //     .unwrap();
-    //     let isotopes = peptide.isotopic_distribution(1e-6, true, true, true, true);
-    //     save_combinations(
-    //         &combined_pattern(&isotopes),
-    //         "target/peptide_combined_all.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, true, false, false, false)),
-    //         "target/peptide_combined_only_H.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, true, false, false)),
-    //         "target/peptide_combined_only_C.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, true, false)),
-    //         "target/peptide_combined_only_N.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&peptide.isotopic_distribution(1e-5, false, false, false, true)),
-    //         "target/peptide_combined_only_O.tsv",
-    //     );
-    //     println!(
-    //         "MonoIsotopic mass: {} average mass: {}",
-    //         peptide.monoisotopic_mass().value,
-    //         peptide.average_weight().value
-    //     );
-    // }
-
-    // //#[test]
-    // fn sars_cov_2_spike_isotope_pattern() {
-    //     // MFVFLVLLPLVSSQCVNLTTRTQLPPAYTNSFTRGVYYPDKVFRSSVLHSTQDLFLPFFSNVTWFHAIHVSGTNGTKRFDNPVLPFNDGVYFASTEKSNIIRGWIFGTTLDSKTQSLLIVNNATNVVIKVCEFQFCNDPFLGVYYHKNNKSWMESEFRVYSSANNCTFEYVSQPFLMDLEGKQGNFKNLREFVFKNIDGYFKIYSKHTPINLVRDLPQGFSALEPLVDLPIGINITRFQTLLALHRSYLTPGDSSSGWTAGAAAYYVGYLQPRTFLLKYNENGTITDAVDCALDPLSETKCTLKSFTVEKGIYQTSNFRVQPTESIVRFPNITNLCPFGEVFNATRFASVYAWNRKRISNCVADYSVLYNSASFSTFKCYGVSPTKLNDLCFTNVYADSFVIRGDEVRQIAPGQTGKIADYNYKLPDDFTGCVIAWNSNNLDSKVGGNYNYLYRLFRKSNLKPFERDISTEIYQAGSTPCNGVEGFNCYFPLQSYGFQPTNGVGYQPYRVVVLSFELLHAPATVCGPKKSTNLVKNKCVNFNFNGLTGTGVLTESNKKFLPFQQFGRDIADTTDAVRDPQTLEILDITPCSFGGVSVITPGTNTSNQVAVLYQDVNCTEVPVAIHADQLTPTWRVYSTGSNVFQTRAGCLIGAEHVNNSYECDIPIGAGICASYQTQTNSPRRARSVASQSIIAYTMSLGAENSVAYSNNSIAIPTNFTISVTTEILPVSMTKTSVDCTMYICGDSTECSNLLLQYGSFCTQLNRALTGIAVEQDKNTQEVFAQVKQIYKTPPIKDFGGFNFSQILPDPSKPSKRSFIEDLLFNKVTLADAGFIKQYGDCLGDIAARDLICAQKFNGLTVLPPLLTDEMIAQYTSALLAGTITSGWTFGAGAALQIPFAMQMAYRFNGIGVTQNVLYENQKLIANQFNSAIGKIQDSLSSTASALGKLQDVVNQNAQALNTLVKQLSSNFGAISSVLNDILSRLDKVEAEVQIDRLITGRLQSLQTYVTQQLIRAAEIRASANLAATKMSECVLGQSKRVDFCGKGYHLMSFPQSAPHGVVFLHVTYVPAQEKNFTTAPAICHDGKAHFPREGVFVSNGTHWFVTQRNFYEPQIITTDNTFVSGNCDVVIGIVNNTVYDPLQPELDSFKEELDKYFKNHTSPDVDLGDISGINASVVNIQKEIDRLNEVAKNLNESLIDLQELGKYEQYIKWPWYIWLGFIAGLIAIVMVTIMLCCMTSCCSCLKGCCSCGSCCKFDEDDSEPVLKGVKLHYT
-    //     let spike = MolecularFormula::new(&[
-    //         (Element::H, None, 9770),
-    //         (Element::C, None, 6336),
-    //         (Element::N, None, 1656),
-    //         (Element::O, None, 1894),
-    //         (Element::S, None, 54),
-    //     ])
-    //     .unwrap();
-    //     let isotopes = spike.isotopic_distribution(1e-5, true, true, true, true);
-    //     let file_handler = File::create("target/spike_isotopes.tsv").unwrap();
-    //     let mut writer = BufWriter::new(file_handler);
-    //     writeln!(writer, "Name\tMass\tProbability").unwrap();
-    //     for isotope in &isotopes {
-    //         writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
-    //     }
-    //     let combined = combined_pattern(&isotopes);
-    //     save_combinations(&combined, "target/spike_combined_all.tsv");
-    //     save_combinations(
-    //         &combined_pattern(&spike.isotopic_distribution(1e-5, true, false, false, false)),
-    //         "target/spike_combined_only_H.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, true, false, false)),
-    //         "target/spike_combined_only_C.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, true, false)),
-    //         "target/spike_combined_only_N.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&spike.isotopic_distribution(1e-5, false, false, false, true)),
-    //         "target/spike_combined_only_O.tsv",
-    //     );
-    //     println!(
-    //         "MonoIsotopic mass: {} average mass: {}",
-    //         spike.monoisotopic_mass().value,
-    //         spike.average_weight().value
-    //     );
-    // }
-
-    // fn save_combinations(data: &[(Mass, f64, usize, String)], name: &str) {
-    //     let file_handler = File::create(name).unwrap();
-    //     let mut writer = BufWriter::new(file_handler);
-    //     writeln!(writer, "Name\tMass\tProbability\tTotalIsotopes").unwrap();
-    //     for isotope in data {
-    //         writeln!(
-    //             writer,
-    //             "{}\t{}\t{}\t{}",
-    //             isotope.3, isotope.0.value, isotope.1, isotope.2
-    //         )
-    //         .unwrap();
-    //     }
-    // }
-
-    // //#[test]
-    // fn herceptin_v_heavy_isotope_pattern() {
-    //     // EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTK
-    //     let herceptin = MolecularFormula::new(&[
-    //         (Element::H, None, 915),
-    //         (Element::C, None, 602),
-    //         (Element::N, None, 165),
-    //         (Element::O, None, 185),
-    //         (Element::S, None, 4),
-    //     ])
-    //     .unwrap();
-    //     let isotopes = herceptin.isotopic_distribution(1e-5, true, true, true, true);
-    //     let file_handler = File::create("target/herceptin_isotopes.tsv").unwrap();
-    //     let mut writer = BufWriter::new(file_handler);
-    //     writeln!(writer, "Name\tMass\tProbability").unwrap();
-    //     for isotope in &isotopes {
-    //         writeln!(writer, "{}\t{}\t{}", isotope.2, isotope.0, isotope.1).unwrap();
-    //     }
-    //     let combined = combined_pattern(&isotopes);
-    //     save_combinations(&combined, "target/herceptin_combined_all.tsv");
-    //     save_combinations(
-    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, true, false, false, false)),
-    //         "target/herceptin_combined_only_H.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, true, false, false)),
-    //         "target/herceptin_combined_only_C.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, true, false)),
-    //         "target/herceptin_combined_only_N.tsv",
-    //     );
-    //     save_combinations(
-    //         &combined_pattern(&herceptin.isotopic_distribution(1e-5, false, false, false, true)),
-    //         "target/herceptin_combined_only_O.tsv",
-    //     );
-    //     println!(
-    //         "MonoIsotopic mass: {} average mass: {}",
-    //         herceptin.monoisotopic_mass().value,
-    //         herceptin.average_weight().value
-    //     );
-    // }
-
-    // #[test]
-    // fn isotope_masses() {
-    //     use itertools::Itertools;
-    //     fn show(element: Element) {
-    //         let isotopes = element
-    //             .isotopes()
-    //             .iter()
-    //             .filter(|i| i.2 != 0.0)
-    //             .collect_vec();
-    //         if isotopes.len() < 2 {
-    //             return;
-    //         }
-    //         print!("{element}\t");
-    //         let first = isotopes[0].1.value;
-    //         let base = isotopes[0].0;
-    //         for (isotope, mass, fraction) in isotopes {
-    //             print!(
-    //                 "{}\t{}\t{}\t{}\t",
-    //                 isotope,
-    //                 mass.value,
-    //                 (1.0 - (mass.value - first) / (isotope - base) as f64).abs(),
-    //                 fraction,
-    //             );
-    //         }
-    //         println!();
-    //     }
-    //     for element in (Element::H as usize)..=(Element::Og as usize) {
-    //         show(Element::try_from(element).unwrap());
-    //     }
-    //     panic!()
-    // }
 }

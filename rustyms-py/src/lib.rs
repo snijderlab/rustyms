@@ -13,6 +13,7 @@ use rustyms::{Chemical, MultiChemical};
 enum MassMode {
     Monoisotopic,
     Average,
+    MostAbundant,
 }
 
 /// Element.
@@ -262,6 +263,18 @@ impl MolecularFormula {
         self.0.average_weight().value
     }
 
+    /// The most abundant mass. This is the isotopic species with the highest abundance when the whole isotope
+    /// distribution is generated. Because this uses an averagine model it is not very precise in its mass.
+    /// Because it has to generate the full isotope distribution this takes more time then other mass modes.
+    ///
+    /// Returns
+    /// -------
+    /// float
+    ///
+    fn most_abundant_mass(&self) -> f64 {
+        self.0.most_abundant_mass().value
+    }
+
     /// Get the mass in the given mode.
     ///
     /// Parameters
@@ -283,6 +296,7 @@ impl MolecularFormula {
         match mode {
             MassMode::Monoisotopic => Ok(self.monoisotopic_mass()),
             MassMode::Average => Ok(self.average_weight()),
+            MassMode::MostAbundant => Ok(self.most_abundant_mass()),
         }
     }
 
@@ -953,16 +967,15 @@ impl LinearPeptide {
         self.0.charge_carriers.clone().map(|c| c.formula().charge())
     }
 
-    // TODO: Implement when MolecularCharge is exposed upstream.
-    // /// The adduct ions, if specified.
-    // #[getter]
-    // fn charge_carriers(&self) -> Vec<MolecularCharge> {
-    //     self.0
-    //         .charge_carriers
-    //         .iter()
-    //         .map(|c| MolecularCharge(c.clone()))
-    //         .collect()
-    // }
+    /// The adduct ions, if specified.
+    #[getter]
+    fn charge_carriers(&self) -> Vec<MolecularCharge> {
+        self.0
+            .charge_carriers
+            .iter()
+            .map(|c| MolecularCharge(c.clone()))
+            .collect()
+    }
 
     /// Get a copy of the peptide with its sequence reversed.
     ///
@@ -1328,6 +1341,7 @@ impl RawSpectrum {
             match mode {
                 MassMode::Monoisotopic => rustyms::MassMode::Monoisotopic,
                 MassMode::Average => rustyms::MassMode::Average,
+                MassMode::MostAbundant => rustyms::MassMode::MostAbundant,
             },
         )))
     }

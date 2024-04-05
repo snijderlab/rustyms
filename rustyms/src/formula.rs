@@ -40,16 +40,17 @@ impl MolecularFormula {
         mass
     }
 
-    /// The most abundant mass, meaning the isotope that will have the highest intensity
+    /// The most abundant mass, meaning the isotope that will have the highest intensity.
+    /// It uses an averagine model for the isotopes so the mass will not reflect any isotopomer exact mass
+    /// but will be in the form of monoisotopic exact mass + n, where n is the integer dalton offset for that isomer.
     #[allow(clippy::missing_panics_doc)]
     pub fn most_abundant_mass(&self) -> Mass {
-        let mut mass = da(*self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
-        for (e, i, n) in &self.elements {
-            mass += e
-                .most_abundant_mass(*n, *i)
-                .expect("An invalid molecular formula was created, please report this crash");
-        }
-        mass
+        let isotopes = self.isotopic_distribution(0.01);
+        let max = isotopes
+            .iter()
+            .enumerate()
+            .max_by_key(|s| OrderedFloat(*s.1));
+        self.monoisotopic_mass() + da(max.map_or(0, |f| f.0) as f64)
     }
 
     /// Get the mass in the given mode
