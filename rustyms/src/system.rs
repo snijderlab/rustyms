@@ -167,17 +167,84 @@ pub mod usize {
 
 impl MassOverCharge {
     /// Absolute ppm error between this number and the given other
-    pub fn ppm(self, b: Self) -> f64 {
-        ((self - b).abs() / self).value * 1e6
+    pub fn ppm(self, b: Self) -> Ratio {
+        Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
     }
 }
 impl Mass {
     /// Absolute ppm error between this number and the given other
-    pub fn ppm(self, b: Self) -> f64 {
-        ((self - b).abs() / self.abs()).value * 1e6
+    pub fn ppm(self, b: Self) -> Ratio {
+        Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
     }
 }
 
+/// A wrapper around [`Ratio`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct OrderedRatio(Ratio);
+
+impl OrderedRatio {
+    /// Use the zero from [`Ratio`] itself
+    pub fn zero() -> Self {
+        Self(Ratio::zero())
+    }
+
+    /// Get a normal [`Ratio`]
+    #[allow(dead_code)]
+    pub fn into_inner(self) -> Ratio {
+        self.0
+    }
+}
+
+impl Default for OrderedRatio {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl From<Ratio> for OrderedRatio {
+    fn from(value: Ratio) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for OrderedRatio {
+    type Target = Ratio;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OrderedRatio {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Ord for OrderedRatio {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value.total_cmp(&other.0.value)
+    }
+}
+
+impl PartialOrd for OrderedRatio {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for OrderedRatio {}
+
+impl PartialEq for OrderedRatio {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl std::hash::Hash for OrderedRatio {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        helper_functions::f64_bits(self.0.value).hash(state);
+    }
+}
 /// A wrapper around [`Mass`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct OrderedMass(Mass);

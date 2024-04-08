@@ -38,8 +38,8 @@ impl Fragment {
     }
 
     /// Get the ppm difference between two fragments
-    pub fn ppm(&self, other: &Self, mode: MassMode) -> MassOverCharge {
-        MassOverCharge::new::<mz>(self.mz(mode).ppm(other.mz(mode)))
+    pub fn ppm(&self, other: &Self, mode: MassMode) -> Ratio {
+        self.mz(mode).ppm(other.mz(mode))
     }
 
     /// Create a new fragment

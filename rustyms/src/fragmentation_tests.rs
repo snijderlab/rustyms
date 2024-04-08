@@ -362,6 +362,7 @@ fn test(
             if calculated_fragments[fragment]
                 .mz(MassMode::Monoisotopic)
                 .ppm(MassOverCharge::new::<mz>(goal.0))
+                .value
                 < 20.0
             {
                 calculated_fragments.remove(fragment);

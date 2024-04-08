@@ -10,6 +10,7 @@ use super::piece::*;
 use super::scoring::*;
 
 use crate::system::Mass;
+use crate::system::Ratio;
 use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;
@@ -244,12 +245,12 @@ pub trait Alignment: PrivateAlignment {
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    fn ppm(&self) -> f64 {
+    fn ppm(&self) -> Ratio {
         self.mass_a()
             .iter()
             .cartesian_product(self.mass_b().iter())
             .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
-            .min_by(f64::total_cmp)
+            .min_by(|a, b| a.value.total_cmp(&b.value))
             .expect("An empty Multi<MolecularFormula>  was detected")
     }
 

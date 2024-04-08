@@ -187,31 +187,13 @@ impl MolecularFormula {
             .iter()
             .find(|e| e.0 == Element::C && e.1.is_none())
         {
-            write!(
-                output,
-                "C{}",
-                if carbon.2 == 1 {
-                    String::new()
-                } else {
-                    format!("<sub>{}</sub>", carbon.2)
-                }
-            )
-            .unwrap();
+            write!(output, "C<sub>{}</sub>", carbon.2).unwrap();
             if let Some(hydrogen) = self
                 .elements
                 .iter()
                 .find(|e| e.0 == Element::H && e.1.is_none())
             {
-                write!(
-                    output,
-                    "H{}",
-                    if hydrogen.2 == 1 {
-                        String::new()
-                    } else {
-                        format!("<sub>{}</sub>", hydrogen.2)
-                    }
-                )
-                .unwrap();
+                write!(output, "H<sub>{}</sub>", hydrogen.2).unwrap();
             }
             for element in self
                 .elements
@@ -221,16 +203,12 @@ impl MolecularFormula {
             {
                 write!(
                     output,
-                    "{}{}{}",
+                    "{}{}<sub>{}</sub>",
                     element
                         .1
                         .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
                     element.0,
-                    if element.2 == 1 {
-                        String::new()
-                    } else {
-                        format!("<sub>{}</sub>", element.2)
-                    }
+                    element.2,
                 )
                 .unwrap();
             }
@@ -238,16 +216,12 @@ impl MolecularFormula {
             for element in self.elements.iter().filter(|e| e.2 != 0) {
                 write!(
                     output,
-                    "{}{}{}",
+                    "{}{}<sub>{}</sub>",
                     element
                         .1
                         .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
                     element.0,
-                    if element.2 == 1 {
-                        String::new()
-                    } else {
-                        format!("<sub>{}</sub>", element.2)
-                    }
+                    element.2,
                 )
                 .unwrap();
             }

@@ -678,7 +678,7 @@ impl AnnotatedSpectrum {
                     .map_or_else(|i| i, |i| i);
 
                 // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
-                let mut closest = (0, f64::INFINITY);
+                let mut closest = (0, Ratio::new::<crate::system::ratio::ppm>(f64::INFINITY));
                 #[allow(clippy::needless_range_loop)] // I like this better
                 for i in if index == 0 { 0 } else { index - 1 }
                     ..=(index + 1).min(self.spectrum.len() - 1)
@@ -854,8 +854,8 @@ impl Eq for RawPeak {}
 
 impl RawPeak {
     /// Determine the ppm error for the given fragment
-    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> MassOverCharge {
-        MassOverCharge::new::<mz>(self.mz.ppm(fragment.mz(mode)))
+    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> Ratio {
+        self.mz.ppm(fragment.mz(mode))
     }
 }
 
