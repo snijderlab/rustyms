@@ -8,7 +8,11 @@ impl MolecularFormula {
     /// Get the isotopic distribution, using the natural distribution as defined by CIAAW.
     /// All elements are considered. The return is an array with the probability per offset.
     /// The first element of the array is the base peak, every consecutive peak is 1 dalton heavier.
-    /// The probability os normalized to (approximately) 1 total area.
+    /// The probability is normalized to (approximately) 1 total area.
+    ///
+    /// This approximation slightly overestimates the tail end of the distribution. Especially
+    /// for species with multiple higher mass isotopes as it does not take the number of already
+    /// chosen atom for lower weighed isotopes into account.
     #[allow(clippy::missing_panics_doc)]
     pub fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
         let mut result = arr1(&[1.0]);
@@ -17,6 +21,7 @@ impl MolecularFormula {
                 // TODO: think about negative numbers?
                 continue;
             }
+            let amount = usize::try_from(*amount).unwrap();
             let isotopes = element
                 .isotopes()
                 .iter()
@@ -36,19 +41,18 @@ impl MolecularFormula {
 
             for isotope in isotopes {
                 // Generate distribution (take already chosen into account?)
-                let binomial = Binomial::new(usize::try_from(*amount).unwrap(), isotope.1);
-                let mut last: Option<f64> = None;
-                let mut distribution: Array1<f64> = (0..=usize::try_from(*amount).unwrap())
+                let binomial = Binomial::new(amount, isotope.1);
+
+                // See how many numbers are below the threshold from the end of the distribution
+                let tail = (0..=amount)
+                    .rev()
                     .map(|t| binomial.mass(t))
-                    .take_while(|a| {
-                        // Take all numbers until the threshold is crossed at the tail end of the distribution
-                        if let Some(last) = &last {
-                            *last < threshold || *a > threshold
-                        } else {
-                            last = Some(*a);
-                            true
-                        }
-                    })
+                    .take_while(|a| *a < threshold)
+                    .count();
+
+                // Get all numbers start to the tail threshold
+                let mut distribution: Array1<f64> = (0..=amount - tail)
+                    .map(|t| binomial.mass(t))
                     .flat_map(|a| {
                         // Interweave the probability of this isotope with the mass difference to generate the correct distribution
                         std::iter::once(a)
@@ -60,31 +64,32 @@ impl MolecularFormula {
                 // Make the lengths equal
                 match result.len().cmp(&distribution.len()) {
                     Ordering::Less => {
-                        let mut zeros = Array1::zeros(distribution.len());
-                        for (z, r) in zeros.iter_mut().zip(result) {
-                            *z = r;
-                        }
-                        result = zeros;
+                        result
+                            .append(
+                                Axis(0),
+                                Array1::zeros(distribution.len() - result.len()).view(),
+                            )
+                            .unwrap();
                     }
                     Ordering::Greater => {
-                        let mut zeros = Array1::zeros(result.len());
-                        for (z, d) in zeros.iter_mut().zip(distribution) {
-                            *z = d;
-                        }
-                        distribution = zeros;
+                        distribution
+                            .append(
+                                Axis(0),
+                                Array1::zeros(result.len() - distribution.len()).view(),
+                            )
+                            .unwrap();
                     }
                     Ordering::Equal => (),
                 }
 
                 // Combine distribution with previous distribution
                 let mut new = Array1::zeros(result.len());
-                let shift = 0; // (isotope.0 - 1) as usize;
                 for (i, a) in distribution.into_iter().enumerate() {
                     new += &(concatenate(
                         Axis(0),
                         &[
-                            Array1::zeros((i + shift).min(result.len())).view(),
-                            result.slice(s![0..result.len().saturating_sub(i + shift)]),
+                            Array1::zeros(i).view(),
+                            result.slice(s![0..result.len() - i]),
                         ],
                     )
                     .unwrap()

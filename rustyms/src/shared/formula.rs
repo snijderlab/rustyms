@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{
     hash::Hash,
+    num::{IntErrorKind, ParseIntError},
     ops::{Add, AddAssign, Mul, Neg, Sub},
 };
 
@@ -118,10 +119,10 @@ impl MolecularFormula {
                     if let Some(parsed_element) = element {
                         let num = value[index + isotope + ele..index + len]
                             .parse::<i16>()
-                            .map_err(|_| {
+                            .map_err(|err| {
                                 CustomError::error(
                                     "Invalid Pro Forma molecular formula",
-                                    "The element number is not a number",
+                                    format!("The element number {}", explain_number_error(err)),
                                     Context::line(
                                         0,
                                         value,
@@ -131,13 +132,15 @@ impl MolecularFormula {
                                 )
                             })?;
                         let isotope =
-                            value[index..index + isotope].parse::<u16>().map_err(|_| {
-                                CustomError::error(
-                                    "Invalid Pro Forma molecular formula",
-                                    "The isotope number is not a number",
-                                    Context::line(0, value, index, isotope),
-                                )
-                            })?;
+                            value[index..index + isotope]
+                                .parse::<u16>()
+                                .map_err(|err| {
+                                    CustomError::error(
+                                        "Invalid Pro Forma molecular formula",
+                                        format!("The isotope number {}", explain_number_error(err)),
+                                        Context::line(0, value, index, isotope),
+                                    )
+                                })?;
 
                         if !Self::add(&mut result, (parsed_element, Some(isotope), num)) {
                             return Err(CustomError::error(
@@ -169,10 +172,10 @@ impl MolecularFormula {
                         |e| panic!("Non UTF8 in Pro Forma molecular formula, error: {e}"),
                         |v| {
                             (
-                                v.parse::<i16>().map_err(|_| {
+                                v.parse::<i16>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid Pro Forma molecular formula",
-                                        "The element number is not a number",
+                                        format!("The element number {}", explain_number_error(err)),
                                         Context::line(0, value, index, v.len()),
                                     )
                                 }),
@@ -261,13 +264,15 @@ impl MolecularFormula {
                                 Context::line(0, value, index, 1),
                             )
                         })?;
-                    isotope = Some(value[index + 1..index + len].parse::<u16>().map_err(|_| {
-                        CustomError::error(
-                            "Invalid PSI-MOD molecular formula",
-                            "The isotope number is not a number",
-                            Context::line(0, value, index + 1, len),
-                        )
-                    })?);
+                    isotope = Some(value[index + 1..index + len].parse::<u16>().map_err(
+                        |err| {
+                            CustomError::error(
+                                "Invalid PSI-MOD molecular formula",
+                                format!("The isotope number {}", explain_number_error(err)),
+                                Context::line(0, value, index + 1, len),
+                            )
+                        },
+                    )?);
                     index += len + 1;
                 }
                 b'-' | b'0'..=b'9' if element.is_some() => {
@@ -283,10 +288,10 @@ impl MolecularFormula {
                         |e| panic!("Non UTF8 in PSI-MOD molecular formula, error: {e}"),
                         |v| {
                             (
-                                v.parse::<i16>().map_err(|_| {
+                                v.parse::<i16>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid PSI-MOD molecular formula",
-                                        "The element number is not a number",
+                                        format!("The isotope number {}", explain_number_error(err)),
                                         Context::line(0, value, index, v.len()),
                                     )
                                 }),
@@ -457,6 +462,18 @@ impl MolecularFormula {
             .iter()
             .find(|el| el.0 == Element::Electron)
             .map_or(0, |el| el.2)
+    }
+}
+
+/// To be used as `The xx number ` + the explanation from here (does not have a dot).
+fn explain_number_error(error: ParseIntError) -> &'static str {
+    match error.kind() {
+        IntErrorKind::Empty => "is empty",
+        IntErrorKind::InvalidDigit => "contains an invalid character",
+        IntErrorKind::NegOverflow => "is too small to fit in the internal representation",
+        IntErrorKind::PosOverflow => "is too big to fit in the internal representation",
+        IntErrorKind::Zero => "is zero, which is not allowed here",
+        _ => "is not a valid number",
     }
 }
 
