@@ -7,7 +7,7 @@ use super::Modification;
 #[derive(Debug, Default)]
 pub struct OntologyModification {
     pub diff_formula: MolecularFormula,
-    pub monosaccharides: Vec<(MonoSaccharide, i16)>,
+    pub monosaccharides: Vec<(MonoSaccharide, i32)>,
     pub code_name: String,
     pub full_name: String,
     pub ontology: Ontology,

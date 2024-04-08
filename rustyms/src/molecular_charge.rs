@@ -35,7 +35,7 @@ impl MolecularCharge {
         self.charge_carriers
             .iter()
             .filter_map(|(n, c)| {
-                (*n > 0 && c.charge() == 1).then_some(Self::new(&[(1, c.clone())]))
+                (*n > 0 && c.charge().value == 1).then_some(Self::new(&[(1, c.clone())]))
             })
             .collect()
     }
@@ -73,7 +73,7 @@ impl Chemical for MolecularCharge {
     fn formula(&self) -> MolecularFormula {
         self.charge_carriers
             .iter()
-            .map(|(n, mol)| mol.clone() * *n as i16)
+            .map(|(n, mol)| mol.clone() * *n as i32)
             .sum::<MolecularFormula>()
     }
 }

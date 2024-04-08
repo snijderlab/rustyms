@@ -8,11 +8,11 @@ pub trait MultiChemical {
     fn formulas(&self) -> Multi<MolecularFormula>;
 
     /// Get the charge of this chemical, it returns None if no charge is defined.
-    fn charge(&self) -> Option<i16> {
+    fn charge(&self) -> Option<crate::system::isize::Charge> {
         self.formulas()
             .first()
             .map(MolecularFormula::charge)
-            .filter(|c| *c != 0)
+            .filter(|c| c.value != 0)
     }
 }
 

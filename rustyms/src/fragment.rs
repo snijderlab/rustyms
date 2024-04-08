@@ -10,8 +10,11 @@ use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
-    glycan::MonoSaccharide, molecular_charge::MolecularCharge, system::f64::*, AminoAcid, Chemical,
-    MassMode, MolecularFormula, Multi, NeutralLoss,
+    glycan::MonoSaccharide,
+    molecular_charge::MolecularCharge,
+    system::f64::{Mass, MassOverCharge, Ratio},
+    system::usize::Charge,
+    AminoAcid, Chemical, MassMode, MolecularFormula, Multi, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -91,7 +94,7 @@ impl Fragment {
     pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
         // TODO: Figure out if labelling these in any way would be nice for later checking when used with adduct ions other than protons
         let formula = charge.formula();
-        let c = Charge::new::<e>(f64::from(formula.charge()));
+        let c = Charge::new::<e>(usize::try_from(formula.charge().value).unwrap());
         Self {
             formula: &self.formula + &formula,
             charge: c,

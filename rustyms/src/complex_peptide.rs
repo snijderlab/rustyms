@@ -364,7 +364,7 @@ impl ComplexPeptide {
                                 Context::line(0, line, offset+count_len+element_len, 1),
                             ))?;
 
-                            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i16)]).ok_or_else(|| CustomError::error(
+                            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i32)]).ok_or_else(|| CustomError::error(
                                 "Invalid charge carrier formula",
                                 "The given molecular formula contains a part that does not have a defined mass",
                                 Context::line(0, line, index+2+charge_len, offset),

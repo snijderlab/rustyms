@@ -167,7 +167,7 @@ fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
 
 fn parse_unimod_composition(
     composition: &str,
-) -> Result<(MolecularFormula, Vec<(MonoSaccharide, i16)>), ()> {
+) -> Result<(MolecularFormula, Vec<(MonoSaccharide, i32)>), ()> {
     assert!(composition.is_ascii());
 
     let mut formula = MolecularFormula::default();
@@ -181,7 +181,7 @@ fn parse_unimod_composition(
             b'-' => sign = -1,
             b'(' => (),
             b')' => {
-                let num = last_number.parse::<i16>().map_err(|_| ())? * sign;
+                let num = last_number.parse::<i32>().map_err(|_| ())? * sign;
                 match parse_unimod_composition_brick(last_name.as_str()) {
                     Ok(Brick::Formula(f)) => formula += &(f * num),
                     Ok(Brick::Element(e)) => assert!(formula.add((e, None, num))),

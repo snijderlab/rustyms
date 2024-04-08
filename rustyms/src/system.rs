@@ -165,6 +165,22 @@ pub mod usize {
     pub use super::time::s;
 }
 
+/// All quantities with isize as underlying type
+#[allow(unused_imports)]
+pub mod isize {
+    mod mks {
+        pub use super::super::*;
+    }
+
+    Q!(self::mks, isize);
+
+    pub use super::charge::e;
+    pub use super::mass::dalton;
+    pub use super::mass_over_charge::mz;
+    pub use super::ratio::fraction;
+    pub use super::time::s;
+}
+
 impl MassOverCharge {
     /// Absolute ppm error between this number and the given other
     pub fn ppm(self, b: Self) -> Ratio {

@@ -28,7 +28,7 @@ impl Chemical for Modification {
             Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula() * i.1 as i16
+                    acc + i.0.formula() * i.1 as i32
                 }),
             Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
                 glycan.formula()

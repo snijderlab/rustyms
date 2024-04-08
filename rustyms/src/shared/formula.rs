@@ -16,7 +16,7 @@ use std::{
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
     /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
-    elements: Vec<(crate::Element, Option<u16>, i16)>,
+    elements: Vec<(crate::Element, Option<u16>, i32)>,
     /// Any addition mass, defined to be monoisotopic
     additional_mass: OrderedFloat<f64>,
 }
@@ -41,7 +41,7 @@ impl<T: Chemical> Chemical for &Vec<T> {
 
 impl MolecularFormula {
     /// Create a new molecular formula, if the chosen isotopes are not valid it returns None
-    pub fn new(elements: &[(crate::Element, Option<u16>, i16)]) -> Option<Self> {
+    pub fn new(elements: &[(crate::Element, Option<u16>, i32)]) -> Option<Self> {
         if elements.iter().any(|e| !e.0.is_valid(e.1)) {
             None
         } else {
@@ -118,7 +118,7 @@ impl MolecularFormula {
                     }
                     if let Some(parsed_element) = element {
                         let num = value[index + isotope + ele..index + len]
-                            .parse::<i16>()
+                            .parse::<i32>()
                             .map_err(|err| {
                                 CustomError::error(
                                     "Invalid Pro Forma molecular formula",
@@ -172,7 +172,7 @@ impl MolecularFormula {
                         |e| panic!("Non UTF8 in Pro Forma molecular formula, error: {e}"),
                         |v| {
                             (
-                                v.parse::<i16>().map_err(|err| {
+                                v.parse::<i32>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid Pro Forma molecular formula",
                                         format!("The element number {}", explain_number_error(err)),
@@ -288,7 +288,7 @@ impl MolecularFormula {
                         |e| panic!("Non UTF8 in PSI-MOD molecular formula, error: {e}"),
                         |v| {
                             (
-                                v.parse::<i16>().map_err(|err| {
+                                v.parse::<i32>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid PSI-MOD molecular formula",
                                         format!("The isotope number {}", explain_number_error(err)),
@@ -396,7 +396,7 @@ impl MolecularFormula {
     /// Add the given element to this formula (while keeping it ordered and simplified).
     /// If the isotope for the added element is not valid it returns `false`.
     #[must_use]
-    pub fn add(&mut self, element: (crate::Element, Option<u16>, i16)) -> bool {
+    pub fn add(&mut self, element: (crate::Element, Option<u16>, i32)) -> bool {
         if element.0.is_valid(element.1) {
             let mut index = 0;
             let mut done = false;
@@ -425,7 +425,7 @@ impl MolecularFormula {
     }
 
     /// Get the elements making this formula
-    pub fn elements(&self) -> &[(Element, Option<u16>, i16)] {
+    pub fn elements(&self) -> &[(Element, Option<u16>, i32)] {
         &self.elements
     }
 
@@ -456,12 +456,14 @@ impl MolecularFormula {
 
     /// Get the number of electrons (the only charged species, any ionic species is saved as that element +/- the correct number of electrons).
     /// The inverse of that number is given as the charge.
-    pub fn charge(&self) -> i16 {
+    pub fn charge(&self) -> crate::system::isize::Charge {
         -self
             .elements
             .iter()
             .find(|el| el.0 == Element::Electron)
-            .map_or(0, |el| el.2)
+            .map_or(crate::system::isize::Charge::default(), |el| {
+                crate::system::isize::Charge::new::<crate::system::charge::e>(el.2 as isize)
+            })
     }
 }
 
@@ -559,9 +561,9 @@ impl Sub<&MolecularFormula> for &MolecularFormula {
     }
 }
 
-impl Mul<&i16> for &MolecularFormula {
+impl Mul<&i32> for &MolecularFormula {
     type Output = MolecularFormula;
-    fn mul(self, rhs: &i16) -> Self::Output {
+    fn mul(self, rhs: &i32) -> Self::Output {
         MolecularFormula {
             additional_mass: self.additional_mass * f64::from(*rhs),
             elements: self
@@ -576,7 +578,7 @@ impl Mul<&i16> for &MolecularFormula {
 
 impl_binop_ref_cases!(impl Add, add for MolecularFormula, MolecularFormula, MolecularFormula);
 impl_binop_ref_cases!(impl Sub, sub for MolecularFormula, MolecularFormula, MolecularFormula);
-impl_binop_ref_cases!(impl Mul, mul for MolecularFormula, i16, MolecularFormula);
+impl_binop_ref_cases!(impl Mul, mul for MolecularFormula, i32, MolecularFormula);
 
 impl AddAssign<&Self> for MolecularFormula {
     fn add_assign(&mut self, rhs: &Self) {
