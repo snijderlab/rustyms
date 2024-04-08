@@ -196,6 +196,15 @@ impl MolecularFormula {
                 }
                 b' ' => index += 1,
                 _ => {
+                    if let Some(element) = element {
+                        if !Self::add(&mut result, (element, None, 1)) {
+                            return Err(CustomError::error(
+                                "Invalid Pro Forma molecular formula",
+                                format!("An element without a defined mass ({element}) was used"),
+                                Context::line(0, value, index - 1, 1),
+                            ));
+                        }
+                    }
                     let mut found = false;
                     for possible in ELEMENT_PARSE_LIST {
                         if value[index..].starts_with(possible.0) {
@@ -302,6 +311,15 @@ impl MolecularFormula {
                 }
                 b' ' => index += 1,
                 _ => {
+                    if let Some(element) = element {
+                        if !Self::add(&mut result, (element, None, 1)) {
+                            return Err(CustomError::error(
+                                "Invalid PSI-MOD molecular formula",
+                                format!("An element without a defined mass ({element}) was used"),
+                                Context::line(0, value, index - 1, 1),
+                            ));
+                        }
+                    }
                     let mut found = false;
                     for possible in ELEMENT_PARSE_LIST {
                         if value[index..].starts_with(possible.0) {
