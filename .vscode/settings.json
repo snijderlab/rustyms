@@ -21,6 +21,8 @@
         "Cargoxy",
         "centroiding",
         "consts",
+        "cross-linker",
+        "cross-linkers",
         "deamidated",
         "Deamidation",
         "Decose",
@@ -112,6 +114,7 @@
         "Ulof",
         "unimod",
         "wiff",
+        "Xlmod",
         "Xylopyranose",
         "Xylulose"
     ],

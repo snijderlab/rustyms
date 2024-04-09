@@ -10,6 +10,8 @@ pub enum Ontology {
     Psimod,
     /// GNOme
     Gnome,
+    /// XLMOD
+    Xlmod,
 }
 
 impl Ontology {
@@ -20,6 +22,7 @@ impl Ontology {
             Self::Unimod => 'U',
             Self::Psimod => 'M',
             Self::Gnome => 'G',
+            Self::Xlmod => 'X',
         }
     }
 
@@ -30,6 +33,7 @@ impl Ontology {
             Self::Unimod => "UNIMOD",
             Self::Psimod => "MOD",
             Self::Gnome => "GNO",
+            Self::Xlmod => "XLMOD",
         }
     }
 }
@@ -43,6 +47,7 @@ impl std::fmt::Display for Ontology {
                 Self::Unimod => "Unimod",
                 Self::Psimod => "PSI-MOD",
                 Self::Gnome => "GNOme",
+                Self::Xlmod => "XLMOD",
             },
         )
     }

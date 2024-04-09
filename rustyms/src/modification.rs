@@ -14,13 +14,18 @@ use crate::{
     helper_functions::*,
     placement_rule::PlacementRule,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, DiagnosticIon, Element, MolecularFormula, NeutralLoss, SequenceElement,
-    Tolerance, WithinTolerance,
+    AminoAcid, Chemical, DiagnosticIon, Element, LinearPeptide, MolecularFormula, Multi,
+    MultiChemical, NeutralLoss, SequenceElement, Tolerance, WithinTolerance,
 };
 
 include!("shared/modification.rs");
 
-impl Chemical for Modification {
+impl Chemical for Linker {
+    fn formula(&self) -> MolecularFormula {
+        MolecularFormula::default() // TODO: stub
+    }
+}
+impl Chemical for SimpleModification {
     fn formula(&self) -> MolecularFormula {
         match self {
             Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
@@ -42,11 +47,25 @@ impl Chemical for Modification {
 }
 
 impl Modification {
+    /// Get the formula for the whole addition (or subtraction) for this modification
+    pub fn formula(&self, all_peptides: &[LinearPeptide]) -> Multi<MolecularFormula> {
+        match self {
+            Self::Simple(s) => s.formula().into(),
+            Self::CrossLink {
+                peptide, linker, ..
+            } => all_peptides[*peptide].formulas() + linker.formula(), // TODO: impl neutral losses for that other peptide
+            Self::IntraLink { .. } => todo!(), // TODO: impossible, return None?
+            Self::Branch { peptide, .. } => all_peptides[*peptide].formulas(), // TODO: any linking chemistry? + impl neutral losses for that other peptide
+        }
+    }
+}
+
+impl Modification {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
-            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
+            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) | Self::Branch { .. }=> None,
             Self::Predefined(_, _, ontology, _, id) => match ontology {
                 Ontology::Psimod => Some(format!(
                     "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{id:5}",
@@ -59,6 +78,8 @@ impl Modification {
             Self::Gno(_, name) => Some(format!(
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
             )),
+            Self::CrossLink { .. } => todo!(),
+            Self::IntraLink { .. } => todo!(),
         }
     }
 
@@ -187,7 +208,9 @@ impl Modification {
                     .iter()
                     .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
                     .filter(|(_, _, _, m)| {
-                        tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
+                        m.simple_formula().is_some_and(|f| {
+                            tolerance.within(&mass.into_inner(), &f.monoisotopic_mass())
+                        })
                     })
                     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
@@ -197,7 +220,7 @@ impl Modification {
                 [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                     .iter()
                     .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
-                    .filter(|(_, _, _, m)| *formula == m.formula())
+                    .filter(|(_, _, _, m)| m.simple_formula().is_some_and(|f| *formula == f))
                     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
             ),
@@ -522,6 +545,9 @@ impl Display for Modification {
                 write!(f, "{}:{name}", context.char())?;
             }
             Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
+            Self::CrossLink { .. } => todo!(),
+            Self::IntraLink { .. } => todo!(),
+            Self::Branch { .. } => todo!(),
         }
         Ok(())
     }

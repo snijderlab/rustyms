@@ -1,6 +1,26 @@
 /// A modification on an amino acid
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum Modification {
+    /// Any of the simple modifications
+    Simple(SimpleModification),
+    /// An intra link, cross linking this position to another position on the same peptide. Has to be present at both locations.
+    IntraLink { index: usize, linker: Linker },
+    /// A cross link to another peptide
+    CrossLink {
+        peptide: usize,
+        index: usize,
+        linker: Linker,
+    },
+    /// A branch to another peptide, needed? Or could this be expressed as a special case of a cross link
+    Branch {
+        peptide: usize,
+        index: usize, // Needed?
+    },
+}
+
+/// A modification on an amino acid
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+pub enum SimpleModification {
     /// A modification defined with a monoisotopic mass shift
     Mass(OrderedMass),
     /// A modification defined with a molecular formula
@@ -23,6 +43,17 @@ pub enum Modification {
         GnoComposition,
         String, // Name
     ),
+}
+
+/// A stub for a database modification of a cross-linker.
+/// TODO: There are 13 cross-linkers that link 3 positions,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+pub struct Linker {
+    specificities: Vec<PlacementRule>,
+    formula: MolecularFormula, // TODO: what if not defined?, also make sure anything that only has a mass uses that instead
+    name: String,
+    /// XL:000XXX
+    index: usize,
 }
 
 /// All possible compositions in the GNO ontology

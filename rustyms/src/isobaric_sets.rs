@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{
     fragment::PeptidePosition,
-    modification::Modification,
+    modification::{Modification, SimpleModification},
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
     AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
@@ -13,7 +13,7 @@ use crate::{
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
 pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
 /// A list of all combinations of terminal modifications and their accompanying amino acid
-pub type TerminalBuildingBlocks = Vec<(SequenceElement, Modification, Mass)>;
+pub type TerminalBuildingBlocks = Vec<(SequenceElement, SimpleModification, Mass)>;
 /// Get the possible building blocks for sequences based on the given modifications.
 /// Useful for any automated sequence generation, like isobaric set generation or de novo sequencing.
 /// The result is for each location (N term, center, C term) the list of all possible building blocks with its mass, sorted on mass.
@@ -21,8 +21,8 @@ pub type TerminalBuildingBlocks = Vec<(SequenceElement, Modification, Mass)>;
 /// Panics if any of the modifications does not have a defined mass.
 pub fn building_blocks(
     amino_acids: &[AminoAcid],
-    fixed: &[(Modification, Option<PlacementRule>)],
-    variable: &[(Modification, Option<PlacementRule>)],
+    fixed: &[(SimpleModification, Option<PlacementRule>)],
+    variable: &[(SimpleModification, Option<PlacementRule>)],
 ) -> (
     TerminalBuildingBlocks,
     BuildingBlocks,
@@ -30,7 +30,7 @@ pub fn building_blocks(
 ) {
     /// Enforce the placement rules of predefined modifications.
     fn can_be_placed(
-        modification: &Modification,
+        modification: &SimpleModification,
         seq: &SequenceElement,
         position: &PeptidePosition,
     ) -> bool {
@@ -75,8 +75,8 @@ pub fn building_blocks(
     }
     fn generate_terminal(
         position: &impl Fn(&PlacementRule) -> Vec<AminoAcid>,
-        fixed: &[(Modification, Option<PlacementRule>)],
-        variable: &[(Modification, Option<PlacementRule>)],
+        fixed: &[(SimpleModification, Option<PlacementRule>)],
+        variable: &[(SimpleModification, Option<PlacementRule>)],
     ) -> TerminalBuildingBlocks {
         let mut options = fixed
             .iter()

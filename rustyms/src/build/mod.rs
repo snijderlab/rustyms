@@ -8,6 +8,7 @@ mod obo;
 mod ontology_modification;
 mod psi_mod;
 mod unimod;
+mod xlmod;
 
 pub use atomic_masses::*;
 pub use gnome::*;
