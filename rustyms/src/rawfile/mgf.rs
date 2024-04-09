@@ -13,7 +13,14 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::check_extension,
     spectrum::{PeakSpectrum, RawPeak, RawSpectrum},
-    system::{charge::e, f64::*, mass::dalton, mass_over_charge::mz, time::s},
+    system::{
+        charge::e,
+        f64::{Mass, MassOverCharge, Time},
+        mass::dalton,
+        mass_over_charge::mz,
+        time::s,
+        usize::Charge,
+    },
 };
 use flate2::read::GzDecoder;
 
@@ -135,7 +142,7 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
                 let mut peak = RawPeak {
                     mz: MassOverCharge::zero(),
                     intensity: OrderedFloat(0.0),
-                    charge: Charge::new::<e>(1.0),
+                    charge: Charge::new::<e>(1),
                 };
                 if split.len() < 2 {
                     return Err(base_error.with_long_description("Not enough columns"));
@@ -162,16 +169,14 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
 }
 
 /// # Errors
-/// When the charge could not be properly parsed.
+/// When the charge could not be properly parsed. For example if it has a negative charge.
 fn parse_charge(input: &str) -> Result<Charge, ()> {
     if input.ends_with('+') {
         Ok(Charge::new::<e>(
             input.trim_end_matches('+').parse().map_err(|_| ())?,
         ))
     } else if input.ends_with('-') {
-        Ok(Charge::new::<e>(
-            -input.trim_end_matches('-').parse().map_err(|_| ())?,
-        ))
+        Err(())
     } else {
         Ok(Charge::new::<e>(input.parse().map_err(|_| ())?))
     }

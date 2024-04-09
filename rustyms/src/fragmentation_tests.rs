@@ -1,5 +1,9 @@
 #![allow(clippy::missing_panics_doc)]
-use crate::{model::*, system::*, *};
+use crate::{
+    model::*,
+    system::{usize::Charge, MassOverCharge},
+    *,
+};
 
 #[test]
 fn triple_a() {
@@ -38,7 +42,7 @@ fn triple_a() {
             .singular()
             .unwrap(),
         &model,
-        1.0,
+        1,
         true,
     );
 }
@@ -87,7 +91,7 @@ fn with_modifications() {
             .singular()
             .unwrap(),
         &model,
-        1.0,
+        1,
         true,
     );
 }
@@ -115,7 +119,7 @@ fn with_possible_modifications() {
             .singular()
             .unwrap(),
         &model,
-        1.0,
+        1,
         true,
     );
 }
@@ -148,7 +152,7 @@ fn higher_charges() {
             .singular()
             .unwrap(),
         &model,
-        5.0,
+        5,
         false,
     );
 }
@@ -309,7 +313,7 @@ fn all_aminoacids() {
             .singular()
             .unwrap(),
         &model,
-        1.0,
+        1,
         false,
     );
 }
@@ -340,7 +344,7 @@ fn glycan_fragmentation() {
         theoretical_fragments,
         &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK").unwrap(),
         &model,
-        1.0,
+        1,
         true,
     );
 }
@@ -349,11 +353,11 @@ fn test(
     theoretical_fragments: &[(f64, &str)],
     peptide: &LinearPeptide,
     model: &Model,
-    charge: f64,
+    charge: usize,
     allow_left_over_generated: bool,
 ) {
     let mut calculated_fragments =
-        peptide.generate_theoretical_fragments(Charge::new::<e>(charge), model);
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(charge), model);
     let mut found = Vec::new();
     let mut this_found;
     for goal in theoretical_fragments {
@@ -361,7 +365,7 @@ fn test(
         for fragment in 0..calculated_fragments.len() {
             if calculated_fragments[fragment]
                 .mz(MassMode::Monoisotopic)
-                .ppm(MassOverCharge::new::<mz>(goal.0))
+                .ppm(MassOverCharge::new::<crate::system::mz>(goal.0))
                 .value
                 < 20.0
             {

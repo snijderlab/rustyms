@@ -12,13 +12,13 @@ use uom::num_traits::Zero;
 use crate::{
     glycan::MonoSaccharide,
     molecular_charge::MolecularCharge,
-    system::f64::{Mass, MassOverCharge, Ratio},
+    system::f64::{MassOverCharge, Ratio},
     system::usize::Charge,
     AminoAcid, Chemical, MassMode, MolecularFormula, Multi, NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Fragment {
     /// The theoretical composition
     pub formula: MolecularFormula,
@@ -37,7 +37,8 @@ pub struct Fragment {
 impl Fragment {
     /// Get the mz
     pub fn mz(&self, mode: MassMode) -> MassOverCharge {
-        self.formula.mass(mode) / self.charge
+        self.formula.mass(mode)
+            / crate::system::f64::Charge::new::<crate::system::charge::e>(self.charge.value as f64)
     }
 
     /// Get the ppm difference between two fragments
@@ -94,7 +95,9 @@ impl Fragment {
     pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
         // TODO: Figure out if labelling these in any way would be nice for later checking when used with adduct ions other than protons
         let formula = charge.formula();
-        let c = Charge::new::<e>(usize::try_from(formula.charge().value).unwrap());
+        let c = Charge::new::<crate::system::charge::e>(
+            usize::try_from(formula.charge().value).unwrap(),
+        );
         Self {
             formula: &self.formula + &formula,
             charge: c,
@@ -537,7 +540,7 @@ impl std::fmt::Display for GlycanBreakPos {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
 
-    use crate::{AminoAcid, Element, MultiChemical};
+    use crate::{AminoAcid, MultiChemical};
 
     use super::*;
 
@@ -545,18 +548,14 @@ mod tests {
     fn neutral_loss() {
         let a = Fragment::new(
             AminoAcid::AsparticAcid.formulas()[0].clone(),
-            Charge::new::<e>(1.0),
+            Charge::new::<crate::system::charge::e>(1),
             0,
             FragmentType::precursor,
             String::new(),
         );
-        let loss =
-            a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())]);
+        let loss = a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1))]);
         dbg!(&a, &loss);
         assert_eq!(a.formula, loss[0].formula);
-        assert_eq!(
-            a.formula,
-            &loss[1].formula + &molecular_formula!(H 2 O 1).unwrap()
-        );
+        assert_eq!(a.formula, &loss[1].formula + &molecular_formula!(H 2 O 1));
     }
 }

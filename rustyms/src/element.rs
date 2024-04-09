@@ -1,3 +1,4 @@
+use std::num::NonZeroU16;
 use std::sync::OnceLock;
 
 use crate::system::{da, fraction, Ratio};
@@ -6,7 +7,7 @@ include!("shared/element.rs");
 
 impl Element {
     /// Validate this isotope to have a defined mass
-    pub fn is_valid(self, isotope: Option<u16>) -> bool {
+    pub fn is_valid(self, isotope: Option<NonZeroU16>) -> bool {
         if self == Self::Electron {
             isotope.is_none()
         } else {
@@ -16,7 +17,7 @@ impl Element {
                     elemental_data()[self as usize - 1]
                         .2
                         .iter()
-                        .any(|(ii, _, _)| *ii == isotope)
+                        .any(|(ii, _, _)| *ii == isotope.get())
                 },
             )
         }
@@ -28,7 +29,7 @@ impl Element {
     }
 
     /// The mass of the specified isotope of this element (if that isotope exists)
-    pub fn mass(self, isotope: Option<u16>) -> Option<Mass> {
+    pub fn mass(self, isotope: Option<NonZeroU16>) -> Option<Mass> {
         if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
@@ -37,13 +38,13 @@ impl Element {
             elemental_data()[self as usize - 1]
                 .2
                 .iter()
-                .find(|(ii, _, _)| *ii == isotope)
+                .find(|(ii, _, _)| *ii == isotope.get())
                 .map(|(_, m, _)| *m)
         })
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists)
-    pub fn average_weight(self, isotope: Option<u16>) -> Option<Mass> {
+    pub fn average_weight(self, isotope: Option<NonZeroU16>) -> Option<Mass> {
         if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
@@ -52,13 +53,13 @@ impl Element {
             elemental_data()[self as usize - 1]
                 .2
                 .iter()
-                .find(|(ii, _, _)| *ii == isotope)
+                .find(|(ii, _, _)| *ii == isotope.get())
                 .map(|(_, m, _)| *m)
         })
     }
 
     /// Gives the most abundant mass based on the number of this isotope
-    pub fn most_abundant_mass(self, n: i16, isotope: Option<u16>) -> Option<Mass> {
+    pub fn most_abundant_mass(self, isotope: Option<NonZeroU16>, n: i32) -> Option<Mass> {
         if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4) * Ratio::new::<fraction>(f64::from(n)));
         }
@@ -68,7 +69,7 @@ impl Element {
                 elemental_data()[self as usize - 1]
                     .2
                     .iter()
-                    .find(|(ii, _, _)| *ii == isotope)
+                    .find(|(ii, _, _)| *ii == isotope.get())
                     .map(|(_, m, _)| *m)?
             } else {
                 // (mass, chance)
@@ -98,12 +99,10 @@ static ELEMENTAL_DATA_CELL: OnceLock<ElementalData> = OnceLock::new();
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod test {
-    use crate::{Element, MolecularFormula};
-
     #[test]
     fn hill_notation() {
         assert_eq!(
-            molecular_formula!(C 6 O 5 H 10).unwrap().hill_notation(),
+            molecular_formula!(C 6 O 5 H 10).hill_notation(),
             "C6H10O5".to_string()
         );
     }

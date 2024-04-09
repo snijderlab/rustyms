@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, num::NonZeroU16};
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -13,7 +13,7 @@ use crate::{
         ReturnModification,
     },
     molecular_charge::MolecularCharge,
-    system::Charge,
+    system::usize::Charge,
     system::OrderedMass,
     Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
     SequenceElement,
@@ -168,7 +168,8 @@ impl ComplexPeptide {
                     ));
                 }
             } else if &line[index + 1..end_index] == "D" {
-                global_modifications.push(GlobalModification::Isotope(Element::H, Some(2)));
+                global_modifications
+                    .push(GlobalModification::Isotope(Element::H, NonZeroU16::new(2)));
             } else {
                 let num = &line[index + 1..end_index]
                     .chars()
@@ -187,14 +188,14 @@ impl ComplexPeptide {
                         ),
                     )
                 })?;
-                let num: u16 = num.parse::<u16>().map_err(|_| {
+                let num = num.parse::<u16>().map_err(|_| {
                     CustomError::error(
                         "Invalid global modification",
                         "Could not read isotope number",
                         Context::line(0, line, index + 1, index - end_index),
                     )
                 })?;
-                let num = (num != 0).then_some(num);
+                let num = NonZeroU16::new(num);
                 if !el.is_valid(num) {
                     return Err(CustomError::error(
                         "Invalid global modification",
@@ -615,7 +616,7 @@ fn unknown_position_mods(
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{model::Location, system::e, ComplexPeptide, Element, MolecularFormula};
+    use crate::{model::Location, system::e, ComplexPeptide};
 
     use super::*;
 
@@ -746,11 +747,11 @@ mod tests {
         // Formula: A + H2O
         assert_eq!(
             deuterium.formulas(),
-            molecular_formula!((2)H 7 C 3 O 2 N 1).unwrap().into()
+            molecular_formula!((2)H 7 C 3 O 2 N 1).into()
         );
         assert_eq!(
             nitrogen_15.formulas(),
-            molecular_formula!(H 7 C 3 O 2 (15)N 1).unwrap().into()
+            molecular_formula!(H 7 C 3 O 2 (15)N 1).into()
         );
     }
 
@@ -787,13 +788,13 @@ mod tests {
         // With two different sequences
         let dimeric = ComplexPeptide::pro_forma("AA+CC").unwrap();
         let fragments =
-            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model));
+            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1), &test_model));
         assert_eq!(fragments.len(), 4); // aA, aC, pAA, pCC
 
         // With two identical sequences
         let dimeric = ComplexPeptide::pro_forma("AA+AA").unwrap();
         let fragments =
-            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1.0), &test_model));
+            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1), &test_model));
         assert_eq!(fragments.len(), 4); // aA, pAA (both twice once for each peptide)
     }
 
@@ -807,7 +808,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .charge_carriers,
-            vec![(2, molecular_formula!(Na 1 Electron -1).unwrap())]
+            vec![(2, molecular_formula!(Na 1 Electron -1))]
         );
         assert_eq!(
             peptide.peptides()[0].sequence,

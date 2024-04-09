@@ -2,10 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    fragment::PeptidePosition, system::f64::MassOverCharge, Element, MolecularFormula, NeutralLoss,
-    Tolerance,
-};
+use crate::{fragment::PeptidePosition, system::f64::MassOverCharge, NeutralLoss, Tolerance};
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
@@ -244,48 +241,48 @@ impl Model {
         Self {
             a: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             d: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             v: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             w: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             x: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             immonium: true,
             m: true,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: Some(vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
-                NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
             ]),
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -319,35 +316,35 @@ impl Model {
             a: (Location::None, Vec::new()),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
             w: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             immonium: false,
             m: false,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: Some(vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
-                NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
             ]),
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -358,26 +355,26 @@ impl Model {
         Self {
             a: (
                 Location::TakeN { skip: 1, take: 1 },
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             b: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             c: (Location::None, Vec::new()),
             d: (
                 Location::TakeN { skip: 1, take: 1 },
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             v: (Location::None, Vec::new()),
             w: (Location::None, Vec::new()),
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             z: (Location::None, Vec::new()),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             immonium: false,
             m: false,
             modification_specific_neutral_losses: true,
@@ -394,7 +391,7 @@ impl Model {
             b: (Location::None, Vec::new()),
             c: (
                 Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             d: (Location::None, Vec::new()),
             v: (Location::None, Vec::new()),
@@ -402,15 +399,15 @@ impl Model {
             x: (Location::None, Vec::new()),
             y: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             z: (
                 Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             precursor: vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap()),
-                NeutralLoss::Loss(molecular_formula!(H 3 N 1).unwrap()),
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
             ],
             immonium: false,
             m: false,

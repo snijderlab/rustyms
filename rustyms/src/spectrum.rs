@@ -10,7 +10,11 @@ use uom::num_traits::Zero;
 use crate::{
     fragment::{Fragment, FragmentKind},
     itertools_extension::ItertoolsExt,
-    system::{f64::*, mass_over_charge::mz},
+    system::{
+        f64::{Mass, MassOverCharge, Ratio, Time},
+        mass_over_charge::mz,
+        usize::Charge,
+    },
     ComplexPeptide, LinearPeptide, Model, WithinTolerance,
 };
 
@@ -309,7 +313,7 @@ impl Default for RawSpectrum {
             title: String::new(),
             num_scans: 0,
             rt: Time::zero(),
-            charge: Charge::new::<e>(1.0),
+            charge: Charge::new::<crate::system::e>(1),
             mass: Mass::zero(),
             spectrum: Vec::new(),
             intensity: None,
@@ -846,7 +850,7 @@ impl PartialEq for RawPeak {
     fn eq(&self, other: &Self) -> bool {
         self.mz.value.total_cmp(&other.mz.value) == Ordering::Equal
             && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
-            && self.charge.value.total_cmp(&other.charge.value) == Ordering::Equal
+            && self.charge.value.cmp(&other.charge.value) == Ordering::Equal
     }
 }
 
@@ -917,7 +921,7 @@ impl PartialEq for AnnotatedPeak {
             .total_cmp(&other.experimental_mz.value)
             == Ordering::Equal
             && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
-            && self.charge.value.total_cmp(&other.charge.value) == Ordering::Equal
+            && self.charge.value.cmp(&other.charge.value) == Ordering::Equal
             && self.annotation == other.annotation
     }
 }

@@ -136,7 +136,7 @@ impl MolecularFormula {
                     write!(
                         output,
                         "{}{}{}",
-                        to_superscript_num(isotope),
+                        to_superscript_num(isotope.get()),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -157,7 +157,7 @@ impl MolecularFormula {
                     write!(
                         output,
                         "{}{}{}",
-                        to_superscript_num(isotope),
+                        to_superscript_num(isotope.get()),
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
@@ -275,8 +275,6 @@ impl std::fmt::Display for MolecularFormula {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{Element, MolecularFormula};
-
     #[test]
     fn sorted() {
         assert_eq!(molecular_formula!(H 2 O 2), molecular_formula!(O 2 H 2));
@@ -306,24 +304,24 @@ mod tests {
     #[test]
     fn add() {
         assert_eq!(
-            molecular_formula!(H 2 O 2).unwrap(),
-            molecular_formula!(H 1 O 1).unwrap() + molecular_formula!(H 1 O 1).unwrap()
+            molecular_formula!(H 2 O 2),
+            molecular_formula!(H 1 O 1) + molecular_formula!(H 1 O 1)
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2).unwrap(),
-            molecular_formula!(H 1 O 3).unwrap() + molecular_formula!(H 1 O -1).unwrap()
+            molecular_formula!(H 2 O 2),
+            molecular_formula!(H 1 O 3) + molecular_formula!(H 1 O -1)
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2).unwrap(),
-            molecular_formula!(H 1 O -1).unwrap() + molecular_formula!(H 1 O 3).unwrap()
+            molecular_formula!(H 2 O 2),
+            molecular_formula!(H 1 O -1) + molecular_formula!(H 1 O 3)
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2).unwrap(),
-            molecular_formula!(H 1 O -1).unwrap() + molecular_formula!(O 3 H 1).unwrap()
+            molecular_formula!(H 2 O 2),
+            molecular_formula!(H 1 O -1) + molecular_formula!(O 3 H 1)
         );
         assert_eq!(
-            molecular_formula!(H 2 O 2).unwrap(),
-            molecular_formula!(H 2 O -1).unwrap() + molecular_formula!(O 3).unwrap()
+            molecular_formula!(H 2 O 2),
+            molecular_formula!(H 2 O -1) + molecular_formula!(O 3)
         );
     }
 }

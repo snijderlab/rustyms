@@ -5,7 +5,7 @@ use std::str::FromStr;
 use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
-    system::Charge,
+    system::usize::Charge,
     AminoAcid, Model, Multi, NeutralLoss,
 };
 
@@ -81,34 +81,22 @@ impl MonoSaccharide {
         if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
             vec![
                 base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap())),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 1 H 6 O 3).unwrap(),
-                )),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 2 H 6 O 3).unwrap(),
-                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
             ]
         } else if matches!(self.base_sugar, BaseSugar::Hexose(_))
             && self.substituents == [GlycanSubstituent::NAcetyl]
         {
             vec![
                 base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2).unwrap())),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 2 H 4 O 2).unwrap(),
-                )),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 1 H 6 O 3).unwrap(),
-                )),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 2 H 6 O 3).unwrap(),
-                )),
-                base.with_neutral_loss(&NeutralLoss::Loss(
-                    molecular_formula!(C 4 H 8 O 4).unwrap(),
-                )),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 4 O 2))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 4 H 8 O 4))),
             ]
         } else if matches!(self.base_sugar, BaseSugar::Nonose)
             && (self.substituents
@@ -127,7 +115,7 @@ impl MonoSaccharide {
             // Neu5Ac and Neu5Gc
             vec![
                 base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1).unwrap())),
+                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
             ]
         } else {
             Vec::new()
@@ -600,36 +588,12 @@ mod test {
         );
     }
 
-    // #[test]
-    // fn internal_breakages() {
-    //     let glycan = GlycanStructure::from_str("HexNAc(Hex(Hex(Hex(HexNAc),Hex)))")
-    //         .unwrap()
-    //         .determine_positions();
-    //     let fragments = glycan.generate_theoretical_fragments(
-    //         &Model {
-    //             glycan: Some(Vec::new()),
-    //             ..Model::none()
-    //         },
-    //         0,
-    //         &MolecularCharge::proton(1),
-    //         &glycan.formula().into(),
-    //         (AminoAcid::N, 0),
-    //     );
-    //     for fragment in &fragments {
-    //         println!("{fragment}");
-    //     }
-    //     assert_eq!(fragments.len(), 33);
-    // }
-
     #[test]
     fn correct_masses() {
         let (sugar, _) = MonoSaccharide::from_short_iupac("Neu5Ac", 0, 0).unwrap();
         dbg!(&sugar);
 
-        assert_eq!(
-            sugar.formula(),
-            molecular_formula!(C 11 H 17 N 1 O 8).unwrap()
-        );
+        assert_eq!(sugar.formula(), molecular_formula!(C 11 H 17 N 1 O 8));
     }
 
     #[test]

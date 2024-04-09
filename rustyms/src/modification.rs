@@ -3,7 +3,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{fmt::Display, ops::Range};
+use std::{fmt::Display, num::NonZeroU16, ops::Range};
 
 use regex::Regex;
 
@@ -485,7 +485,7 @@ pub struct AmbiguousModification {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum GlobalModification {
     /// A global isotope modification
-    Isotope(Element, Option<u16>),
+    Isotope(Element, Option<NonZeroU16>),
     /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
     Fixed(AminoAcid, Modification),
     /// Can be placed on any place where it can fit (according to the placement rules of the modification itself)

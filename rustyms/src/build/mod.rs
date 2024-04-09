@@ -27,7 +27,7 @@ include!("../shared/neutral_loss.rs");
 include!("../shared/modification.rs");
 
 impl crate::Element {
-    pub fn is_valid(self, _isotope: Option<u16>) -> bool {
+    pub fn is_valid(self, _isotope: Option<std::num::NonZeroU16>) -> bool {
         true
     }
 }

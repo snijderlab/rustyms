@@ -146,12 +146,12 @@ enum Brick {
 
 fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
     match name.to_lowercase().as_str() {
-        "ac" => Ok(Brick::Formula(molecular_formula!(C 2 H 2 O 1).unwrap())),
-        "me" => Ok(Brick::Formula(molecular_formula!(C 1 H 2).unwrap())),
-        "kdn" => Ok(Brick::Formula(molecular_formula!(C 9 H 14 O 8).unwrap())),
-        "kdo" => Ok(Brick::Formula(molecular_formula!(C 8 H 12 O 7).unwrap())),
-        "sulf" => Ok(Brick::Formula(molecular_formula!(S 1).unwrap())),
-        "water" => Ok(Brick::Formula(molecular_formula!(H 2 O 1).unwrap())),
+        "ac" => Ok(Brick::Formula(molecular_formula!(C 2 H 2 O 1))),
+        "me" => Ok(Brick::Formula(molecular_formula!(C 1 H 2))),
+        "kdn" => Ok(Brick::Formula(molecular_formula!(C 9 H 14 O 8))),
+        "kdo" => Ok(Brick::Formula(molecular_formula!(C 8 H 12 O 7))),
+        "sulf" => Ok(Brick::Formula(molecular_formula!(S 1))),
+        "water" => Ok(Brick::Formula(molecular_formula!(H 2 O 1))),
         _ => {
             if let Ok(el) = Element::try_from(name) {
                 Ok(Brick::Element(el))

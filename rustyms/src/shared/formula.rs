@@ -7,16 +7,16 @@ use crate::{
 };
 use std::{
     hash::Hash,
-    num::{IntErrorKind, ParseIntError},
+    num::{IntErrorKind, NonZeroU16, ParseIntError},
     ops::{Add, AddAssign, Mul, Neg, Sub},
 };
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
-    /// Save all constituent parts as the element in question, the isotope (or 0 for natural distribution), and the number of this part
+    /// Save all constituent parts as the element in question, the isotope (or None for natural distribution), and the number of this part
     /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
-    elements: Vec<(crate::Element, Option<u16>, i32)>,
+    elements: Vec<(crate::Element, Option<NonZeroU16>, i32)>,
     /// Any addition mass, defined to be monoisotopic
     additional_mass: OrderedFloat<f64>,
 }
@@ -41,7 +41,7 @@ impl<T: Chemical> Chemical for &Vec<T> {
 
 impl MolecularFormula {
     /// Create a new molecular formula, if the chosen isotopes are not valid it returns None
-    pub fn new(elements: &[(crate::Element, Option<u16>, i32)]) -> Option<Self> {
+    pub fn new(elements: &[(crate::Element, Option<NonZeroU16>, i32)]) -> Option<Self> {
         if elements.iter().any(|e| !e.0.is_valid(e.1)) {
             None
         } else {
@@ -131,16 +131,15 @@ impl MolecularFormula {
                                     ),
                                 )
                             })?;
-                        let isotope =
-                            value[index..index + isotope]
-                                .parse::<u16>()
-                                .map_err(|err| {
-                                    CustomError::error(
-                                        "Invalid Pro Forma molecular formula",
-                                        format!("The isotope number {}", explain_number_error(err)),
-                                        Context::line(0, value, index, isotope),
-                                    )
-                                })?;
+                        let isotope = value[index..index + isotope]
+                            .parse::<NonZeroU16>()
+                            .map_err(|err| {
+                                CustomError::error(
+                                    "Invalid Pro Forma molecular formula",
+                                    format!("The isotope number {}", explain_number_error(err)),
+                                    Context::line(0, value, index, isotope),
+                                )
+                            })?;
 
                         if !Self::add(&mut result, (parsed_element, Some(isotope), num)) {
                             return Err(CustomError::error(
@@ -264,15 +263,17 @@ impl MolecularFormula {
                                 Context::line(0, value, index, 1),
                             )
                         })?;
-                    isotope = Some(value[index + 1..index + len].parse::<u16>().map_err(
-                        |err| {
-                            CustomError::error(
-                                "Invalid PSI-MOD molecular formula",
-                                format!("The isotope number {}", explain_number_error(err)),
-                                Context::line(0, value, index + 1, len),
-                            )
-                        },
-                    )?);
+                    isotope = Some(
+                        value[index + 1..index + len]
+                            .parse::<NonZeroU16>()
+                            .map_err(|err| {
+                                CustomError::error(
+                                    "Invalid PSI-MOD molecular formula",
+                                    format!("The isotope number {}", explain_number_error(err)),
+                                    Context::line(0, value, index + 1, len),
+                                )
+                            })?,
+                    );
                     index += len + 1;
                 }
                 b'-' | b'0'..=b'9' if element.is_some() => {
@@ -396,7 +397,7 @@ impl MolecularFormula {
     /// Add the given element to this formula (while keeping it ordered and simplified).
     /// If the isotope for the added element is not valid it returns `false`.
     #[must_use]
-    pub fn add(&mut self, element: (crate::Element, Option<u16>, i32)) -> bool {
+    pub fn add(&mut self, element: (crate::Element, Option<NonZeroU16>, i32)) -> bool {
         if element.0.is_valid(element.1) {
             let mut index = 0;
             let mut done = false;
@@ -425,7 +426,7 @@ impl MolecularFormula {
     }
 
     /// Get the elements making this formula
-    pub fn elements(&self) -> &[(Element, Option<u16>, i32)] {
+    pub fn elements(&self) -> &[(Element, Option<NonZeroU16>, i32)] {
         &self.elements
     }
 
@@ -433,7 +434,7 @@ impl MolecularFormula {
     #[must_use]
     pub fn with_global_isotope_modifications(
         &self,
-        substitutions: &[(Element, Option<u16>)],
+        substitutions: &[(Element, Option<NonZeroU16>)],
     ) -> Option<Self> {
         if substitutions.iter().all(|e| e.0.is_valid(e.1)) {
             let mut new_elements = self.elements.clone();
@@ -461,7 +462,7 @@ impl MolecularFormula {
             .elements
             .iter()
             .find(|el| el.0 == Element::Electron)
-            .map_or(crate::system::isize::Charge::default(), |el| {
+            .map_or_else(crate::system::isize::Charge::default, |el| {
                 crate::system::isize::Charge::new::<crate::system::charge::e>(el.2 as isize)
             })
     }
@@ -621,11 +622,14 @@ impl std::iter::Sum<Self> for MolecularFormula {
 }
 
 #[macro_export]
-/// Easily define molecular formulas using the following syntax: `<element> <num>` or `(<isotope>)<element> <num>`
+/// Easily define molecular formulas using the following syntax: `<element> <num>` or `(<isotope>)<element> <num>`.
 /// ```
 /// # use rustyms::*;
 /// molecular_formula!(C 12 (13)C 1 H 24);
 /// ```
+/// # Panics
+/// It panics if the defined molecular formula is not valid. A formula is not valid if not existing isotopes are used
+/// or if an element is used that does not have a defined molecular weight (does not have natural abundance).
 macro_rules! molecular_formula {
     ($($tail:tt)*) => {
         formula_internal!([$($tail)*] -> [])
@@ -637,18 +641,18 @@ macro_rules! molecular_formula {
 /// Internal code for the [`molecular_formula`] macro.
 macro_rules! formula_internal {
     ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, None, $n),])
+        formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, None, $n),])
     };
     ([($i:literal)$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*(Element::$e, Some($i), $n),])
+        formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([$e:ident $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*(Element::$e, None, $n),])
+        formula_internal!([] -> [$($output)*($crate::Element::$e, None, $n),])
     };
     ([($i:literal)$e:ident $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*(Element::$e, Some($i), $n),])
+        formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
-        MolecularFormula::new(&[$($output)*])
+        $crate::formula::MolecularFormula::new(&[$($output)*]).unwrap()
     };
 }

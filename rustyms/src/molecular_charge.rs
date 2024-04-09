@@ -132,18 +132,15 @@ impl std::fmt::Display for MolecularCharge {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{Chemical, Element, MolecularFormula};
+    use crate::Chemical;
 
     use super::MolecularCharge;
 
     #[test]
     fn simple_charge_options() {
-        let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1).unwrap())]);
+        let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1))]);
         let options = mc.all_charge_options();
         assert_eq!(options.len(), 1);
-        assert_eq!(
-            options[0].formula(),
-            molecular_formula!(H 1 Electron -1).unwrap()
-        );
+        assert_eq!(options[0].formula(), molecular_formula!(H 1 Electron -1));
     }
 }

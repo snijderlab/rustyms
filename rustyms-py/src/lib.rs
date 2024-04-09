@@ -1,6 +1,7 @@
 //! Python bindings to the rustyms library.
 
 use std::fmt::Debug;
+use std::num::NonZeroU16;
 
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -71,7 +72,9 @@ impl Element {
     /// float | None
     ///
     fn mass(&self, isotope: Option<u16>) -> Option<f64> {
-        self.0.mass(isotope).map(|mass| mass.value)
+        self.0
+            .mass(isotope.and_then(NonZeroU16::new))
+            .map(|mass| mass.value)
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists).
@@ -86,7 +89,9 @@ impl Element {
     /// float
     ///
     fn average_weight(&self, isotope: Option<u16>) -> Option<f64> {
-        self.0.average_weight(isotope).map(|mass| mass.value)
+        self.0
+            .average_weight(isotope.and_then(NonZeroU16::new))
+            .map(|mass| mass.value)
     }
 }
 
@@ -123,10 +128,10 @@ impl MolecularFormula {
     ///    If an isotope is invalid.
     ///
     #[new]
-    fn new(elements: Vec<(Element, Option<u16>, i16)>) -> PyResult<Self> {
+    fn new(elements: Vec<(Element, Option<u16>, i32)>) -> PyResult<Self> {
         let elements = elements
             .iter()
-            .map(|(e, i, n)| (e.0, *i, *n))
+            .map(|(e, i, n)| (e.0, (*i).and_then(NonZeroU16::new), *n))
             .collect::<Vec<_>>();
         let formula = rustyms::MolecularFormula::new(elements.as_slice())
             .ok_or_else(|| PyValueError::new_err("Invalid isotopes"))?;
@@ -192,8 +197,11 @@ impl MolecularFormula {
     ///     If the element or isotope is invalid.
     ///
     #[pyo3(signature = (element, isotope=None, n=1))]
-    fn add(&mut self, element: &Element, isotope: Option<u16>, n: i16) -> PyResult<Option<()>> {
-        if self.0.add((element.0, isotope, n)) {
+    fn add(&mut self, element: &Element, isotope: Option<u16>, n: i32) -> PyResult<Option<()>> {
+        if self
+            .0
+            .add((element.0, isotope.and_then(NonZeroU16::new), n))
+        {
             Ok(None)
         } else {
             Err(PyValueError::new_err("Invalid element or isotope"))
@@ -206,11 +214,11 @@ impl MolecularFormula {
     /// -------
     /// list[tuple[Element, int | None, int]]
     ///
-    fn elements(&self) -> Vec<(Element, Option<u16>, i16)> {
+    fn elements(&self) -> Vec<(Element, Option<u16>, i32)> {
         self.0
             .elements()
             .iter()
-            .map(|(e, i, n)| (Element(*e), *i, *n))
+            .map(|(e, i, n)| (Element(*e), (*i).map(NonZeroU16::get), *n))
             .collect()
     }
 
@@ -222,7 +230,7 @@ impl MolecularFormula {
         match self.0.with_global_isotope_modifications(
             substitutions
                 .iter()
-                .map(|(e, i)| (e.0, *i))
+                .map(|(e, i)| (e.0, (*i).and_then(NonZeroU16::new)))
                 .collect::<Vec<_>>()
                 .as_slice(),
         ) {
@@ -239,8 +247,8 @@ impl MolecularFormula {
     /// -------
     /// int
     ///
-    fn charge(&self) -> i16 {
-        self.0.charge()
+    fn charge(&self) -> isize {
+        self.0.charge().value
     }
 
     /// The mass of the molecular formula of this element, if all element species (isotopes) exists
@@ -963,8 +971,11 @@ impl LinearPeptide {
     /// int | None
     ///
     #[getter]
-    fn charge(&self) -> Option<i16> {
-        self.0.charge_carriers.clone().map(|c| c.formula().charge())
+    fn charge(&self) -> Option<isize> {
+        self.0
+            .charge_carriers
+            .clone()
+            .map(|c| c.formula().charge().value)
     }
 
     /// The adduct ions, if specified.
@@ -1017,13 +1028,13 @@ impl LinearPeptide {
     ///
     fn generate_theoretical_fragments(
         &self,
-        max_charge: i16,
+        max_charge: usize,
         model: &FragmentationModel,
     ) -> PyResult<Vec<Fragment>> {
         Ok(self
             .0
             .generate_theoretical_fragments(
-                rustyms::system::Charge::new::<rustyms::system::e>(max_charge as f64),
+                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
                 &match_model(model)?,
             )
             .iter()
@@ -1195,7 +1206,7 @@ impl RawSpectrum {
         title: &str,
         num_scans: u64,
         rt: f64,
-        precursor_charge: f64,
+        precursor_charge: usize,
         precursor_mass: f64,
         mz_array: Vec<f64>,
         intensity_array: Vec<f64>,
@@ -1204,14 +1215,15 @@ impl RawSpectrum {
         spectrum.title = title.to_string();
         spectrum.num_scans = num_scans;
         spectrum.rt = rustyms::system::Time::new::<rustyms::system::s>(rt);
-        spectrum.charge = rustyms::system::Charge::new::<rustyms::system::e>(precursor_charge);
+        spectrum.charge =
+            rustyms::system::usize::Charge::new::<rustyms::system::e>(precursor_charge);
         spectrum.mass = rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass);
 
         let peaks = mz_array
             .into_iter()
             .zip(intensity_array)
             .map(|(mz, i)| rustyms::spectrum::RawPeak {
-                charge: rustyms::system::Charge::new::<rustyms::system::e>(1.0),
+                charge: rustyms::system::usize::Charge::new::<rustyms::system::e>(1),
                 mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
                 intensity: OrderedFloat(i),
             })
@@ -1276,7 +1288,7 @@ impl RawSpectrum {
     /// -------
     /// float
     #[getter]
-    fn charge(&self) -> f64 {
+    fn charge(&self) -> usize {
         self.0.charge.value
     }
 
@@ -1408,7 +1420,7 @@ impl AnnotatedSpectrum {
     /// -------
     /// float
     #[getter]
-    fn charge(&self) -> f64 {
+    fn charge(&self) -> usize {
         self.0.charge.value
     }
 
