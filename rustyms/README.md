@@ -20,15 +20,15 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
  - Align peptides based on mass (algorithm will be tweaked extensively over time) (see `Stitch` for more information, but the algorithm has been improved)
 
 ## Example usage
-```
+```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
 # let raw_file_path = "data/annotated_example.mgf";
 // Open some data and see if the given peptide is a valid match
-use rustyms::{*, system::{Charge, e}};
+use rustyms::{*, system::{usize::Charge, e}};
 let peptide = ComplexPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVSERTHGGNFD")?;
 let spectrum = rawfile::mgf::open(raw_file_path)?;
 let model = Model::ethcd();
-let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2.0), &model);
+let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2), &model);
 let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
 let fdr = annotated.fdr(&fragments, &model);
 // This is the incorrect sequence for this spectrum so the FDR will indicate this
@@ -36,7 +36,7 @@ let fdr = annotated.fdr(&fragments, &model);
 assert!(fdr.sigma() < 2.0);
 # Ok(()) }
 ```
-```
+```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
 // Check how this peptide compares to a similar peptide (using `align`)
 // (same sequence, repeated for easy reference)

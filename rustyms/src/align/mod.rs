@@ -23,7 +23,7 @@
 //! let alignment = align::<4>(&a, &b, &matrix::BLOSUM62,
 //!                    Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
-//! assert_eq!(alignment.ppm(), 0.0);
+//! assert_eq!(alignment.ppm().value, 0.0);
 //! ```
 
 mod align_type;

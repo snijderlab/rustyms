@@ -21,6 +21,7 @@ mod build;
 
 use crate::build::*;
 pub use crate::element::*;
+pub use crate::formula::MolecularFormula;
 
 fn main() {
     let debug = env::var("DEBUG_BUILD").map(|v| v == "1").unwrap_or(false);

@@ -653,6 +653,6 @@ macro_rules! formula_internal {
         formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
-        $crate::formula::MolecularFormula::new(&[$($output)*]).unwrap()
+        $crate::MolecularFormula::new(&[$($output)*]).unwrap()
     };
 }
