@@ -231,7 +231,7 @@ impl RawSpectrum {
             {
                 annotated.spectrum[closest.0]
                     .annotation
-                    .push(fragment.clone());
+                    .push((fragment.clone(), Vec::new()));
             }
         }
 
@@ -444,7 +444,7 @@ impl AnnotatedSpectrum {
                     let number = p
                         .annotation
                         .iter()
-                        .filter(|a| {
+                        .filter(|(a, _)| {
                             peptide_index.map_or(true, |i| a.peptide_index == i)
                                 && ion.map_or(true, |kind| a.ion.kind() == kind)
                         })
@@ -481,11 +481,11 @@ impl AnnotatedSpectrum {
                 .flat_map(|p| {
                     p.annotation
                         .iter()
-                        .filter(|a| {
+                        .filter(|(a, _)| {
                             a.peptide_index == peptide_index
                                 && ion.map_or(true, |kind| a.ion.kind() == kind)
                         })
-                        .filter_map(|a| a.ion.position())
+                        .filter_map(|(a, _)| a.ion.position())
                 })
                 .map(|pos| pos.sequence_index)
                 .unique()
@@ -500,12 +500,12 @@ impl AnnotatedSpectrum {
             let num_annotated = spectrum
                 .iter()
                 .flat_map(|p| {
-                    p.annotation.iter().filter(|a| {
+                    p.annotation.iter().filter(|(a, _)| {
                         peptide_index.map_or(true, |i| a.peptide_index == i)
                             && ion.map_or(true, |kind| a.ion.kind() == kind)
                     })
                 })
-                .map(|f| f.formula.clone())
+                .map(|(f, _)| f.formula.clone())
                 .unique()
                 .count() as u32;
             let total_fragments = fragments
@@ -863,6 +863,17 @@ impl RawPeak {
     }
 }
 
+/// An isotope annotation.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct MatchedIsotopeDistribution {
+    /// The index of the matched peak in the spectrum, if found
+    pub peak_index: Option<usize>,
+    /// The isotope offset in whole daltons from the monoisotopic peak
+    pub isotope_offset: usize,
+    /// The theoretical abundance of this isotope (normalised to 1 for the whole distribution)
+    pub theoretical_isotope_abundance: OrderedFloat<f64>,
+}
+
 /// An annotated peak
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnnotatedPeak {
@@ -873,7 +884,9 @@ pub struct AnnotatedPeak {
     /// The charge
     pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
     /// The annotation, if present
-    pub annotation: Vec<Fragment>,
+    pub annotation: Vec<(Fragment, Vec<MatchedIsotopeDistribution>)>,
+    /// Any annotation as isotope from a given fragment
+    pub isotope_annotation: Vec<(usize, usize)>,
 }
 
 impl AnnotatedPeak {
@@ -883,7 +896,8 @@ impl AnnotatedPeak {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
             charge: peak.charge,
-            annotation: vec![annotation],
+            annotation: vec![(annotation, Vec::new())],
+            isotope_annotation: Vec::new(),
         }
     }
 
@@ -894,6 +908,7 @@ impl AnnotatedPeak {
             intensity: peak.intensity,
             charge: peak.charge,
             annotation: Vec::new(),
+            isotope_annotation: Vec::new(),
         }
     }
 }
