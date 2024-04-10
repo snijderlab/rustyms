@@ -70,39 +70,16 @@ impl MolecularFormula {
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
         let mut output = String::new();
-        if let Some(carbon) = self
-            .elements
-            .iter()
-            .find(|e| e.0 == Element::C && e.1.is_none())
-        {
-            write!(output, "C{}", carbon.2).unwrap();
-            if let Some(hydrogen) = self
-                .elements
-                .iter()
-                .find(|e| e.0 == Element::H && e.1.is_none())
-            {
-                write!(output, "H{}", hydrogen.2).unwrap();
-            }
-            for element in self
-                .elements
-                .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
-            {
+        self.hill_notation_generic(
+            |element, buffer| {
                 if let Some(isotope) = element.1 {
-                    write!(output, "[{}{}{}]", isotope, element.0, element.2).unwrap();
+                    write!(buffer, "[{}{}{}]", isotope, element.0, element.2,).unwrap();
                 } else {
-                    write!(output, "{}{}", element.0, element.2).unwrap();
+                    write!(buffer, "{}{}", element.0, element.2,).unwrap();
                 }
-            }
-        } else {
-            for element in &self.elements {
-                if let Some(isotope) = element.1 {
-                    write!(output, "[{}{}{}]", isotope, element.0, element.2).unwrap();
-                } else {
-                    write!(output, "{}{}", element.0, element.2).unwrap();
-                }
-            }
-        }
+            },
+            &mut output,
+        );
         if self.additional_mass != 0.0 {
             write!(output, "{:+}", self.additional_mass).unwrap();
         }
@@ -114,27 +91,11 @@ impl MolecularFormula {
     /// and superscript numbers.
     pub fn hill_notation_fancy(&self) -> String {
         let mut output = String::new();
-        if let Some(carbon) = self
-            .elements
-            .iter()
-            .find(|e| e.0 == Element::C && e.1.is_none())
-        {
-            write!(output, "C{}", to_subscript_num(carbon.2 as isize)).unwrap();
-            if let Some(hydrogen) = self
-                .elements
-                .iter()
-                .find(|e| e.0 == Element::H && e.1.is_none())
-            {
-                write!(output, "H{}", to_subscript_num(hydrogen.2 as isize)).unwrap();
-            }
-            for element in self
-                .elements
-                .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
-            {
+        self.hill_notation_generic(
+            |element, buffer| {
                 if let Some(isotope) = element.1 {
                     write!(
-                        output,
+                        buffer,
                         "{}{}{}",
                         to_superscript_num(isotope.get()),
                         element.0,
@@ -143,36 +104,16 @@ impl MolecularFormula {
                     .unwrap();
                 } else {
                     write!(
-                        output,
+                        buffer,
                         "{}{}",
                         element.0,
                         to_subscript_num(element.2 as isize)
                     )
                     .unwrap();
                 }
-            }
-        } else {
-            for element in &self.elements {
-                if let Some(isotope) = element.1 {
-                    write!(
-                        output,
-                        "{}{}{}",
-                        to_superscript_num(isotope.get()),
-                        element.0,
-                        to_subscript_num(element.2 as isize)
-                    )
-                    .unwrap();
-                } else {
-                    write!(
-                        output,
-                        "{}{}",
-                        element.0,
-                        to_subscript_num(element.2 as isize)
-                    )
-                    .unwrap();
-                }
-            }
-        }
+            },
+            &mut output,
+        );
         if self.additional_mass != 0.0 {
             write!(output, "{:+}", self.additional_mass).unwrap();
         }
@@ -182,54 +123,58 @@ impl MolecularFormula {
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements encoded in HTML
     pub fn hill_notation_html(&self) -> String {
         let mut output = String::new();
+        self.hill_notation_generic(
+            |element, buffer| {
+                if let Some(isotope) = element.1 {
+                    write!(
+                        buffer,
+                        "<sup>{isotope}</sup>{}<sub>{}</sub>",
+                        element.0, element.2
+                    )
+                    .unwrap();
+                } else {
+                    write!(buffer, "{}<sub>{}</sub>", element.0, element.2).unwrap();
+                }
+            },
+            &mut output,
+        );
+        if self.additional_mass != 0.0 {
+            write!(output, "{:+}", self.additional_mass).unwrap();
+        }
+        output
+    }
+
+    /// The generic backbone to do the Hill notation sorting
+    fn hill_notation_generic(
+        &self,
+        f: impl Fn(&(Element, Option<NonZeroU16>, i32), &mut String),
+        buffer: &mut String,
+    ) {
         if let Some(carbon) = self
             .elements
             .iter()
             .find(|e| e.0 == Element::C && e.1.is_none())
         {
-            write!(output, "C<sub>{}</sub>", carbon.2).unwrap();
+            f(carbon, buffer);
             if let Some(hydrogen) = self
                 .elements
                 .iter()
                 .find(|e| e.0 == Element::H && e.1.is_none())
             {
-                write!(output, "H<sub>{}</sub>", hydrogen.2).unwrap();
+                f(hydrogen, buffer);
             }
             for element in self
                 .elements
                 .iter()
                 .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
-                .filter(|e| e.2 != 0)
             {
-                write!(
-                    output,
-                    "{}{}<sub>{}</sub>",
-                    element
-                        .1
-                        .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
-                    element.0,
-                    element.2,
-                )
-                .unwrap();
+                f(element, buffer);
             }
         } else {
-            for element in self.elements.iter().filter(|e| e.2 != 0) {
-                write!(
-                    output,
-                    "{}{}<sub>{}</sub>",
-                    element
-                        .1
-                        .map_or_else(String::new, |isotope| format!("<sup>{isotope}</sup>")),
-                    element.0,
-                    element.2,
-                )
-                .unwrap();
+            for element in &self.elements {
+                f(element, buffer);
             }
         }
-        if self.additional_mass != 0.0 {
-            write!(output, "{:+}", self.additional_mass).unwrap();
-        }
-        output
     }
 }
 
