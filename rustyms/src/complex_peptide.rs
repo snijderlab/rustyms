@@ -102,10 +102,7 @@ impl ComplexPeptide {
     /// # Errors
     /// It returns an error if the line is not a supported Pro Forma line.
     #[allow(clippy::missing_panics_doc)] // Can not panic
-    fn pro_forma_inner(
-        line: &str,
-        mut index: usize,
-    ) -> Result<(LinearPeptide, usize), CustomError> {
+    fn pro_forma_inner(line: &str, index: usize) -> Result<(LinearPeptide, usize), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
@@ -121,142 +118,26 @@ impl ComplexPeptide {
         let mut ambiguous_lookup = Vec::new();
         let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
             Vec::new();
-        let mut global_modifications = Vec::new();
         let mut unknown_position_modifications = Vec::new();
         let mut ranged_unknown_position_modifications = Vec::new();
 
         // Global modification(s)
-        while chars[index] == b'<' {
-            let end_index = next_char(chars, index, b'>').ok_or_else(|| {
-                CustomError::error(
-                    "Global modification not closed",
-                    "A global modification should be closed with a closing angle bracket '>'",
-                    Context::line(0, line, index, 1),
-                )
-            })?;
-            if let Some(offset) = next_char(chars, index, b'@') {
-                let at_index = index + 1 + offset;
-                if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
-                    return Err(CustomError::error(
-                        "Invalid global modification",
-                        "A global modification should always be enclosed in square brackets '[]'",
-                        Context::line(0, line, index + 1, at_index - index - 2),
-                    ));
-                }
-                let modification =
-                    Modification::try_from(line, index + 2..at_index - 2, &mut ambiguous_lookup)
-                        .map(|m| {
-                            m.defined().ok_or_else(|| {
-                                CustomError::error(
-                                    "Invalid global modification",
-                                    "A global modification cannot be ambiguous",
-                                    Context::line(0, line, index + 2, at_index - index - 4),
-                                )
-                            })
-                        })
-                        .flat_err()?;
-                for aa in line[at_index..end_index].split(',') {
-                    global_modifications.push(GlobalModification::Fixed(
-                        aa.try_into().map_err(|()| {
-                            CustomError::error(
-                                "Invalid global modification",
-                                "The location could not be read as an amino acid",
-                                Context::line(0, line, at_index, at_index - end_index),
-                            )
-                        })?,
-                        modification.clone(),
-                    ));
-                }
-            } else if &line[index + 1..end_index] == "D" {
-                global_modifications
-                    .push(GlobalModification::Isotope(Element::H, NonZeroU16::new(2)));
-            } else {
-                let num = &line[index + 1..end_index]
-                    .chars()
-                    .take_while(char::is_ascii_digit)
-                    .collect::<String>();
-                let el = &line[index + 1 + num.len()..end_index];
-                let el: Element = el.try_into().map_err(|()| {
-                    CustomError::error(
-                        "Invalid global modification",
-                        "Could not determine the element",
-                        Context::line(
-                            0,
-                            line,
-                            index + num.len(),
-                            index + 1 + num.len() - end_index,
-                        ),
-                    )
-                })?;
-                let num = num.parse::<u16>().map_err(|_| {
-                    CustomError::error(
-                        "Invalid global modification",
-                        "Could not read isotope number",
-                        Context::line(0, line, index + 1, index - end_index),
-                    )
-                })?;
-                let num = NonZeroU16::new(num);
-                if !el.is_valid(num) {
-                    return Err(CustomError::error(
-                        "Invalid global modification",
-                        format!(
-                            "This element {el} does not have a defined weight {}",
-                            num.map_or_else(String::new, |num| format!("for isotope {num}"))
-                        ),
-                        Context::line(0, line, index + 1, index - end_index),
-                    ));
-                }
-                global_modifications.push(GlobalModification::Isotope(el, num));
-            }
-
-            index = end_index + 1;
-        }
+        let (mut index, global_modifications) = global_modifications(chars, index, line)?;
 
         // Unknown position mods
-        if let Some(result) = unknown_position_mods(chars, index) {
+        if let Some(result) = unknown_position_mods(chars, index, line) {
             let (buf, mods, ambiguous_mods) =
                 result.map_err(|mut e| e.pop().unwrap_or_else(|| CustomError::error("Missing error in ambiguous mods", "Ambiguous modifications could not be parsed, but no error was returned, please report this error.", Context::Show { line: line.to_string() })))?; // TODO: at some point be able to return all errors
             index = buf;
 
-            unknown_position_modifications = mods
-                .into_iter()
-                .map(|m| {
-                    m.defined().ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid unknown position modification",
-                            "An invalid position modification cannot be ambiguous",
-                            Context::full_line(0, line),
-                        )
-                    })
-                })
-                .collect::<Result<_, CustomError>>()?;
+            unknown_position_modifications = mods;
             ambiguous_lookup.extend(ambiguous_mods);
         }
 
         // Labile modification(s)
-        while chars[index] == b'{' {
-            let end_index = end_of_enclosure(chars, index + 1, b'{', b'}').ok_or_else(|| {
-                CustomError::error(
-                    "Invalid labile modification",
-                    "No valid closing delimiter, a labile modification should be closed by '}'",
-                    Context::line(0, line, index, 1),
-                )
-            })?;
+        let (mut index, labile) = labile_modifications(chars, index, line)?;
+        peptide.labile = labile;
 
-            peptide.labile.push(
-                Modification::try_from(line, index + 1..end_index, &mut ambiguous_lookup)
-                    .and_then(|m| {
-                        m.defined().ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid labile modification",
-                                "A labile modification cannot be ambiguous",
-                                Context::line(0, line, index + 1, end_index - 1 - index),
-                            )
-                        })
-                    })?,
-            );
-            index = end_index + 1;
-        }
         // N term modification
         if chars[index] == b'[' {
             let mut end_index = 0;
@@ -558,8 +439,147 @@ where
     }
 }
 
+/// Parse global modifications
+/// # Errors
+/// If the global modifications are not defined to the specification
+fn global_modifications(
+    chars: &[u8],
+    mut index: usize,
+    line: &str,
+) -> Result<(usize, Vec<GlobalModification>), CustomError> {
+    let mut global_modifications = Vec::new();
+    while chars[index] == b'<' {
+        let end_index = next_char(chars, index, b'>').ok_or_else(|| {
+            CustomError::error(
+                "Global modification not closed",
+                "A global modification should be closed with a closing angle bracket '>'",
+                Context::line(0, line, index, 1),
+            )
+        })?;
+        if let Some(offset) = next_char(chars, index, b'@') {
+            let at_index = index + 1 + offset;
+            if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
+                return Err(CustomError::error(
+                    "Invalid global modification",
+                    "A global modification should always be enclosed in square brackets '[]'",
+                    Context::line(0, line, index + 1, at_index - index - 2),
+                ));
+            }
+            let modification =
+                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new())
+                    .map(|m| {
+                        m.defined().ok_or_else(|| {
+                            CustomError::error(
+                                "Invalid global modification",
+                                "A global modification cannot be ambiguous",
+                                Context::line(0, line, index + 2, at_index - index - 4),
+                            )
+                        })
+                    })
+                    .flat_err()?;
+            for aa in line[at_index..end_index].split(',') {
+                if aa.starts_with("N-term") {
+                    if let Some((_, aa)) = aa.split_once(':') {
+                        global_modifications.push(GlobalModification::Fixed(
+                            crate::placement_rule::Position::AnyNTerm,
+                            aa.try_into().map_err(|()| {
+                                CustomError::error(
+                                    "Invalid global modification",
+                                    "The location could not be read as an amino acid",
+                                    Context::line(0, line, at_index + 7, at_index - end_index - 7),
+                                )
+                            })?,
+                            modification.clone(),
+                        ));
+                    } else {
+                        global_modifications.push(GlobalModification::Fixed(
+                            crate::placement_rule::Position::AnyNTerm,
+                            crate::AminoAcid::Unknown,
+                            modification.clone(),
+                        ));
+                    }
+                } else if aa.starts_with("C-term") {
+                    if let Some((_, aa)) = aa.split_once(':') {
+                        global_modifications.push(GlobalModification::Fixed(
+                            crate::placement_rule::Position::AnyCTerm,
+                            aa.try_into().map_err(|()| {
+                                CustomError::error(
+                                    "Invalid global modification",
+                                    "The location could not be read as an amino acid",
+                                    Context::line(0, line, at_index + 7, at_index - end_index - 7),
+                                )
+                            })?,
+                            modification.clone(),
+                        ));
+                    } else {
+                        global_modifications.push(GlobalModification::Fixed(
+                            crate::placement_rule::Position::AnyCTerm,
+                            crate::AminoAcid::Unknown,
+                            modification.clone(),
+                        ));
+                    }
+                } else {
+                    global_modifications.push(GlobalModification::Fixed(
+                        crate::placement_rule::Position::Anywhere,
+                        aa.try_into().map_err(|()| {
+                            CustomError::error(
+                                "Invalid global modification",
+                                "The location could not be read as an amino acid",
+                                Context::line(0, line, at_index, at_index - end_index),
+                            )
+                        })?,
+                        modification.clone(),
+                    ));
+                }
+            }
+        } else if &line[index + 1..end_index] == "D" {
+            global_modifications.push(GlobalModification::Isotope(Element::H, NonZeroU16::new(2)));
+        } else {
+            let num = &line[index + 1..end_index]
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>();
+            let el = &line[index + 1 + num.len()..end_index];
+            let el: Element = el.try_into().map_err(|()| {
+                CustomError::error(
+                    "Invalid global modification",
+                    "Could not determine the element",
+                    Context::line(
+                        0,
+                        line,
+                        index + num.len(),
+                        index + 1 + num.len() - end_index,
+                    ),
+                )
+            })?;
+            let num = num.parse::<u16>().map_err(|_| {
+                CustomError::error(
+                    "Invalid global modification",
+                    "Could not read isotope number",
+                    Context::line(0, line, index + 1, index - end_index),
+                )
+            })?;
+            let num = NonZeroU16::new(num);
+            if !el.is_valid(num) {
+                return Err(CustomError::error(
+                    "Invalid global modification",
+                    format!(
+                        "This element {el} does not have a defined weight {}",
+                        num.map_or_else(String::new, |num| format!("for isotope {num}"))
+                    ),
+                    Context::line(0, line, index + 1, index - end_index),
+                ));
+            }
+            global_modifications.push(GlobalModification::Isotope(el, num));
+        }
+
+        index = end_index + 1;
+    }
+    Ok((index, global_modifications))
+}
+
 /// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
-type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
+type UnknownPositionMods = (usize, Vec<Modification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
 /// # Errors
@@ -569,6 +589,7 @@ type UnknownPositionMods = (usize, Vec<ReturnModification>, AmbiguousLookup);
 fn unknown_position_mods(
     chars: &[u8],
     start: usize,
+    line: &str,
 ) -> Option<Result<UnknownPositionMods, Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
@@ -588,7 +609,19 @@ fn unknown_position_mods(
         .unwrap_or_else(|e| {
             errs.push(e);
             ReturnModification::Defined(Modification::Mass(OrderedMass::default()))
-        });
+        })
+        .defined()
+        .map_or_else(
+            || {
+                errs.push(CustomError::error(
+                    "Invalid unknown position modification",
+                    "A modification of unknown position cannot be ambiguous",
+                    Context::line(0, line, index + 1, end_index - 1 - index),
+                ));
+                Modification::Mass(OrderedMass::default())
+            },
+            |m| m,
+        );
         index = end_index + 1;
         let number = if chars[index] == b'^' {
             if let Some((len, num)) = next_num(chars, index + 1, false) {
@@ -611,6 +644,40 @@ fn unknown_position_mods(
             Err(errs)
         }
     })
+}
+
+/// Parse labile modifications `{mod}{mod2}`. These are assumed to fall off from the peptide in the MS.
+/// # Errors
+/// If the mods are not followed by a closing brace. Or if the mods are ambiguous.
+fn labile_modifications(
+    chars: &[u8],
+    mut index: usize,
+    line: &str,
+) -> Result<(usize, Vec<Modification>), CustomError> {
+    let mut labile = Vec::new();
+    while chars[index] == b'{' {
+        let end_index = end_of_enclosure(chars, index + 1, b'{', b'}').ok_or_else(|| {
+            CustomError::error(
+                "Invalid labile modification",
+                "No valid closing delimiter, a labile modification should be closed by '}'",
+                Context::line(0, line, index, 1),
+            )
+        })?;
+
+        labile.push(
+            Modification::try_from(line, index + 1..end_index, &mut Vec::new()).and_then(|m| {
+                m.defined().ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid labile modification",
+                        "A labile modification cannot be ambiguous",
+                        Context::line(0, line, index + 1, end_index - 1 - index),
+                    )
+                })
+            })?,
+        );
+        index = end_index + 1;
+    }
+    Ok((index, labile))
 }
 
 #[cfg(test)]

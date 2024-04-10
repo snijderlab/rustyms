@@ -12,7 +12,7 @@ use crate::{
     fragment::PeptidePosition,
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
-    placement_rule::PlacementRule,
+    placement_rule::{PlacementRule, Position},
     system::{dalton, Mass, OrderedMass},
     AminoAcid, Chemical, DiagnosticIon, Element, MolecularFormula, NeutralLoss, SequenceElement,
     Tolerance, WithinTolerance,
@@ -487,7 +487,7 @@ pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, Option<NonZeroU16>),
     /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
-    Fixed(AminoAcid, Modification),
+    Fixed(Position, AminoAcid, Modification),
     /// Can be placed on any place where it can fit (according to the placement rules of the modification itself)
     Free(Modification),
 }

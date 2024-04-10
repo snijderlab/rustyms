@@ -40,7 +40,7 @@ impl PlacementRule {
 }
 
 impl Position {
-    const fn is_possible(self, position: &PeptidePosition) -> bool {
+    pub const fn is_possible(self, position: &PeptidePosition) -> bool {
         match self {
             Self::Anywhere => true,
             Self::AnyNTerm | Self::ProteinNTerm => position.is_n_terminal(),
