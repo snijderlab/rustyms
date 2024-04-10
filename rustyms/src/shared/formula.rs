@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Context, CustomError},
+    helper_functions::explain_number_error,
     Element, ELEMENT_PARSE_LIST,
 };
 use std::{
     hash::Hash,
-    num::{IntErrorKind, NonZeroU16, ParseIntError},
+    num::NonZeroU16,
     ops::{Add, AddAssign, Mul, Neg, Sub},
 };
 
@@ -471,18 +472,6 @@ impl MolecularFormula {
             .map_or_else(crate::system::isize::Charge::default, |el| {
                 crate::system::isize::Charge::new::<crate::system::charge::e>(el.2 as isize)
             })
-    }
-}
-
-/// To be used as `The xx number ` + the explanation from here (does not have a dot).
-fn explain_number_error(error: &ParseIntError) -> &'static str {
-    match error.kind() {
-        IntErrorKind::Empty => "is empty",
-        IntErrorKind::InvalidDigit => "contains an invalid character",
-        IntErrorKind::NegOverflow => "is too small to fit in the internal representation",
-        IntErrorKind::PosOverflow => "is too big to fit in the internal representation",
-        IntErrorKind::Zero => "is zero, which is not allowed here",
-        _ => "is not a valid number",
     }
 }
 

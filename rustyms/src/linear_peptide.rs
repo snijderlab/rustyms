@@ -740,13 +740,6 @@ impl LinearPeptide {
                         seq.modifications.push(modification.clone());
                     }
                 }
-                GlobalModification::Free(modification) => {
-                    for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
-                        modification.is_possible(seq, &PeptidePosition::n(*index, length))
-                    }) {
-                        seq.modifications.push(modification.clone());
-                    }
-                }
                 GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {
                     self.global.push((*el, *isotope));
                 }

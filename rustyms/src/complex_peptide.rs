@@ -398,7 +398,7 @@ fn global_modifications(
     line: &str,
 ) -> Result<(usize, Vec<GlobalModification>), CustomError> {
     let mut global_modifications = Vec::new();
-    while chars[index] == b'<' {
+    while index < chars.len() && chars[index] == b'<' {
         let end_index = next_char(chars, index, b'>').ok_or_else(|| {
             CustomError::error(
                 "Global modification not closed",
@@ -408,7 +408,11 @@ fn global_modifications(
         })?;
         if let Some(offset) = next_char(chars, index, b'@') {
             let at_index = index + 1 + offset;
-            if !chars[index + 1] == b'[' || !chars[at_index - 1] == b']' {
+            dbg!(
+                char::from(chars[index + 1]),
+                char::from(chars[at_index - 2])
+            );
+            if chars[index + 1] != b'[' || chars[at_index - 2] != b']' {
                 return Err(CustomError::error(
                     "Invalid global modification",
                     "A global modification should always be enclosed in square brackets '[]'",
@@ -428,7 +432,7 @@ fn global_modifications(
                     })
                     .flat_err()?;
             for aa in line[at_index..end_index].split(',') {
-                if aa.starts_with("N-term") {
+                if aa.to_ascii_lowercase().starts_with("n-term") {
                     if let Some((_, aa)) = aa.split_once(':') {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyNTerm,
@@ -436,7 +440,7 @@ fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(0, line, at_index + 7, at_index - end_index - 7),
+                                    Context::line(0, line, at_index + 7, end_index - at_index - 7),
                                 )
                             })?),
                             modification.clone(),
@@ -448,7 +452,7 @@ fn global_modifications(
                             modification.clone(),
                         ));
                     }
-                } else if aa.starts_with("C-term") {
+                } else if aa.to_ascii_lowercase().starts_with("c-term") {
                     if let Some((_, aa)) = aa.split_once(':') {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyCTerm,
@@ -456,7 +460,7 @@ fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(0, line, at_index + 7, at_index - end_index - 7),
+                                    Context::line(0, line, at_index + 7, end_index - at_index - 7),
                                 )
                             })?),
                             modification.clone(),
@@ -475,7 +479,7 @@ fn global_modifications(
                             CustomError::error(
                                 "Invalid global modification",
                                 "The location could not be read as an amino acid",
-                                Context::line(0, line, at_index, at_index - end_index),
+                                Context::line(0, line, at_index, end_index - at_index),
                             )
                         })?),
                         modification.clone(),
@@ -498,18 +502,17 @@ fn global_modifications(
                         0,
                         line,
                         index + num.len(),
-                        index + 1 + num.len() - end_index,
+                        end_index - (index + 1 + num.len()),
                     ),
                 )
             })?;
-            let num = num.parse::<u16>().map_err(|_| {
+            let num = Some(num.parse::<NonZeroU16>().map_err(|err| {
                 CustomError::error(
                     "Invalid global modification",
-                    "Could not read isotope number",
-                    Context::line(0, line, index + 1, index - end_index),
+                    format!("The isotope number is {}", explain_number_error(&err)),
+                    Context::line(0, line, index + 1, end_index - index),
                 )
-            })?;
-            let num = NonZeroU16::new(num);
+            })?);
             if !el.is_valid(num) {
                 return Err(CustomError::error(
                     "Invalid global modification",
@@ -517,7 +520,7 @@ fn global_modifications(
                         "This element {el} does not have a defined weight {}",
                         num.map_or_else(String::new, |num| format!("for isotope {num}"))
                     ),
-                    Context::line(0, line, index + 1, index - end_index),
+                    Context::line(0, line, index + 1, end_index - index),
                 ));
             }
             global_modifications.push(GlobalModification::Isotope(el, num));
@@ -719,7 +722,11 @@ fn parse_charge_state(
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{model::Location, system::e, ComplexPeptide};
+    use crate::{
+        model::Location,
+        system::{da, e},
+        ComplexPeptide,
+    };
 
     use super::*;
 
@@ -939,5 +946,93 @@ mod tests {
             peptide.peptides()[0].sequence[0].formulas_all(),
             peptide.peptides()[1].sequence[0].formulas_all()
         );
+    }
+
+    #[test]
+    fn parse_global_modifications() {
+        let parse = |str: &str| global_modifications(str.as_bytes(), 0, str);
+        assert_eq!(
+            parse("<[+5]@D>"),
+            Ok((
+                8,
+                vec![GlobalModification::Fixed(
+                    crate::placement_rule::Position::Anywhere,
+                    Some(AminoAcid::D),
+                    Modification::Mass(da(5.0).into())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse("<[+5]@d>"),
+            Ok((
+                8,
+                vec![GlobalModification::Fixed(
+                    crate::placement_rule::Position::Anywhere,
+                    Some(AminoAcid::D),
+                    Modification::Mass(da(5.0).into())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse("<[+5]@N-term:D>"),
+            Ok((
+                15,
+                vec![GlobalModification::Fixed(
+                    crate::placement_rule::Position::AnyNTerm,
+                    Some(AminoAcid::D),
+                    Modification::Mass(da(5.0).into())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse("<[+5]@n-term:D>"),
+            Ok((
+                15,
+                vec![GlobalModification::Fixed(
+                    crate::placement_rule::Position::AnyNTerm,
+                    Some(AminoAcid::D),
+                    Modification::Mass(da(5.0).into())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse("<[+5]@C-term:D>"),
+            Ok((
+                15,
+                vec![GlobalModification::Fixed(
+                    crate::placement_rule::Position::AnyCTerm,
+                    Some(AminoAcid::D),
+                    Modification::Mass(da(5.0).into())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse("<D>"),
+            Ok((
+                3,
+                vec![GlobalModification::Isotope(Element::H, NonZeroU16::new(2))]
+            ))
+        );
+        assert_eq!(
+            parse("<12C>"),
+            Ok((
+                5,
+                vec![GlobalModification::Isotope(Element::C, NonZeroU16::new(12))]
+            ))
+        );
+        assert!(parse("<D").is_err());
+        assert!(parse("<[+5]>").is_err());
+        assert!(parse("<[+5]@DD>").is_err());
+        assert!(parse("<[5+]@D>").is_err());
+        assert!(parse("<[+5@D>").is_err());
+        assert!(parse("<+5]@D>").is_err());
+        assert!(parse("<[+5#g1]@D>").is_err());
+        assert!(parse("<[+5#g1>").is_err());
+        assert!(parse("<C12>").is_err());
+        assert!(parse("<>").is_err());
+        assert!(parse("<@>").is_err());
+        assert!(parse("<@D,E,R,T>").is_err());
+        assert!(parse("<[+5]@D,E,R,Te>").is_err());
+        assert!(parse("<[+5]@D,E,R,N-term:OO>").is_err());
     }
 }

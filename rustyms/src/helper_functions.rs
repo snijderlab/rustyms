@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    num::{IntErrorKind, ParseIntError},
+    path::Path,
+};
 
 pub trait ResultExtensions<T, E> {
     /// # Errors
@@ -201,4 +204,16 @@ macro_rules! impl_binop_ref_cases {
             }
         }
     };
+}
+
+/// To be used as `The xx number ` + the explanation from here (does not have a dot).
+pub fn explain_number_error(error: &ParseIntError) -> &'static str {
+    match error.kind() {
+        IntErrorKind::Empty => "is empty",
+        IntErrorKind::InvalidDigit => "contains an invalid character",
+        IntErrorKind::NegOverflow => "is too small to fit in the internal representation",
+        IntErrorKind::PosOverflow => "is too big to fit in the internal representation",
+        IntErrorKind::Zero => "is zero, which is not allowed here",
+        _ => "is not a valid number",
+    }
 }
