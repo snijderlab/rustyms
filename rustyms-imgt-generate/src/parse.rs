@@ -8,6 +8,7 @@ use rustyms::AminoAcid;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 
+/// Parse the IMGT file
 pub fn parse_dat<T: std::io::Read>(
     reader: BufReader<T>,
 ) -> impl Iterator<Item = Result<DataItem, String>> {
@@ -16,31 +17,8 @@ pub fn parse_dat<T: std::io::Read>(
         .batching(|f| {
             let mut data = PreDataItem::default();
             for line in f.filter_map(|i| i.ok()) {
-                match &line[..2] {
-                    "//" => return Some(data),
-                    "ID" => data.id = line,
-                    "KW" => data.kw.extend(
-                        line[5..]
-                            .split(';')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty()),
-                    ),
-                    "FH" if line.starts_with("FH   Key") => {
-                        data.ft_key_width = line.find("Location").expect("Incorrect FH line") - 5
-                    }
-                    "FT" => data.ft.push(line),
-                    "OS" if data.os.is_none() => {
-                        data.os = Species::from_imgt(line[5..].trim()).unwrap_or_else(|()| {
-                            println!("Not a species name: `{line}`");
-                            None
-                        })
-                    }
-                    "  " => {
-                        data.sq.extend(line.chars().filter(|c| {
-                            *c == 'c' || *c == 'a' || *c == 't' || *c == 'g' || *c == 'n'
-                        }))
-                    }
-                    _ => (),
+                if parse_dat_line(&mut data, &line) {
+                    return Some(data);
                 }
             }
             None
@@ -54,6 +32,36 @@ pub fn parse_dat<T: std::io::Read>(
         .map(DataItem::new)
 }
 
+/// Parse a data item line and return if it is finished or not.
+fn parse_dat_line(data: &mut PreDataItem, line: &str) -> bool {
+    match &line[..2] {
+        "//" => return true,
+        "ID" => data.id = line.to_string(),
+        "KW" => data.kw.extend(
+            line[5..]
+                .split(';')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+        ),
+        "FH" if line.starts_with("FH   Key") => {
+            data.ft_key_width = line.find("Location").expect("Incorrect FH line") - 5
+        }
+        "FT" => data.ft.push(line[5..].to_string()),
+        "OS" if data.os.is_none() => {
+            data.os = Species::from_imgt(line[5..].trim()).unwrap_or_else(|()| {
+                println!("Not a species name: `{line}`");
+                None
+            })
+        }
+        "  " => data.sq.extend(
+            line.chars()
+                .filter(|c| *c == 'c' || *c == 'a' || *c == 't' || *c == 'g' || *c == 'n'),
+        ),
+        _ => (),
+    }
+    false
+}
+
 impl DataItem {
     fn new(data: PreDataItem) -> Result<Self, String> {
         let mut result = Self {
@@ -64,27 +72,25 @@ impl DataItem {
             regions: Vec::new(),
         };
         let mut current: Option<Region> = None;
-        let mut sequence = false;
+        let mut is_sequence = false;
+
         for line in data.ft {
-            let line = &line[5..];
             if !line.starts_with(' ') || current.is_none() {
                 if let Some(region) = current {
                     result.add_region(region);
                 }
-                let (key, location) = (&line[..data.ft_key_width], &line[data.ft_key_width..]);
-                if location.contains("join") {
-                    return Err("Location is a joined region".to_string());
-                }
-                if location.contains('^') {
-                    return Err("Location is a ^ region".to_string());
-                }
-                let location = location
-                    .trim()
-                    .parse()
-                    .unwrap_or_else(|_| panic!("`{}` not a valid location", location));
+                let (key, location) = (
+                    line[..data.ft_key_width].trim().to_string(),
+                    line[data.ft_key_width..].parse().unwrap_or_else(|err| {
+                        panic!(
+                            "`{}` not a valid location: {err}",
+                            &line[data.ft_key_width..]
+                        )
+                    }),
+                );
                 current = Some(Region {
                     acc: result.id.clone(),
-                    key: key.trim().to_string(),
+                    key,
                     location,
                     reported_seq: String::new(),
                     found_seq: Err("Not loaded".to_string()),
@@ -97,37 +103,7 @@ impl DataItem {
                 continue;
             }
             if let Some(current) = &mut current {
-                let trimmed = line.trim();
-                let lowercase = trimmed.to_lowercase();
-                if sequence {
-                    current.reported_seq = trimmed.trim_end_matches('\"').to_string();
-                    if trimmed.ends_with('\"') {
-                        sequence = false;
-                    }
-                } else if let Some(tail) = trimmed.strip_prefix("/translation=\"") {
-                    current.reported_seq = tail.trim_end_matches('\"').to_string();
-                    if !trimmed.ends_with('\"') {
-                        sequence = true;
-                    }
-                } else if let Some(tail) = trimmed.strip_prefix("/IMGT_allele=\"") {
-                    current.allele = tail.trim_end_matches('\"').to_string();
-                } else if let Some(tail) = trimmed.strip_prefix("/codon_start=") {
-                    current.shift = tail
-                        .parse::<usize>()
-                        .map_err(|_| format!("Not a valid codon_start: '{tail}'"))?
-                        - 1;
-                } else if let Some(tail) = trimmed.strip_prefix("/splice-expectedcodon=") {
-                    if let Some(i) = tail.find(']') {
-                        current.splice_aa = AminoAcid::try_from(tail.as_bytes()[i - 1]).ok();
-                    }
-                } else if lowercase.starts_with("/functional")
-                    || lowercase.starts_with("/note=\"functional\"")
-                    || lowercase.starts_with("/imgt_note=\"functional\"")
-                {
-                    current.functional = true;
-                } else if trimmed.starts_with("/partial") {
-                    current.partial = true;
-                }
+                DataItem::parse_ft_line(&line, current, &mut is_sequence)?;
             }
         }
         if let Some(region) = current {
@@ -135,6 +111,48 @@ impl DataItem {
         }
 
         Ok(result)
+    }
+
+    fn parse_ft_line(
+        line: &str,
+        current: &mut Region,
+        is_sequence: &mut bool,
+    ) -> Result<(), String> {
+        let trimmed = line.trim();
+        let split = trimmed
+            .split_once('=')
+            .map(|(key, tail)| (key.to_lowercase(), tail));
+
+        match split.as_ref().map(|(key, tail)| (key.as_str(), tail)) {
+            Some(("/translation", tail)) => {
+                current.reported_seq += tail.trim_matches('\"');
+                *is_sequence = !tail.ends_with('\"');
+            }
+            Some(("/imgt_allele", tail)) => {
+                current.allele = tail.trim_matches('\"').to_string();
+            }
+            Some(("/codon_start", tail)) => {
+                current.shift = tail
+                    .parse::<usize>()
+                    .map_err(|_| format!("Not a valid codon_start: '{tail}'"))?
+                    - 1;
+            }
+            Some(("/splice-expectedcodon", tail)) => {
+                if let Some(i) = tail.find(']') {
+                    current.splice_aa = AminoAcid::try_from(tail.as_bytes()[i - 1]).ok();
+                }
+            }
+            Some(("/functional" | "/note=\"functional\"" | "/imgt_note=\"functional\"", _)) => {
+                current.functional = true;
+            }
+            Some(("/partial", _)) => current.partial = true,
+            None if *is_sequence => {
+                current.reported_seq += trimmed.trim_end_matches('\"');
+                *is_sequence = !trimmed.ends_with('\"');
+            }
+            _ => (),
+        }
+        Ok(())
     }
 
     fn add_region(&mut self, mut region: Region) {

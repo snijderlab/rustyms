@@ -154,27 +154,60 @@ impl Display for Location {
 }
 
 impl FromStr for Location {
-    type Err = ParseIntError;
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim();
+
+        if s.contains("join") || s.contains('^') {
+            return Err("Location is complex, joined or it uses ^".to_string());
+        }
+
         if let Some(tail) = s.strip_prefix("complement(") {
             tail.trim_end_matches(')')
                 .split_once("..")
                 .map(|(start, end)| {
                     Ok(Self::Complement(
-                        start.trim_start_matches('<').parse::<usize>()? - 1
-                            ..=end.trim_start_matches('>').parse::<usize>()? - 1,
+                        start
+                            .trim_start_matches('<')
+                            .parse::<usize>()
+                            .map_err(|err| format!("Invalid start number: {err}"))?
+                            - 1
+                            ..=end
+                                .trim_start_matches('>')
+                                .parse::<usize>()
+                                .map_err(|err| format!("Invalid end number: {err}"))?
+                                - 1,
                     ))
                 })
-                .unwrap_or_else(|| Ok(Self::SingleComplement(tail.trim_end_matches(')').parse()?)))
+                .unwrap_or_else(|| {
+                    Ok(Self::SingleComplement(
+                        tail.trim_end_matches(')')
+                            .parse()
+                            .map_err(|err| format!("Invalid single number: {err}"))?,
+                    ))
+                })
         } else {
             s.split_once("..")
                 .map(|(start, end)| {
                     Ok(Self::Normal(
-                        start.trim_start_matches('<').parse::<usize>()? - 1
-                            ..=end.trim_start_matches('>').parse::<usize>()? - 1,
+                        start
+                            .trim_start_matches('<')
+                            .parse::<usize>()
+                            .map_err(|err| format!("Invalid start number: {err}"))?
+                            - 1
+                            ..=end
+                                .trim_start_matches('>')
+                                .parse::<usize>()
+                                .map_err(|err| format!("Invalid end number: {err}"))?
+                                - 1,
                     ))
                 })
-                .unwrap_or_else(|| Ok(Self::SingleNormal(s.parse()?)))
+                .unwrap_or_else(|| {
+                    Ok(Self::SingleNormal(
+                        s.parse()
+                            .map_err(|err| format!("Invalid single number: {err}"))?,
+                    ))
+                })
         }
     }
 }

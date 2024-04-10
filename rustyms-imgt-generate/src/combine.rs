@@ -82,25 +82,24 @@ struct TemporaryGermline {
 
 impl TemporaryGermline {
     fn add(&mut self, single: SingleSeq) {
-        for al in &mut self.alleles {
-            if al.0 == single.allele {
-                for s in &mut al.1 {
-                    if s.sequence == single.sequence.sequence {
-                        s.add_single(single);
-                        // Keep everything sorted
-                        al.1.sort();
-                        return;
-                    }
-                }
+        if let Some(al) = self.alleles.iter_mut().find(|al| al.0 == single.allele) {
+            if let Some(s) =
+                al.1.iter_mut()
+                    .find(|s| s.sequence == single.sequence.sequence)
+            {
+                s.add_single(single);
+                // Keep everything sorted
+                al.1.sort();
+            } else {
                 al.1.push(TemporarySequence::from_single(single));
                 al.1.sort();
-                return;
             }
+        } else {
+            // If not found
+            self.alleles
+                .push((single.allele, vec![TemporarySequence::from_single(single)]));
+            self.alleles.sort_unstable_by_key(|a| a.0); // Maybe do the fancy insert at the right place trick
         }
-        // If not found
-        self.alleles
-            .push((single.allele, vec![TemporarySequence::from_single(single)]));
-        self.alleles.sort_unstable_by_key(|a| a.0); // Maybe do the fancy insert at the right place trick
     }
 
     fn finalise(self) -> Germline {
