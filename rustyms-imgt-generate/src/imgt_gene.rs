@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rustyms::AminoAcid;
 
 use crate::shared::{AnnotatedSequence, Annotation, Gene, Region};
-use crate::structs::{AASequence, Location, SingleSeq};
+use crate::structs::{Location, SingleSeq};
 use crate::{find_possible_n_glycan_locations, fix_j};
 
 #[derive(Clone, Debug, Eq, PartialEq)]

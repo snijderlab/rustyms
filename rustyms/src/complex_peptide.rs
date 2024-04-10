@@ -207,67 +207,13 @@ impl ComplexPeptide {
                     }
                 }
                 (false, b'/') => {
-                    let (charge_len, charge) = next_num(chars, index+1, false).ok_or_else(||CustomError::error(
-                        "Invalid peptide charge state",
-                        "There should be a number dictating the total charge of the peptide",
-                        Context::line(0, line, index+1, 1),
-                    ))?;
-                    if index+1+charge_len < chars.len() && chars[index+1+charge_len] == b'[' {
-                        let end_index = next_char(chars, index+2+charge_len, b']').ok_or_else(||CustomError::error(
-                            "Invalid adduct ion",
-                            "No valid closing delimiter",
-                            Context::line(0, line, index+2+charge_len, 1),
-                        ))?;
-                        let mut offset = index+2+charge_len;
-                        let mut charge_carriers = Vec::new();
-                        for set in chars[index+2+charge_len..end_index].split(|c| *c == b',') {
-                            // num
-                            let (count_len, count) = next_num(chars, offset, true).ok_or_else(||CustomError::error(
-                                "Invalid adduct ion",
-                                "Invalid adduct ion count",
-                                Context::line(0, line, offset, 1),
-                            ))?;
-                            // element
-                            let element_len =
-                                chars[offset+count_len..].iter()
-                                .take_while(|c| c.is_ascii_alphabetic())
-                                .count();
-                            let element: Element = std::str::from_utf8(&chars[offset+count_len..offset+count_len+element_len]).unwrap().try_into().map_err(|()| CustomError::error(
-                                "Invalid adduct ion",
-                                "Invalid element symbol",
-                                Context::line(0, line, offset+count_len, element_len),
-                            ))?;
-                            // charge
-                            let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or_else(||CustomError::error(
-                                "Invalid adduct ion",
-                                "Invalid adduct ion charge",
-                                Context::line(0, line, offset+count_len+element_len, 1),
-                            ))?;
-
-                            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i32)]).ok_or_else(|| CustomError::error(
-                                "Invalid charge carrier formula",
-                                "The given molecular formula contains a part that does not have a defined mass",
-                                Context::line(0, line, index+2+charge_len, offset),
-                            ))?;
-
-                            charge_carriers.push((count, formula));
-
-                            offset += set.len() + 1;
-                        }
-                        peptide.charge_carriers = Some(MolecularCharge::new(&charge_carriers));
-                        index = end_index+1;
-                        if index < chars.len() && chars[index] == b'+' {
-                            index+=1; // If a peptide in a chimeric definition contains a charge state modification
-                        }
-                        break; // Nothing else to do, the total charge of the adduct ions should sum up to the charge as provided and this definitively is the last thing in a sequence 
-                    }
-                    // If no adduct ions are provided assume it is just protons
-                    peptide.charge_carriers = Some(MolecularCharge::proton(charge));
-                    index += charge_len+1;
+                    let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
+                    index = buf;
+                    peptide.charge_carriers = Some(charge_carriers);
                     if index < chars.len() && chars[index] == b'+' {
-                        index+=1; // If a peptide in a chimeric definition contains a charge state modification
+                        index+=1; // Potentially this can be followed by another peptide
                     }
-                    break;
+                    break;                    
                 }
                 (c_term, b'[') => {
                     let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
@@ -288,10 +234,16 @@ impl ComplexPeptide {
                                 "A C terminal modification cannot be ambiguous",
                                 Context::line(0, line, start_index, start_index - index - 1),
                             ))?);
-                            if index < chars.len() && chars[index] == b'+' {
-                                index+=1; // If a peptide in a chimeric definition contains a C terminal modification
-                            }
-                        break; // TODO: Technically a charge state could follow the C term mods
+                        dbg!(index,chars.len(),&chars[index..]);
+                        if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
+                            let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
+                            index = buf;
+                            peptide.charge_carriers = Some(charge_carriers);
+                        }
+                        if index < chars.len() && chars[index] == b'+' {
+                            index+=1; // If a peptide in a chimeric definition contains a C terminal modification
+                        }
+                        break;
                     }
                     match peptide.sequence.last_mut() {
                         Some(aa) => match modification {
@@ -678,6 +630,67 @@ fn labile_modifications(
     Ok((index, labile))
 }
 
+/// Parse a charge state `/2` or more complex ones like `/2[+2Na+]`.
+/// Assumes the text starts with `/`.
+/// # Errors
+/// If the charge state is not following the specification.
+/// # Panics
+/// Panics if the text is not UTF-8.
+fn parse_charge_state(chars: &[u8], index: usize, line: &str) -> Result<(usize, MolecularCharge), CustomError> {
+    let (charge_len, charge) = next_num(chars, index+1, false).ok_or_else(||CustomError::error(
+        "Invalid peptide charge state",
+        "There should be a number dictating the total charge of the peptide",
+        Context::line(0, line, index+1, 1),
+    ))?;
+    if index+1+charge_len < chars.len() && chars[index+1+charge_len] == b'[' {
+        let end_index = next_char(chars, index+2+charge_len, b']').ok_or_else(||CustomError::error(
+            "Invalid adduct ion",
+            "No valid closing delimiter",
+            Context::line(0, line, index+2+charge_len, 1),
+        ))?;
+        let mut offset = index+2+charge_len;
+        let mut charge_carriers = Vec::new();
+        for set in chars[index+2+charge_len..end_index].split(|c| *c == b',') {
+            // num
+            let (count_len, count) = next_num(chars, offset, true).ok_or_else(||CustomError::error(
+                "Invalid adduct ion",
+                "Invalid adduct ion count",
+                Context::line(0, line, offset, 1),
+            ))?;
+            // element
+            let element_len =
+                chars[offset+count_len..].iter()
+                .take_while(|c| c.is_ascii_alphabetic())
+                .count();
+            let element: Element = std::str::from_utf8(&chars[offset+count_len..offset+count_len+element_len]).unwrap().try_into().map_err(|()| CustomError::error(
+                "Invalid adduct ion",
+                "Invalid element symbol",
+                Context::line(0, line, offset+count_len, element_len),
+            ))?;
+            // charge
+            let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or_else(||CustomError::error(
+                "Invalid adduct ion",
+                "Invalid adduct ion charge",
+                Context::line(0, line, offset+count_len+element_len, 1),
+            ))?;
+
+            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i32)]).ok_or_else(|| CustomError::error(
+                "Invalid charge carrier formula",
+                "The given molecular formula contains a part that does not have a defined mass",
+                Context::line(0, line, index+2+charge_len, offset),
+            ))?;
+
+            charge_carriers.push((count, formula));
+
+            offset += set.len() + 1;
+        }     
+        Ok((end_index+1, MolecularCharge::new(&charge_carriers)))
+    } else {
+        // If no adduct ions are provided assume it is just protons
+        Ok((index + charge_len+1, MolecularCharge::proton(charge)))
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
@@ -881,26 +894,25 @@ mod tests {
         );
     }
 
-    // TODO: Not implemented yet
-    // #[test]
-    // fn parse_adduct_ions_02() {
-    //     let peptide = dbg!(ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
-    //     assert_eq!(peptide.peptides().len(), 2);
-    //     assert_eq!(
-    //         peptide.peptides()[0]
-    //             .charge_carriers
-    //             .clone()
-    //             .unwrap()
-    //             .charge_carriers,
-    //         vec![
-    //             (1, molecular_formula!(Na 1 Electron -1).unwrap()),
-    //             (1, molecular_formula!(H 1 Electron -1).unwrap())
-    //         ]
-    //     );
-    //     // Check if the C term mod is applied
-    //     assert_eq!(
-    //         peptide.peptides()[0].sequence[0].formulas_all(),
-    //         peptide.peptides()[1].sequence[0].formulas_all()
-    //     );
-    // }
+    #[test]
+    fn parse_adduct_ions_02() {
+        let peptide = dbg!(ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
+        assert_eq!(peptide.peptides().len(), 2);
+        assert_eq!(
+            peptide.peptides()[0]
+                .charge_carriers
+                .clone()
+                .unwrap()
+                .charge_carriers,
+            vec![
+                (1, molecular_formula!(Na 1 Electron -1)),
+                (1, molecular_formula!(H 1 Electron -1))
+            ]
+        );
+        // Check if the C term mod is applied
+        assert_eq!(
+            peptide.peptides()[0].sequence[0].formulas_all(),
+            peptide.peptides()[1].sequence[0].formulas_all()
+        );
+    }
 }
