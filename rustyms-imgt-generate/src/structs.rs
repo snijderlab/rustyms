@@ -60,6 +60,8 @@ impl Display for Region {
     }
 }
 
+pub type SequenceRegion = (crate::shared::Region, (Vec<AminoAcid>, Location, String));
+
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Location {
     Normal(RangeInclusive<usize>),
@@ -80,10 +82,7 @@ impl Location {
         }
     }
 
-    pub fn find_aa_location(
-        &self,
-        sections: &[(crate::shared::Region, (Vec<AminoAcid>, Location, String))],
-    ) -> Option<usize> {
+    pub fn find_aa_location(&self, sections: &[SequenceRegion]) -> Option<usize> {
         let mut start = 0;
         for section in sections {
             if let Some(index) = section.1 .1.get_aa_loc(self) {

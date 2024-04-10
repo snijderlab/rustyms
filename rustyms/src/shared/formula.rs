@@ -122,7 +122,7 @@ impl MolecularFormula {
                             .map_err(|err| {
                                 CustomError::error(
                                     "Invalid Pro Forma molecular formula",
-                                    format!("The element number {}", explain_number_error(err)),
+                                    format!("The element number {}", explain_number_error(&err)),
                                     Context::line(
                                         0,
                                         value,
@@ -136,7 +136,7 @@ impl MolecularFormula {
                             .map_err(|err| {
                                 CustomError::error(
                                     "Invalid Pro Forma molecular formula",
-                                    format!("The isotope number {}", explain_number_error(err)),
+                                    format!("The isotope number {}", explain_number_error(&err)),
                                     Context::line(0, value, index, isotope),
                                 )
                             })?;
@@ -174,7 +174,10 @@ impl MolecularFormula {
                                 v.parse::<i32>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid Pro Forma molecular formula",
-                                        format!("The element number {}", explain_number_error(err)),
+                                        format!(
+                                            "The element number {}",
+                                            explain_number_error(&err)
+                                        ),
                                         Context::line(0, value, index, v.len()),
                                     )
                                 }),
@@ -269,7 +272,7 @@ impl MolecularFormula {
                             .map_err(|err| {
                                 CustomError::error(
                                     "Invalid PSI-MOD molecular formula",
-                                    format!("The isotope number {}", explain_number_error(err)),
+                                    format!("The isotope number {}", explain_number_error(&err)),
                                     Context::line(0, value, index + 1, len),
                                 )
                             })?,
@@ -292,7 +295,10 @@ impl MolecularFormula {
                                 v.parse::<i32>().map_err(|err| {
                                     CustomError::error(
                                         "Invalid PSI-MOD molecular formula",
-                                        format!("The isotope number {}", explain_number_error(err)),
+                                        format!(
+                                            "The isotope number {}",
+                                            explain_number_error(&err)
+                                        ),
                                         Context::line(0, value, index, v.len()),
                                     )
                                 }),
@@ -469,7 +475,7 @@ impl MolecularFormula {
 }
 
 /// To be used as `The xx number ` + the explanation from here (does not have a dot).
-fn explain_number_error(error: ParseIntError) -> &'static str {
+fn explain_number_error(error: &ParseIntError) -> &'static str {
     match error.kind() {
         IntErrorKind::Empty => "is empty",
         IntErrorKind::InvalidDigit => "contains an invalid character",

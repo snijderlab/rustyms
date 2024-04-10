@@ -93,6 +93,8 @@ impl Fragment {
     }
 
     /// Create a copy of this fragment with the given charge
+    /// # Panics
+    /// If the charge is negative.
     #[must_use]
     pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
         // TODO: Figure out if labelling these in any way would be nice for later checking when used with adduct ions other than protons

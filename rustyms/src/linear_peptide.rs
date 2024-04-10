@@ -475,6 +475,7 @@ impl LinearPeptide {
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
     /// With the global isotope modifications applied.
+    #[allow(clippy::missing_panics_doc)] // Invariants are uphold upon creation
     pub(crate) fn generate_theoretical_fragments_inner(
         &self,
         max_charge: Charge,

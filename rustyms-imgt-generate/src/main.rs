@@ -18,7 +18,7 @@ use crate::shared::*;
 
 use itertools::Itertools;
 use rustyms::*;
-use structs::Location;
+use structs::{Location, SequenceRegion};
 
 fn main() {
     let file = File::open("data/imgt.dat")
@@ -226,10 +226,7 @@ fn find_possible_n_glycan_locations(sequence: &[AminoAcid]) -> Vec<usize> {
 fn fix_j(
     j: (Vec<AminoAcid>, Location, String),
     cdr3_length: usize,
-) -> (
-    Vec<(shared::Region, (Vec<AminoAcid>, Location, String))>,
-    Vec<(Annotation, usize)>,
-) {
+) -> (Vec<SequenceRegion>, Vec<(Annotation, usize)>) {
     let (cdr3_loc, fr4_loc) =
         j.1.splice(cdr3_length)
             .expect("CDR3 should fit in full FR4 of J gene");

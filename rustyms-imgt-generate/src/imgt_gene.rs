@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rustyms::AminoAcid;
 
 use crate::shared::{AnnotatedSequence, Annotation, Gene, Region};
-use crate::structs::{Location, SingleSeq};
+use crate::structs::{Location, SequenceRegion, SingleSeq};
 use crate::{find_possible_n_glycan_locations, fix_j};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -61,15 +61,7 @@ impl IMGTGene {
         })
     }
 
-    fn get_regions(
-        &self,
-    ) -> Result<
-        (
-            Vec<(Region, (Vec<AminoAcid>, Location, String))>,
-            Vec<(Annotation, usize)>,
-        ),
-        String,
-    > {
+    fn get_regions(&self) -> Result<(Vec<SequenceRegion>, Vec<(Annotation, usize)>), String> {
         let mut additional_annotations = Vec::new();
 
         let regions = match self.key.as_str() {
@@ -170,11 +162,7 @@ impl IMGTGene {
         Ok((regions, additional_annotations))
     }
 
-    fn get_region(
-        &self,
-        region: Region,
-        key: &str,
-    ) -> Result<(Region, (Vec<AminoAcid>, Location, String)), String> {
+    fn get_region(&self, region: Region, key: &str) -> Result<SequenceRegion, String> {
         self.regions
             .get(key)
             .ok_or(format!("Could not find {key}"))

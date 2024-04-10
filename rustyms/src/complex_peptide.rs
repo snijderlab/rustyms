@@ -213,7 +213,7 @@ impl ComplexPeptide {
                     if index < chars.len() && chars[index] == b'+' {
                         index+=1; // Potentially this can be followed by another peptide
                     }
-                    break;                    
+                    break;
                 }
                 (c_term, b'[') => {
                     let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
@@ -636,58 +636,83 @@ fn labile_modifications(
 /// If the charge state is not following the specification.
 /// # Panics
 /// Panics if the text is not UTF-8.
-fn parse_charge_state(chars: &[u8], index: usize, line: &str) -> Result<(usize, MolecularCharge), CustomError> {
-    let (charge_len, charge) = next_num(chars, index+1, false).ok_or_else(||CustomError::error(
-        "Invalid peptide charge state",
-        "There should be a number dictating the total charge of the peptide",
-        Context::line(0, line, index+1, 1),
-    ))?;
-    if index+1+charge_len < chars.len() && chars[index+1+charge_len] == b'[' {
-        let end_index = next_char(chars, index+2+charge_len, b']').ok_or_else(||CustomError::error(
-            "Invalid adduct ion",
-            "No valid closing delimiter",
-            Context::line(0, line, index+2+charge_len, 1),
-        ))?;
-        let mut offset = index+2+charge_len;
-        let mut charge_carriers = Vec::new();
-        for set in chars[index+2+charge_len..end_index].split(|c| *c == b',') {
-            // num
-            let (count_len, count) = next_num(chars, offset, true).ok_or_else(||CustomError::error(
+fn parse_charge_state(
+    chars: &[u8],
+    index: usize,
+    line: &str,
+) -> Result<(usize, MolecularCharge), CustomError> {
+    let (charge_len, charge) = next_num(chars, index + 1, false).ok_or_else(|| {
+        CustomError::error(
+            "Invalid peptide charge state",
+            "There should be a number dictating the total charge of the peptide",
+            Context::line(0, line, index + 1, 1),
+        )
+    })?;
+    if index + 1 + charge_len < chars.len() && chars[index + 1 + charge_len] == b'[' {
+        let end_index = next_char(chars, index + 2 + charge_len, b']').ok_or_else(|| {
+            CustomError::error(
                 "Invalid adduct ion",
-                "Invalid adduct ion count",
-                Context::line(0, line, offset, 1),
-            ))?;
+                "No valid closing delimiter",
+                Context::line(0, line, index + 2 + charge_len, 1),
+            )
+        })?;
+        let mut offset = index + 2 + charge_len;
+        let mut charge_carriers = Vec::new();
+        for set in chars[index + 2 + charge_len..end_index].split(|c| *c == b',') {
+            // num
+            let (count_len, count) = next_num(chars, offset, true).ok_or_else(|| {
+                CustomError::error(
+                    "Invalid adduct ion",
+                    "Invalid adduct ion count",
+                    Context::line(0, line, offset, 1),
+                )
+            })?;
             // element
-            let element_len =
-                chars[offset+count_len..].iter()
+            let element_len = chars[offset + count_len..]
+                .iter()
                 .take_while(|c| c.is_ascii_alphabetic())
                 .count();
-            let element: Element = std::str::from_utf8(&chars[offset+count_len..offset+count_len+element_len]).unwrap().try_into().map_err(|()| CustomError::error(
-                "Invalid adduct ion",
-                "Invalid element symbol",
-                Context::line(0, line, offset+count_len, element_len),
-            ))?;
+            let element: Element =
+                std::str::from_utf8(&chars[offset + count_len..offset + count_len + element_len])
+                    .unwrap()
+                    .try_into()
+                    .map_err(|()| {
+                        CustomError::error(
+                            "Invalid adduct ion",
+                            "Invalid element symbol",
+                            Context::line(0, line, offset + count_len, element_len),
+                        )
+                    })?;
             // charge
-            let (_, ion_charge) = next_num(chars, offset+count_len+element_len, true).ok_or_else(||CustomError::error(
-                "Invalid adduct ion",
-                "Invalid adduct ion charge",
-                Context::line(0, line, offset+count_len+element_len, 1),
-            ))?;
+            let (_, ion_charge) = next_num(chars, offset + count_len + element_len, true)
+                .ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid adduct ion",
+                        "Invalid adduct ion charge",
+                        Context::line(0, line, offset + count_len + element_len, 1),
+                    )
+                })?;
 
-            let formula = MolecularFormula::new(&[(element, None, 1), (Element::Electron, None, -ion_charge as i32)]).ok_or_else(|| CustomError::error(
-                "Invalid charge carrier formula",
-                "The given molecular formula contains a part that does not have a defined mass",
-                Context::line(0, line, index+2+charge_len, offset),
-            ))?;
+            let formula = MolecularFormula::new(&[
+                (element, None, 1),
+                (Element::Electron, None, -ion_charge as i32),
+            ])
+            .ok_or_else(|| {
+                CustomError::error(
+                    "Invalid charge carrier formula",
+                    "The given molecular formula contains a part that does not have a defined mass",
+                    Context::line(0, line, index + 2 + charge_len, offset),
+                )
+            })?;
 
             charge_carriers.push((count, formula));
 
             offset += set.len() + 1;
-        }     
-        Ok((end_index+1, MolecularCharge::new(&charge_carriers)))
+        }
+        Ok((end_index + 1, MolecularCharge::new(&charge_carriers)))
     } else {
         // If no adduct ions are provided assume it is just protons
-        Ok((index + charge_len+1, MolecularCharge::proton(charge)))
+        Ok((index + charge_len + 1, MolecularCharge::proton(charge)))
     }
 }
 

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::Alignment;
@@ -168,11 +169,10 @@ impl std::fmt::Display for TemporaryGermline {
                     writeln!(
                         f,
                         "{} supported by {}",
-                        region
-                            .0
-                            .iter()
-                            .map(|(r, l)| format!("[{r},{l}]"))
-                            .collect::<String>(),
+                        region.0.iter().fold(String::new(), |mut acc, (r, l)| {
+                            write!(&mut acc, "[{r},{l}]").unwrap();
+                            acc
+                        }),
                         region.1.iter().map(|i| seq.acc[*i].clone()).join(" "),
                     )?;
                 }
@@ -188,10 +188,10 @@ impl std::fmt::Display for TemporaryGermline {
                     writeln!(
                         f,
                         "{} supported by {}",
-                        cons.0
-                            .iter()
-                            .map(|(r, l)| format!("[{r},{l}]"))
-                            .collect::<String>(),
+                        cons.0.iter().fold(String::new(), |mut acc, (r, l)| {
+                            write!(&mut acc, "[{r},{l}]").unwrap();
+                            acc
+                        }),
                         cons.1.iter().map(|i| seq.acc[*i].clone()).join(" "),
                     )?;
                 }
