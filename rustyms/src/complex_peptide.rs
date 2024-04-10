@@ -5,17 +5,15 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::Context,
-    error::CustomError,
+    error::{Context, CustomError},
     helper_functions::*,
     modification::{
         AmbiguousLookup, AmbiguousModification, GlobalModification, Modification,
         ReturnModification,
     },
     molecular_charge::MolecularCharge,
-    system::usize::Charge,
-    system::OrderedMass,
-    Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
+    system::{usize::Charge, OrderedMass},
+    AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
     SequenceElement,
 };
 
@@ -482,19 +480,19 @@ fn global_modifications(
                     if let Some((_, aa)) = aa.split_once(':') {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyNTerm,
-                            aa.try_into().map_err(|()| {
+                            Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
                                     Context::line(0, line, at_index + 7, at_index - end_index - 7),
                                 )
-                            })?,
+                            })?),
                             modification.clone(),
                         ));
                     } else {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyNTerm,
-                            crate::AminoAcid::Unknown,
+                            None,
                             modification.clone(),
                         ));
                     }
@@ -502,32 +500,32 @@ fn global_modifications(
                     if let Some((_, aa)) = aa.split_once(':') {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyCTerm,
-                            aa.try_into().map_err(|()| {
+                            Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
                                     Context::line(0, line, at_index + 7, at_index - end_index - 7),
                                 )
-                            })?,
+                            })?),
                             modification.clone(),
                         ));
                     } else {
                         global_modifications.push(GlobalModification::Fixed(
                             crate::placement_rule::Position::AnyCTerm,
-                            crate::AminoAcid::Unknown,
+                            None,
                             modification.clone(),
                         ));
                     }
                 } else {
                     global_modifications.push(GlobalModification::Fixed(
                         crate::placement_rule::Position::Anywhere,
-                        aa.try_into().map_err(|()| {
+                        Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
                             CustomError::error(
                                 "Invalid global modification",
                                 "The location could not be read as an amino acid",
                                 Context::line(0, line, at_index, at_index - end_index),
                             )
-                        })?,
+                        })?),
                         modification.clone(),
                     ));
                 }

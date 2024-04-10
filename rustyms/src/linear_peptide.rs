@@ -733,7 +733,7 @@ impl LinearPeptide {
                 GlobalModification::Fixed(pos, aa, modification) => {
                     for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
                         pos.is_possible(&PeptidePosition::n(*index, length))
-                            && seq.aminoacid.canonical_identical(*aa)
+                            && aa.map_or(true, |aa| aa == seq.aminoacid)
                             && modification.is_possible(seq, &PeptidePosition::n(*index, length))
                     }) {
                         seq.modifications.push(modification.clone());

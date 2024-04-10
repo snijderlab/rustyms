@@ -487,7 +487,7 @@ pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, Option<NonZeroU16>),
     /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
-    Fixed(Position, AminoAcid, Modification),
+    Fixed(Position, Option<AminoAcid>, Modification),
     /// Can be placed on any place where it can fit (according to the placement rules of the modification itself)
     Free(Modification),
 }

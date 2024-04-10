@@ -40,6 +40,7 @@ impl PlacementRule {
 }
 
 impl Position {
+    /// See if the given peptide position is a valid position given this [`Position`] as placement rule.
     pub const fn is_possible(self, position: &PeptidePosition) -> bool {
         match self {
             Self::Anywhere => true,
