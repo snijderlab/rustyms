@@ -264,7 +264,7 @@ fn parse_single_modification(
         Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap();
     if let Some(groups) = regex.captures(full_modification) {
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
-        let (full, head, tail, group, localisation_score) = (
+        let (full, head, tail, ambiguous_group, localisation_score) = (
             groups
                 .get(1)
                 .map(|m| (m.as_str(), m.start(), m.len()))
@@ -274,25 +274,22 @@ fn parse_single_modification(
                 .map(|m| (m.as_str().to_ascii_lowercase(), m.start(), m.len())),
             groups.get(3).map(|m| (m.as_str(), m.start(), m.len())),
             groups.get(4).map(|m| (m.as_str(), m.start(), m.len())),
-            groups.get(5).map(|m| {
-                m.as_str()
-                    .parse::<f64>()
-                    .map(OrderedFloat::from)
-                    .map_err(|_| {
-                        CustomError::error(
+            groups
+                .get(5)
+                .map(|m| {
+                    m.as_str()
+                        .parse::<f64>()
+                        .map(OrderedFloat::from)
+                        .map_err(|_| {
+                            CustomError::error(
                         "Invalid modification localisation score",
                         "The ambiguous modification localisation score needs to be a valid number",
                         Context::line(0, line, offset + m.start(), m.len()),
                     )
-                    })
-            }),
+                        })
+                })
+                .invert()?,
         );
-        // Handle localisation score errors (could not do this inside the above closure)
-        let localisation_score = if let Some(s) = localisation_score {
-            Some(s?)
-        } else {
-            None
-        };
 
         let modification = if let (Some(head), Some(tail)) = (head.as_ref(), tail) {
             let basic_error = CustomError::error(
@@ -394,44 +391,15 @@ fn parse_single_modification(
                     .with_context(Context::line(0, line, offset+full.1, full.2))
                 )
         };
-        // Handle ambiguous modifications
-        if let Some(group) = group {
-            // Search for a previous definition of this name, store as Some((index, modification_definition_present)) or None if there is no definition in place
-            let found_definition = lookup
-                .iter()
-                .enumerate()
-                .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == group.0))
-                .map(|(index, (_, modification))| (index, modification.is_some()));
-            // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
-            match (modification, found_definition) {
-                // Have a mod defined here and already in the lookup (error)
-                (Ok(Some(_)), Some((_, true))) => Err(
-                    CustomError::error(
-                        "Invalid ambiguous modification",
-                        "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
-                        Context::line(0, line, offset+full.1, full.2),
-                    )),
-                // Have a mod defined here, the name present in the lookup but not yet the mod
-                (Ok(Some(m)), Some((index, false))) => {
-                    lookup[index].1 = Some(m);
-                    Ok(Some(ReturnModification::Preferred(index, localisation_score)))
-                },
-                // Have a mod defined here which is not present in the lookup
-                (Ok(Some(m)), None) => {
-                    let index = lookup.len();
-                    lookup.push((Some(group.0.to_string()), Some(m)));
-                    Ok(Some(ReturnModification::Preferred(index, localisation_score)))
-                },
-                // No mod defined, but the name is present in the lookup
-                (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Referenced(index, localisation_score))),
-                // No mod defined, and no name present in the lookup
-                (Ok(None), None) => {
-                    let index = lookup.len();
-                    lookup.push((Some(group.0.to_string()), None));
-                    Ok(Some(ReturnModification::Referenced(index, localisation_score)))},
-                    // Earlier error
-                    (Err(e), _) => Err(e),
-            }
+
+        if let Some(group) = ambiguous_group {
+            handle_ambiguous_modification(
+                modification,
+                group,
+                localisation_score,
+                lookup,
+                Context::line(0, line, offset + full.1, full.2),
+            )
         } else {
             modification.map(|m| m.map(ReturnModification::Defined))
         }
@@ -441,6 +409,54 @@ fn parse_single_modification(
             "It does not match the Pro Forma definition for modifications",
             Context::line(0, line, offset, full_modification.len()),
         ))
+    }
+}
+
+/// Handle the logic for an ambiguous modification
+/// # Errors
+/// If the content of the ambiguous modification was already defined
+fn handle_ambiguous_modification(
+    modification: Result<Option<Modification>, CustomError>,
+    group: (&str, usize, usize),
+    localisation_score: Option<OrderedFloat<f64>>,
+    lookup: &mut AmbiguousLookup,
+    context: Context,
+) -> Result<Option<ReturnModification>, CustomError> {
+    // Search for a previous definition of this name, store as Some((index, modification_definition_present)) or None if there is no definition in place
+    let found_definition = lookup
+        .iter()
+        .enumerate()
+        .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == group.0))
+        .map(|(index, (_, modification))| (index, modification.is_some()));
+    // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
+    match (modification, found_definition) {
+    // Have a mod defined here and already in the lookup (error)
+    (Ok(Some(_)), Some((_, true))) => Err(
+        CustomError::error(
+            "Invalid ambiguous modification",
+            "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
+            context,
+        )),
+    // Have a mod defined here, the name present in the lookup but not yet the mod
+    (Ok(Some(m)), Some((index, false))) => {
+        lookup[index].1 = Some(m);
+        Ok(Some(ReturnModification::Preferred(index, localisation_score)))
+    },
+    // Have a mod defined here which is not present in the lookup
+    (Ok(Some(m)), None) => {
+        let index = lookup.len();
+        lookup.push((Some(group.0.to_string()), Some(m)));
+        Ok(Some(ReturnModification::Preferred(index, localisation_score)))
+    },
+    // No mod defined, but the name is present in the lookup
+    (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Referenced(index, localisation_score))),
+    // No mod defined, and no name present in the lookup
+    (Ok(None), None) => {
+        let index = lookup.len();
+        lookup.push((Some(group.0.to_string()), None));
+        Ok(Some(ReturnModification::Referenced(index, localisation_score)))},
+        // Earlier error
+        (Err(e), _) => Err(e),
     }
 }
 

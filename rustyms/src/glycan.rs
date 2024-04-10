@@ -661,4 +661,190 @@ mod test {
             "HexNAc(HexNAc(Hex(Hex(HexNAc,HexNAc),Hex(Hex))))"
         );
     }
+
+    #[test]
+    fn pro_forma_compliance() {
+        let cases = &[
+            ("Hep", molecular_formula!(H 12 C 7 O 6)),
+            ("phosphate", molecular_formula!(H 1 O 3 P 1)),
+            ("a-Hex", molecular_formula!(H 8 C 6 O 6)),
+            ("Sug", molecular_formula!(H 2 C 2 O 1)),
+            ("HexN", molecular_formula!(H 11 C 6 N 1 O 4)),
+            ("Pen", molecular_formula!(H 8 C 5 O 4)),
+            ("Tet", molecular_formula!(H 6 C 4 O 3)),
+            ("HexP", molecular_formula!(H 11 C 6 O 8 P 1)),
+            ("Neu5Ac", molecular_formula!(H 17 C 11 N 1 O 8)),
+            ("Non", molecular_formula!(H 16 C 9 O 8)),
+            ("HexNAc(S)", molecular_formula!(H 13 C 8 N 1 O 8 S 1)),
+            ("Dec", molecular_formula!(H 18 C 10 O 9)),
+            ("en,a-Hex", molecular_formula!(H 6 C 6 O 5)),
+            ("Neu5Gc", molecular_formula!(H 17 C 11 N 1 O 9)),
+            ("Neu", molecular_formula!(H 15 C 9 N 1 O 7)),
+            ("HexNAc", molecular_formula!(H 13 C 8 N 1 O 5)),
+            ("Fuc", molecular_formula!(H 10 C 6 O 4)),
+            ("HexNS", molecular_formula!(H 11 C 6 N 1 O 7 S 1)),
+            ("Tri", molecular_formula!(H 4 C 3 O 2)),
+            ("Oct", molecular_formula!(H 14 C 8 O 7)),
+            ("sulfate", molecular_formula!(O 3 S 1)),
+            ("d-Hex", molecular_formula!(H 10 C 6 O 5)),
+            ("Hex", molecular_formula!(H 10 C 6 O 5)),
+            ("HexS", molecular_formula!(H 10 C 6 O 8 S 1)),
+        ];
+        for (name, formula) in cases {
+            assert_eq!(
+                glycan_parse_list()
+                    .iter()
+                    .find(|p| p.0 == *name)
+                    .unwrap_or_else(|| panic!("Assumed {name} would be defined"))
+                    .1
+                    .formula(),
+                *formula,
+                "{name}",
+            );
+        }
+    }
+
+    #[test]
+    fn iupac_short_names() {
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal2,3Ac24-1,6-1Py", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Pyruvyl,
+                    ]
+                ),
+                18
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcNAc", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[GlycanSubstituent::NAcetyl]
+                ),
+                6
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal6S", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[GlycanSubstituent::Sulfate]
+                ),
+                5
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcN2Gc", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[GlycanSubstituent::Amino, GlycanSubstituent::Glycolyl,]
+                ),
+                7
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GalNAc3S", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[GlycanSubstituent::NAcetyl, GlycanSubstituent::Sulfate]
+                ),
+                8
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("GlcN2,6S2", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Sulfate,
+                        GlycanSubstituent::Sulfate
+                    ]
+                ),
+                9
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Tagf1,6P2", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Tagatose)),
+                    &[GlycanSubstituent::Phosphate, GlycanSubstituent::Phosphate]
+                )
+                .furanose(),
+                9
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal2,3Ac24-1,6-1Py", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Pyruvyl,
+                    ]
+                ),
+                18
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("D-Araf", 0, 0),
+            Ok((
+                MonoSaccharide::new(BaseSugar::Pentose(Some(PentoseIsomer::Arabinose)), &[])
+                    .furanose(),
+                6
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Xyl-onic", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Pentose(Some(PentoseIsomer::Xylose)),
+                    &[GlycanSubstituent::Acid]
+                ),
+                8
+            ))
+        );
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Glc2,3,4,6Ac4", 0, 0),
+            Ok((
+                MonoSaccharide::new(
+                    BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    &[
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acetyl
+                    ]
+                ),
+                13
+            ))
+        );
+    }
+
+    #[allow(clippy::float_cmp)] // Handled in a different way
+    fn iupac_masses() {
+        assert_eq!(
+            MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
+                .unwrap()
+                .0
+                .formula()
+                .monoisotopic_mass()
+                .value
+                .round(),
+            411.0
+        );
+    }
 }
