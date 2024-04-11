@@ -714,8 +714,13 @@ fn parse_charge_state(
             let mut formula = MolecularFormula::from_pro_forma_inner(
                 line,
                 offset + count_len..offset + set.len() - charge_len,
+                true,
             )?;
-            let _ = formula.add((Element::Electron, None, -charge));
+            let _ = formula.add((
+                Element::Electron,
+                None,
+                formula.charge().value as i32 - charge,
+            ));
 
             // Deduplicate
             if let Some((amount, _)) = charge_carriers.iter_mut().find(|(_, f)| *f == formula) {
@@ -1123,6 +1128,41 @@ mod tests {
         );
         assert_eq!(
             parse("/3[+ Fe +3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert_eq!(
+            parse("/-1[+e-]"),
+            Ok(MolecularCharge::new(
+                &[(1, molecular_formula!(Electron 1)),]
+            ))
+        );
+        assert_eq!(parse("/1[+H1e-1+]"), Ok(MolecularCharge::proton(1)));
+        assert_eq!(
+            parse("/3[+Fe1e0+3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert_eq!(
+            parse("/3[+Fe1e-1+3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert_eq!(
+            parse("/3[+Fe1e-2+3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert_eq!(
+            parse("/3[+Fe1e-3+3]"),
             Ok(MolecularCharge::new(&[(
                 1,
                 molecular_formula!(Fe 1 Electron -3)

@@ -81,13 +81,14 @@ impl MolecularFormula {
     /// It can panic if the string contains not UTF8 symbols.
     #[allow(dead_code)]
     pub fn from_pro_forma(value: &str) -> Result<Self, CustomError> {
-        Self::from_pro_forma_inner(value, ..)
+        Self::from_pro_forma_inner(value, .., false)
     }
 
     /// See [`Self::from_pro_forma`]. This is a variant to help in parsing a part of a larger line.
     pub(crate) fn from_pro_forma_inner(
         value: &str,
         range: impl RangeBounds<usize>,
+        allow_electrons: bool,
     ) -> Result<Self, CustomError> {
         let mut index = match range.start_bound() {
             std::ops::Bound::Unbounded => 0,
@@ -128,12 +129,16 @@ impl MolecularFormula {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    for possible in ELEMENT_PARSE_LIST {
-                        if value[index + isotope..index + isotope + ele] == *possible.0 {
-                            element = Some(possible.1);
-                            break;
+                    if allow_electrons && ele == 1 && bytes[index + isotope + ele] == b'e' {
+                        element = Some(Element::Electron);
+                    } else {
+                        for possible in ELEMENT_PARSE_LIST {
+                            if value[index + isotope..index + isotope + ele] == *possible.0 {
+                                element = Some(possible.1);
+                                break;
+                            }
                         }
-                    }
+                    };
                     if let Some(parsed_element) = element {
                         let num = value[index + isotope + ele..index + len]
                             .parse::<i32>()
@@ -236,6 +241,11 @@ impl MolecularFormula {
                             found = true;
                             break;
                         }
+                    }
+                    if !found && allow_electrons && bytes[index] == b'e' {
+                        element = Some(Element::Electron);
+                        index += 1;
+                        found = true;
                     }
                     if !found {
                         return Err(CustomError::error(
