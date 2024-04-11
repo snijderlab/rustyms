@@ -85,6 +85,10 @@ impl MolecularFormula {
     }
 
     /// See [`Self::from_pro_forma`]. This is a variant to help in parsing a part of a larger line.
+    /// # Errors
+    /// If the formula is not valid according to the above specification, with some help on what is going wrong.
+    /// # Panics
+    /// It can panic if the string contains not UTF8 symbols.
     pub(crate) fn from_pro_forma_inner(
         value: &str,
         range: impl RangeBounds<usize>,
@@ -103,7 +107,7 @@ impl MolecularFormula {
         let mut element = None;
         let bytes = value.as_bytes();
         let mut result = Self::default();
-        while index <= end {
+        'main_parse_loop: while index <= end {
             match bytes[index] {
                 b'[' => {
                     index += 1; // Skip the open square bracket
@@ -129,7 +133,7 @@ impl MolecularFormula {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    if allow_electrons && ele == 1 && bytes[index + isotope + ele] == b'e' {
+                    if allow_electrons && &bytes[index + isotope..index + isotope + ele] == b"e" {
                         element = Some(Element::Electron);
                     } else {
                         for possible in ELEMENT_PARSE_LIST {
@@ -233,27 +237,23 @@ impl MolecularFormula {
                             ));
                         }
                     }
-                    let mut found = false;
                     for possible in ELEMENT_PARSE_LIST {
                         if value[index..].starts_with(possible.0) {
                             element = Some(possible.1);
                             index += possible.0.len();
-                            found = true;
-                            break;
+                            continue 'main_parse_loop;
                         }
                     }
-                    if !found && allow_electrons && bytes[index] == b'e' {
+                    if allow_electrons && bytes[index] == b'e' {
                         element = Some(Element::Electron);
                         index += 1;
-                        found = true;
+                        continue 'main_parse_loop;
                     }
-                    if !found {
-                        return Err(CustomError::error(
-                            "Invalid Pro Forma molecular formula",
-                            "Not a valid character in formula",
-                            Context::line(0, value, index, 1),
-                        ));
-                    }
+                    return Err(CustomError::error(
+                        "Invalid Pro Forma molecular formula",
+                        "Not a valid character in formula",
+                        Context::line(0, value, index, 1),
+                    ));
                 }
             }
         }

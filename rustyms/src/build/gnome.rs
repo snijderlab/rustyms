@@ -65,13 +65,13 @@ fn parse_gnome(_debug: bool) -> HashMap<String, GNOmeModification> {
             ..Default::default()
         };
 
-        if let Some(values) = obj.lines.get("property_value") {
-            for line in values {
-                if line.starts_with("GNO:00000035") {
-                    modification.topology = Some(line[17..].to_lowercase());
-                }
-            }
-        }
+        obj.lines.get("property_value").map(|values| {
+            values
+                .iter()
+                .find(|value| value.starts_with("GNO:00000035"))
+                .map(|value| modification.topology = Some(value[17..].to_lowercase()))
+        });
+
         mods.insert(modification.code_name.clone(), modification);
     }
 
