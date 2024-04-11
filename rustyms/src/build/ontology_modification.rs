@@ -52,7 +52,9 @@ impl OntologyModification {
                         }
                     }
                 }
-                if !found {}
+                if !found {
+                    new.push(rule.clone());
+                }
             }
         }
         self.rules = new;
