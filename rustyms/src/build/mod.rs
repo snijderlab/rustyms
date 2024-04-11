@@ -3,6 +3,7 @@ mod atomic_masses;
 mod csv;
 #[path = "../error/mod.rs"]
 pub mod error;
+mod glycan;
 mod gnome;
 mod obo;
 mod ontology_modification;
@@ -18,8 +19,8 @@ pub use unimod::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    build::glycan::{GlycanStructure, MonoSaccharide},
     formula::MolecularFormula,
-    glycan::{GlycanStructure, MonoSaccharide},
     system::OrderedMass,
 };
 

@@ -697,6 +697,3 @@ impl Chemical for GlycanSubstituent {
         side - molecular_formula!(O 1 H 1) // substituent so replaces a standard oxygen side chain
     }
 }
-
-include!("glycan_structure.rs");
-include!("glycan_lists.rs");

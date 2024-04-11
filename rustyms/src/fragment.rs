@@ -6,6 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
@@ -153,6 +154,17 @@ impl Display for Fragment {
             self.label
         )
     }
+}
+
+/// An isotope annotation.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct MatchedIsotopeDistribution {
+    /// The index of the matched peak in the spectrum, if found
+    pub peak_index: Option<usize>,
+    /// The isotope offset in whole daltons from the monoisotopic peak
+    pub isotope_offset: usize,
+    /// The theoretical abundance of this isotope (normalised to 1 for the whole distribution)
+    pub theoretical_isotope_abundance: OrderedFloat<f64>,
 }
 
 /// The definition of the position of an ion

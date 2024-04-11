@@ -13,7 +13,7 @@ use crate::{
     helper_functions::{end_of_enclosure, ResultExtensions},
     modification::{AmbiguousModification, GlobalModification, GnoComposition, ReturnModification},
     molecular_charge::MolecularCharge,
-    placement_rule::PlacementRule,
+    placement_rule::{PlacementRule, Position},
     ComplexPeptide, DiagnosticIon, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss,
     Protease, SequenceElement,
 };
@@ -657,53 +657,73 @@ impl LinearPeptide {
         &self,
         range: impl RangeBounds<usize>,
     ) -> Vec<(NeutralLoss, PeptidePosition)> {
-        let mut losses = Vec::new();
-        for (pos, aa) in self.iter(range) {
-            for modification in &aa.modifications {
-                if let Modification::Predefined(_, rules, _, _, _) = modification {
-                    for (rules, rule_losses, _) in rules {
-                        if PlacementRule::any_possible(rules, aa, &pos) {
-                            losses.extend(rule_losses.iter().map(|loss| (loss.clone(), pos)));
+        self.iter(range)
+            .flat_map(|(pos, aa)| {
+                aa.modifications
+                    .iter()
+                    .filter_map(move |modification| {
+                        if let Modification::Predefined(_, rules, _, _, _) = modification {
+                            Some(rules)
+                        } else {
+                            None
                         }
-                    }
-                }
-            }
-        }
-        losses
+                    })
+                    .flatten()
+                    .filter_map(move |(rules, rule_losses, _)| {
+                        if PlacementRule::any_possible(rules, aa, &pos) {
+                            Some(rule_losses)
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .map(move |loss| (loss.clone(), pos))
+            })
+            .collect()
     }
 
     /// Find all diagnostic ions for this full peptide
     fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, DiagnosticPosition)> {
-        let mut diagnostic = Vec::new();
-        for (pos, aa) in self.iter(..) {
-            for modification in &aa.modifications {
-                if let Modification::Predefined(_, rules, _, _, _) = modification {
-                    for (rules, _, rule_diagnostic) in rules {
-                        if PlacementRule::any_possible(rules, aa, &pos) {
-                            diagnostic.extend(rule_diagnostic.iter().map(|d| {
-                                (
-                                    d.clone(),
-                                    crate::fragment::DiagnosticPosition::Peptide(pos, aa.aminoacid),
-                                )
-                            }));
+        self.iter(..)
+            .flat_map(|(pos, aa)| {
+                aa.modifications
+                    .iter()
+                    .filter_map(move |modification| {
+                        if let Modification::Predefined(_, rules, _, _, _) = modification {
+                            Some(rules)
+                        } else {
+                            None
                         }
-                    }
-                }
-            }
-        }
-        for labile in &self.labile {
-            if let Modification::Predefined(_, rules, _, _, _) = labile {
-                for (_, _, rule_diagnostic) in rules {
-                    diagnostic.extend(rule_diagnostic.iter().map(|d| {
-                        (
-                            d.clone(),
-                            crate::fragment::DiagnosticPosition::Labile(labile.clone()),
-                        )
-                    }));
-                }
-            }
-        }
-        diagnostic
+                    })
+                    .flatten()
+                    .filter_map(move |(rules, _, rule_diagnostic)| {
+                        if PlacementRule::any_possible(rules, aa, &pos) {
+                            Some(rule_diagnostic)
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .map(move |loss| (loss.clone(), DiagnosticPosition::Peptide(pos, aa.aminoacid)))
+            })
+            .chain(
+                self.labile
+                    .iter()
+                    .filter_map(move |modification| {
+                        if let Modification::Predefined(_, rules, _, _, _) = modification {
+                            Some((rules, modification))
+                        } else {
+                            None
+                        }
+                    })
+                    .flat_map(|(rules, labile)| {
+                        rules
+                            .iter()
+                            .flat_map(|(_, _, diag)| diag)
+                            .map(|diag| (diag.clone(), DiagnosticPosition::Labile(labile.clone())))
+                    }),
+            )
+            .collect()
     }
 
     /// Iterate over a range in the peptide and keep track of the position
@@ -737,7 +757,15 @@ impl LinearPeptide {
                             && aa.map_or(true, |aa| aa == seq.aminoacid)
                             && modification.is_possible(seq, &PeptidePosition::n(*index, length))
                     }) {
-                        seq.modifications.push(modification.clone());
+                        match pos {
+                            Position::Anywhere => seq.modifications.push(modification.clone()),
+                            Position::AnyNTerm | Position::ProteinNTerm => {
+                                self.n_term = Some(modification.clone());
+                            }
+                            Position::AnyCTerm | Position::ProteinCTerm => {
+                                self.c_term = Some(modification.clone());
+                            }
+                        }
                     }
                 }
                 GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {

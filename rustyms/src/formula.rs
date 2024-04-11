@@ -69,112 +69,92 @@ impl MolecularFormula {
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
-        let mut output = String::new();
-        self.hill_notation_generic(
-            |element, buffer| {
-                if let Some(isotope) = element.1 {
-                    write!(buffer, "[{}{}{}]", isotope, element.0, element.2,).unwrap();
-                } else {
-                    write!(buffer, "{}{}", element.0, element.2,).unwrap();
-                }
-            },
-            &mut output,
-        );
-        if self.additional_mass != 0.0 {
-            write!(output, "{:+}", self.additional_mass).unwrap();
-        }
-        output
+        self.hill_notation_generic(|element, buffer| {
+            if let Some(isotope) = element.1 {
+                write!(buffer, "[{}{}{}]", isotope, element.0, element.2,).unwrap();
+            } else {
+                write!(buffer, "{}{}", element.0, element.2,).unwrap();
+            }
+        })
     }
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of
     /// elements merged with the pro forma notation for specific isotopes. Using fancy unicode characters for subscript
     /// and superscript numbers.
     pub fn hill_notation_fancy(&self) -> String {
-        let mut output = String::new();
-        self.hill_notation_generic(
-            |element, buffer| {
-                if let Some(isotope) = element.1 {
-                    write!(
-                        buffer,
-                        "{}{}{}",
-                        to_superscript_num(isotope.get()),
-                        element.0,
-                        to_subscript_num(element.2 as isize)
-                    )
-                    .unwrap();
-                } else {
-                    write!(
-                        buffer,
-                        "{}{}",
-                        element.0,
-                        to_subscript_num(element.2 as isize)
-                    )
-                    .unwrap();
-                }
-            },
-            &mut output,
-        );
-        if self.additional_mass != 0.0 {
-            write!(output, "{:+}", self.additional_mass).unwrap();
-        }
-        output
+        self.hill_notation_generic(|element, buffer| {
+            if let Some(isotope) = element.1 {
+                write!(
+                    buffer,
+                    "{}{}{}",
+                    to_superscript_num(isotope.get()),
+                    element.0,
+                    to_subscript_num(element.2 as isize)
+                )
+                .unwrap();
+            } else {
+                write!(
+                    buffer,
+                    "{}{}",
+                    element.0,
+                    to_subscript_num(element.2 as isize)
+                )
+                .unwrap();
+            }
+        })
     }
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements encoded in HTML
     pub fn hill_notation_html(&self) -> String {
-        let mut output = String::new();
-        self.hill_notation_generic(
-            |element, buffer| {
-                if let Some(isotope) = element.1 {
-                    write!(
-                        buffer,
-                        "<sup>{isotope}</sup>{}<sub>{}</sub>",
-                        element.0, element.2
-                    )
-                    .unwrap();
-                } else {
-                    write!(buffer, "{}<sub>{}</sub>", element.0, element.2).unwrap();
-                }
-            },
-            &mut output,
-        );
-        if self.additional_mass != 0.0 {
-            write!(output, "{:+}", self.additional_mass).unwrap();
-        }
-        output
+        self.hill_notation_generic(|element, buffer| {
+            if let Some(isotope) = element.1 {
+                write!(
+                    buffer,
+                    "<sup>{isotope}</sup>{}<sub>{}</sub>",
+                    element.0, element.2
+                )
+                .unwrap();
+            } else {
+                write!(buffer, "{}<sub>{}</sub>", element.0, element.2).unwrap();
+            }
+        })
     }
 
     /// The generic backbone to do the Hill notation sorting
     fn hill_notation_generic(
         &self,
         f: impl Fn(&(Element, Option<NonZeroU16>, i32), &mut String),
-        buffer: &mut String,
-    ) {
+    ) -> String {
+        let mut buffer = String::new();
         if let Some(carbon) = self
             .elements
             .iter()
             .find(|e| e.0 == Element::C && e.1.is_none())
         {
-            f(carbon, buffer);
+            f(carbon, &mut buffer);
             if let Some(hydrogen) = self
                 .elements
                 .iter()
                 .find(|e| e.0 == Element::H && e.1.is_none())
             {
-                f(hydrogen, buffer);
+                f(hydrogen, &mut buffer);
             }
             for element in self
                 .elements
                 .iter()
                 .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
             {
-                f(element, buffer);
+                f(element, &mut buffer);
             }
         } else {
             for element in &self.elements {
-                f(element, buffer);
+                f(element, &mut buffer);
             }
         }
+        if self.additional_mass != 0.0 {
+            write!(&mut buffer, "{:+}", self.additional_mass).unwrap();
+        }
+        buffer
     }
 }
 

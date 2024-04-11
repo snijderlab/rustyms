@@ -3,8 +3,8 @@ use std::{ffi::OsString, io::Write, iter, path::Path};
 use regex::Regex;
 
 use crate::{
+    build::glycan::MonoSaccharide,
     formula::{Chemical, MolecularFormula},
-    glycan::MonoSaccharide,
     print, Element, NeutralLoss,
 };
 

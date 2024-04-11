@@ -13,9 +13,6 @@ mod element;
 #[macro_use]
 #[path = "./src/shared/formula.rs"]
 mod formula;
-#[path = "./src/shared/glycan.rs"]
-mod glycan;
-
 #[path = "./src/build/mod.rs"]
 mod build;
 

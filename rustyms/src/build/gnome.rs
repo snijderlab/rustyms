@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ffi::OsString, io::Write, path::Path};
 
-use crate::{build::csv::parse_csv, glycan::*};
+use crate::{build::csv::parse_csv, build::glycan::*};
 
 use super::{obo::OboOntology, ontology_modification::OntologyList, GnoComposition, Modification};
 

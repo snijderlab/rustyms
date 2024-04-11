@@ -1068,7 +1068,7 @@ mod tests {
     }
 
     #[test]
-    fn charge_state() {
+    fn charge_state_positive() {
         let parse = |str: &str| {
             parse_charge_state(str.as_bytes(), 0, str).map(|(len, res)| {
                 assert_eq!(
@@ -1168,6 +1168,11 @@ mod tests {
                 molecular_formula!(Fe 1 Electron -3)
             ),]))
         );
+    }
+
+    #[test]
+    fn charge_state_negative() {
+        let parse = |str: &str| parse_charge_state(str.as_bytes(), 0, str);
         assert!(parse("/3[+Fe+]").is_err());
         assert!(parse("/3[+Fe]").is_err());
         assert!(parse("/3[+Fe 1]").is_err());

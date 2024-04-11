@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{formula::MolecularFormula, glycan::MonoSaccharide, DiagnosticIon, NeutralLoss};
+use crate::{build::glycan::MonoSaccharide, formula::MolecularFormula, DiagnosticIon, NeutralLoss};
 
 use super::Modification;
 
