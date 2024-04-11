@@ -644,7 +644,7 @@ fn parse_charge_state(
     index: usize,
     line: &str,
 ) -> Result<(usize, MolecularCharge), CustomError> {
-    let (charge_len, charge) = next_num(chars, index + 1, false).ok_or_else(|| {
+    let (charge_len, total_charge) = next_num(chars, index + 1, false).ok_or_else(|| {
         CustomError::error(
             "Invalid peptide charge state",
             "There should be a number dictating the total charge of the peptide",
@@ -652,15 +652,18 @@ fn parse_charge_state(
         )
     })?;
     if index + 1 + charge_len < chars.len() && chars[index + 1 + charge_len] == b'[' {
-        let end_index = next_char(chars, index + 2 + charge_len, b']').ok_or_else(|| {
-            CustomError::error(
-                "Invalid adduct ion",
-                "No valid closing delimiter",
-                Context::line(0, line, index + 2 + charge_len, 1),
-            )
-        })?;
+        let end_index =
+            end_of_enclosure(chars, index + 2 + charge_len, b'[', b']').ok_or_else(|| {
+                CustomError::error(
+                    "Invalid adduct ion",
+                    "No valid closing delimiter",
+                    Context::line(0, line, index + 2 + charge_len, 1),
+                )
+            })?;
         let mut offset = index + 2 + charge_len;
         let mut charge_carriers = Vec::new();
+        let mut found_charge = 0;
+
         for set in chars[index + 2 + charge_len..end_index].split(|c| *c == b',') {
             // num
             let (count_len, count) = next_num(chars, offset, true).ok_or_else(|| {
@@ -670,52 +673,75 @@ fn parse_charge_state(
                     Context::line(0, line, offset, 1),
                 )
             })?;
-            // element
-            let element_len = chars[offset + count_len..]
-                .iter()
-                .take_while(|c| c.is_ascii_alphabetic())
-                .count();
-            let element: Element =
-                std::str::from_utf8(&chars[offset + count_len..offset + count_len + element_len])
-                    .unwrap()
-                    .try_into()
-                    .map_err(|()| {
+
+            // charge
+            let charge_len = set.iter().rev().take_while(|c| c.is_ascii_digit()).count();
+            let charge = if charge_len == 0 {
+                1
+            } else {
+                line[offset + set.len() - charge_len..offset + set.len()]
+                    .parse::<i32>()
+                    .map_err(|err| {
                         CustomError::error(
                             "Invalid adduct ion",
-                            "Invalid element symbol",
-                            Context::line(0, line, offset + count_len, element_len),
+                            format!("The adduct ion number {err}"),
+                            Context::line(0, line, offset + set.len() - charge_len, charge_len),
                         )
-                    })?;
-            // charge
-            let (_, ion_charge) = next_num(chars, offset + count_len + element_len, true)
-                .ok_or_else(|| {
-                    CustomError::error(
+                    })?
+            };
+            let (charge_len, charge) = match set[set.len() - charge_len - 1] {
+                b'+' => (charge_len + 1, charge),
+                b'-' => (charge_len + 1, -charge),
+                _ => {
+                    return Err(CustomError::error(
                         "Invalid adduct ion",
-                        "Invalid adduct ion charge",
-                        Context::line(0, line, offset + count_len + element_len, 1),
-                    )
-                })?;
+                        "The adduct ion number should be preceded by a sign",
+                        Context::line(0, line, offset + set.len() - charge_len - 1, 1),
+                    ))
+                }
+            };
 
-            let formula = MolecularFormula::new(&[
-                (element, None, 1),
-                (Element::Electron, None, -ion_charge as i32),
-            ])
-            .ok_or_else(|| {
-                CustomError::error(
-                    "Invalid charge carrier formula",
-                    "The given molecular formula contains a part that does not have a defined mass",
-                    Context::line(0, line, index + 2 + charge_len, offset),
-                )
-            })?;
+            // Check for empty formula
+            if count_len + charge_len == set.len() {
+                return Err(CustomError::error(
+                    "Invalid adduct ion",
+                    "The adduct ion should have a formula defined",
+                    Context::line(0, line, offset, set.len()),
+                ));
+            }
 
-            charge_carriers.push((count, formula));
+            // formula
+            let mut formula = MolecularFormula::from_pro_forma_inner(
+                line,
+                offset + count_len..offset + set.len() - charge_len,
+            )?;
+            let _ = formula.add((Element::Electron, None, -charge));
+
+            // Deduplicate
+            if let Some((amount, _)) = charge_carriers.iter_mut().find(|(_, f)| *f == formula) {
+                *amount += count;
+            } else {
+                charge_carriers.push((count, formula));
+            }
 
             offset += set.len() + 1;
+            found_charge += count * charge as isize;
         }
-        Ok((end_index + 1, MolecularCharge::new(&charge_carriers)))
+        if total_charge == found_charge {
+            Ok((end_index + 1, MolecularCharge::new(&charge_carriers)))
+        } else {
+            Err(CustomError::error(
+                "Invalid peptide charge state",
+                "The peptide charge state number has to be equal to the sum of all separate adduct ions",
+                Context::line(0, line, index, offset),
+            ))
+        }
     } else {
         // If no adduct ions are provided assume it is just protons
-        Ok((index + charge_len + 1, MolecularCharge::proton(charge)))
+        Ok((
+            index + charge_len + 1,
+            MolecularCharge::proton(total_charge),
+        ))
     }
 }
 
@@ -1034,5 +1060,85 @@ mod tests {
         assert!(parse("<@D,E,R,T>").is_err());
         assert!(parse("<[+5]@D,E,R,Te>").is_err());
         assert!(parse("<[+5]@D,E,R,N-term:OO>").is_err());
+    }
+
+    #[test]
+    fn charge_state() {
+        let parse = |str: &str| {
+            parse_charge_state(str.as_bytes(), 0, str).map(|(len, res)| {
+                assert_eq!(
+                    len,
+                    str.len(),
+                    "Not full parsed: '{str}', amount parsed: {len} as '{res}'"
+                );
+                res
+            })
+        };
+        assert_eq!(parse("/1"), Ok(MolecularCharge::proton(1)));
+        assert_eq!(parse("/5"), Ok(MolecularCharge::proton(5)));
+        assert_eq!(parse("/-5"), Ok(MolecularCharge::proton(-5)));
+        assert_eq!(parse("/1[+H+]"), Ok(MolecularCharge::proton(1)));
+        assert_eq!(parse("/2[+H+,+H+]"), Ok(MolecularCharge::proton(2)));
+        assert_eq!(
+            parse("/1[+Na+]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Na 1 Electron -1)
+            )]))
+        );
+        assert_eq!(
+            parse("/3[2Na+1,1H1+1]"),
+            Ok(MolecularCharge::new(&[
+                (2, molecular_formula!(Na 1 Electron -1)),
+                (1, molecular_formula!(H 1 Electron -1))
+            ]))
+        );
+        assert_eq!(
+            parse("/1[-OH-]"),
+            Ok(MolecularCharge::new(&[(
+                -1,
+                molecular_formula!(O 1 H 1 Electron 1)
+            ),]))
+        );
+        assert_eq!(
+            parse("/1[+N1H3+]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(N 1 H 3 Electron -1)
+            ),]))
+        );
+        assert_eq!(
+            parse("/1[+[15N1]+]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!((15)N 1 Electron -1)
+            ),]))
+        );
+        assert_eq!(
+            parse("/3[+Fe+3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert_eq!(
+            parse("/3[+ Fe +3]"),
+            Ok(MolecularCharge::new(&[(
+                1,
+                molecular_formula!(Fe 1 Electron -3)
+            ),]))
+        );
+        assert!(parse("/3[+Fe+]").is_err());
+        assert!(parse("/3[+Fe]").is_err());
+        assert!(parse("/3[+Fe 1]").is_err());
+        assert!(parse("/3[+[54Fe1+3]").is_err());
+        assert!(parse("/3[+54Fe1]+3]").is_err());
+        assert!(parse("/1[1H1-1]").is_err());
+        assert!(parse("/1[1H1+1").is_err());
+        assert!(parse("/1[1+1]").is_err());
+        assert!(parse("/1[H+1]").is_err());
+        assert!(parse("/1[1H]").is_err());
+        assert!(parse("/1[1H1]").is_err());
+        assert!(parse("/ 1 [ 1 H 1]").is_err());
     }
 }

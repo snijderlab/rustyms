@@ -9,7 +9,7 @@ use crate::{
 use std::{
     hash::Hash,
     num::NonZeroU16,
-    ops::{Add, AddAssign, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Mul, Neg, RangeBounds, Sub},
 };
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
@@ -81,11 +81,28 @@ impl MolecularFormula {
     /// It can panic if the string contains not UTF8 symbols.
     #[allow(dead_code)]
     pub fn from_pro_forma(value: &str) -> Result<Self, CustomError> {
-        let mut index = 0;
+        Self::from_pro_forma_inner(value, ..)
+    }
+
+    /// See [`Self::from_pro_forma`]. This is a variant to help in parsing a part of a larger line.
+    pub(crate) fn from_pro_forma_inner(
+        value: &str,
+        range: impl RangeBounds<usize>,
+    ) -> Result<Self, CustomError> {
+        let mut index = match range.start_bound() {
+            std::ops::Bound::Unbounded => 0,
+            std::ops::Bound::Included(s) => *s,
+            std::ops::Bound::Excluded(s) => s + 1,
+        };
+        let end = match range.end_bound() {
+            std::ops::Bound::Unbounded => value.len() - 1,
+            std::ops::Bound::Included(s) => *s,
+            std::ops::Bound::Excluded(s) => s - 1,
+        };
         let mut element = None;
         let bytes = value.as_bytes();
         let mut result = Self::default();
-        while index < value.len() {
+        while index <= end {
             match bytes[index] {
                 b'[' => {
                     index += 1; // Skip the open square bracket

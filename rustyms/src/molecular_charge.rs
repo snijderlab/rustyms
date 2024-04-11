@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 /// A selection of ions that together define the charge of a peptide
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct MolecularCharge {
-    /// The ions that together define the charge of the peptide
+    /// The ions that together define the charge of the peptide.
+    /// The first number is the amount of times this adduct ion occurs, the molecular formula is the full formula for the adduct ion.
+    /// The charge for each ion is saved as the number of electrons missing or gained in the molecular formula.
     pub charge_carriers: Vec<(isize, MolecularFormula)>,
 }
 
