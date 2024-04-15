@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    formula::MolecularFormula, glycan::MonoSaccharide, DiagnosticIon, NeutralLoss,
+    build::glycan::MonoSaccharide, formula::MolecularFormula, DiagnosticIon, NeutralLoss,
     SimpleModification,
 };
 
