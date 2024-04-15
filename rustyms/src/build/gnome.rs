@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ffi::OsString, io::Write, path::Path};
 
-use crate::{build::csv::parse_csv, build::glycan::*};
+use crate::{build::csv::parse_csv, glycan::*, SimpleModification};
 
 use super::{obo::OboOntology, ontology_modification::OntologyList, GnoComposition, Modification};
 
@@ -125,12 +125,15 @@ struct GNOmeModification {
 impl GNOmeModification {
     fn into_mod(self) -> Modification {
         if let Some(structure) = self.structure {
-            Modification::Gno(GnoComposition::Structure(structure), self.code_name)
+            Modification::Simple(SimpleModification::Gno(
+                GnoComposition::Structure(structure),
+                self.code_name,
+            ))
         } else if let Some(mass) = self.mass {
-            Modification::Gno(
+            Modification::Simple(SimpleModification::Gno(
                 GnoComposition::Mass(crate::system::f64::da(mass).into()),
                 self.code_name,
-            )
+            ))
         } else {
             panic!("unreachable")
         }

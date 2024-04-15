@@ -34,11 +34,11 @@ pub struct LinearPeptide {
     /// all occurring nitrogens be isotope 15.
     global: Vec<(Element, Option<NonZeroU16>)>,
     /// Labile modifications, which will not be found in the actual spectrum.
-    pub labile: Vec<Modification>,
+    pub labile: Vec<SimpleModification>,
     /// N terminal modification
-    pub n_term: Option<Modification>,
+    pub n_term: Option<SimpleModification>,
     /// C terminal modification
-    pub c_term: Option<Modification>,
+    pub c_term: Option<SimpleModification>,
     /// The sequence of this peptide (includes local modifications)
     pub sequence: Vec<SequenceElement>,
     /// For each ambiguous modification list all possible positions it can be placed on.
@@ -272,6 +272,7 @@ impl LinearPeptide {
     /// * Labile modifications
     /// * Global isotope modifications
     /// * Charge carriers, use of charged ions apart from protons
+    /// * Cyclic structures: inter/intra cross links or branches
     /// * or when the sequence is empty.
     pub fn assume_simple(&self) {
         assert!(
@@ -290,30 +291,32 @@ impl LinearPeptide {
             !self.sequence.is_empty(),
             "A simple linear peptide was assumed, but it has no sequence"
         );
+        assert!(
+            !self
+                .sequence
+                .iter()
+                .any(|s| s
+                    .modifications
+                    .iter()
+                    .any(|m| matches!(m, Modification::Branch { .. })
+                        || matches!(m, Modification::IntraLink { .. })
+                        || matches!(m, Modification::CrossLink { .. }))),
+            "A simple linear peptide was assumed, but it has cyclic structures (inter/intra cross links or branches)"
+        );
     }
 
     /// Assume that the underlying peptide does not use fancy parts of the Pro Forma spec.
     /// # Panics
     /// When any of these functions are used:
     /// * Ambiguous modifications
-    /// * Labile modifications
-    /// * Global isotope modifications
     /// * Ambiguous amino acids (B/Z)
     /// * Ambiguous amino acid sequence `(?AA)`
-    /// * Charge carriers, use of charged ions apart from protons
-    /// * or when the sequence is empty.
+    /// On top of the assumptions made in [`Self::assume_simple`].
     pub fn assume_very_simple(&self) {
+        self.assume_simple();
         assert!(
             self.ambiguous_modifications.is_empty(),
             "A simple linear peptide was assumed, but it has ambiguous modifications"
-        );
-        assert!(
-            self.labile.is_empty(),
-            "A simple linear peptide was assumed, but it has labile modifications"
-        );
-        assert!(
-            self.global.is_empty(),
-            "A simple linear peptide was assumed, but it has global isotope modifications"
         );
         assert!(
             !self
@@ -325,14 +328,6 @@ impl LinearPeptide {
         assert!(
             !self.sequence.iter().any(|seq| seq.ambiguous.is_some()),
             "A simple linear peptide was assumed, but it has ambiguous amino acids `(?AA)`"
-        );
-        assert!(
-            self.charge_carriers.is_none(),
-            "A simple linear peptide was assumed, but it has specified charged ions"
-        );
-        assert!(
-            !self.sequence.is_empty(),
-            "A simple linear peptide was assumed, but it has no sequence"
         );
     }
 

@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{build::glycan::MonoSaccharide, formula::MolecularFormula, DiagnosticIon, NeutralLoss};
+use crate::{
+    formula::MolecularFormula, glycan::MonoSaccharide, DiagnosticIon, NeutralLoss,
+    SimpleModification,
+};
 
 use super::Modification;
 
@@ -65,13 +68,13 @@ impl OntologyModification {
         (
             self.id,
             self.code_name.to_ascii_lowercase(),
-            Modification::Predefined(
+            Modification::Simple(SimpleModification::Predefined(
                 self.diff_formula,
                 self.rules,
                 self.ontology,
                 self.code_name,
                 self.id,
-            ),
+            )),
         )
     }
 }

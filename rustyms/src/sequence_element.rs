@@ -186,7 +186,7 @@ impl SequenceElement {
                         self.aminoacid.char(),
                         position.sequence_index,
                     ),
-                    Context::none(), // TODO: go and give the correct context here
+                    Context::none(),
                 ));
             }
         }
