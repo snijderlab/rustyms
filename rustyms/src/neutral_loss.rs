@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{Context, CustomError},
     formula::MolecularFormula,
+    Multi,
 };
 
 include!("shared/neutral_loss.rs");
@@ -65,4 +66,15 @@ impl std::ops::Add<&NeutralLoss> for &MolecularFormula {
     }
 }
 
+impl std::ops::Add<&NeutralLoss> for &Multi<MolecularFormula> {
+    type Output = Multi<MolecularFormula>;
+    fn add(self, rhs: &NeutralLoss) -> Self::Output {
+        match rhs {
+            NeutralLoss::Gain(mol) => self + mol,
+            NeutralLoss::Loss(mol) => self - mol,
+        }
+    }
+}
+
 impl_binop_ref_cases!(impl Add, add for MolecularFormula, NeutralLoss, MolecularFormula);
+impl_binop_ref_cases!(impl Add, add for Multi<MolecularFormula>, NeutralLoss, Multi<MolecularFormula>);

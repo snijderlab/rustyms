@@ -7,8 +7,7 @@ use itertools::Itertools;
 pub use crate::modification::OntologyList;
 use crate::{
     error::{Context, CustomError},
-    modification::Ontology,
-    Modification,
+    modification::{Ontology, SimpleModification},
 };
 
 impl Ontology {
@@ -18,6 +17,7 @@ impl Ontology {
             Self::Gnome => gnome_ontology(),
             Self::Psimod => psimod_ontology(),
             Self::Unimod => unimod_ontology(),
+            Self::Xlmod => todo!(), //xlmod_ontology(),
         }
     }
 
@@ -73,7 +73,7 @@ impl Ontology {
     }
 
     /// Find the given name in this ontology. Return the matching modification, or if no matching modification is found the closest modifications in the used ontology
-    pub fn find_name(self, code: &str) -> Option<Modification> {
+    pub fn find_name(self, code: &str) -> Option<SimpleModification> {
         let code = code.to_ascii_lowercase();
         for option in self.lookup() {
             if option.1 == code {
@@ -84,7 +84,7 @@ impl Ontology {
     }
 
     /// Find the given id in this ontology
-    pub fn find_id(self, id: usize) -> Option<Modification> {
+    pub fn find_id(self, id: usize) -> Option<SimpleModification> {
         for option in self.lookup() {
             if option.0 == id {
                 return Some(option.2.clone());

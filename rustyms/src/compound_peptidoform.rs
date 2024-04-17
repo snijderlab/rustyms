@@ -9,62 +9,47 @@ use crate::{
     helper_functions::*,
     modification::{
         AmbiguousLookup, AmbiguousModification, GlobalModification, Modification,
-        ReturnModification,
+        ReturnModification, SimpleModification,
     },
     molecular_charge::MolecularCharge,
+    peptide_complexity::Linked,
     system::{usize::Charge, OrderedMass},
     AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
-    SequenceElement,
+    Peptidoform, SequenceElement,
 };
 
-/// A single pro forma entry, can contain multiple peptides, more options will be added in the future to support the full Pro Forma spec
+/// A single pro forma entry, can contain multiple peptidoforms
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-#[non_exhaustive]
-pub enum ComplexPeptide {
-    /// A single linear peptide
-    Singular(LinearPeptide),
-    /// A chimeric spectrum, multiple peptides coexist in a single spectrum indicated with '+' in pro forma
-    Chimeric(Vec<LinearPeptide>),
-}
+pub struct CompoundPeptidoform(Vec<Peptidoform>);
 
-impl MultiChemical for ComplexPeptide {
-    /// Gives all possible formulas for this complex peptide.
-    /// # Panics
-    /// If the global isotope modification is invalid (has an invalid isotope). See [`LinearPeptide::formulas`].
+impl MultiChemical for CompoundPeptidoform {
+    /// Gives all possible formulas for this compound peptidoform
     fn formulas(&self) -> Multi<MolecularFormula> {
-        match self {
-            Self::Singular(peptide) => peptide.formulas(),
-            Self::Chimeric(peptides) => {
-                let mut formulas = Multi::default();
-                for peptide in peptides {
-                    formulas *= peptide.formulas();
-                }
-                formulas
-            }
-        }
+        self.0.iter().flat_map(|p| p.formulas()).collect()
     }
 }
 
-impl Display for ComplexPeptide {
+impl CompoundPeptidoform {
+    /// Get all peptidoforms making up this compound peptidoform
+    pub fn peptidoforms(&self) -> &[Peptidoform] {
+        &self.0
+    }
+}
+
+impl Display for CompoundPeptidoform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Singular(s) => write!(f, "{s}"),
-            Self::Chimeric(m) => {
-                let mut first = true;
-                for pep in m {
-                    if !first {
-                        write!(f, "+")?;
-                    }
-                    write!(f, "{pep}")?;
-                    first = false;
-                }
-                Ok(())
-            }
+        // TODO: aggregate global, handle inconsistent global cases?
+        if let Some(p) = self.0.first() {
+            write!(f, "{p}")?;
         }
+        for p in self.peptidoforms().iter().skip(1) {
+            write!(f, "+{p}")?;
+        }
+        Ok(())
     }
 }
 
-impl ComplexPeptide {
+impl CompoundPeptidoform {
     /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
     /// Supports a subset of the specification (see `proforma_grammar.md` for an overview of what is supported).
     ///
@@ -100,7 +85,10 @@ impl ComplexPeptide {
     /// # Errors
     /// It returns an error if the line is not a supported Pro Forma line.
     #[allow(clippy::missing_panics_doc)] // Can not panic
-    fn pro_forma_inner(line: &str, index: usize) -> Result<(LinearPeptide, usize), CustomError> {
+    fn pro_forma_inner(
+        line: &str,
+        index: usize,
+    ) -> Result<(LinearPeptide<Linked>, usize), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
@@ -342,7 +330,7 @@ impl ComplexPeptide {
 
     /// Assume there is exactly one peptide in this collection.
     #[doc(alias = "assume_linear")]
-    pub fn singular(self) -> Option<LinearPeptide> {
+    pub fn singular(self) -> Option<LinearPeptide<Linked>> {
         match self {
             Self::Singular(pep) => Some(pep),
             Self::Chimeric(_) => None,
@@ -350,7 +338,7 @@ impl ComplexPeptide {
     }
 
     /// Get all peptides making up this `ComplexPeptide`, regardless of its type
-    pub fn peptides(&self) -> &[LinearPeptide] {
+    pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         match self {
             Self::Singular(pep) => std::slice::from_ref(pep),
             Self::Chimeric(peptides) => peptides,
@@ -364,23 +352,23 @@ impl ComplexPeptide {
         model: &Model,
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
-        for (index, peptide) in self.peptides().iter().enumerate() {
-            base.extend(peptide.generate_theoretical_fragments_inner(max_charge, model, index));
+        for peptidoform in self.peptidoforms() {
+            base.extend(peptidoform.generate_theoretical_fragments(max_charge, model));
         }
         base
     }
 }
 
-impl<Item> From<Item> for ComplexPeptide
+impl<Item> From<Item> for CompoundPeptidoform
 where
-    Item: Into<LinearPeptide>,
+    Item: Into<LinearPeptide<Linked>>,
 {
     fn from(value: Item) -> Self {
         Self::Singular(value.into())
     }
 }
 
-impl<Item> FromIterator<Item> for ComplexPeptide
+impl<Item> FromIterator<Item> for CompoundPeptidoform
 where
     Item: Into<SequenceElement>,
 {
@@ -392,7 +380,7 @@ where
 /// Parse global modifications
 /// # Errors
 /// If the global modifications are not defined to the specification
-fn global_modifications(
+pub(crate) fn global_modifications(
     chars: &[u8],
     mut index: usize,
     line: &str,
@@ -561,7 +549,9 @@ fn unknown_position_mods(
         )
         .unwrap_or_else(|e| {
             errs.push(e);
-            ReturnModification::Defined(Modification::Mass(OrderedMass::default()))
+            ReturnModification::Defined(Modification::Simple(SimpleModification::Mass(
+                OrderedMass::default(),
+            )))
         })
         .defined()
         .map_or_else(
@@ -571,7 +561,7 @@ fn unknown_position_mods(
                     "A modification of unknown position cannot be ambiguous",
                     Context::line(0, line, index + 1, end_index - 1 - index),
                 ));
-                Modification::Mass(OrderedMass::default())
+                Modification::Simple(SimpleModification::Mass(OrderedMass::default()))
             },
             |m| m,
         );
@@ -606,7 +596,7 @@ fn labile_modifications(
     chars: &[u8],
     mut index: usize,
     line: &str,
-) -> Result<(usize, Vec<Modification>), CustomError> {
+) -> Result<(usize, Vec<SimpleModification>), CustomError> {
     let mut labile = Vec::new();
     while chars[index] == b'{' {
         let end_index = end_of_enclosure(chars, index + 1, b'{', b'}').ok_or_else(|| {
@@ -618,15 +608,25 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            Modification::try_from(line, index + 1..end_index, &mut Vec::new()).and_then(|m| {
-                m.defined().ok_or_else(|| {
-                    CustomError::error(
-                        "Invalid labile modification",
-                        "A labile modification cannot be ambiguous",
-                        Context::line(0, line, index + 1, end_index - 1 - index),
-                    )
+            Modification::try_from(line, index + 1..end_index, &mut Vec::new())
+                .and_then(|m| {
+                    m.defined().ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid labile modification",
+                            "A labile modification cannot be ambiguous",
+                            Context::line(0, line, index + 1, end_index - 1 - index),
+                        )
+                    })
                 })
-            })?,
+                .and_then(|m| {
+                    m.simple().ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid labile modification",
+                            "A labile modification cannot be a cross-link or branch",
+                            Context::line(0, line, index + 1, end_index - 1 - index),
+                        )
+                    })
+                })?,
         );
         index = end_index + 1;
     }
@@ -639,7 +639,7 @@ fn labile_modifications(
 /// If the charge state is not following the specification.
 /// # Panics
 /// Panics if the text is not UTF-8.
-fn parse_charge_state(
+pub(crate) fn parse_charge_state(
     chars: &[u8],
     index: usize,
     line: &str,
@@ -747,443 +747,5 @@ fn parse_charge_state(
             index + charge_len + 1,
             MolecularCharge::proton(total_charge),
         ))
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
-mod tests {
-    use crate::{
-        model::Location,
-        system::{da, e},
-        ComplexPeptide,
-    };
-
-    use super::*;
-
-    #[test]
-    fn parse_glycan() {
-        let glycan = ComplexPeptide::pro_forma("A[Glycan:Hex]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let spaces = ComplexPeptide::pro_forma("A[Glycan:    Hex    ]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(spaces.sequence.len(), 1);
-        assert_eq!(glycan, spaces);
-        let incorrect = ComplexPeptide::pro_forma("A[Glycan:Hec]");
-        assert!(incorrect.is_err());
-    }
-
-    #[test]
-    fn parse_formula() {
-        let peptide = ComplexPeptide::pro_forma("A[Formula:C6H10O5]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let glycan = ComplexPeptide::pro_forma("A[Glycan:Hex]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        assert_eq!(peptide.sequence.len(), 1);
-        assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(glycan.formulas(), peptide.formulas());
-    }
-
-    #[test]
-    fn parse_labile() {
-        let with = ComplexPeptide::pro_forma("{Formula:C6H10O5}A")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let without = ComplexPeptide::pro_forma("A").unwrap().singular().unwrap();
-        assert_eq!(with.sequence.len(), 1);
-        assert_eq!(without.sequence.len(), 1);
-        assert_eq!(with.formulas(), without.formulas());
-        assert_eq!(with.labile[0].to_string(), "Formula:C6H10O5".to_string());
-    }
-
-    #[test]
-    fn parse_ambiguous_modification() {
-        let with = ComplexPeptide::pro_forma("A[Phospho#g0]A[#g0]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let without = ComplexPeptide::pro_forma("AA").unwrap().singular().unwrap();
-        assert_eq!(with.sequence.len(), 2);
-        assert_eq!(without.sequence.len(), 2);
-        assert_eq!(with.sequence[0].possible_modifications.len(), 1);
-        assert_eq!(with.sequence[1].possible_modifications.len(), 1);
-        assert!(ComplexPeptide::pro_forma("A[#g0]A[#g0]").is_err());
-        assert!(ComplexPeptide::pro_forma("A[Phospho#g0]A[Phospho#g0]").is_err());
-        assert!(ComplexPeptide::pro_forma("A[Phospho#g0]A[#g0(0.o1)]").is_err());
-        assert_eq!(
-            ComplexPeptide::pro_forma("A[+12#g0]A[#g0]")
-                .unwrap()
-                .singular()
-                .unwrap()
-                .to_string(),
-            "A[+12#g0]A[#g0]".to_string()
-        );
-        assert_eq!(
-            ComplexPeptide::pro_forma("A[#g0]A[+12#g0]")
-                .unwrap()
-                .singular()
-                .unwrap()
-                .to_string(),
-            "A[#g0]A[+12#g0]".to_string()
-        );
-    }
-
-    #[test]
-    fn parse_ambiguous_aminoacid() {
-        let with = ComplexPeptide::pro_forma("(?AA)C(?A)(?A)")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let without = ComplexPeptide::pro_forma("AACAA")
-            .unwrap()
-            .singular()
-            .unwrap();
-        assert_eq!(with.sequence.len(), 5);
-        assert_eq!(without.sequence.len(), 5);
-        assert!(with.sequence[0].ambiguous.is_some());
-        assert!(with.sequence[1].ambiguous.is_some());
-        assert_eq!(with.formulas(), without.formulas());
-        assert_eq!(with.to_string(), "(?AA)C(?A)(?A)".to_string());
-    }
-
-    #[test]
-    fn parse_hard_tags() {
-        let peptide = ComplexPeptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let glycan = ComplexPeptide::pro_forma(
-            "A[info:you can define a tag multiple times|Glycan:Hex|Formula:C6H10O5]",
-        )
-        .unwrap()
-        .singular()
-        .unwrap();
-        assert_eq!(peptide.sequence.len(), 1);
-        assert_eq!(glycan.sequence.len(), 1);
-        assert_eq!(glycan.formulas(), peptide.formulas());
-    }
-
-    #[test]
-    fn parse_global() {
-        let deuterium = ComplexPeptide::pro_forma("<D>A")
-            .unwrap()
-            .singular()
-            .unwrap();
-        let nitrogen_15 = ComplexPeptide::pro_forma("<15N>A")
-            .unwrap()
-            .singular()
-            .unwrap();
-        assert_eq!(deuterium.sequence.len(), 1);
-        assert_eq!(nitrogen_15.sequence.len(), 1);
-        // Formula: A + H2O
-        assert_eq!(
-            deuterium.formulas(),
-            molecular_formula!((2)H 7 C 3 O 2 N 1).into()
-        );
-        assert_eq!(
-            nitrogen_15.formulas(),
-            molecular_formula!(H 7 C 3 O 2 (15)N 1).into()
-        );
-    }
-
-    #[test]
-    fn parse_chimeric() {
-        let dimeric = ComplexPeptide::pro_forma("A+AA").unwrap();
-        let trimeric = dbg!(ComplexPeptide::pro_forma("A+AA-[+2]+AAA").unwrap());
-        assert_eq!(dimeric.peptides().len(), 2);
-        assert_eq!(dimeric.peptides()[0].len(), 1);
-        assert_eq!(dimeric.peptides()[1].len(), 2);
-        assert_eq!(trimeric.peptides().len(), 3);
-        assert_eq!(trimeric.peptides()[0].len(), 1);
-        assert_eq!(trimeric.peptides()[1].len(), 2);
-        assert_eq!(trimeric.peptides()[2].len(), 3);
-        assert!(trimeric.peptides()[1].c_term.is_some());
-    }
-
-    #[test]
-    fn parse_unimod() {
-        let peptide = dbg!(ComplexPeptide::pro_forma(
-            "Q[U:Gln->pyro-Glu]E[Cation:Na]AA"
-        ));
-        assert!(peptide.is_ok());
-    }
-
-    #[test]
-    fn dimeric_peptide() {
-        // Only generate a single series, easier to reason about
-        let test_model = Model {
-            a: (Location::SkipN(1), Vec::new()),
-            ..Model::none()
-        };
-
-        // With two different sequences
-        let dimeric = ComplexPeptide::pro_forma("AA+CC").unwrap();
-        let fragments =
-            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1), &test_model));
-        assert_eq!(fragments.len(), 4); // aA, aC, pAA, pCC
-
-        // With two identical sequences
-        let dimeric = ComplexPeptide::pro_forma("AA+AA").unwrap();
-        let fragments =
-            dbg!(dimeric.generate_theoretical_fragments(Charge::new::<e>(1), &test_model));
-        assert_eq!(fragments.len(), 4); // aA, pAA (both twice once for each peptide)
-    }
-
-    #[test]
-    fn parse_adduct_ions_01() {
-        let peptide = ComplexPeptide::pro_forma("A/2[2Na+]+A").unwrap();
-        assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(
-            peptide.peptides()[0]
-                .charge_carriers
-                .clone()
-                .unwrap()
-                .charge_carriers,
-            vec![(2, molecular_formula!(Na 1 Electron -1))]
-        );
-        assert_eq!(
-            peptide.peptides()[0].sequence,
-            peptide.peptides()[1].sequence
-        );
-    }
-
-    #[test]
-    fn parse_adduct_ions_02() {
-        let peptide = dbg!(ComplexPeptide::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
-        assert_eq!(peptide.peptides().len(), 2);
-        assert_eq!(
-            peptide.peptides()[0]
-                .charge_carriers
-                .clone()
-                .unwrap()
-                .charge_carriers,
-            vec![
-                (1, molecular_formula!(Na 1 Electron -1)),
-                (1, molecular_formula!(H 1 Electron -1))
-            ]
-        );
-        // Check if the C term mod is applied
-        assert_eq!(
-            peptide.peptides()[0].sequence[0].formulas_all(),
-            peptide.peptides()[1].sequence[0].formulas_all()
-        );
-    }
-
-    #[test]
-    fn parse_global_modifications() {
-        let parse = |str: &str| global_modifications(str.as_bytes(), 0, str);
-        assert_eq!(
-            parse("<[+5]@D>"),
-            Ok((
-                8,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::Anywhere,
-                    Some(AminoAcid::D),
-                    Modification::Mass(da(5.0).into())
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@d>"),
-            Ok((
-                8,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::Anywhere,
-                    Some(AminoAcid::D),
-                    Modification::Mass(da(5.0).into())
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@N-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyNTerm,
-                    Some(AminoAcid::D),
-                    Modification::Mass(da(5.0).into())
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@n-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyNTerm,
-                    Some(AminoAcid::D),
-                    Modification::Mass(da(5.0).into())
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@C-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyCTerm,
-                    Some(AminoAcid::D),
-                    Modification::Mass(da(5.0).into())
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<D>"),
-            Ok((
-                3,
-                vec![GlobalModification::Isotope(Element::H, NonZeroU16::new(2))]
-            ))
-        );
-        assert_eq!(
-            parse("<12C>"),
-            Ok((
-                5,
-                vec![GlobalModification::Isotope(Element::C, NonZeroU16::new(12))]
-            ))
-        );
-        assert!(parse("<D").is_err());
-        assert!(parse("<[+5]>").is_err());
-        assert!(parse("<[+5]@DD>").is_err());
-        assert!(parse("<[5+]@D>").is_err());
-        assert!(parse("<[+5@D>").is_err());
-        assert!(parse("<+5]@D>").is_err());
-        assert!(parse("<[+5#g1]@D>").is_err());
-        assert!(parse("<[+5#g1>").is_err());
-        assert!(parse("<C12>").is_err());
-        assert!(parse("<>").is_err());
-        assert!(parse("<@>").is_err());
-        assert!(parse("<@D,E,R,T>").is_err());
-        assert!(parse("<[+5]@D,E,R,Te>").is_err());
-        assert!(parse("<[+5]@D,E,R,N-term:OO>").is_err());
-    }
-
-    #[test]
-    fn charge_state_positive() {
-        let parse = |str: &str| {
-            parse_charge_state(str.as_bytes(), 0, str).map(|(len, res)| {
-                assert_eq!(
-                    len,
-                    str.len(),
-                    "Not full parsed: '{str}', amount parsed: {len} as '{res}'"
-                );
-                res
-            })
-        };
-        assert_eq!(parse("/1"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(parse("/5"), Ok(MolecularCharge::proton(5)));
-        assert_eq!(parse("/-5"), Ok(MolecularCharge::proton(-5)));
-        assert_eq!(parse("/1[+H+]"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(parse("/2[+H+,+H+]"), Ok(MolecularCharge::proton(2)));
-        assert_eq!(
-            parse("/1[+Na+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Na 1 Electron -1)
-            )]))
-        );
-        assert_eq!(
-            parse("/3[2Na+1,1H1+1]"),
-            Ok(MolecularCharge::new(&[
-                (2, molecular_formula!(Na 1 Electron -1)),
-                (1, molecular_formula!(H 1 Electron -1))
-            ]))
-        );
-        assert_eq!(
-            parse("/1[-OH-]"),
-            Ok(MolecularCharge::new(&[(
-                -1,
-                molecular_formula!(O 1 H 1 Electron 1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/1[+N1H3+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(N 1 H 3 Electron -1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/1[+[15N1]+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!((15)N 1 Electron -1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+ Fe +3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/-1[+e-]"),
-            Ok(MolecularCharge::new(
-                &[(1, molecular_formula!(Electron 1)),]
-            ))
-        );
-        assert_eq!(parse("/1[+H1e-1+]"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(
-            parse("/3[+Fe1e0+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-1+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-2+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-3+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-    }
-
-    #[test]
-    fn charge_state_negative() {
-        let parse = |str: &str| parse_charge_state(str.as_bytes(), 0, str);
-        assert!(parse("/3[+Fe+]").is_err());
-        assert!(parse("/3[+Fe]").is_err());
-        assert!(parse("/3[+Fe 1]").is_err());
-        assert!(parse("/3[+[54Fe1+3]").is_err());
-        assert!(parse("/3[+54Fe1]+3]").is_err());
-        assert!(parse("/1[1H1-1]").is_err());
-        assert!(parse("/1[1H1+1").is_err());
-        assert!(parse("/1[1+1]").is_err());
-        assert!(parse("/1[H+1]").is_err());
-        assert!(parse("/1[1H]").is_err());
-        assert!(parse("/1[1H1]").is_err());
-        assert!(parse("/ 1 [ 1 H 1]").is_err());
     }
 }

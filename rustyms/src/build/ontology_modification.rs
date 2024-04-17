@@ -63,18 +63,18 @@ impl OntologyModification {
         self.rules = new;
     }
 
-    pub fn into_mod(mut self) -> (usize, String, Modification) {
+    pub fn into_mod(mut self) -> (usize, String, SimpleModification) {
         self.simplify_rules();
         (
             self.id,
             self.code_name.to_ascii_lowercase(),
-            Modification::Simple(SimpleModification::Predefined(
+            SimpleModification::Predefined(
                 self.diff_formula,
                 self.rules,
                 self.ontology,
                 self.code_name,
                 self.id,
-            )),
+            ),
         )
     }
 }

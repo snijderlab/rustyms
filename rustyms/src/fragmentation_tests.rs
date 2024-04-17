@@ -5,6 +5,8 @@ use crate::{
     *,
 };
 
+use self::peptide_complexity::Linked;
+
 #[test]
 fn triple_a() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
@@ -37,7 +39,7 @@ fn triple_a() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("AAA")
+        &CompoundPeptidoform::pro_forma("AAA")
             .unwrap()
             .singular()
             .unwrap(),
@@ -86,7 +88,7 @@ fn with_modifications() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
+        &CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
             .unwrap()
             .singular()
             .unwrap(),
@@ -114,7 +116,7 @@ fn with_possible_modifications() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("M[Oxidation#a1]M[#a1]")
+        &CompoundPeptidoform::pro_forma("M[Oxidation#a1]M[#a1]")
             .unwrap()
             .singular()
             .unwrap(),
@@ -147,7 +149,7 @@ fn higher_charges() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("ACD")
+        &CompoundPeptidoform::pro_forma("ACD")
             .unwrap()
             .singular()
             .unwrap(),
@@ -308,7 +310,7 @@ fn all_aminoacids() {
     };
     test(
         theoretical_fragments,
-        &ComplexPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV")
+        &CompoundPeptidoform::pro_forma("ARNDCQEGHILKMFPSTWYV")
             .unwrap()
             .singular()
             .unwrap(),
@@ -351,7 +353,7 @@ fn glycan_fragmentation() {
 
 fn test(
     theoretical_fragments: &[(f64, &str)],
-    peptide: &LinearPeptide,
+    peptide: &LinearPeptide<Linked>,
     model: &Model,
     charge: usize,
     allow_left_over_generated: bool,

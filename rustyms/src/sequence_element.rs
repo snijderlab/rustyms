@@ -4,11 +4,12 @@ use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
     modification::AmbiguousModification,
-    MolecularFormula, Multi, MultiChemical,
+    peptide_complexity::Linked,
+    LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{aminoacids::AminoAcid, modification::Modification, Chemical};
+use crate::{aminoacids::AminoAcid, modification::Modification};
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
@@ -82,90 +83,91 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
-    pub fn formulas(&self, selected_ambiguous: &[usize]) -> Multi<MolecularFormula> {
+    pub fn formulas(
+        &self,
+        selected_ambiguous: &[usize],
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+    ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(Chemical::formula)
-            .sum::<MolecularFormula>()
-            + self
+            .map(|m| m.formula(all_peptides, visited_peptides))
+            .sum::<Multi<MolecularFormula>>()
+            * self
                 .possible_modifications
                 .iter()
                 .filter(|&m| selected_ambiguous.contains(&m.id))
-                .map(|m| m.modification.formula())
-                .sum::<MolecularFormula>();
-        self.aminoacid
-            .formulas()
-            .iter()
-            .map(|formula| formula + &modifications)
-            .collect()
+                .map(|m| m.modification.formula(all_peptides, visited_peptides))
+                .sum::<Multi<MolecularFormula>>();
+        modifications * self.aminoacid.formulas()
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    pub fn formulas_greedy(&self, placed: &mut [bool]) -> Multi<MolecularFormula> {
+    pub fn formulas_greedy(
+        &self,
+        placed: &mut [bool],
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+    ) -> Multi<MolecularFormula> {
         #[allow(clippy::filter_map_bool_then)] // otherwise crashes
         let modifications = self
             .modifications
             .iter()
-            .map(Chemical::formula)
-            .sum::<MolecularFormula>()
-            + self
+            .map(|m| m.formula(all_peptides, visited_peptides))
+            .sum::<Multi<MolecularFormula>>()
+            * self
                 .possible_modifications
                 .iter()
                 .filter_map(|m| {
                     (!placed[m.id]).then(|| {
                         placed[m.id] = true;
-                        m.modification.formula()
+                        m.modification.formula(all_peptides, visited_peptides)
                     })
                 })
-                .sum::<MolecularFormula>();
-        self.aminoacid
-            .formulas()
-            .iter()
-            .map(|formula| formula + &modifications)
-            .collect()
+                .sum::<Multi<MolecularFormula>>();
+        modifications * self.aminoacid.formulas()
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
-    pub fn formulas_all(&self) -> Multi<MolecularFormula> {
+    pub fn formulas_all(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+    ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(Chemical::formula)
-            .sum::<MolecularFormula>()
-            + self
+            .map(|m| m.formula(all_peptides, visited_peptides))
+            .sum::<Multi<MolecularFormula>>()
+            * self
                 .possible_modifications
                 .iter()
-                .map(|m| m.modification.formula())
-                .sum::<MolecularFormula>();
-        self.aminoacid
-            .formulas()
-            .iter()
-            .map(|formula| formula + &modifications)
-            .collect()
+                .map(|m| m.modification.formula(all_peptides, visited_peptides))
+                .sum::<Multi<MolecularFormula>>();
+        modifications * self.aminoacid.formulas()
     }
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
     /// If you have 2 options for amino acid mass (B or Z) and 2 ambiguous modifications that gives you 8 total options for the mass. (2 AA * 2 amb1 * 2 amb2)
-    pub fn formulas_all_options(&self) -> Multi<MolecularFormula> {
+    pub fn formulas_all_options(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+    ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(Chemical::formula)
-            .sum::<MolecularFormula>();
-        let mut formulas: Multi<MolecularFormula> = self
-            .aminoacid
-            .formulas()
-            .iter()
-            .map(|f| f + modifications.clone())
-            .collect();
+            .map(|m| m.formula(all_peptides, visited_peptides))
+            .sum::<Multi<MolecularFormula>>();
+        let mut formulas: Multi<MolecularFormula> = modifications * self.aminoacid.formulas();
         for modification in &self.possible_modifications {
-            formulas *= [
-                MolecularFormula::default(),
-                modification.modification.formula(),
-            ]
-            .iter()
-            .collect::<Multi<MolecularFormula>>();
+            formulas *= modification
+                .modification
+                .formula(all_peptides, visited_peptides)
+                .into_iter()
+                .chain(std::iter::once(&MolecularFormula::default()))
+                .collect::<Multi<MolecularFormula>>();
         }
         formulas
     }

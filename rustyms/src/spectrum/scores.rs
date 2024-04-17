@@ -147,10 +147,10 @@ impl AnnotatedSpectrum {
     }
 
     /// Get the scores for the individual ion series
-    fn score_individual_ions(
+    fn score_individual_ions<T>(
         &self,
         fragments: &[Fragment],
-        peptide: Option<(usize, &LinearPeptide)>,
+        peptide: Option<(usize, &LinearPeptide<T>)>,
         total_intensity: f64,
     ) -> Vec<(FragmentKind, Score)> {
         [

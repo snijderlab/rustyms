@@ -3,7 +3,11 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{fmt::Display, num::NonZeroU16, ops::Range};
+use std::{
+    fmt::{Display, Write},
+    num::NonZeroU16,
+    ops::Range,
+};
 
 use regex::Regex;
 
@@ -12,10 +16,11 @@ use crate::{
     fragment::PeptidePosition,
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
+    peptide_complexity::Linked,
     placement_rule::{PlacementRule, Position},
     system::{dalton, Mass, OrderedMass},
     AminoAcid, Chemical, DiagnosticIon, Element, LinearPeptide, MolecularFormula, Multi,
-    MultiChemical, NeutralLoss, SequenceElement, Tolerance, WithinTolerance,
+    NeutralLoss, SequenceElement, Tolerance, WithinTolerance,
 };
 
 include!("shared/modification.rs");
@@ -46,26 +51,12 @@ impl Chemical for SimpleModification {
     }
 }
 
-impl Modification {
-    /// Get the formula for the whole addition (or subtraction) for this modification
-    pub fn formula(&self, all_peptides: &[LinearPeptide]) -> Multi<MolecularFormula> {
-        match self {
-            Self::Simple(s) => s.formula().into(),
-            Self::CrossLink {
-                peptide, linker, ..
-            } => all_peptides[*peptide].formulas() + linker.formula(), // TODO: impl neutral losses for that other peptide
-            Self::IntraLink { .. } => todo!(), // TODO: impossible, return None?
-            Self::Branch { peptide, .. } => all_peptides[*peptide].formulas(), // TODO: any linking chemistry? + impl neutral losses for that other peptide
-        }
-    }
-}
-
-impl Modification {
+impl SimpleModification {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
-            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) | Self::Branch { .. }=> None,
+            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_)=> None,
             Self::Predefined(_, _, ontology, _, id) => match ontology {
                 Ontology::Psimod => Some(format!(
                     "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{id:5}",
@@ -73,13 +64,121 @@ impl Modification {
                 Ontology::Unimod => Some(format!(
                     "https://www.unimod.org/modifications_view.php?editid1={id}",
                 )),
-                Ontology::Gnome => panic!("Not reachable"),
+                Ontology::Gnome | Ontology::Xlmod => panic!("Not reachable"),
             },
             Self::Gno(_, name) => Some(format!(
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
             )),
+        }
+    }
+
+    /// Check to see if this modification can be placed on the specified element
+    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
+        if let Self::Predefined(_, positions, _, _, _) = self {
+            // If any of the rules match the current situation then it can be placed
+            positions
+                .iter()
+                .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
+        } else {
+            true
+        }
+    }
+}
+
+impl Display for SimpleModification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mass(m) => {
+                write!(f, "{:+}", m.value)?;
+            }
+            Self::Formula(elements) => {
+                write!(f, "Formula:{}", elements.hill_notation())?;
+            }
+            Self::Glycan(monosaccharides) => write!(
+                f,
+                "Glycan:{}",
+                monosaccharides
+                    .iter()
+                    .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
+            )?,
+            Self::GlycanStructure(glycan) => write!(
+                f,
+                "Glycan:{}|INFO:Structure:{glycan}",
+                glycan
+                    .composition()
+                    .iter()
+                    .fold(String::new(), |acc, (g, a)| {
+                        write!(&mut acc, "{g}{a}");
+                        acc
+                    })
+            )?,
+            Self::Predefined(_, _, context, name, _) => {
+                write!(f, "{}:{name}", context.char())?;
+            }
+            Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
+        }
+        Ok(())
+    }
+}
+
+impl Into<Modification> for SimpleModification {
+    fn into(self) -> Modification {
+        Modification::Simple(self)
+    }
+}
+
+impl Modification {
+    /// Get the formula for the whole addition (or subtraction) for this modification
+    pub fn formula(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+    ) -> Multi<MolecularFormula> {
+        match self {
+            Self::Simple(s) => s.formula().into(),
+            Self::CrossLink {
+                peptide, linker, ..
+            } => {
+                if visited_peptides.contains(peptide) {
+                    linker.formula().into()
+                } else {
+                    all_peptides[*peptide].formulas_inner(*peptide, all_peptides, visited_peptides)
+                        + linker.formula()
+                }
+            } // TODO: impl neutral losses for that other peptide
+            Self::IntraLink { .. } => todo!(), // TODO: impossible, return None?
+            Self::Branch { peptide, .. } => {
+                all_peptides[*peptide].formulas_inner(*peptide, all_peptides, visited_peptides)
+            } // TODO: any linking chemistry? + impl neutral losses for that other peptide
+        }
+    }
+
+    /// Get the formula for a simple modification
+    pub fn simple_formula(&self) -> Option<MolecularFormula> {
+        match self {
+            Self::Simple(s) => s.formula().into(),
+            _ => None,
+        }
+    }
+}
+
+impl Modification {
+    /// Check if this is a simple modification
+    pub fn simple(&self) -> Option<&SimpleModification> {
+        match self {
+            Self::Simple(sim) => Some(sim),
+            _ => None,
+        }
+    }
+
+    /// Get a url for more information on this modification. Only defined for modifications from ontologies.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn ontology_url(&self) -> Option<String> {
+        match self {
+            Self::Simple(modification) => modification.ontology_url(),
             Self::CrossLink { .. } => todo!(),
             Self::IntraLink { .. } => todo!(),
+            Self::Branch { .. } => todo!(),
         }
     }
 
@@ -91,7 +190,7 @@ impl Modification {
     pub fn try_from(
         line: &str,
         range: Range<usize>,
-        lookup: &mut Vec<(Option<String>, Option<Self>)>,
+        lookup: &mut Vec<(Option<String>, Option<SimpleModification>)>,
     ) -> Result<ReturnModification, CustomError> {
         // Because multiple modifications could be chained with the pipe operator
         // the parsing iterates over all links until it finds one it understands
@@ -115,7 +214,9 @@ impl Modification {
             || {
                 last_result.map(|m| {
                     m.unwrap_or_else(|| {
-                        ReturnModification::Defined(Self::Mass(OrderedMass::zero()))
+                        ReturnModification::Defined(Self::Simple(SimpleModification::Mass(
+                            OrderedMass::zero(),
+                        )))
                     })
                 })
             },
@@ -129,7 +230,7 @@ impl Modification {
         line: &str,
         location: std::ops::Range<usize>,
         position: Option<&SequenceElement>,
-    ) -> Option<Self> {
+    ) -> Option<SimpleModification> {
         match line[location.clone()].to_lowercase().as_str() {
             "o" => Ontology::Unimod.find_id(35),  // oxidation
             "cam" => Ontology::Unimod.find_id(4), // carbamidomethyl
@@ -150,7 +251,7 @@ impl Modification {
                             .find_name(&capture[1])
                             .ok_or_else(|| {
                                 parse_named_counter(&capture[1], glycan_parse_list(), false)
-                                    .map(Modification::Glycan)
+                                    .map(SimpleModification::Glycan)
                             })
                             .flat_err()
                             .or_else(|_| {
@@ -179,20 +280,13 @@ impl Modification {
         }
     }
 
-    fn sloppy_modification_internal(line: &str) -> Option<Self> {
+    fn sloppy_modification_internal(line: &str) -> Option<SimpleModification> {
         Self::sloppy_modification(line, 0..line.len(), None)
     }
 
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
-        if let Self::Predefined(_, positions, _, _, _) = self {
-            // If any of the rules match the current situation then it can be placed
-            positions
-                .iter()
-                .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
-        } else {
-            true
-        }
+        self.simple().map_or(true, |s| s.is_possible(seq, position))
     }
 
     /// Search matching modification based on what modification is provided. If a mass modification is provided
@@ -201,30 +295,30 @@ impl Modification {
     /// that composition. Otherwise it returns the modification itself.
     pub fn search(modification: &Self, tolerance: Tolerance<Mass>) -> ModificationSearchResult {
         match modification {
-            Self::Mass(mass) => ModificationSearchResult::Mass(
+            Self::Simple(SimpleModification::Mass(mass)) => ModificationSearchResult::Mass(
                 mass.into_inner(),
                 tolerance,
                 [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                     .iter()
                     .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
                     .filter(|(_, _, _, m)| {
-                        m.simple_formula().is_some_and(|f| {
-                            tolerance.within(&mass.into_inner(), &f.monoisotopic_mass())
-                        })
+                        tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
                     })
                     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
             ),
-            Self::Formula(formula) => ModificationSearchResult::Formula(
-                formula.clone(),
-                [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
-                    .iter()
-                    .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
-                    .filter(|(_, _, _, m)| m.simple_formula().is_some_and(|f| *formula == f))
-                    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                    .collect(),
-            ),
-            Self::Glycan(glycan) => {
+            Self::Simple(SimpleModification::Formula(formula)) => {
+                ModificationSearchResult::Formula(
+                    formula.clone(),
+                    [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
+                        .iter()
+                        .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
+                        .filter(|(_, _, _, m)| *formula == m.formula())
+                        .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
+                        .collect(),
+                )
+            }
+            Self::Simple(SimpleModification::Glycan(glycan)) => {
                 let search = MonoSaccharide::search_composition(glycan.clone());
                 ModificationSearchResult::Glycan(
                     glycan.clone(),
@@ -232,7 +326,11 @@ impl Modification {
                         .lookup()
                         .iter()
                         .filter(|(_, _, m)| {
-                            if let Self::Gno(GnoComposition::Structure(structure), _) = m {
+                            if let SimpleModification::Gno(
+                                GnoComposition::Structure(structure),
+                                _,
+                            ) = m
+                            {
                                 MonoSaccharide::search_composition(structure.composition())
                                     == *search
                             } else {
@@ -256,22 +354,22 @@ pub enum ModificationSearchResult {
     Mass(
         Mass,
         Tolerance<Mass>,
-        Vec<(Ontology, usize, String, Modification)>,
+        Vec<(Ontology, usize, String, SimpleModification)>,
     ),
     /// All modifications with the same formula
     Formula(
         MolecularFormula,
-        Vec<(Ontology, usize, String, Modification)>,
+        Vec<(Ontology, usize, String, SimpleModification)>,
     ),
     /// All modifications with the same glycan composition
     Glycan(
         Vec<(MonoSaccharide, isize)>,
-        Vec<(Ontology, usize, String, Modification)>,
+        Vec<(Ontology, usize, String, SimpleModification)>,
     ),
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
-pub type AmbiguousLookup = Vec<(Option<String>, Option<Modification>)>;
+pub type AmbiguousLookup = Vec<(Option<String>, Option<SimpleModification>)>;
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
@@ -347,7 +445,7 @@ fn parse_single_modification(
                     .find_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
-                    .map(Some)
+                    .map(|m| Some(m.into()))
                     .map_err(|_| {
                         Ontology::Unimod
                             .find_closest(tail)
@@ -367,14 +465,14 @@ fn parse_single_modification(
                     basic_error
                         .with_long_description("This modification cannot be read as a GNO name")
                 }),
-                ("formula", tail) => Ok(Some(Modification::Formula(
+                ("formula", tail) => Ok(Some(SimpleModification::Formula(
                     MolecularFormula::from_pro_forma(tail).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid formula: {e}"
                         ))
                     })?,
                 ))),
-                ("glycan", tail) => Ok(Some(Modification::Glycan(
+                ("glycan", tail) => Ok(Some(SimpleModification::Glycan(
                     MonoSaccharide::simplify_composition(parse_named_counter(tail, glycan_parse_list(), false).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid glycan: {e}"
@@ -383,7 +481,7 @@ fn parse_single_modification(
                 ))),
                 ("glycanstructure", _) => {
                     GlycanStructure::parse(line, offset + tail.1..offset + tail.1 + tail.2)
-                        .map(|g| Some(Modification::GlycanStructure(g)))
+                        .map(|g| Some(SimpleModification::GlycanStructure(g)))
                 }
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| {
@@ -424,7 +522,7 @@ fn parse_single_modification(
                 Context::line(0, line, offset + full.1, full.2),
             )
         } else {
-            modification.map(|m| m.map(ReturnModification::Defined))
+            modification.map(|m| m.map(|m| ReturnModification::Defined(m.into())))
         }
     } else {
         Err(CustomError::error(
@@ -439,7 +537,7 @@ fn parse_single_modification(
 /// # Errors
 /// If the content of the ambiguous modification was already defined
 fn handle_ambiguous_modification(
-    modification: Result<Option<Modification>, CustomError>,
+    modification: Result<Option<SimpleModification>, CustomError>,
     group: (&str, usize, usize),
     localisation_score: Option<OrderedFloat<f64>>,
     lookup: &mut AmbiguousLookup,
@@ -531,38 +629,22 @@ pub enum GlobalModification {
 
 /// # Errors
 /// It returns an error when the text is not numerical
-fn numerical_mod(text: &str) -> Result<Modification, String> {
+fn numerical_mod(text: &str) -> Result<SimpleModification, String> {
     text.parse().map_or_else(
         |_| Err("Invalid number".to_string()),
-        |n| Ok(Modification::Mass(Mass::new::<dalton>(n).into())),
+        |n| Ok(SimpleModification::Mass(Mass::new::<dalton>(n).into())),
     )
 }
 
 impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Mass(m) => {
-                write!(f, "{:+}", m.value)?;
-            }
-            Self::Formula(elements) => {
-                write!(f, "Formula:{}", elements.hill_notation())?;
-            }
-            Self::Glycan(monosaccharides) => write!(
-                f,
-                "Glycan:{}",
-                monosaccharides
-                    .iter()
-                    .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
-            )?,
-            Self::GlycanStructure(glycan) => write!(f, "GlycanStructure:{glycan}",)?,
-            Self::Predefined(_, _, context, name, _) => {
-                write!(f, "{}:{name}", context.char())?;
-            }
-            Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
+            Self::Simple(sim) => write!(f, "{sim}"),
             Self::CrossLink { .. } => todo!(),
             Self::IntraLink { .. } => todo!(),
             Self::Branch { .. } => todo!(),
         }
+        .unwrap();
         Ok(())
     }
 }

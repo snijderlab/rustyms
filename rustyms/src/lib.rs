@@ -39,7 +39,7 @@ pub mod csv;
 
 pub mod aminoacid_properties;
 mod aminoacids;
-mod complex_peptide;
+mod compound_peptidoform;
 mod element;
 pub mod error;
 pub mod fragment;
@@ -57,6 +57,8 @@ mod multi;
 mod multi_formula;
 mod neutral_loss;
 pub mod ontologies;
+mod peptide_complexity;
+mod peptidoform;
 pub mod placement_rule;
 mod protease;
 pub mod rawfile;
@@ -65,7 +67,7 @@ pub mod spectrum;
 pub mod system;
 mod tolerance;
 
-pub use crate::complex_peptide::ComplexPeptide;
+pub use crate::compound_peptidoform::CompoundPeptidoform;
 pub use crate::element::*;
 pub use crate::formula::*;
 pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
@@ -77,6 +79,7 @@ pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
+pub use crate::peptidoform::Peptidoform;
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::spectrum::{AnnotatedSpectrum, RawSpectrum};
@@ -94,7 +97,7 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = ComplexPeptide::pro_forma("WFWF")
+        let peptide = CompoundPeptidoform::pro_forma("WFWF")
             .unwrap()
             .singular()
             .unwrap();
@@ -110,7 +113,7 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = ComplexPeptide::pro_forma("WFWF").unwrap();
+        let peptide = CompoundPeptidoform::pro_forma("WFWF").unwrap();
         let fragments = peptide
             .generate_theoretical_fragments(system::usize::Charge::new::<system::e>(1), &model);
         let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);

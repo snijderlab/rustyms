@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::PeptidePosition,
-    modification::{Modification, Ontology},
+    modification::{Modification, Ontology, SimpleModification},
     AminoAcid, SequenceElement,
 };
 
@@ -19,7 +19,14 @@ impl PlacementRule {
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
-                    if let Modification::Predefined(_, _, Ontology::Psimod, _, i) = m {
+                    if let Modification::Simple(SimpleModification::Predefined(
+                        _,
+                        _,
+                        Ontology::Psimod,
+                        _,
+                        i,
+                    )) = m
+                    {
                         i == mod_index
                     } else {
                         false
@@ -73,7 +80,7 @@ mod tests {
             PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Alanine,
-                    modifications: vec![Ontology::Psimod.find_id(30).unwrap()],
+                    modifications: vec![Ontology::Psimod.find_id(30).unwrap().into()],
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },

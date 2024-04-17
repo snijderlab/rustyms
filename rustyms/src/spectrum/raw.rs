@@ -13,7 +13,7 @@ use crate::{
         f64::{Mass, MassOverCharge, Ratio, Time},
         usize::Charge,
     },
-    AnnotatedSpectrum, ComplexPeptide, MassMode, Model, WithinTolerance,
+    AnnotatedSpectrum, CompoundPeptidoform, MassMode, Model, WithinTolerance,
 };
 
 use super::{AnnotatedPeak, PeakSpectrum};
@@ -121,7 +121,7 @@ impl RawSpectrum {
     /// If any fragment does not have a defined m/z
     pub fn annotate(
         &self,
-        peptide: ComplexPeptide,
+        peptide: CompoundPeptidoform,
         theoretical_fragments: &[Fragment],
         model: &Model,
         mode: MassMode,

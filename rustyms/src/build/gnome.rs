@@ -123,17 +123,14 @@ struct GNOmeModification {
 }
 
 impl GNOmeModification {
-    fn into_mod(self) -> Modification {
+    fn into_mod(self) -> SimpleModification {
         if let Some(structure) = self.structure {
-            Modification::Simple(SimpleModification::Gno(
-                GnoComposition::Structure(structure),
-                self.code_name,
-            ))
+            SimpleModification::Gno(GnoComposition::Structure(structure), self.code_name)
         } else if let Some(mass) = self.mass {
-            Modification::Simple(SimpleModification::Gno(
+            SimpleModification::Gno(
                 GnoComposition::Mass(crate::system::f64::da(mass).into()),
                 self.code_name,
-            ))
+            )
         } else {
             panic!("unreachable")
         }

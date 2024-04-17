@@ -74,7 +74,7 @@ impl Fragment {
         theoretical_mass: &Multi<MolecularFormula>,
         peptide_index: usize,
         annotation: &FragmentType,
-        termini: &[(MolecularFormula, String)],
+        termini: &Multi<MolecularFormula>,
         neutral_losses: &[NeutralLoss],
     ) -> Vec<Self> {
         termini
@@ -82,11 +82,11 @@ impl Fragment {
             .cartesian_product(theoretical_mass.iter())
             .map(|(term, mass)| {
                 Self::new(
-                    &term.0 + mass,
+                    term + mass,
                     Charge::zero(),
                     peptide_index,
                     annotation.clone(),
-                    term.1.to_string(),
+                    String::new(),
                 )
             })
             .flat_map(|m| m.with_neutral_losses(neutral_losses))

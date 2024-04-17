@@ -59,7 +59,7 @@ use alignment::AlignmentInner;
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{ComplexPeptide, LinearPeptide};
+    use crate::{CompoundPeptidoform, LinearPeptide};
 
     use super::{AlignType, Alignment, RefAlignment};
 
@@ -74,7 +74,10 @@ mod tests {
     }
 
     fn linear(aa: &str) -> LinearPeptide {
-        ComplexPeptide::pro_forma(aa).unwrap().singular().unwrap()
+        CompoundPeptidoform::pro_forma(aa)
+            .unwrap()
+            .singular()
+            .unwrap()
     }
 
     #[test]

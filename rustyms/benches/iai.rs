@@ -13,8 +13,14 @@ use iai_callgrind::{
 fn setup(a: &str, b: &str) -> (LinearPeptide, LinearPeptide) {
     let _force_elements_init = black_box(AminoAcid::A.formulas());
     (
-        ComplexPeptide::pro_forma(a).unwrap().singular().unwrap(),
-        ComplexPeptide::pro_forma(b).unwrap().singular().unwrap(),
+        CompoundPeptidoform::pro_forma(a)
+            .unwrap()
+            .singular()
+            .unwrap(),
+        CompoundPeptidoform::pro_forma(b)
+            .unwrap()
+            .singular()
+            .unwrap(),
     )
 }
 

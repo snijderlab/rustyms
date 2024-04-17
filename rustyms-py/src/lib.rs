@@ -1347,7 +1347,7 @@ impl RawSpectrum {
             .0
             .generate_theoretical_fragments(self.0.charge, &rusty_model);
         Ok(AnnotatedSpectrum(self.0.annotate(
-            rustyms::ComplexPeptide::from(peptide.0),
+            rustyms::CompoundPeptidoform::from(peptide.0),
             &fragments,
             &rusty_model,
             match mode {

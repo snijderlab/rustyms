@@ -357,9 +357,9 @@ impl AminoAcid {
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
     pub fn fragments(
         self,
-        n_term: &[(MolecularFormula, String)],
-        c_term: &[(MolecularFormula, String)],
-        modifications: &MolecularFormula,
+        n_term: &Multi<MolecularFormula>,
+        c_term: &Multi<MolecularFormula>,
+        modifications: &Multi<MolecularFormula>,
         charge_carriers: &MolecularCharge,
         sequence_index: usize,
         sequence_length: usize,
@@ -369,7 +369,7 @@ impl AminoAcid {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         if ions.a.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications - molecular_formula!(H 1 C 1 O 1))),
+                &(self.formulas() * (modifications - molecular_formula!(H 1 C 1 O 1))),
                 peptide_index,
                 &FragmentType::a(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
@@ -378,7 +378,7 @@ impl AminoAcid {
         }
         if ions.b.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications - molecular_formula!(H 1))),
+                &(self.formulas() * (modifications - molecular_formula!(H 1))),
                 peptide_index,
                 &FragmentType::b(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
@@ -387,7 +387,7 @@ impl AminoAcid {
         }
         if ions.c.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications + molecular_formula!(H 2 N 1))),
+                &(self.formulas() * (modifications + molecular_formula!(H 2 N 1))),
                 peptide_index,
                 &FragmentType::c(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
@@ -443,7 +443,7 @@ impl AminoAcid {
         if ions.x.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas()
-                    + (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
+                    * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
                 peptide_index,
                 &FragmentType::x(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
@@ -452,7 +452,7 @@ impl AminoAcid {
         }
         if ions.y.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications + molecular_formula!(H 1))),
+                &(self.formulas() * (modifications + molecular_formula!(H 1))),
                 peptide_index,
                 &FragmentType::y(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
@@ -461,14 +461,14 @@ impl AminoAcid {
         }
         if ions.z.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications - molecular_formula!(H 2 N 1))),
+                &(self.formulas() * (modifications - molecular_formula!(H 2 N 1))),
                 peptide_index,
                 &FragmentType::z(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() + (modifications - molecular_formula!(H 1 N 1))),
+                &(self.formulas() * (modifications - molecular_formula!(H 1 N 1))),
                 peptide_index,
                 &FragmentType::z·(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
@@ -485,10 +485,10 @@ impl AminoAcid {
         // Immonium ions will only be generated with charge 1
         if ions.immonium {
             let options = Fragment::generate_all(
-                &(self.formulas() + (modifications - molecular_formula!(C 1 O 1))),
+                &(self.formulas() * (modifications - molecular_formula!(C 1 O 1))),
                 peptide_index,
                 &FragmentType::immonium(PeptidePosition::n(sequence_index, sequence_length), self),
-                &[(MolecularFormula::default(), String::new())],
+                &Multi::default(),
                 self.immonium_losses().as_slice(),
             );
             let single_charges = charge_carriers.all_single_charge_options();

@@ -1,6 +1,7 @@
 use crate::{
     error::{Context, CustomError},
-    ComplexPeptide, LinearPeptide, SequenceElement,
+    peptide_complexity::VerySimple,
+    CompoundPeptidoform, LinearPeptide, SequenceElement,
 };
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
@@ -13,7 +14,7 @@ use super::{IdentifiedPeptide, MetaData};
 pub struct FastaData {
     pub id: String,
     pub full_header: String,
-    pub peptide: LinearPeptide,
+    pub peptide: LinearPeptide<VerySimple>,
 }
 
 impl FastaData {
@@ -60,10 +61,11 @@ impl FastaData {
                 ));
                 last_sequence = Vec::new();
             } else {
-                let parsed = ComplexPeptide::pro_forma(&line)
+                let parsed = CompoundPeptidoform::pro_forma(&line)
                     .map_err(|e| e.overwrite_line_number(line_number))?
                     .singular()
                     .expect("A sequence in a Fasta file is assumed to be a single peptide and not a chimeric ComplexPeptide")
+                    .very_simple().expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well")
                     .sequence;
                 last_sequence.extend(parsed);
             }
