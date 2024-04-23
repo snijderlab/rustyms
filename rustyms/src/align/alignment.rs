@@ -9,6 +9,8 @@ use super::align_type::*;
 use super::piece::*;
 use super::scoring::*;
 
+use crate::peptide_complexity::Linear;
+use crate::peptide_complexity::Simple;
 use crate::system::Mass;
 use crate::system::Ratio;
 use crate::LinearPeptide;
@@ -17,50 +19,62 @@ use crate::Multi;
 
 /// An alignment of two reads. Which has a reference to the sequences.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct RefAlignment<'a> {
+pub struct RefAlignment<'a, A, B> {
     /// The first sequence
-    pub(super) seq_a: &'a LinearPeptide,
+    pub(super) seq_a: &'a LinearPeptide<A>,
     /// The second sequence
-    pub(super) seq_b: &'a LinearPeptide,
+    pub(super) seq_b: &'a LinearPeptide<B>,
     pub(super) inner: AlignmentInner,
 }
 
-impl<'a> RefAlignment<'a> {
+impl<'a, A, B> RefAlignment<'a, A, B>
+where
+    LinearPeptide<A>: Into<LinearPeptide<Simple>> + Clone,
+    LinearPeptide<B>: Into<LinearPeptide<Simple>> + Clone,
+{
     /// Clone the referenced sequences to make an alignment that owns the sequences.
     /// This can be necessary in some context where the references cannot be guaranteed to stay as long as you need the alignment.
     #[must_use]
     pub fn to_owned(&self) -> OwnedAlignment {
         OwnedAlignment {
-            seq_a: self.seq_a.clone(),
-            seq_b: self.seq_b.clone(),
+            seq_a: self.seq_a.clone().into(),
+            seq_b: self.seq_b.clone().into(),
             inner: self.inner.clone(),
         }
     }
 }
 
-impl<'a> PartialOrd for RefAlignment<'a> {
+impl<'a, A: Ord, B: Ord> PartialOrd for RefAlignment<'a, A, B>
+where
+    LinearPeptide<A>: PartialOrd<LinearPeptide<B>>,
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for RefAlignment<'a> {
+impl<'a, A: Ord, B: Ord> Ord for RefAlignment<'a, A, B>
+where
+    LinearPeptide<A>: PartialOrd<LinearPeptide<B>>,
+{
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.inner.cmp(&other.inner)
     }
 }
 
-impl<'a> PrivateAlignment for RefAlignment<'a> {
+impl<'a, A, B> PrivateAlignment for RefAlignment<'a, A, B> {
     fn inner(&self) -> &AlignmentInner {
         &self.inner
     }
 }
 
-impl<'a> Alignment for RefAlignment<'a> {
-    fn seq_a(&self) -> &LinearPeptide {
+impl<'a, A: Into<Simple> + Into<Linear>, B: Into<Simple> + Into<Linear>> Alignment
+    for RefAlignment<'a, A, B>
+{
+    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
         self.seq_a
     }
-    fn seq_b(&self) -> &LinearPeptide {
+    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
         self.seq_b
     }
 }
@@ -69,9 +83,9 @@ impl<'a> Alignment for RefAlignment<'a> {
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct OwnedAlignment {
     /// The first sequence
-    seq_a: LinearPeptide,
+    seq_a: LinearPeptide<Simple>,
     /// The second sequence
-    seq_b: LinearPeptide,
+    seq_b: LinearPeptide<Simple>,
     inner: AlignmentInner,
 }
 
@@ -94,10 +108,10 @@ impl PrivateAlignment for OwnedAlignment {
 }
 
 impl Alignment for OwnedAlignment {
-    fn seq_a(&self) -> &LinearPeptide {
+    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
         &self.seq_a
     }
-    fn seq_b(&self) -> &LinearPeptide {
+    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
         &self.seq_b
     }
 }
@@ -112,9 +126,9 @@ trait PrivateAlignment {
 #[allow(private_bounds)] // Intended behaviour no one should build on the inner structure
 pub trait Alignment: PrivateAlignment {
     /// The first sequence
-    fn seq_a(&self) -> &LinearPeptide;
+    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>>;
     /// The second sequence
-    fn seq_b(&self) -> &LinearPeptide;
+    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>>;
 
     /// The normalised score, normalised for the alignment length and for the used alphabet.
     /// The normalisation is calculated as follows `absolute_score / max_score`.
@@ -212,7 +226,7 @@ pub trait Alignment: PrivateAlignment {
             self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
                 .iter()
                 .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_a)
+                    acc * s.formulas_greedy(&mut placed_a, &[], &[])
                 })
         }
     }
@@ -226,7 +240,7 @@ pub trait Alignment: PrivateAlignment {
             self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
                 .iter()
                 .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_b)
+                    acc * s.formulas_greedy(&mut placed_b, &[], &[])
                 })
         }
     }
@@ -403,6 +417,7 @@ pub struct Score {
 mod tests {
     use crate::{
         align::{align, matrix::BLOSUM62, AlignType, Alignment},
+        peptide_complexity::Simple,
         system::da,
         AminoAcid, LinearPeptide, MultiChemical,
     };
@@ -411,13 +426,13 @@ mod tests {
     fn mass_difference() {
         // Test if the mass difference calculation is correct for some harder alignments.
         // A has an ambiguous AA, B and C have the two options, while D has a sub peptide of A.
-        let a = LinearPeptide::pro_forma("AABAA").unwrap();
-        let b = LinearPeptide::pro_forma("AANAA").unwrap();
-        let c = LinearPeptide::pro_forma("AADAA").unwrap();
-        let d = LinearPeptide::pro_forma("ADA").unwrap();
+        let a = LinearPeptide::pro_forma("AABAA").unwrap().simple().unwrap();
+        let b = LinearPeptide::pro_forma("AANAA").unwrap().simple().unwrap();
+        let c = LinearPeptide::pro_forma("AADAA").unwrap().simple().unwrap();
+        let d = LinearPeptide::pro_forma("ADA").unwrap().simple().unwrap();
 
         assert!(
-            align::<1>(
+            align::<1, Simple, Simple>(
                 &a,
                 &b,
                 BLOSUM62,
@@ -430,7 +445,7 @@ mod tests {
                 < f64::EPSILON
         );
         assert!(
-            align::<1>(
+            align::<1, Simple, Simple>(
                 &a,
                 &c,
                 BLOSUM62,
@@ -443,7 +458,7 @@ mod tests {
                 < f64::EPSILON
         );
         assert!(
-            align::<1>(
+            align::<1, Simple, Simple>(
                 &a,
                 &d,
                 BLOSUM62,
@@ -459,7 +474,7 @@ mod tests {
             - AminoAcid::D.formulas()[0].monoisotopic_mass())
         .value
         .abs();
-        let mass_diff_bc = align::<1>(
+        let mass_diff_bc = align::<1, Simple, Simple>(
             &b,
             &c,
             BLOSUM62,

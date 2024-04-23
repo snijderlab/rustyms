@@ -6,7 +6,7 @@ use crate::{
 };
 /// A single peptidoform, can contain multiple linear peptides
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub struct Peptidoform(Vec<LinearPeptide<Linked>>);
+pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
 impl MultiChemical for Peptidoform {
     /// Gives all possible formulas for this peptidoform
@@ -40,6 +40,16 @@ impl Peptidoform {
         base
     }
 
+    /// Assume there is exactly one peptide in this collection.
+    pub fn singular(mut self) -> Option<LinearPeptide<Linked>> {
+        if self.0.len() == 1 {
+            Some(self.0.pop().unwrap())
+        } else {
+            None
+        }
+    }
+
+    /// Get all peptides making up this `Peptidoform`
     pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         &self.0
     }

@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    peptide_complexity::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
@@ -31,7 +32,7 @@ format_family!(
     required {
         scan: Vec<PeaksId>, |location: Location| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
-        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
                         );

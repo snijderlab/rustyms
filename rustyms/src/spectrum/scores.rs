@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::{Fragment, FragmentKind},
+    peptide_complexity::ExtremelySimple,
     system::{
         f64::{MassOverCharge, Ratio},
         mass_over_charge::mz,
@@ -19,23 +20,25 @@ impl AnnotatedSpectrum {
     pub fn scores(&self, fragments: &[Fragment]) -> (Scores, Vec<Scores>) {
         let mut individual_peptides = Vec::new();
         let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
-        for (peptide_index, peptide) in self.peptide.peptides().iter().enumerate() {
-            let (recovered_fragments, peaks, intensity_annotated) =
-                self.base_score(fragments, Some(peptide_index), None);
-            let positions = self.score_positions(peptide_index, None);
-            individual_peptides.push(Scores {
-                score: Score::Position {
-                    fragments: recovered_fragments,
-                    peaks,
-                    intensity: Recovered::new(intensity_annotated, total_intensity),
-                    positions: Recovered::new(positions, peptide.len() as u32),
-                },
-                ions: self.score_individual_ions(
-                    fragments,
-                    Some((peptide_index, peptide)),
-                    total_intensity,
-                ),
-            });
+        for (peptidoform_index, peptidoform) in self.peptide.peptidoforms().iter().enumerate() {
+            for (peptide_index, peptide) in peptidoform.peptides().iter().enumerate() {
+                let (recovered_fragments, peaks, intensity_annotated) =
+                    self.base_score(fragments, Some(peptide_index), None);
+                let positions = self.score_positions(peptide_index, None);
+                individual_peptides.push(Scores {
+                    score: Score::Position {
+                        fragments: recovered_fragments,
+                        peaks,
+                        intensity: Recovered::new(intensity_annotated, total_intensity),
+                        positions: Recovered::new(positions, peptide.len() as u32),
+                    },
+                    ions: self.score_individual_ions(
+                        fragments,
+                        Some((peptide_index, peptide)),
+                        total_intensity,
+                    ),
+                });
+            }
         }
         // Get the statistics for the combined peptides
         let (recovered_fragments, peaks, intensity_annotated) =
@@ -49,7 +52,11 @@ impl AnnotatedSpectrum {
                     intensity: Recovered::new(intensity_annotated, total_intensity),
                     unique_formulas,
                 },
-                ions: self.score_individual_ions(fragments, None, total_intensity),
+                ions: self.score_individual_ions::<ExtremelySimple>(
+                    fragments,
+                    None,
+                    total_intensity,
+                ),
             },
             individual_peptides,
         )

@@ -115,14 +115,8 @@ parse_test!("EMEVEESPEK/2+ELVISLIVER/3", summary_10_2_02);
 
 #[test]
 fn parse_glycan() {
-    let glycan = CompoundPeptidoform::pro_forma("A[Glycan:Hex]")
-        .unwrap()
-        .singular()
-        .unwrap();
-    let spaces = CompoundPeptidoform::pro_forma("A[Glycan:    Hex    ]")
-        .unwrap()
-        .singular()
-        .unwrap();
+    let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]").unwrap();
+    let spaces = LinearPeptide::pro_forma("A[Glycan:    Hex    ]").unwrap();
     assert_eq!(glycan.sequence.len(), 1);
     assert_eq!(spaces.sequence.len(), 1);
     assert_eq!(glycan, spaces);
@@ -160,14 +154,8 @@ fn parse_labile() {
 
 #[test]
 fn parse_ambiguous_modification() {
-    let with = CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0]")
-        .unwrap()
-        .singular()
-        .unwrap();
-    let without = CompoundPeptidoform::pro_forma("AA")
-        .unwrap()
-        .singular()
-        .unwrap();
+    let with = LinearPeptide::pro_forma("A[Phospho#g0]A[#g0]").unwrap();
+    let without = LinearPeptide::pro_forma("AA").unwrap();
     assert_eq!(with.sequence.len(), 2);
     assert_eq!(without.sequence.len(), 2);
     assert_eq!(with.sequence[0].possible_modifications.len(), 1);
@@ -176,17 +164,13 @@ fn parse_ambiguous_modification() {
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[Phospho#g0]").is_err());
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0(0.o1)]").is_err());
     assert_eq!(
-        CompoundPeptidoform::pro_forma("A[+12#g0]A[#g0]")
-            .unwrap()
-            .singular()
+        LinearPeptide::pro_forma("A[+12#g0]A[#g0]")
             .unwrap()
             .to_string(),
         "A[+12#g0]A[#g0]".to_string()
     );
     assert_eq!(
-        CompoundPeptidoform::pro_forma("A[#g0]A[+12#g0]")
-            .unwrap()
-            .singular()
+        LinearPeptide::pro_forma("A[#g0]A[+12#g0]")
             .unwrap()
             .to_string(),
         "A[#g0]A[+12#g0]".to_string()
@@ -249,14 +233,14 @@ fn parse_global() {
 fn parse_chimeric() {
     let dimeric = CompoundPeptidoform::pro_forma("A+AA").unwrap();
     let trimeric = dbg!(CompoundPeptidoform::pro_forma("A+AA-[+2]+AAA").unwrap());
-    assert_eq!(dimeric.peptides().len(), 2);
-    assert_eq!(dimeric.peptides()[0].len(), 1);
-    assert_eq!(dimeric.peptides()[1].len(), 2);
-    assert_eq!(trimeric.peptides().len(), 3);
-    assert_eq!(trimeric.peptides()[0].len(), 1);
-    assert_eq!(trimeric.peptides()[1].len(), 2);
-    assert_eq!(trimeric.peptides()[2].len(), 3);
-    assert!(trimeric.peptides()[1].c_term.is_some());
+    assert_eq!(dimeric.peptidoforms().len(), 2);
+    assert_eq!(dimeric.peptidoforms()[0].peptides()[0].len(), 1);
+    assert_eq!(dimeric.peptidoforms()[1].peptides()[0].len(), 2);
+    assert_eq!(trimeric.peptidoforms().len(), 3);
+    assert_eq!(trimeric.peptidoforms()[0].peptides()[0].len(), 1);
+    assert_eq!(trimeric.peptidoforms()[1].peptides()[0].len(), 2);
+    assert_eq!(trimeric.peptidoforms()[2].peptides()[0].len(), 3);
+    assert!(trimeric.peptidoforms()[1].peptides()[0].c_term.is_some());
 }
 
 #[test]
@@ -291,9 +275,9 @@ fn dimeric_peptide() {
 #[test]
 fn parse_adduct_ions_01() {
     let peptide = CompoundPeptidoform::pro_forma("A/2[2Na+]+A").unwrap();
-    assert_eq!(peptide.peptides().len(), 2);
+    assert_eq!(peptide.peptidoforms().len(), 2);
     assert_eq!(
-        peptide.peptides()[0]
+        peptide.peptidoforms()[0].peptides()[0]
             .charge_carriers
             .clone()
             .unwrap()
@@ -301,17 +285,17 @@ fn parse_adduct_ions_01() {
         vec![(2, molecular_formula!(Na 1 Electron -1))]
     );
     assert_eq!(
-        peptide.peptides()[0].sequence,
-        peptide.peptides()[1].sequence
+        peptide.peptidoforms()[0].peptides()[0].sequence,
+        peptide.peptidoforms()[1].peptides()[0].sequence
     );
 }
 
 #[test]
 fn parse_adduct_ions_02() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
-    assert_eq!(peptide.peptides().len(), 2);
+    assert_eq!(peptide.peptidoforms().len(), 2);
     assert_eq!(
-        peptide.peptides()[0]
+        peptide.peptidoforms()[0].peptides()[0]
             .charge_carriers
             .clone()
             .unwrap()
@@ -323,14 +307,17 @@ fn parse_adduct_ions_02() {
     );
     // Check if the C term mod is applied
     assert_eq!(
-        peptide.peptides()[0].sequence[0].formulas_all(&[], &[]),
-        peptide.peptides()[1].sequence[0].formulas_all(&[], &[])
+        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(&[], &[]),
+        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(&[], &[])
     );
     assert_eq!(
-        peptide.peptides()[0].get_c_term(),
-        peptide.peptides()[1].get_n_term()
+        peptide.peptidoforms()[0].peptides()[0].get_c_term(),
+        peptide.peptidoforms()[1].peptides()[0].get_n_term()
     );
-    assert!(peptide.peptides()[0].get_n_term() != peptide.peptides()[1].get_c_term());
+    assert!(
+        peptide.peptidoforms()[0].peptides()[0].get_n_term()
+            != peptide.peptidoforms()[1].peptides()[0].get_c_term()
+    );
 }
 
 #[test]

@@ -1,8 +1,11 @@
-use crate::align::*;
-use crate::imgt::*;
-use crate::itertools_extension::ItertoolsExt;
-use crate::system::Mass;
-use crate::*;
+use crate::{
+    align::*,
+    imgt::*,
+    itertools_extension::ItertoolsExt,
+    peptide_complexity::{ExtremelySimple, Simple},
+    system::Mass,
+    *,
+};
 use std::collections::HashSet;
 
 use itertools::Itertools;
@@ -14,7 +17,7 @@ use itertools::Itertools;
 /// If there are not two or more genes listed.
 #[cfg(feature = "imgt")]
 pub fn consecutive_align<const STEPS: u16>(
-    sequence: &LinearPeptide,
+    sequence: &LinearPeptide<Simple>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species>>,
     chains: Option<HashSet<ChainType>>,
@@ -32,7 +35,7 @@ pub fn consecutive_align<const STEPS: u16>(
             (sequence.clone(), species.clone())
         } else {
             prev += output[n - 1][0].1.start_b() + output[n - 1][0].1.len_b();
-            let mut left_sequence: LinearPeptide =
+            let mut left_sequence: LinearPeptide<Simple> =
                 sequence.clone().sequence.into_iter().skip(prev).collect();
             left_sequence.c_term = sequence.c_term.clone();
             (left_sequence, Some([output[n - 1][0].0.species].into()))
@@ -51,9 +54,14 @@ pub fn consecutive_align<const STEPS: u16>(
             }
             .germlines()
             .map(|seq| {
-                let alignment =
-                    align::<STEPS>(seq.sequence, &left_sequence, matrix, tolerance, genes[n].1)
-                        .to_owned();
+                let alignment = align::<STEPS, ExtremelySimple, Simple>(
+                    seq.sequence,
+                    &left_sequence,
+                    matrix,
+                    tolerance,
+                    genes[n].1,
+                )
+                .to_owned();
                 (seq, alignment)
             })
             .k_largest_by(return_number, |a, b| a.1.cmp(&b.1))
@@ -70,7 +78,7 @@ pub fn consecutive_align<const STEPS: u16>(
 /// If there are not two or more genes listed.
 #[cfg(all(feature = "rayon", feature = "imgt"))]
 pub fn par_consecutive_align<const STEPS: u16>(
-    sequence: &LinearPeptide,
+    sequence: &LinearPeptide<Simple>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species>>,
     chains: Option<HashSet<ChainType>>,
@@ -80,6 +88,7 @@ pub fn par_consecutive_align<const STEPS: u16>(
     return_number: usize,
 ) -> Vec<Vec<(Allele<'static>, OwnedAlignment)>> {
     use rayon::iter::ParallelIterator;
+
     assert!(genes.len() >= 2);
     let mut output: Vec<Vec<(Allele<'static>, OwnedAlignment)>> = Vec::with_capacity(genes.len());
 
@@ -89,7 +98,7 @@ pub fn par_consecutive_align<const STEPS: u16>(
             (sequence.clone(), species.clone())
         } else {
             prev += output[n - 1][0].1.start_b() + output[n - 1][0].1.len_b();
-            let mut left_sequence: LinearPeptide =
+            let mut left_sequence: LinearPeptide<Simple> =
                 sequence.clone().sequence.into_iter().skip(prev).collect();
             left_sequence.c_term = sequence.c_term.clone();
             (left_sequence, Some([output[n - 1][0].0.species].into()))
@@ -108,8 +117,13 @@ pub fn par_consecutive_align<const STEPS: u16>(
             }
             .par_germlines()
             .map(|seq| {
-                let alignment =
-                    align::<STEPS>(seq.sequence, &left_sequence, matrix, tolerance, genes[n].1);
+                let alignment = align::<STEPS, ExtremelySimple, Simple>(
+                    seq.sequence,
+                    &left_sequence,
+                    matrix,
+                    tolerance,
+                    genes[n].1,
+                );
                 (seq, alignment.to_owned())
             })
             .collect::<Vec<_>>()

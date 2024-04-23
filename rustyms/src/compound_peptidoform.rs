@@ -25,14 +25,7 @@ pub struct CompoundPeptidoform(Vec<Peptidoform>);
 impl MultiChemical for CompoundPeptidoform {
     /// Gives all possible formulas for this compound peptidoform
     fn formulas(&self) -> Multi<MolecularFormula> {
-        self.0.iter().flat_map(|p| p.formulas()).collect()
-    }
-}
-
-impl CompoundPeptidoform {
-    /// Get all peptidoforms making up this compound peptidoform
-    pub fn peptidoforms(&self) -> &[Peptidoform] {
-        &self.0
+        self.0.iter().flat_map(|p| p.formulas().to_vec()).collect()
     }
 }
 
@@ -69,17 +62,16 @@ impl CompoundPeptidoform {
             peptides.push(peptide);
             start = tail;
         }
-        Ok(if peptides.len() > 1 {
-            Self::Chimeric(peptides)
+
+        if peptides.is_empty() {
+            Err(CustomError::error(
+                "No peptide found",
+                "The peptide definition is empty",
+                Context::full_line(0, value),
+            ))
         } else {
-            Self::Singular(peptides.pop().ok_or_else(|| {
-                CustomError::error(
-                    "No peptide found",
-                    "The peptide definition is empty",
-                    Context::full_line(0, value),
-                )
-            })?)
-        })
+            Ok(Self(vec![Peptidoform(peptides)]))
+        }
     }
 
     /// # Errors
@@ -142,7 +134,7 @@ impl CompoundPeptidoform {
             }
             peptide.n_term = Some(
                 Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup)
-                    .map(|m| {
+                    .and_then(|m| {
                         m.defined().ok_or_else(|| {
                             CustomError::error(
                                 "Invalid N terminal modification",
@@ -151,7 +143,15 @@ impl CompoundPeptidoform {
                             )
                         })
                     })
-                    .flat_err()?,
+                    .and_then(|m| {
+                        m.into_simple().ok_or_else(|| {
+                            CustomError::error(
+                                "Invalid N terminal modification",
+                                "An N terminal modification cannot be a cross linking modification",
+                                Context::line(0, line, index + 1, end_index - 2 - index),
+                            )
+                        })
+                    })?,
             );
             index = end_index + 1;
         }
@@ -221,7 +221,15 @@ impl CompoundPeptidoform {
                                 "Invalid C terminal modification",
                                 "A C terminal modification cannot be ambiguous",
                                 Context::line(0, line, start_index, start_index - index - 1),
-                            ))?);
+                            )).and_then(|m| {
+                                m.into_simple().ok_or_else(|| {
+                                    CustomError::error(
+                                        "Invalid C terminal modification",
+                                        "A C terminal modification cannot be a cross linking modification",
+                                        Context::line(0, line, index + 1, end_index - 2 - index),
+                                    )
+                                })
+                            })?);
                         dbg!(index,chars.len(),&chars[index..]);
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
                             let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
@@ -291,13 +299,13 @@ impl CompoundPeptidoform {
             peptide.sequence[index].possible_modifications.push(
                 AmbiguousModification {
                     id,
-                    modification: ambiguous_lookup[id].1.clone().ok_or_else(||
+                    modification: Modification::Simple(ambiguous_lookup[id].1.clone().ok_or_else(||
                         CustomError::error(
                             "Invalid ambiguous modification",
                             format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0.as_ref().map_or(id.to_string(), ToString::to_string)),
                             Context::full_line(0, line),
                         )
-                        )?,
+                        )?),
                     localisation_score,
                     group: ambiguous_lookup[id].0.as_ref().map(|n| (n.to_string(), preferred)) });
         }
@@ -328,21 +336,24 @@ impl CompoundPeptidoform {
         Ok((peptide, index))
     }
 
-    /// Assume there is exactly one peptide in this collection.
+    /// Assume there is exactly one peptidoform in this collection.
     #[doc(alias = "assume_linear")]
-    pub fn singular(self) -> Option<LinearPeptide<Linked>> {
-        match self {
-            Self::Singular(pep) => Some(pep),
-            Self::Chimeric(_) => None,
+    pub fn singular(mut self) -> Option<Peptidoform> {
+        if self.0.len() == 1 {
+            Some(self.0.pop().unwrap())
+        } else {
+            None
         }
     }
 
-    /// Get all peptides making up this `ComplexPeptide`, regardless of its type
-    pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
-        match self {
-            Self::Singular(pep) => std::slice::from_ref(pep),
-            Self::Chimeric(peptides) => peptides,
-        }
+    /// Assume there is exactly one peptide in this collection.
+    pub fn singular_peptide(self) -> Option<LinearPeptide<Linked>> {
+        self.singular().and_then(Peptidoform::singular)
+    }
+
+    /// Get all peptidoforms making up this `CompoundPeptidoform`
+    pub fn peptidoforms(&self) -> &[Peptidoform] {
+        &self.0
     }
 
     /// Generate the theoretical fragments for this peptide collection.
@@ -364,7 +375,7 @@ where
     Item: Into<LinearPeptide<Linked>>,
 {
     fn from(value: Item) -> Self {
-        Self::Singular(value.into())
+        Self(vec![Peptidoform(vec![value.into()])])
     }
 }
 
@@ -373,7 +384,7 @@ where
     Item: Into<SequenceElement>,
 {
     fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
-        Self::Singular(LinearPeptide::from(iter))
+        Self(vec![Peptidoform(vec![LinearPeptide::from(iter)])])
     }
 }
 
@@ -619,7 +630,7 @@ fn labile_modifications(
                     })
                 })
                 .and_then(|m| {
-                    m.simple().ok_or_else(|| {
+                    m.into_simple().ok_or_else(|| {
                         CustomError::error(
                             "Invalid labile modification",
                             "A labile modification cannot be a cross-link or branch",

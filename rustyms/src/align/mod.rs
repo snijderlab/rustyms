@@ -59,12 +59,15 @@ use alignment::AlignmentInner;
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{CompoundPeptidoform, LinearPeptide};
+    use crate::{peptide_complexity::Simple, LinearPeptide};
 
     use super::{AlignType, Alignment, RefAlignment};
 
-    fn align<'a, const STEPS: u16>(a: &'a LinearPeptide, b: &'a LinearPeptide) -> RefAlignment<'a> {
-        super::align::<STEPS>(
+    fn align<'a, const STEPS: u16>(
+        a: &'a LinearPeptide<Simple>,
+        b: &'a LinearPeptide<Simple>,
+    ) -> RefAlignment<'a, Simple, Simple> {
+        super::align::<STEPS, Simple, Simple>(
             a,
             b,
             super::matrix::BLOSUM62,
@@ -73,11 +76,8 @@ mod tests {
         )
     }
 
-    fn linear(aa: &str) -> LinearPeptide {
-        CompoundPeptidoform::pro_forma(aa)
-            .unwrap()
-            .singular()
-            .unwrap()
+    fn linear(aa: &str) -> LinearPeptide<Simple> {
+        LinearPeptide::pro_forma(aa).unwrap().simple().unwrap()
     }
 
     #[test]

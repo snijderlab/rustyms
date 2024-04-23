@@ -64,8 +64,11 @@ impl FastaData {
                 let parsed = CompoundPeptidoform::pro_forma(&line)
                     .map_err(|e| e.overwrite_line_number(line_number))?
                     .singular()
-                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a chimeric ComplexPeptide")
-                    .very_simple().expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well")
+                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform")
+                    .singular()
+                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform")
+                    .very_simple()
+                    .expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well")
                     .sequence;
                 last_sequence.extend(parsed);
             }

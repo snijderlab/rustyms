@@ -1,6 +1,7 @@
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    peptide_complexity::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
@@ -29,7 +30,7 @@ format_family!(
         scan_index: usize, |location: Location| location.parse(NUMBER_ERROR);
         modifications: String, |location: Location| Ok(location.get_string());
         proteins: String, |location: Location| Ok(location.get_string());
-        sequence: Option<LinearPeptide>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        sequence: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         ));
@@ -61,9 +62,9 @@ format_family!(
         delta_score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         score_diff: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         localisation_probability: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        all_modified_sequences: Vec<LinearPeptide>,|location: Location| location.array(';')
+        all_modified_sequences: Vec<LinearPeptide<VerySimple>>,|location: Location| location.array(';')
                 .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location))
-                .collect::<Result<Vec<LinearPeptide>, CustomError>>();
+                .collect::<Result<Vec<LinearPeptide<VerySimple>>, CustomError>>();
         id: usize,|location: Location| location.parse::<usize>(NUMBER_ERROR);
         peptide_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
         protein_group_ids: Vec<usize>, |location: Location| location.array(';').map(|p| p.parse::<usize>(NUMBER_ERROR)).collect::<Result<Vec<_>,_>>();

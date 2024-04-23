@@ -5,7 +5,7 @@ use crate::{
     *,
 };
 
-use self::peptide_complexity::Linked;
+use self::peptide_complexity::Linear;
 
 #[test]
 fn triple_a() {
@@ -39,10 +39,7 @@ fn triple_a() {
     };
     test(
         theoretical_fragments,
-        &CompoundPeptidoform::pro_forma("AAA")
-            .unwrap()
-            .singular()
-            .unwrap(),
+        &LinearPeptide::pro_forma("AAA").unwrap().linear().unwrap(),
         &model,
         1,
         true,
@@ -88,9 +85,9 @@ fn with_modifications() {
     };
     test(
         theoretical_fragments,
-        &CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
+        &LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
             .unwrap()
-            .singular()
+            .linear()
             .unwrap(),
         &model,
         1,
@@ -116,9 +113,9 @@ fn with_possible_modifications() {
     };
     test(
         theoretical_fragments,
-        &CompoundPeptidoform::pro_forma("M[Oxidation#a1]M[#a1]")
+        &LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]")
             .unwrap()
-            .singular()
+            .linear()
             .unwrap(),
         &model,
         1,
@@ -149,10 +146,7 @@ fn higher_charges() {
     };
     test(
         theoretical_fragments,
-        &CompoundPeptidoform::pro_forma("ACD")
-            .unwrap()
-            .singular()
-            .unwrap(),
+        &LinearPeptide::pro_forma("ACD").unwrap().linear().unwrap(),
         &model,
         5,
         false,
@@ -310,9 +304,9 @@ fn all_aminoacids() {
     };
     test(
         theoretical_fragments,
-        &CompoundPeptidoform::pro_forma("ARNDCQEGHILKMFPSTWYV")
+        &LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV")
             .unwrap()
-            .singular()
+            .linear()
             .unwrap(),
         &model,
         1,
@@ -344,7 +338,10 @@ fn glycan_fragmentation() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK").unwrap(),
+        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK")
+            .unwrap()
+            .linear()
+            .unwrap(),
         &model,
         1,
         true,
@@ -353,7 +350,7 @@ fn glycan_fragmentation() {
 
 fn test(
     theoretical_fragments: &[(f64, &str)],
-    peptide: &LinearPeptide<Linked>,
+    peptide: &LinearPeptide<Linear>,
     model: &Model,
     charge: usize,
     allow_left_over_generated: bool,

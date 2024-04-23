@@ -57,7 +57,7 @@ mod multi;
 mod multi_formula;
 mod neutral_loss;
 pub mod ontologies;
-mod peptide_complexity;
+pub mod peptide_complexity;
 mod peptidoform;
 pub mod placement_rule;
 mod protease;
@@ -97,10 +97,7 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = CompoundPeptidoform::pro_forma("WFWF")
-            .unwrap()
-            .singular()
-            .unwrap();
+        let peptide = LinearPeptide::pro_forma("WFWF").unwrap().linear().unwrap();
         let fragments = peptide.generate_theoretical_fragments(
             system::usize::Charge::new::<system::e>(1),
             &Model::all(),

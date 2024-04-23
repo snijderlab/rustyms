@@ -7,6 +7,7 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use pyo3::{exceptions::PyValueError, types::PyType};
 
+use rustyms::peptide_complexity::Linked;
 use rustyms::{Chemical, MultiChemical};
 
 /// Mass mode enum.
@@ -868,7 +869,7 @@ fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct LinearPeptide(rustyms::LinearPeptide);
+pub struct LinearPeptide(rustyms::LinearPeptide<Linked>);
 
 #[pymethods]
 impl LinearPeptide {

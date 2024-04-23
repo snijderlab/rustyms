@@ -3,6 +3,7 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::Alignment;
+use rustyms::peptide_complexity::ExtremelySimple;
 use rustyms::system::{dalton, Mass};
 use rustyms::LinearPeptide;
 
@@ -196,7 +197,7 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(first_allele) = first_allele {
-                    let alignment = rustyms::align::align::<1>(
+                    let alignment = rustyms::align::align::<1, ExtremelySimple, ExtremelySimple>(
                         first_allele,
                         &seq.sequence,
                         rustyms::align::matrix::BLOSUM90,
@@ -212,7 +213,7 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(reference) = reference {
-                    let alignment = rustyms::align::align::<1>(
+                    let alignment = rustyms::align::align::<1, ExtremelySimple, ExtremelySimple>(
                         reference,
                         &seq.sequence,
                         rustyms::align::matrix::BLOSUM90,
@@ -286,7 +287,7 @@ impl std::fmt::Display for TemporaryGermline {
 #[derive(Debug, PartialEq, Eq)]
 struct TemporarySequence {
     acc: Vec<String>,
-    sequence: LinearPeptide,
+    sequence: LinearPeptide<ExtremelySimple>,
     regions: HashMap<Vec<(crate::shared::Region, usize)>, Vec<usize>>,
     annotations: HashMap<Vec<(Annotation, usize)>, Vec<usize>>,
     dna: HashMap<String, Vec<usize>>,

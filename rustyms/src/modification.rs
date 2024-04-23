@@ -107,7 +107,7 @@ impl Display for SimpleModification {
                 glycan
                     .composition()
                     .iter()
-                    .fold(String::new(), |acc, (g, a)| {
+                    .fold(String::new(), |mut acc, (g, a)| {
                         write!(&mut acc, "{g}{a}");
                         acc
                     })
@@ -165,6 +165,14 @@ impl Modification {
 impl Modification {
     /// Check if this is a simple modification
     pub fn simple(&self) -> Option<&SimpleModification> {
+        match self {
+            Self::Simple(sim) => Some(sim),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a simple modification
+    pub fn into_simple(self) -> Option<SimpleModification> {
         match self {
             Self::Simple(sim) => Some(sim),
             _ => None,

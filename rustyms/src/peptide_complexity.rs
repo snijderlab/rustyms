@@ -1,3 +1,5 @@
+//! Defines the different levels of complexity a peptide can be.
+//! Used for compile time checking for incorrect use of peptides.
 use serde::{Deserialize, Serialize};
 
 use crate::LinearPeptide;

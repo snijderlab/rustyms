@@ -1,5 +1,6 @@
 use crate::{
     error::CustomError,
+    peptide_complexity::VerySimple,
     system::{usize::Charge, Mass, Ratio, Time},
     LinearPeptide,
 };
@@ -26,7 +27,7 @@ format_family!(
     SageVersion, [&VERSION_0_14], b'\t';
     required {
         psm_id: usize, |location: Location| location.parse(NUMBER_ERROR);
-        peptide: LinearPeptide, |location: Location| LinearPeptide::pro_forma(location.as_str());
+        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::pro_forma(location.as_str()).map(|p|p.very_simple().unwrap());
         proteins: Vec<String>, |location: Location| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
         filename: String, |location: Location| Ok(location.get_string());
         scan_nr: (usize,usize,usize), |location: Location|

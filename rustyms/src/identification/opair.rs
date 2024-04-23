@@ -4,8 +4,8 @@ use super::{
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 use crate::{
-    error::Context,
-    error::CustomError,
+    error::{Context, CustomError},
+    peptide_complexity::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
 };
@@ -112,7 +112,7 @@ format_family!(
                 ))
             },
         );
-        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         );

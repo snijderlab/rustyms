@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
+use crate::peptide_complexity::Linear;
 use crate::{
-    system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi, SequenceElement, Tolerance,
-    WithinTolerance,
+    peptide_complexity::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
+    SequenceElement, Tolerance, WithinTolerance,
 };
 
 use super::alignment::Score;
@@ -21,16 +22,18 @@ use super::{
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<'a, const STEPS: u16>(
-    seq_a: &'a LinearPeptide,
-    seq_b: &'a LinearPeptide,
+pub fn align<
+    'a,
+    const STEPS: u16,
+    A: Into<Simple> + Into<Linear>,
+    B: Into<Simple> + Into<Linear>,
+>(
+    seq_a: &'a LinearPeptide<A>,
+    seq_b: &'a LinearPeptide<B>,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance<Mass>,
     align_type: AlignType,
-) -> RefAlignment<'a> {
-    // Enforce some assumptions
-    seq_a.assume_simple();
-    seq_b.assume_simple();
+) -> RefAlignment<'a, A, B> {
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
 
@@ -270,7 +273,9 @@ fn score(
 }
 
 /// Get the masses of all sequence elements
-fn calculate_masses<const STEPS: u16>(sequence: &LinearPeptide) -> DiagonalArray<Multi<Mass>> {
+fn calculate_masses<const STEPS: u16>(
+    sequence: &LinearPeptide<impl Into<Simple>>,
+) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
     // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
@@ -278,7 +283,7 @@ fn calculate_masses<const STEPS: u16>(sequence: &LinearPeptide) -> DiagonalArray
         for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
-                .map(SequenceElement::formulas_all)
+                .map(|p| p.formulas_all(&[], &[]))
                 .sum::<Multi<MolecularFormula>>()
                 .iter()
                 .map(MolecularFormula::monoisotopic_mass)
@@ -461,7 +466,7 @@ mod tests {
             (
                 &a,
                 &a.iter()
-                    .map(SequenceElement::formulas_all)
+                    .map(|p| p.formulas_all(&[], &[]))
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()
@@ -469,7 +474,7 @@ mod tests {
             (
                 &b,
                 &b.iter()
-                    .map(SequenceElement::formulas_all)
+                    .map(|p| p.formulas_all(&[], &[]))
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()

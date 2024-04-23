@@ -6,6 +6,7 @@ use super::opair::OpairData;
 use super::peaks::PeaksData;
 use super::{MaxQuantData, SageData};
 use crate::error::CustomError;
+use crate::peptide_complexity::VerySimple;
 use crate::system::usize::Charge;
 use crate::LinearPeptide;
 
@@ -13,7 +14,7 @@ use crate::LinearPeptide;
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
     /// The peptide sequence
-    pub peptide: LinearPeptide,
+    pub peptide: LinearPeptide<VerySimple>,
     /// The local confidence of this peptide (same length as the peptide)
     pub local_confidence: Option<Vec<f64>>,
     /// The score -1.0..=1.0 if available in the original format

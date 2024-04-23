@@ -6,6 +6,7 @@ use super::{
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    peptide_complexity::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
@@ -29,7 +30,7 @@ format_family!(
         mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         ppm: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        peptide: LinearPeptide, |location: Location| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
         );
