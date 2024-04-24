@@ -491,7 +491,7 @@ pub(crate) fn global_modifications(
                     ));
                 }
             }
-        } else if &line[index + 1..end_index] == "D" {
+        } else if &line[index + 1..end_index].to_ascii_lowercase() == "d" {
             global_modifications.push(GlobalModification::Isotope(Element::H, NonZeroU16::new(2)));
         } else {
             let num = &line[index + 1..end_index]

@@ -55,17 +55,18 @@ impl MonoSaccharide {
     /// # Errors
     /// Fails if it finds a structure that does not fit the IUPAC glycan name.
     pub fn from_short_iupac(
-        line: &str,
+        original_line: &str,
         start: usize,
         line_number: usize,
     ) -> Result<(Self, usize), CustomError> {
         let mut index = start;
+        let line = original_line.to_ascii_lowercase();
         let bytes = line.as_bytes();
         let mut substituents = Vec::new();
 
         // ignore stuff
         index += line[index..].ignore(&["keto-"]);
-        index += line[index..].ignore(&["D-", "L-", "?-"]);
+        index += line[index..].ignore(&["d-", "l-", "?-"]);
         // Prefix mods
         let mut amount = 1;
         if bytes[index].is_ascii_digit() {
@@ -74,13 +75,13 @@ impl MonoSaccharide {
                     let start_index = index;
                     index += 7;
                     index += line[index..].ignore(&["-"]);
-                    if !line[index..].starts_with("Anhydro") {
+                    if !line[index..].starts_with("anhydro") {
                         return Err(CustomError::error(
                             "Invalid iupac monosaccharide name",
                             "This internally linked glycan could not be parsed, expected Anhydro as modification",
                             Context::Line {
                                 linenumber: line_number,
-                                line: line.to_string(),
+                                line: original_line.to_string(),
                                 offset: start_index,
                                 length: index-start_index+5,
                             },
@@ -109,14 +110,16 @@ impl MonoSaccharide {
         // Detect & ignore epi state
         index += line[index..].ignore(&["e"]);
         // Get the prefix mods
-        if let Some(o) = line[index..].take_any(PREFIX_SUBSTITUENTS, |e| {
-            substituents.extend(std::iter::repeat(e.clone()).take(amount));
-        }) {
-            index += o;
+        if !line[index..].starts_with("dig") && !line[index..].starts_with("dha") {
+            if let Some(o) = line[index..].take_any(PREFIX_SUBSTITUENTS, |e| {
+                substituents.extend(std::iter::repeat(e.clone()).take(amount));
+            }) {
+                index += o;
+            }
+            index += line[index..].ignore(&["-"]);
         }
-        index += line[index..].ignore(&["-"]);
         // Another optional isomeric state
-        index += line[index..].ignore(&["D-", "L-", "?-"]);
+        index += line[index..].ignore(&["d-", "l-", "?-"]);
         // Base sugar
         let mut sugar = None;
         for sug in BASE_SUGARS {
@@ -143,7 +146,7 @@ impl MonoSaccharide {
                     "This name could not be recognised as a standard iupac glycan name",
                     Context::Line {
                         linenumber: line_number,
-                        line: line.to_string(),
+                        line: original_line.to_string(),
                         offset: index,
                         length: 3,
                     },
@@ -181,7 +184,7 @@ impl MonoSaccharide {
             }
 
             index += line[index..].ignore(&["-"]);
-            index += line[index..].ignore(&["(X)", "(R)", "(S)"]);
+            index += line[index..].ignore(&["(x)", "(r)", "(s)"]);
             if double {
                 if let Some(o) = line[index..].take_any(DOUBLE_LINKED_POSTFIX_SUBSTITUENTS, |e| {
                     sugar.substituents.extend(
@@ -205,7 +208,7 @@ impl MonoSaccharide {
                         "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
                         Context::Line {
                             linenumber: line_number,
-                            line: line.to_string(),
+                            line: original_line.to_string(),
                             offset: index,
                             length: 2,
                         },

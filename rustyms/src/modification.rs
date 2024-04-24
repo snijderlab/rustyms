@@ -108,7 +108,7 @@ impl Display for SimpleModification {
                     .composition()
                     .iter()
                     .fold(String::new(), |mut acc, (g, a)| {
-                        write!(&mut acc, "{g}{a}");
+                        write!(&mut acc, "{g}{a}").unwrap();
                         acc
                     })
             )?,
@@ -164,7 +164,7 @@ impl Modification {
 
 impl Modification {
     /// Check if this is a simple modification
-    pub fn simple(&self) -> Option<&SimpleModification> {
+    pub const fn simple(&self) -> Option<&SimpleModification> {
         match self {
             Self::Simple(sim) => Some(sim),
             _ => None,
@@ -258,8 +258,12 @@ impl Modification {
                         Ontology::Unimod
                             .find_name(&capture[1])
                             .ok_or_else(|| {
-                                parse_named_counter(&capture[1], glycan_parse_list(), false)
-                                    .map(SimpleModification::Glycan)
+                                parse_named_counter(
+                                    &capture[1].to_ascii_lowercase(),
+                                    glycan_parse_list(),
+                                    false,
+                                )
+                                .map(SimpleModification::Glycan)
                             })
                             .flat_err()
                             .or_else(|_| {
@@ -453,7 +457,7 @@ fn parse_single_modification(
                     .find_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
-                    .map(|m| Some(m.into()))
+                    .map(Some)
                     .map_err(|_| {
                         Ontology::Unimod
                             .find_closest(tail)
@@ -481,14 +485,14 @@ fn parse_single_modification(
                     })?,
                 ))),
                 ("glycan", tail) => Ok(Some(SimpleModification::Glycan(
-                    MonoSaccharide::simplify_composition(parse_named_counter(tail, glycan_parse_list(), false).map_err(|e| {
+                    MonoSaccharide::simplify_composition(parse_named_counter(&tail.to_ascii_lowercase(), glycan_parse_list(), false).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid glycan: {e}"
                         ))
                     })?),
                 ))),
                 ("glycanstructure", _) => {
-                    GlycanStructure::parse(line, offset + tail.1..offset + tail.1 + tail.2)
+                    GlycanStructure::parse(&line.to_ascii_lowercase(), offset + tail.1..offset + tail.1 + tail.2)
                         .map(|g| Some(SimpleModification::GlycanStructure(g)))
                 }
                 ("info", _) => Ok(None),
@@ -551,11 +555,12 @@ fn handle_ambiguous_modification(
     lookup: &mut AmbiguousLookup,
     context: Context,
 ) -> Result<Option<ReturnModification>, CustomError> {
+    let group_name = group.0.to_ascii_lowercase();
     // Search for a previous definition of this name, store as Some((index, modification_definition_present)) or None if there is no definition in place
     let found_definition = lookup
         .iter()
         .enumerate()
-        .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == group.0))
+        .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == &group_name))
         .map(|(index, (_, modification))| (index, modification.is_some()));
     // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
     match (modification, found_definition) {
@@ -574,7 +579,7 @@ fn handle_ambiguous_modification(
     // Have a mod defined here which is not present in the lookup
     (Ok(Some(m)), None) => {
         let index = lookup.len();
-        lookup.push((Some(group.0.to_string()), Some(m)));
+        lookup.push((Some(group_name), Some(m)));
         Ok(Some(ReturnModification::Preferred(index, localisation_score)))
     },
     // No mod defined, but the name is present in the lookup
@@ -582,7 +587,7 @@ fn handle_ambiguous_modification(
     // No mod defined, and no name present in the lookup
     (Ok(None), None) => {
         let index = lookup.len();
-        lookup.push((Some(group.0.to_string()), None));
+        lookup.push((Some(group_name), None));
         Ok(Some(ReturnModification::Referenced(index, localisation_score)))},
         // Earlier error
         (Err(e), _) => Err(e),

@@ -190,7 +190,7 @@ mod test {
     #[test]
     fn parse_glycan_structure_01() {
         assert_eq!(
-            GlycanStructure::from_str("Hep(Hex)").unwrap(),
+            GlycanStructure::from_str("hep(hex)").unwrap(),
             GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]).with_name("Hep"),
                 branches: vec![GlycanStructure {
@@ -204,7 +204,7 @@ mod test {
     #[test]
     fn parse_glycan_structure_02() {
         assert_eq!(
-            GlycanStructure::from_str("Hex(Hex,Hep)").unwrap(),
+            GlycanStructure::from_str("hex(hex,hep)").unwrap(),
             GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]).with_name("Hex"),
                 branches: vec![
@@ -224,7 +224,7 @@ mod test {
     #[test]
     fn parse_glycan_structure_03() {
         assert_eq!(
-            GlycanStructure::from_str("Hex(Hex(Hex),Hep)").unwrap(),
+            GlycanStructure::from_str("hex(hex(hex),hep)").unwrap(),
             GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Hexose(None), &[]).with_name("Hex"),
                 branches: vec![
@@ -248,7 +248,7 @@ mod test {
     #[test]
     fn parse_glycan_structure_04() {
         assert_eq!(
-            GlycanStructure::from_str("Hep(Hex(Hex(Hex(Hep),Hex)))").unwrap(),
+            GlycanStructure::from_str("hep(hex(hex(hex(hep),hex)))").unwrap(),
             GlycanStructure {
                 sugar: MonoSaccharide::new(BaseSugar::Heptose(None), &[]).with_name("Hep"),
                 branches: vec![GlycanStructure {

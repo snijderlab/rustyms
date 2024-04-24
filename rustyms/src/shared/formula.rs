@@ -137,7 +137,9 @@ impl MolecularFormula {
                         element = Some(Element::Electron);
                     } else {
                         for possible in ELEMENT_PARSE_LIST {
-                            if value[index + isotope..index + isotope + ele] == *possible.0 {
+                            if value[index + isotope..index + isotope + ele].to_ascii_lowercase()
+                                == possible.0
+                            {
                                 element = Some(possible.1);
                                 break;
                             }
@@ -238,7 +240,10 @@ impl MolecularFormula {
                         }
                     }
                     for possible in ELEMENT_PARSE_LIST {
-                        if value[index..].starts_with(possible.0) {
+                        if value[index..(index + 2).min(value.len())]
+                            .to_ascii_lowercase()
+                            .starts_with(possible.0)
+                        {
                             element = Some(possible.1);
                             index += possible.0.len();
                             continue 'main_parse_loop;
@@ -362,7 +367,10 @@ impl MolecularFormula {
                     }
                     let mut found = false;
                     for possible in ELEMENT_PARSE_LIST {
-                        if value[index..].starts_with(possible.0) {
+                        if value[index..(index + 2).min(value.len())]
+                            .to_ascii_lowercase()
+                            .starts_with(possible.0)
+                        {
                             element = Some(possible.1);
                             index += possible.0.len();
                             found = true;

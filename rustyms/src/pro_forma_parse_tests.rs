@@ -13,8 +13,12 @@ macro_rules! parse_test {
         #[test]
         fn $name() {
             let res = CompoundPeptidoform::pro_forma($case);
+            let res_upper = CompoundPeptidoform::pro_forma(&$case.to_ascii_uppercase());
+            let res_lower = CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase());
             println!("{}", $case);
             assert!(res.is_ok());
+            assert_eq!(res, res_upper);
+            assert_eq!(res, res_lower);
             let back = res.as_ref().unwrap().to_string();
             let res_back = CompoundPeptidoform::pro_forma(&back);
             assert_eq!(res, res_back, "{} != {back}", $case);
