@@ -256,18 +256,16 @@ impl<T> LinearPeptide<T> {
 
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
     pub fn get_n_term(&self) -> MolecularFormula {
-        self.n_term.as_ref().map_or_else(
-            || molecular_formula!(H 1),
-            |m| molecular_formula!(H 1) + m.formula(),
-        )
+        self.n_term
+            .as_ref()
+            .map_or_else(|| molecular_formula!(H 1), Chemical::formula)
     }
 
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
     pub fn get_c_term(&self) -> MolecularFormula {
-        self.c_term.as_ref().map_or_else(
-            || molecular_formula!(H 1 O 1),
-            |m| molecular_formula!(H 1 O 1) + m.formula(),
-        )
+        self.c_term
+            .as_ref()
+            .map_or_else(|| molecular_formula!(H 1 O 1), Chemical::formula)
     }
 
     /// Get the global isotope modifications

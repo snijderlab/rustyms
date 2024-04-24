@@ -70,7 +70,9 @@ impl CompoundPeptidoform {
                 Context::full_line(0, value),
             ))
         } else {
-            Ok(Self(vec![Peptidoform(peptides)]))
+            Ok(Self(
+                peptides.into_iter().map(|p| Peptidoform(vec![p])).collect(),
+            ))
         }
     }
 
@@ -398,19 +400,23 @@ pub(crate) fn global_modifications(
 ) -> Result<(usize, Vec<GlobalModification>), CustomError> {
     let mut global_modifications = Vec::new();
     while index < chars.len() && chars[index] == b'<' {
-        let end_index = next_char(chars, index, b'>').ok_or_else(|| {
-            CustomError::error(
-                "Global modification not closed",
-                "A global modification should be closed with a closing angle bracket '>'",
-                Context::line(0, line, index, 1),
-            )
-        })?;
+        let end_index =
+            end_of_enclosure_with_brackets(chars, index + 1, b'<', b'>').ok_or_else(|| {
+                CustomError::error(
+                    "Global modification not closed",
+                    "A global modification should be closed with a closing angle bracket '>'",
+                    Context::line(0, line, index, 1),
+                )
+            })?;
         if let Some(offset) = next_char(chars, index, b'@') {
             let at_index = index + 1 + offset;
-            dbg!(
-                char::from(chars[index + 1]),
-                char::from(chars[at_index - 2])
-            );
+            if at_index > end_index {
+                return Err(CustomError::error(
+                    "Invalid global modification",
+                    "A global modification should have an at '@' sign inside the enclosing angle brackets '<>'",
+                    Context::line(0, line, index + 1, at_index - index - 2),
+                ));
+            }
             if chars[index + 1] != b'[' || chars[at_index - 2] != b']' {
                 return Err(CustomError::error(
                     "Invalid global modification",

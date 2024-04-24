@@ -1,4 +1,5 @@
 //! Tests all examples provided in the Pro Forma specification chapter 8 Appendix III
+#![allow(clippy::missing_panics_doc)]
 use std::num::NonZeroU16;
 
 use crate::compound_peptidoform::{global_modifications, parse_charge_state};
@@ -530,5 +531,8 @@ fn charge_state_negative() {
 
 #[test]
 fn should_not_crash() {
-    CompoundPeptidoform::pro_forma(r"<[Formula:[318  N  005][  7Rf1][93Sb   ]  |5.3|UNIMOD:>]@N-term,N-term,k>[R:-3.70#BRANCH]^012?[Info:[_]=#XL0|R:+734.7|-4.74]^64[Info:[]|GNO:( |Formula: [2  Ca  ] Nd5 [5Sg ]]?{UNIMOD:;}(?B[#BRANCH][Glycan:RES\n1b:x-lgal-HEX-x:x|6:d\nLIN\n235 ?-?-Tetx6 #BRANCH]k)(i[#XLd6]h[#XLW8][#BRANCH])[XLMOD:[=\]-#XL88|UNIMOD:\|[|][?.].|M:=[\][=]_](O[#XLtD]I[Formula: Es Ce  Bi   |Glycan:HexN1sulfate170 ?-?-Trix |Glycan:Neu5Ac903 ][GNO:/?#XL32s|RESID:/[][)-]{#XL35|[{]#mG(-7.5)])[G:\]-[#M(20.5)]").unwrap();
+    // Semantically not valid, but syntactically it is
+    let _ = CompoundPeptidoform::pro_forma(
+        r"<[Formula:[318  N  005][  7Rf1][93Sb   ]  |5.3|UNIMOD:>]@N-term,N-term,k>[R:-3.70#BRANCH]^012?[Info:[_]=#XL0|R:+734.7|-4.74]^64[Info:[]|GNO:( |Formula: [2  Ca  ] Nd5 [5Sg ]]?{UNIMOD:;}(?B[#BRANCH][Glycan:RES\n1b:x-lgal-HEX-x:x|6:d\nLIN\n235 ?-?-Tetx6 #BRANCH]k)(i[#XLd6]h[#XLW8][#BRANCH])[XLMOD:[=\]-#XL88|UNIMOD:\|[|][?.].|M:=[\][=]_](O[#XLtD]I[Formula: Es Ce  Bi   |Glycan:HexN1sulfate170 ?-?-Trix |Glycan:Neu5Ac903 ][GNO:/?#XL32s|RESID:/[][)-]{#XL35|[{]#mG(-7.5)])[G:\]-[#M(20.5)]",
+    );
 }

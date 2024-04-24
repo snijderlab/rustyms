@@ -25,7 +25,7 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 # let raw_file_path = "data/annotated_example.mgf";
 // Open some data and see if the given peptide is a valid match
 use rustyms::{*, system::{usize::Charge, e}};
-let peptide = ComplexPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVSERTHGGNFD")?;
+let peptide = CompoundPeptidoform::pro_forma("Q[Gln->pyro-Glu]VQEVSERTHGGNFD")?;
 let spectrum = rawfile::mgf::open(raw_file_path)?;
 let model = Model::ethcd();
 let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2), &model);
@@ -40,10 +40,10 @@ assert!(fdr.sigma() < 2.0);
 # fn main() -> Result<(), rustyms::error::CustomError> {
 // Check how this peptide compares to a similar peptide (using `align`)
 // (same sequence, repeated for easy reference)
-use rustyms::{*, align::*};
-let first_peptide = LinearPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVS")?;
-let second_peptide = LinearPeptide::pro_forma("E[Glu->pyro-Glu]VQVES")?;
-let alignment = align::<4>(&first_peptide, &second_peptide,
+use rustyms::{*, align::*, peptide_complexity::*};
+let first_peptide = LinearPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVS")?.simple().unwrap();
+let second_peptide = LinearPeptide::pro_forma("E[Glu->pyro-Glu]VQVES")?.simple().unwrap();
+let alignment = align::<4, Simple, Simple>(&first_peptide, &second_peptide,
                  matrix::BLOSUM62, Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 # dbg!(&alignment);
 let stats = alignment.stats();

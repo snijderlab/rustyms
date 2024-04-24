@@ -132,6 +132,35 @@ pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Opti
 }
 
 #[allow(dead_code)]
+/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start.
+/// This also takes brackets '[]' into account and these take precedence over the enclosure searched for.
+pub fn end_of_enclosure_with_brackets(
+    chars: &[u8],
+    start: usize,
+    open: u8,
+    close: u8,
+) -> Option<usize> {
+    let mut state = 1;
+    let mut index = start;
+    while index < chars.len() {
+        let ch = chars[index];
+        if ch == b'[' {
+            index = end_of_enclosure(chars, index + 1, b'[', b']')?;
+        }
+        if ch == open {
+            state += 1;
+        } else if ch == close {
+            state -= 1;
+            if state == 0 {
+                return Some(index);
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
+#[allow(dead_code)]
 /// Get the next number, returns length in bytes and the number.
 /// # Panics
 /// If the text is not valid UTF-8.

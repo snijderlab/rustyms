@@ -17,10 +17,10 @@
 //! ```
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
-//! use rustyms::{*, align::*};
-//! let a = LinearPeptide::pro_forma("ANA").unwrap();
-//! let b = LinearPeptide::pro_forma("AGGA").unwrap();
-//! let alignment = align::<4>(&a, &b, &matrix::BLOSUM62,
+//! use rustyms::{*, align::*, peptide_complexity::*};
+//! let a = LinearPeptide::pro_forma("ANA").unwrap().simple().unwrap();
+//! let b = LinearPeptide::pro_forma("AGGA").unwrap().simple().unwrap();
+//! let alignment = align::<4, Simple, Simple>(&a, &b, &matrix::BLOSUM62,
 //!                    Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm().value, 0.0);
