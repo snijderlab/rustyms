@@ -40,6 +40,7 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
         let mut sites = None;
         let mut length = None;
         let mut mass = None;
+        let mut formula = None;
         let mut origins = Vec::new();
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
@@ -56,13 +57,13 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
                     // deadEndFormula: "C8 H12 O3" xsd:string
                     // deadEndFormula: "-C1 -H2 O1" xsd:string
                     // TODO: Handle 'D'
-                    modification.diff_formula =
-                        MolecularFormula::from_pro_forma(&line[17..line.len() - 12]).unwrap();
+                    formula =
+                        Some(MolecularFormula::from_xlmod(&line[17..line.len() - 12]).unwrap());
                 } else if line.starts_with("bridgeFormula") {
                     // bridgeFormula: "C7 D10 H2 N4" xsd:string
                     // bridgeFormula: "13C6 H6 O2" xsd:string
-                    modification.diff_formula =
-                        MolecularFormula::from_pro_forma(&line[17..line.len() - 12]).unwrap();
+                    formula =
+                        Some(MolecularFormula::from_xlmod(&line[17..line.len() - 12]).unwrap());
                 } else if line.starts_with("specificities") {
                     // specificities: "(C,U)" xsd:string
                     // specificities: "(K,N,Q,R,Protein N-term)&(E,D,Protein C-term)" xsd:string

@@ -200,6 +200,8 @@ impl std::fmt::Display for MolecularFormula {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
+    use crate::MolecularFormula;
+
     #[test]
     fn sorted() {
         assert_eq!(molecular_formula!(H 2 O 2), molecular_formula!(O 2 H 2));
@@ -247,6 +249,22 @@ mod tests {
         assert_eq!(
             molecular_formula!(H 2 O 2),
             molecular_formula!(H 2 O -1) + molecular_formula!(O 3)
+        );
+    }
+
+    #[test]
+    fn xlmod() {
+        assert_eq!(
+            MolecularFormula::from_xlmod("C7 D10 H2 N4").unwrap(),
+            molecular_formula!(C 7 (2) H 10 H 2 N 4)
+        );
+        assert_eq!(
+            MolecularFormula::from_xlmod("-C1 -H2 O1").unwrap(),
+            molecular_formula!(C -1 H -2 O 1)
+        );
+        assert_eq!(
+            MolecularFormula::from_xlmod("13C6 H6 O2").unwrap(),
+            molecular_formula!((13)C 6 H 6 O 2)
         );
     }
 }

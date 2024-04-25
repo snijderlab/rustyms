@@ -39,7 +39,7 @@ parse_test!("EM[Oxidation]EVEES[Phospho]PEK", summary_1_1_01);
 //     "EM[R: Methionine sulfone]EVEES[O-phospho-L-serine]PEK",
 //     summary_1_1_02
 // );  TODO: Not implemented yet: resid
-// parse_test!("EMEVTK[X:DSS#XL1]SESPEK", summary_1_1_03); // (see Section 4.2.3) TODO: Not implemented yet: cross linking
+parse_test!("EMEVTK[X:DSS#XL1]SESPEK", summary_1_1_03);
 parse_test!("EM[U:Oxidation]EVEES[U:Phospho]PEK", summary_1_1_04);
 parse_test!("EM[+15.9949]EVEES[+79.9663]PEK", summary_1_2_01);
 parse_test!("EM[U:+15.995]EVEES[U:+79.966]PEK", summary_1_2_02);
@@ -88,13 +88,13 @@ parse_test!("SEQUEN[Formula:C12H20O2]CE", summary_3_1);
 parse_test!("SEQUEN[Formula:HN-1O2]CE", summary_3_2);
 parse_test!("SEQUEN[Formula:[13C2][12C-2]H2N]CE", summary_3_3);
 parse_test!("SEQUEN[Glycan:HexNAc]CE", summary_4);
-// parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK[#XL1]", summary_5_01); TODO: Not implemented yet: cross linking
-// parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK", summary_5_02); TODO: Not implemented yet: cross linking
-// parse_test!(
-//     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
-//     summary_5_03
-// ); TODO: Not implemented yet: cross linking
-// parse_test!("ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER", summary_5_04); TODO: Not implemented yet: cross linking/branching
+parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK[#XL1]", summary_5_01);
+parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK", summary_5_02);
+parse_test!(
+    "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
+    summary_5_03
+);
+parse_test!("ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER", summary_5_04);
 parse_test!("(?DQ)NGTWEM[Oxidation]ESNENFEGYM[Oxidation]K", summary_6);
 parse_test!("ELVIS[Phospho|+79.966331]K", summary_7_01);
 parse_test!("ELVIS[Phospho|Obs:+79.978]K", summary_7_02);

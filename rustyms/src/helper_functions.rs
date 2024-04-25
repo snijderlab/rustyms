@@ -95,6 +95,25 @@ pub fn parse_named_counter<T: Clone>(
     Ok(output)
 }
 
+/// Split a string into chunks of text separated by whitespace with the offset before each chunk returned for nice error generation.
+pub fn split_ascii_whitespace(input: &str) -> Vec<(usize, &str)> {
+    let mut index = input.chars().take_while(char::is_ascii_whitespace).count();
+    let mut chunks = Vec::new();
+    while index < input.len() {
+        let chunk_len = input[index..]
+            .chars()
+            .take_while(|c| !c.is_ascii_whitespace())
+            .count();
+        chunks.push((index, &input[index..index + chunk_len]));
+        index += chunk_len;
+        index += input[index..]
+            .chars()
+            .take_while(char::is_ascii_whitespace)
+            .count();
+    }
+    chunks
+}
+
 /// Helper function to check extensions in filenames
 pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) -> bool {
     filename

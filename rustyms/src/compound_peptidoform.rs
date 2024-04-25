@@ -50,20 +50,21 @@ impl CompoundPeptidoform {
     /// It fails when the string is not a valid Pro Forma string or if it uses currently unsupported Pro Forma features.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
-        let mut peptides = Vec::new();
-        let mut start = 0;
-        let (peptide, tail) = Self::pro_forma_inner(value, start)?;
+        let mut peptidoforms = Vec::new();
+        // Global modification(s)
+        let (mut start, global_modifications) = global_modifications(value.as_bytes(), 0, value)?;
+        let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications)?;
         start = tail;
-        peptides.push(peptide);
+        peptidoforms.push(peptidoform);
 
         // Parse any following chimeric species
         while start < value.len() {
-            let (peptide, tail) = Self::pro_forma_inner(value, start)?;
-            peptides.push(peptide);
+            let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications)?;
+            peptidoforms.push(peptidoform);
             start = tail;
         }
 
-        if peptides.is_empty() {
+        if peptidoforms.is_empty() {
             Err(CustomError::error(
                 "No peptide found",
                 "The peptide definition is empty",
@@ -71,18 +72,56 @@ impl CompoundPeptidoform {
             ))
         } else {
             Ok(Self(
-                peptides.into_iter().map(|p| Peptidoform(vec![p])).collect(),
+                peptidoforms,
             ))
         }
     }
 
     /// # Errors
     /// It returns an error if the line is not a supported Pro Forma line.
-    #[allow(clippy::missing_panics_doc)] // Can not panic
-    fn pro_forma_inner(
+    fn parse_peptidoform(
         line: &str,
-        index: usize,
-    ) -> Result<(LinearPeptide<Linked>, usize), CustomError> {
+        mut index: usize,
+        global_modifications: &[GlobalModification],
+    ) -> Result<(Peptidoform, usize), CustomError> {
+        let mut peptides = Vec::new();
+        let mut ending;
+
+        let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications)?;
+        ending = end;
+        index = tail;
+        peptides.push(peptide);
+
+        // Parse any following cross-linked species
+        while index < line.len() && ending == End::CrossLink {
+            let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications)?;
+            ending = end;
+            peptides.push(peptide);
+            index = tail;
+        }
+
+        if peptides.is_empty() {
+            Err(CustomError::error(
+                "No peptide found",
+                "The peptide definition is empty",
+                Context::full_line(0, line),
+            ))
+        } else {
+            Ok((Peptidoform(
+                peptides,
+            ), index))
+        }
+    }
+
+    
+    /// # Errors
+    /// It returns an error if the line is not a supported Pro Forma line.
+    #[allow(clippy::missing_panics_doc)] // Can not panic
+    fn parse_linear_peptide(
+        line: &str,
+        mut index: usize,
+        global_modifications: &[GlobalModification],
+    ) -> Result<(LinearPeptide<Linked>, usize, End), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
@@ -100,9 +139,7 @@ impl CompoundPeptidoform {
             Vec::new();
         let mut unknown_position_modifications = Vec::new();
         let mut ranged_unknown_position_modifications = Vec::new();
-
-        // Global modification(s)
-        let (mut index, global_modifications) = global_modifications(chars, index, line)?;
+        let mut end = End::Empty;
 
         // Unknown position mods
         if let Some(result) = unknown_position_mods(chars, index, line) {
@@ -197,11 +234,18 @@ impl CompoundPeptidoform {
                     }
                 }
                 (false, b'/') => {
+                    // Chimeric peptide
+                    if chars.len() > index+1 && chars[index+1] == b'/' {
+                        index+=1; // Potentially this can be followed by another peptide
+                        end = End::CrossLink;
+                        break; 
+                    }
                     let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
                     index = buf;
                     peptide.charge_carriers = Some(charge_carriers);
                     if index < chars.len() && chars[index] == b'+' {
                         index+=1; // Potentially this can be followed by another peptide
+                        end = End::Chimeric;
                     }
                     break;
                 }
@@ -240,6 +284,10 @@ impl CompoundPeptidoform {
                         }
                         if index < chars.len() && chars[index] == b'+' {
                             index+=1; // If a peptide in a chimeric definition contains a C terminal modification
+                            end = End::Chimeric;
+                        } else if index + 1 < chars.len() && chars[index..=index+1] == *b"//" {
+                            index+=2; // If a peptide in a cross-linked definition contains a C terminal modification
+                            end = End::CrossLink;
                         }
                         break;
                     }
@@ -271,6 +319,7 @@ impl CompoundPeptidoform {
                 (false, b'+') => {
                     // Chimeric spectrum stop for now, remove the plus
                     index += 1;
+                    end = End::Chimeric;
                     break;
                 }
                 (false, ch) => {
@@ -321,7 +370,7 @@ impl CompoundPeptidoform {
             .collect();
 
         // Check all placement rules
-        if !peptide.apply_global_modifications(&global_modifications) {
+        if !peptide.apply_global_modifications(global_modifications) {
             return Err(CustomError::error(
                 "Invalid global isotope modification",
                 "There is an invalid global isotope modification",
@@ -335,7 +384,7 @@ impl CompoundPeptidoform {
         );
         peptide.enforce_modification_rules()?;
 
-        Ok((peptide, index))
+        Ok((peptide, index, end))
     }
 
     /// Assume there is exactly one peptidoform in this collection.
@@ -370,6 +419,13 @@ impl CompoundPeptidoform {
         }
         base
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum End {
+    Empty,
+    CrossLink,
+    Chimeric,
 }
 
 impl<Item> From<Item> for CompoundPeptidoform

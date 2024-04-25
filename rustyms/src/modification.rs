@@ -397,7 +397,7 @@ fn parse_single_modification(
         Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap();
     if let Some(groups) = regex.captures(full_modification) {
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
-        let (full, head, tail, ambiguous_group, localisation_score) = (
+        let (full, head, tail, label_group, localisation_score) = (
             groups
                 .get(1)
                 .map(|m| (m.as_str(), m.start(), m.len()))
@@ -525,14 +525,33 @@ fn parse_single_modification(
                 )
         };
 
-        if let Some(group) = ambiguous_group {
-            handle_ambiguous_modification(
-                modification,
-                group,
-                localisation_score,
-                lookup,
-                Context::line(0, line, offset + full.1, full.2),
-            )
+        if let Some(group) = label_group {
+            if group.0.to_ascii_lowercase() == "branch" {
+                Ok(Some(ReturnModification::Defined(Modification::Branch {
+                    peptide: 0,
+                    index: 0,
+                }))) // TODO: figure out correct location, for now store empty and then fix up in a pass when the whole peptidoform is done?
+            } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
+                Ok(Some(ReturnModification::Defined(Modification::CrossLink {
+                    peptide: 0,
+                    index: 0,
+                    name: name.to_string(),
+                    linker: Linker {
+                        specificities: Vec::new(),
+                        formula: MolecularFormula::default(),
+                        name: String::new(),
+                        index: 0,
+                    },
+                })))
+            } else {
+                handle_ambiguous_modification(
+                    modification,
+                    group,
+                    localisation_score,
+                    lookup,
+                    Context::line(0, line, offset + full.1, full.2),
+                )
+            }
         } else {
             modification.map(|m| m.map(|m| ReturnModification::Defined(m.into())))
         }
@@ -653,9 +672,9 @@ impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Simple(sim) => write!(f, "{sim}"),
-            Self::CrossLink { .. } => todo!(),
-            Self::IntraLink { .. } => todo!(),
-            Self::Branch { .. } => todo!(),
+            Self::CrossLink { name, linker, .. } => write!(f, "X:{}#XL{}", linker.name, name),
+            Self::IntraLink { name, linker, .. } => write!(f, "X:{}#XL{}", linker.name, name),
+            Self::Branch { .. } => write!(f, "#BRANCH"),
         }
         .unwrap();
         Ok(())

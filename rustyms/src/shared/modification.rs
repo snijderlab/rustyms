@@ -4,12 +4,17 @@ pub enum Modification {
     /// Any of the simple modifications
     Simple(SimpleModification),
     /// An intra link, cross linking this position to another position on the same peptide. Has to be present at both locations.
-    IntraLink { index: usize, linker: Linker },
+    IntraLink {
+        index: usize,
+        linker: Linker,
+        name: String,
+    },
     /// A cross link to another peptide
     CrossLink {
         peptide: usize,
         index: usize,
         linker: Linker,
+        name: String,
     },
     /// A branch to another peptide, needed? Or could this be expressed as a special case of a cross link
     Branch {
