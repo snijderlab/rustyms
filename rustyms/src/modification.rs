@@ -453,6 +453,17 @@ fn parse_single_modification(
                         )
                     })
                 }
+                ("xlmod", tail) => {
+                    let id = tail.parse::<usize>().map_err(|_| {
+                        basic_error
+                            .with_long_description("XLMOD accession number should be a number")
+                    })?;
+                    Ontology::Xlmod.find_id(id).map(Some).ok_or_else(|| {
+                        basic_error.with_long_description(
+                            "The supplied XLMOD accession number is not an existing modification",
+                        )
+                    })
+                }
                 ("u", tail) => Ontology::Unimod
                     .find_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
@@ -470,6 +481,16 @@ fn parse_single_modification(
                     .map(Some)
                     .map_err(|_| {
                         Ontology::Psimod
+                            .find_closest(tail)
+                            .with_context(basic_error.context().clone())
+                    }),
+                ("x", tail) => Ontology::Xlmod
+                    .find_name(tail)
+                    .ok_or_else(|| numerical_mod(tail))
+                    .flat_err()
+                    .map(Some)
+                    .map_err(|_| {
+                        Ontology::Xlmod
                             .find_closest(tail)
                             .with_context(basic_error.context().clone())
                     }),
@@ -507,7 +528,7 @@ fn parse_single_modification(
                     .map(Some)
                     .ok_or_else(||
                         Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
-                    .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a type of modification that is not yet supported?")
+                    .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a ontology that is not yet supported?")
                     .with_context(Context::line(0, line, offset+full.1, full.2)))
             }
         } else if full.0.is_empty() {
@@ -537,9 +558,11 @@ fn parse_single_modification(
                     index: 0,
                     name: name.to_string(),
                     linker: Linker {
-                        specificities: Vec::new(),
+                        specificities: LinkerSpecificity::Symmetric(Vec::new()),
                         formula: MolecularFormula::default(),
                         name: String::new(),
+                        length: None,
+                        ontology: Ontology::Xlmod,
                         id: 0,
                     },
                 })))

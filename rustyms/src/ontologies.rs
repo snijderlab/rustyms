@@ -17,7 +17,7 @@ impl Ontology {
             Self::Gnome => gnome_ontology(),
             Self::Psimod => psimod_ontology(),
             Self::Unimod => unimod_ontology(),
-            Self::Xlmod => todo!(), //xlmod_ontology(),
+            Self::Xlmod => xlmod_ontology(),
         }
     }
 
@@ -118,6 +118,15 @@ fn gnome_ontology() -> &'static OntologyList {
         bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/gnome.dat"))).unwrap()
     })
 }
+/// Get the Xlmod ontology
+/// # Panics
+/// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
+fn xlmod_ontology() -> &'static OntologyList {
+    XLMOD_CELL.get_or_init(|| {
+        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/xlmod.dat"))).unwrap()
+    })
+}
 static UNIMOD_CELL: OnceLock<OntologyList> = OnceLock::new();
 static PSIMOD_CELL: OnceLock<OntologyList> = OnceLock::new();
 static GNOME_CELL: OnceLock<OntologyList> = OnceLock::new();
+static XLMOD_CELL: OnceLock<OntologyList> = OnceLock::new();
