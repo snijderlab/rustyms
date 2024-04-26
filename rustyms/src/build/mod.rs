@@ -16,6 +16,7 @@ pub use gnome::*;
 use ontology_modification::*;
 pub use psi_mod::*;
 pub use unimod::*;
+pub use xlmod::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +25,8 @@ use crate::{
     formula::MolecularFormula,
     system::OrderedMass,
 };
+
+use ordered_float::OrderedFloat;
 
 include!("../shared/neutral_loss.rs");
 include!("../shared/modification.rs");

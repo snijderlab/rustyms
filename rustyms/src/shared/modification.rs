@@ -50,15 +50,22 @@ pub enum SimpleModification {
     ),
 }
 
-/// A stub for a database modification of a cross-linker.
-/// TODO: There are 13 cross-linkers that link 3 positions,
+/// A database entry for a cross-linker.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct Linker {
-    specificities: Vec<PlacementRule>,
+    specificities: LinkerSpecificity,
     formula: MolecularFormula, // TODO: what if not defined?, also make sure anything that only has a mass uses that instead
     name: String,
     /// XL:000XXX
-    index: usize,
+    id: usize,
+    length: Option<OrderedFloat<f64>>,
+    ontology: Ontology,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+pub enum LinkerSpecificity {
+    Symmetric(Vec<PlacementRule>),
+    Asymmetric(Vec<PlacementRule>, Vec<PlacementRule>),
 }
 
 /// All possible compositions in the GNO ontology

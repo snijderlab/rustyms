@@ -540,7 +540,7 @@ fn parse_single_modification(
                         specificities: Vec::new(),
                         formula: MolecularFormula::default(),
                         name: String::new(),
-                        index: 0,
+                        id: 0,
                     },
                 })))
             } else {

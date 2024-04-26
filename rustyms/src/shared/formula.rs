@@ -415,6 +415,13 @@ impl MolecularFormula {
                 .take_while(char::is_ascii_digit)
                 .count();
             let number = block.chars().rev().take_while(char::is_ascii_digit).count();
+            if number + isotope_len + usize::from(negative) >= block.len() {
+                return Err(CustomError::error(
+                    "Invalid Xlmod molecular formula",
+                    "No element is defined",
+                    Context::line(0, value, offset, block.len()),
+                ));
+            }
             let element_len = block.len() - number - isotope_len - usize::from(negative);
             let element = block[isotope_len + usize::from(negative)..block.len() - number]
                 .to_ascii_lowercase();
@@ -470,20 +477,24 @@ impl MolecularFormula {
                 );
             }
             let number = if negative { -1 } else { 1 }
-                * block[block.len() - number..block.len()]
-                    .parse::<i32>()
-                    .map_err(|err| {
-                        CustomError::error(
-                            "Invalid Xlmod molecular formula",
-                            format!("The element count {}", explain_number_error(&err)),
-                            Context::line(
-                                0,
-                                value,
-                                offset + usize::from(negative) + isotope_len + element_len,
-                                number,
-                            ),
-                        )
-                    })?;
+                * if number == 0 {
+                    1
+                } else {
+                    block[block.len() - number..block.len()]
+                        .parse::<i32>()
+                        .map_err(|err| {
+                            CustomError::error(
+                                "Invalid Xlmod molecular formula",
+                                format!("The element count {}", explain_number_error(&err)),
+                                Context::line(
+                                    0,
+                                    value,
+                                    offset + usize::from(negative) + isotope_len + element_len,
+                                    number,
+                                ),
+                            )
+                        })?
+                };
             if !Self::add(&mut formula, (element, isotope, number)) {
                 return Err(CustomError::error(
                     "Invalid Xlmod molecular formula",
@@ -570,6 +581,11 @@ impl MolecularFormula {
         } else {
             false
         }
+    }
+
+    /// Add the given monoisotopic weight to this formula
+    pub fn add_mass(&mut self, mass: OrderedFloat<f64>) {
+        self.additional_mass += mass;
     }
 
     /// Get the elements making this formula
