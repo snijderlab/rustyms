@@ -475,6 +475,7 @@ impl<T> LinearPeptide<T> {
             );
         }
     }
+
     /// Place all ranged unknown positions at all possible locations as ambiguous modifications
     /// # Panics
     /// It panics when information for an ambiguous modification is missing (name/mod).

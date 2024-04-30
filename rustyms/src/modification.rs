@@ -58,19 +58,9 @@ impl SimpleModification {
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
-            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_)=> None,
-            Self::Predefined(_, _, ontology, _, id) => match ontology {
-                Ontology::Psimod => Some(format!(
-                    "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{id:5}",
-                )),
-                Ontology::Unimod => Some(format!(
-                    "https://www.unimod.org/modifications_view.php?editid1={id}",
-                )),
-                Ontology::Gnome | Ontology::Xlmod | Ontology::Custom => None,
-            },
-            Self::Gno(_, name) => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
-            )),
+            Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
+            Self::Predefined(_, _, ontology, name, id) => ontology.url(*id, name),
+            Self::Gno(_, name) => Ontology::Gnome.url(0, name),
         }
     }
 
@@ -151,7 +141,7 @@ impl Modification {
                         + linker.formula()
                 }
             } // TODO: impl neutral losses for that other peptide
-            Self::IntraLink { .. } => todo!(), // TODO: impossible, return None?
+            Self::IntraLink { linker, .. } => linker.formula().into(), // TODO: impossible, return None?
             Self::Branch { peptide, .. } => {
                 all_peptides[*peptide].formulas_inner(*peptide, all_peptides, visited_peptides)
             } // TODO: any linking chemistry? + impl neutral losses for that other peptide
@@ -189,9 +179,9 @@ impl Modification {
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Simple(modification) => modification.ontology_url(),
-            Self::CrossLink { .. } => todo!(),
-            Self::IntraLink { .. } => todo!(),
-            Self::Branch { .. } => todo!(),
+            Self::CrossLink { linker, .. } => linker.ontology.url(linker.id, &linker.name),
+            Self::IntraLink { linker, .. } => linker.ontology.url(linker.id, &linker.name),
+            Self::Branch { .. } => None,
         }
     }
 

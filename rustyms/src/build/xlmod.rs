@@ -21,7 +21,7 @@ pub fn build_xlmod_ontology(out_dir: &OsString, debug: bool) {
     let final_linkers = mods
         .1
         .into_iter()
-        .map(|l| (l.id, l.name.clone(), l))
+        .map(|l| (l.id, l.name.to_ascii_lowercase(), l))
         .collect_vec();
     mods_file
         .write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())

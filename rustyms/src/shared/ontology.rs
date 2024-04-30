@@ -40,6 +40,24 @@ impl Ontology {
             Self::Custom => "CUSTOM",
         }
     }
+
+    /// Get the accession number name for the ontology
+    #[allow(dead_code)]
+    pub fn url(self, id: usize, name: &str) -> Option<String> {
+        match self {
+            Self::Unimod => Some(format!(
+                "https://www.unimod.org/modifications_view.php?editid1={id}",
+            )),
+            Self::Psimod => Some(format!(
+                "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{id:5}",
+            )),
+            Self::Gnome => Some(format!(
+                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
+            )),
+            Self::Xlmod => None,
+            Self::Custom => None,
+        }
+    }
 }
 
 impl std::fmt::Display for Ontology {

@@ -1,13 +1,22 @@
-use std::{fmt::Display, num::NonZeroU16};
+use std::{collections::HashMap, fmt::Display, num::NonZeroU16};
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{Context, CustomError}, helper_functions::*, modification::{
-        AmbiguousLookup, AmbiguousModification, GlobalModification, Modification, OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification
-    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptide_complexity::Linked, system::{usize::Charge, OrderedMass}, AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical, Peptidoform, SequenceElement
+    error::{Context, CustomError},
+    helper_functions::*,
+    modification::{
+        AmbiguousLookup, AmbiguousModification, GlobalModification, Linker, Modification,
+        OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification,
+    },
+    molecular_charge::MolecularCharge,
+    ontologies::CustomDatabase,
+    peptide_complexity::Linked,
+    system::{usize::Charge, OrderedMass},
+    AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
+    Peptidoform, SequenceElement,
 };
 
 /// A single pro forma entry, can contain multiple peptidoforms
@@ -41,17 +50,23 @@ impl CompoundPeptidoform {
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string or if it uses currently unsupported Pro Forma features.
     #[allow(clippy::too_many_lines)]
-    pub fn pro_forma(value: &str, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
+    pub fn pro_forma(
+        value: &str,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<Self, CustomError> {
         let mut peptidoforms = Vec::new();
         // Global modification(s)
-        let (mut start, global_modifications) = global_modifications(value.as_bytes(), 0, value, custom_database)?;
-        let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
+        let (mut start, global_modifications) =
+            global_modifications(value.as_bytes(), 0, value, custom_database)?;
+        let (peptidoform, tail) =
+            Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
         start = tail;
         peptidoforms.push(peptidoform);
 
         // Parse any following chimeric species
         while start < value.len() {
-            let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
+            let (peptidoform, tail) =
+                Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
             peptidoforms.push(peptidoform);
             start = tail;
         }
@@ -63,9 +78,7 @@ impl CompoundPeptidoform {
                 Context::full_line(0, value),
             ))
         } else {
-            Ok(Self(
-                peptidoforms,
-            ))
+            Ok(Self(peptidoforms))
         }
     }
 
@@ -78,19 +91,67 @@ impl CompoundPeptidoform {
         custom_database: Option<&CustomDatabase>,
     ) -> Result<(Peptidoform, usize), CustomError> {
         let mut peptides = Vec::new();
-        let mut ending;
-
-        let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications, custom_database)?;
-        ending = end;
-        index = tail;
-        peptides.push(peptide);
+        let mut ending = End::CrossLink;
+        let mut cross_link_lookup = Vec::new();
+        // Grouped on cross link id and stores peptide id, sequence index
+        let mut cross_links_found = HashMap::new();
 
         // Parse any following cross-linked species
         while index < line.len() && ending == End::CrossLink {
-            let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications, custom_database)?;
-            ending = end;
+            let (peptide, tail, end, cross_links) = Self::parse_linear_peptide(
+                line,
+                index,
+                global_modifications,
+                custom_database,
+                &mut cross_link_lookup,
+            )?;
             peptides.push(peptide);
             index = tail;
+            ending = end;
+            for cross_link in cross_links {
+                cross_links_found
+                    .entry(cross_link.0)
+                    .or_insert(Vec::new())
+                    .push((peptides.len() - 1, cross_link.1));
+            }
+        }
+
+        for (id, locations) in cross_links_found {
+            let definition = &cross_link_lookup[id];
+            if let Some(linker) = &definition.1 {
+                match locations.len() {
+                    0 => {return Err(CustomError::error(
+                        "Invalid cross-link",
+                        format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0),
+                        Context::full_line(0, line),
+                    ))},
+                    1 => (), // TODO: assumed that the modification is already placed so this works out fine
+                    2 => {
+                        let (peptide_1, position_1) = locations[0];
+                        let (peptide_2, position_2) = locations[1];
+                        let (m1, m2) = if peptide_1 == peptide_2 {
+                            (Modification::IntraLink { index: position_2, linker: linker.clone(), name: definition.0.clone()},
+                            Modification::IntraLink { index: position_1, linker: linker.clone(), name: definition.0.clone()})
+                        } else {
+                            (Modification::CrossLink { peptide: peptide_2, index: position_2, linker: linker.clone(), name: definition.0.clone() },
+                            Modification::CrossLink { peptide: peptide_1, index: position_1, linker: linker.clone(), name: definition.0.clone() })
+                        };
+                        peptides[peptide_1].sequence[position_1].modifications.push(m1);
+                        peptides[peptide_2].sequence[position_2].modifications.push(m2);
+                    },
+                    _ => {return Err(CustomError::error(
+                        "Invalid cross-link",
+                        format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0),
+                        Context::full_line(0, line),
+                    ))}
+                }
+            } else {
+                return Err(CustomError::error(
+                    "Invalid cross-link",
+                    format!("The cross-link named '{0}' is never defined, define it like: '[X:DSS#XL{0}]'", definition.0),
+                    Context::full_line(0, line),
+                ));
+            }
         }
 
         if peptides.is_empty() {
@@ -100,13 +161,10 @@ impl CompoundPeptidoform {
                 Context::full_line(0, line),
             ))
         } else {
-            Ok((Peptidoform(
-                peptides,
-            ), index))
+            Ok((Peptidoform(peptides), index))
         }
     }
 
-    
     /// # Errors
     /// It returns an error if the line is not a supported Pro Forma line.
     #[allow(clippy::missing_panics_doc)] // Can not panic
@@ -115,7 +173,8 @@ impl CompoundPeptidoform {
         mut index: usize,
         global_modifications: &[GlobalModification],
         custom_database: Option<&CustomDatabase>,
-    ) -> Result<(LinearPeptide<Linked>, usize, End), CustomError> {
+        cross_link_lookup: &mut Vec<(String, Option<Linker>)>,
+    ) -> Result<(LinearPeptide<Linked>, usize, End, Vec<(usize, usize)>), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
@@ -129,7 +188,8 @@ impl CompoundPeptidoform {
         let mut ambiguous_aa_counter = 0;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
-        let mut cross_link_lookup = Vec::new();
+        // (id, sequence index)
+        let mut cross_link_found_positions: Vec<(usize, usize)> = Vec::new();
         let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
             Vec::new();
         let mut unknown_position_modifications = Vec::new();
@@ -167,25 +227,31 @@ impl CompoundPeptidoform {
                 ));
             }
             peptide.n_term = Some(
-                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup, &mut cross_link_lookup, custom_database)
-                    .and_then(|m| {
-                        m.defined().ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid N terminal modification",
-                                "An N terminal modification cannot be ambiguous",
-                                Context::line(0, line, index + 1, end_index - 2 - index),
-                            )
-                        })
+                Modification::try_from(
+                    line,
+                    index + 1..end_index - 1,
+                    &mut ambiguous_lookup,
+                    cross_link_lookup,
+                    custom_database,
+                )
+                .and_then(|m| {
+                    m.defined().ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid N terminal modification",
+                            "An N terminal modification cannot be ambiguous",
+                            Context::line(0, line, index + 1, end_index - 2 - index),
+                        )
                     })
-                    .and_then(|m| {
-                        m.into_simple().ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid N terminal modification",
-                                "An N terminal modification cannot be a cross linking modification",
-                                Context::line(0, line, index + 1, end_index - 2 - index),
-                            )
-                        })
-                    })?,
+                })
+                .and_then(|m| {
+                    m.into_simple().ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid N terminal modification",
+                            "An N terminal modification cannot be a cross linking modification",
+                            Context::line(0, line, index + 1, end_index - 2 - index),
+                        )
+                    })
+                })?,
             );
             index = end_index + 1;
         }
@@ -218,7 +284,7 @@ impl CompoundPeptidoform {
                         ))?;
                         let modification = Modification::try_from(
                             line, index + 1..end_index,
-                            &mut ambiguous_lookup, &mut cross_link_lookup, custom_database,
+                            &mut ambiguous_lookup, cross_link_lookup, custom_database,
                         )?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
@@ -233,7 +299,7 @@ impl CompoundPeptidoform {
                     if chars.len() > index+1 && chars[index+1] == b'/' {
                         index+=1; // Potentially this can be followed by another peptide
                         end = End::CrossLink;
-                        break; 
+                        break;
                     }
                     let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
                     index = buf;
@@ -252,7 +318,7 @@ impl CompoundPeptidoform {
                     ))?;
                     let modification = Modification::try_from(
                         line, index + 1..end_index,
-                        &mut ambiguous_lookup, &mut cross_link_lookup, custom_database,
+                        &mut ambiguous_lookup, cross_link_lookup, custom_database,
                     )?;
                     let start_index = index +1;
                     index = end_index + 1;
@@ -286,16 +352,16 @@ impl CompoundPeptidoform {
                         }
                         break;
                     }
+                    let sequence_index = peptide.sequence.len() - 1;
                     match peptide.sequence.last_mut() {
                         Some(aa) => match modification {
                             ReturnModification::Defined(m) => aa.modifications.push(m),
                             ReturnModification::AmbiguousPreferred(id, localisation_score) =>
-                            ambiguous_found_positions.push(
-                                (peptide.sequence.len() -1, true, id, localisation_score)),
+                                ambiguous_found_positions.push((sequence_index, true, id, localisation_score)),
                             ReturnModification::AmbiguousReferenced(id, localisation_score) =>
-                            ambiguous_found_positions.push(
-                                (peptide.sequence.len() -1, false, id, localisation_score)),
-                                ReturnModification::CrossLinkReferenced(_i) => todo!(), // TODO: Build cross linking and branching position retrieval
+                                ambiguous_found_positions.push((sequence_index, false, id, localisation_score)),
+                            ReturnModification::CrossLinkReferenced(id) =>
+                                cross_link_found_positions.push((id, sequence_index)),
                         },
                         None => {
                             return Err(
@@ -373,6 +439,7 @@ impl CompoundPeptidoform {
                 Context::full_line(0, line),
             ));
         }
+
         peptide.apply_unknown_position_modification(&unknown_position_modifications);
         peptide.apply_ranged_unknown_position_modification(
             &ranged_unknown_position_modifications,
@@ -380,7 +447,7 @@ impl CompoundPeptidoform {
         );
         peptide.enforce_modification_rules()?;
 
-        Ok((peptide, index, end))
+        Ok((peptide, index, end, cross_link_found_positions))
     }
 
     /// Assume there is exactly one peptidoform in this collection.
@@ -477,18 +544,23 @@ pub(crate) fn global_modifications(
                     Context::line(0, line, index + 1, at_index - index - 2),
                 ));
             }
-            let modification =
-                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new(), &mut Vec::new(), custom_database)
-                    .map(|m| {
-                        m.defined().ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid global modification",
-                                "A global modification cannot be ambiguous or a cross-linker",
-                                Context::line(0, line, index + 2, at_index - index - 4),
-                            )
-                        })
-                    })
-                    .flat_err()?;
+            let modification = Modification::try_from(
+                line,
+                index + 2..at_index - 2,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                custom_database,
+            )
+            .map(|m| {
+                m.defined().ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid global modification",
+                        "A global modification cannot be ambiguous or a cross-linker",
+                        Context::line(0, line, index + 2, at_index - index - 4),
+                    )
+                })
+            })
+            .flat_err()?;
             for aa in line[at_index..end_index].split(',') {
                 if aa.to_ascii_lowercase().starts_with("n-term") {
                     if let Some((_, aa)) = aa.split_once(':') {
@@ -618,7 +690,8 @@ fn unknown_position_mods(
             std::str::from_utf8(chars).unwrap(),
             index + 1..end_index,
             &mut ambiguous_lookup,
-            &mut cross_link_lookup, custom_database,
+            &mut cross_link_lookup,
+            custom_database,
         )
         .unwrap_or_else(|e| {
             errs.push(e);
@@ -682,25 +755,31 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            Modification::try_from(line, index + 1..end_index, &mut Vec::new(), &mut Vec::new(), custom_database)
-                .and_then(|m| {
-                    m.defined().ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid labile modification",
-                            "A labile modification cannot be ambiguous or a cross-linker",
-                            Context::line(0, line, index + 1, end_index - 1 - index),
-                        )
-                    })
+            Modification::try_from(
+                line,
+                index + 1..end_index,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                custom_database,
+            )
+            .and_then(|m| {
+                m.defined().ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid labile modification",
+                        "A labile modification cannot be ambiguous or a cross-linker",
+                        Context::line(0, line, index + 1, end_index - 1 - index),
+                    )
                 })
-                .and_then(|m| {
-                    m.into_simple().ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid labile modification",
-                            "A labile modification cannot be a cross-link or branch",
-                            Context::line(0, line, index + 1, end_index - 1 - index),
-                        )
-                    })
-                })?,
+            })
+            .and_then(|m| {
+                m.into_simple().ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid labile modification",
+                        "A labile modification cannot be a cross-link or branch",
+                        Context::line(0, line, index + 1, end_index - 1 - index),
+                    )
+                })
+            })?,
         );
         index = end_index + 1;
     }
