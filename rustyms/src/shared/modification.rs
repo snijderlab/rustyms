@@ -60,12 +60,23 @@ pub struct Linker {
     id: usize,
     length: Option<OrderedFloat<f64>>,
     ontology: Ontology,
+    diagnostic_ions: Vec<DiagnosticIon>,
 }
 
+/// The linker position specificities for a linker
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum LinkerSpecificity {
-    Symmetric(Vec<PlacementRule>),
-    Asymmetric(Vec<PlacementRule>, Vec<PlacementRule>),
+    /// A symmetric specificity where both ends have the same specificity.
+    /// The first list is all possible positions. The second list is all
+    /// stubs that can be left after cleaving or breaking of the cross-link.
+    Symmetric(Vec<PlacementRule>, Vec<MolecularFormula>),
+    /// An asymmetric specificity where both ends have a different specificity.
+    /// The first list is all possible positions. The second list is all
+    /// stubs that can be left after cleaving or breaking of the cross-link.
+    Asymmetric(
+        (Vec<PlacementRule>, Vec<MolecularFormula>),
+        (Vec<PlacementRule>, Vec<MolecularFormula>),
+    ),
 }
 
 /// All possible compositions in the GNO ontology

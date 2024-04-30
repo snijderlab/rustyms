@@ -2,7 +2,7 @@ use std::{collections::HashMap, ffi::OsString, io::Write, path::Path};
 
 use crate::{build::csv::parse_csv, build::glycan::*, SimpleModification};
 
-use super::{obo::OboOntology, ontology_modification::OntologyList, GnoComposition};
+use super::{obo::OboOntology, ontology_modification::OntologyModificationList, GnoComposition};
 
 pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
     // Get all the basic info
@@ -28,7 +28,7 @@ pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
         .filter(|m| m.mass.is_some())
         .map(|m| (0_usize, m.code_name.clone(), m.into_mod()))
         .collect::<Vec<_>>();
-    file.write_all(&bincode::serialize::<OntologyList>(&final_mods).unwrap())
+    file.write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
 }
 

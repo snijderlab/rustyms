@@ -159,6 +159,7 @@ impl LinearPeptide<VerySimple> {
         }
         let mut peptide = LinearPeptide::<VerySimple>::default();
         let mut ambiguous_lookup = Vec::new();
+        let mut cross_link_lookup = Vec::new();
         let chars: &[u8] = line[location.clone()].as_bytes();
         let mut index = 0;
 
@@ -183,6 +184,7 @@ impl LinearPeptide<VerySimple> {
                         line,
                         location.start + index + 1..location.start + end_index,
                         &mut ambiguous_lookup,
+                        &mut cross_link_lookup,
                     )
                     .map(|m| {
                         m.defined().ok_or_else(|| {
@@ -489,7 +491,7 @@ impl<T> LinearPeptide<T> {
                         None,
                     )
                 }
-                ReturnModification::Preferred(i, score) => {
+                ReturnModification::AmbiguousPreferred(i, score) => {
                     if *i >= self.ambiguous_modifications.len() {
                         self.ambiguous_modifications.push(Vec::new());
                     }
@@ -500,7 +502,7 @@ impl<T> LinearPeptide<T> {
                         Some((ambiguous_lookup[*i].0.clone().unwrap(), true)), // TODO: now all possible location in the range are listed as preferred
                     )
                 }
-                ReturnModification::Referenced(i, score) => {
+                ReturnModification::AmbiguousReferenced(i, score) => {
                     if *i >= self.ambiguous_modifications.len() {
                         self.ambiguous_modifications.push(Vec::new());
                     }
@@ -510,6 +512,9 @@ impl<T> LinearPeptide<T> {
                         *score,
                         Some((ambiguous_lookup[*i].0.clone().unwrap(), false)),
                     )
+                }
+                ReturnModification::CrossLinkReferenced(i) => {
+                    unreachable!()
                 }
             };
             let length = self.len();

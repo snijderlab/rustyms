@@ -5,7 +5,7 @@ use crate::{
     SimpleModification,
 };
 
-use super::Modification;
+use super::Linker;
 
 #[derive(Debug, Default)]
 pub struct OntologyModification {

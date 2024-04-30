@@ -198,7 +198,8 @@ impl Modification {
     pub fn try_from(
         line: &str,
         range: Range<usize>,
-        lookup: &mut Vec<(Option<String>, Option<SimpleModification>)>,
+        ambiguous_lookup: &mut AmbiguousLookup,
+        cross_link_lookup: &mut CrossLinkLookup,
     ) -> Result<ReturnModification, CustomError> {
         // Because multiple modifications could be chained with the pipe operator
         // the parsing iterates over all links until it finds one it understands
@@ -209,7 +210,8 @@ impl Modification {
         let mut last_error = None;
         let mut offset = range.start;
         for part in line[range].split('|') {
-            last_result = parse_single_modification(line, part, offset, lookup);
+            last_result =
+                parse_single_modification(line, part, offset, ambiguous_lookup, cross_link_lookup);
             if let Ok(Some(m)) = last_result {
                 return Ok(m);
             }
@@ -240,15 +242,15 @@ impl Modification {
         position: Option<&SequenceElement>,
     ) -> Option<SimpleModification> {
         match line[location.clone()].to_lowercase().as_str() {
-            "o" => Ontology::Unimod.find_id(35),  // oxidation
-            "cam" => Ontology::Unimod.find_id(4), // carbamidomethyl
-            "pyro-glu" => {
-                Ontology::Unimod.find_id(if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
+            "o" => Ontology::Unimod.find_modification_id(35), // oxidation
+            "cam" => Ontology::Unimod.find_modification_id(4), // carbamidomethyl
+            "pyro-glu" => Ontology::Unimod.find_modification_id(
+                if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
                     27
                 } else {
                     28
-                })
-            } // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
+                },
+            ), // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
             _ => {
                 // Try to detect the Opair format
                 Regex::new(r"[^:]+:(.*) on [A-Z]")
@@ -256,7 +258,7 @@ impl Modification {
                     .captures(&line[location.clone()])
                     .and_then(|capture| {
                         Ontology::Unimod
-                            .find_name(&capture[1])
+                            .find_modification_name(&capture[1])
                             .ok_or_else(|| {
                                 parse_named_counter(
                                     &capture[1].to_ascii_lowercase(),
@@ -268,7 +270,9 @@ impl Modification {
                             .flat_err()
                             .or_else(|_| {
                                 match &capture[1] {
-                                    "Deamidation" => Ok(Ontology::Unimod.find_id(7).unwrap()), // deamidated
+                                    "Deamidation" => {
+                                        Ok(Ontology::Unimod.find_modification_id(7).unwrap())
+                                    } // deamidated
                                     _ => Err(()),
                                 }
                             })
@@ -280,12 +284,16 @@ impl Modification {
                             .unwrap()
                             .captures(&line[location])
                             .and_then(|capture| {
-                                Ontology::Unimod.find_name(capture[1].trim()).or_else(|| {
-                                    match capture[1].trim() {
-                                        "Deamidation" => Some(Ontology::Unimod.find_id(7).unwrap()), // deamidated
-                                        _ => None,
-                                    }
-                                })
+                                Ontology::Unimod
+                                    .find_modification_name(capture[1].trim())
+                                    .or_else(|| {
+                                        match capture[1].trim() {
+                                            "Deamidation" => Some(
+                                                Ontology::Unimod.find_modification_id(7).unwrap(),
+                                            ), // deamidated
+                                            _ => None,
+                                        }
+                                    })
                             })
                     })
             }
@@ -312,7 +320,11 @@ impl Modification {
                 tolerance,
                 [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                     .iter()
-                    .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
+                    .flat_map(|o| {
+                        o.modifications_lookup()
+                            .iter()
+                            .map(|(i, n, m)| (*o, *i, n, m))
+                    })
                     .filter(|(_, _, _, m)| {
                         tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
                     })
@@ -324,7 +336,11 @@ impl Modification {
                     formula.clone(),
                     [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
                         .iter()
-                        .flat_map(|o| o.lookup().iter().map(|(i, n, m)| (*o, *i, n, m)))
+                        .flat_map(|o| {
+                            o.modifications_lookup()
+                                .iter()
+                                .map(|(i, n, m)| (*o, *i, n, m))
+                        })
                         .filter(|(_, _, _, m)| *formula == m.formula())
                         .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                         .collect(),
@@ -335,7 +351,7 @@ impl Modification {
                 ModificationSearchResult::Glycan(
                     glycan.clone(),
                     Ontology::Gnome
-                        .lookup()
+                        .modifications_lookup()
                         .iter()
                         .filter(|(_, _, m)| {
                             if let SimpleModification::Gno(
@@ -382,6 +398,8 @@ pub enum ModificationSearchResult {
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
 pub type AmbiguousLookup = Vec<(Option<String>, Option<SimpleModification>)>;
+/// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name and the actual linker itself (if already defined)
+pub type CrossLinkLookup = Vec<(String, Option<Linker>)>;
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
@@ -390,7 +408,8 @@ fn parse_single_modification(
     line: &str,
     full_modification: &str,
     offset: usize,
-    lookup: &mut AmbiguousLookup,
+    ambiguous_lookup: &mut AmbiguousLookup,
+    cross_link_lookup: &mut CrossLinkLookup,
 ) -> Result<Option<ReturnModification>, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
     let regex =
@@ -436,7 +455,7 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("Unimod accession number should be a number")
                     })?;
-                    Ontology::Unimod.find_id(id).map(Some).ok_or_else(|| {
+                    Ontology::Unimod.find_modification_id(id).map(Some).ok_or_else(|| {
                         basic_error.with_long_description(
                             "The supplied Unimod accession number is not an existing modification",
                         )
@@ -447,7 +466,7 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("PSI-MOD accession number should be a number")
                     })?;
-                    Ontology::Psimod.find_id(id).map(Some).ok_or_else(|| {
+                    Ontology::Psimod.find_modification_id(id).map(Some).ok_or_else(|| {
                         basic_error.with_long_description(
                             "The supplied PSI-MOD accession number is not an existing modification",
                         )
@@ -458,14 +477,14 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("XLMOD accession number should be a number")
                     })?;
-                    Ontology::Xlmod.find_id(id).map(Some).ok_or_else(|| {
+                    Ontology::Xlmod.find_modification_id(id).map(Some).ok_or_else(|| {
                         basic_error.with_long_description(
                             "The supplied XLMOD accession number is not an existing modification",
                         )
                     })
                 }
                 ("u", tail) => Ontology::Unimod
-                    .find_name(tail)
+                    .find_modification_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
@@ -475,7 +494,7 @@ fn parse_single_modification(
                             .with_context(basic_error.context().clone())
                     }),
                 ("m", tail) => Ontology::Psimod
-                    .find_name(tail)
+                    .find_modification_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
@@ -485,7 +504,7 @@ fn parse_single_modification(
                             .with_context(basic_error.context().clone())
                     }),
                 ("x", tail) => Ontology::Xlmod
-                    .find_name(tail)
+                    .find_modification_name(tail)
                     .ok_or_else(|| numerical_mod(tail))
                     .flat_err()
                     .map(Some)
@@ -494,7 +513,7 @@ fn parse_single_modification(
                             .find_closest(tail)
                             .with_context(basic_error.context().clone())
                     }),
-                ("gno" | "g", tail) => Ontology::Gnome.find_name(tail).map(Some).ok_or_else(|| {
+                ("gno" | "g", tail) => Ontology::Gnome.find_modification_name(tail).map(Some).ok_or_else(|| {
                     basic_error
                         .with_long_description("This modification cannot be read as a GNO name")
                 }),
@@ -523,8 +542,8 @@ fn parse_single_modification(
                     )
                 }),
                 (_, _tail) => Ontology::Unimod
-                    .find_name(full.0)
-                    .or_else(|| Ontology::Psimod.find_name(full.0))
+                    .find_modification_name(full.0)
+                    .or_else(|| Ontology::Psimod.find_modification_name(full.0))
                     .map(Some)
                     .ok_or_else(||
                         Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod], full.0)
@@ -534,8 +553,8 @@ fn parse_single_modification(
         } else if full.0.is_empty() {
             Ok(None)
         } else {
-            Ontology::Unimod.find_name(full.0 )
-                .or_else(|| Ontology::Psimod.find_name(full.0))
+            Ontology::Unimod.find_modification_name(full.0 )
+                .or_else(|| Ontology::Psimod.find_modification_name(full.0))
                 .ok_or_else(|| numerical_mod(full.0))
                 .flat_err()
                 .map(Some)
@@ -546,6 +565,56 @@ fn parse_single_modification(
                 )
         };
 
+        let linker = if modification.as_ref().is_err()
+            || modification.as_ref().is_ok_and(|o| o.is_none())
+        {
+            if let (Some(head), Some(tail)) = (head.as_ref(), tail) {
+                let basic_error = CustomError::error(
+                    "Invalid linker",
+                    "..",
+                    Context::line(0, line, offset + tail.1, tail.2),
+                );
+                match (head.0.as_str(), tail.0) {
+                    ("xlmod", tail) => tail
+                        .parse::<usize>()
+                        .map_err(|_| {
+                            basic_error
+                                .with_long_description("XLMOD accession number should be a number")
+                        })
+                        .map(|id| {
+                            Ontology::Xlmod.find_linker_id(id).map(Some).ok_or_else(|| {
+                                basic_error.with_long_description(
+                                    "The supplied XLMOD accession number is not an existing linker",
+                                )
+                            })
+                        })
+                        .flat_err(),
+                    ("x", tail) => {
+                        Ontology::Xlmod
+                            .find_linker_name(tail)
+                            .map(Some)
+                            .ok_or_else(|| {
+                                Ontology::Xlmod
+                                    .find_closest(tail)
+                                    .with_context(basic_error.context().clone())
+                            })
+                    }
+                    ("info", _) => Ok(None),
+                    (_, _tail) => Err(Ontology::find_closest_many(&[Ontology::Xlmod], full.0)
+                        .with_long_description("This linker cannot be read as a valid XLMOD name.")
+                        .with_context(Context::line(0, line, offset + full.1, full.2))),
+                }
+            } else {
+                Err(CustomError::error(
+                    "Invalid linker",
+                    "A linker has to be defined with an XLMOD name or accession number.",
+                    Context::line(0, line, offset + full.1, full.2),
+                ))
+            }
+        } else {
+            Ok(None)
+        };
+
         if let Some(group) = label_group {
             if group.0.to_ascii_lowercase() == "branch" {
                 Ok(Some(ReturnModification::Defined(Modification::Branch {
@@ -553,25 +622,23 @@ fn parse_single_modification(
                     index: 0,
                 }))) // TODO: figure out correct location, for now store empty and then fix up in a pass when the whole peptidoform is done?
             } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
-                Ok(Some(ReturnModification::Defined(Modification::CrossLink {
-                    peptide: 0,
-                    index: 0,
-                    name: name.to_string(),
-                    linker: Linker {
-                        specificities: LinkerSpecificity::Symmetric(Vec::new()),
-                        formula: MolecularFormula::default(),
-                        name: String::new(),
-                        length: None,
-                        ontology: Ontology::Xlmod,
-                        id: 0,
-                    },
-                })))
+                cross_link_lookup
+                    .iter()
+                    .position(|c| c.0 == name)
+                    .map_or_else(
+                        || {
+                            let index = cross_link_lookup.len();
+                            cross_link_lookup.push((name.to_string(), linker?));
+                            Ok(Some(ReturnModification::CrossLinkReferenced(index)))
+                        },
+                        |index| Ok(Some(ReturnModification::CrossLinkReferenced(index))),
+                    )
             } else {
                 handle_ambiguous_modification(
                     modification,
                     group,
                     localisation_score,
-                    lookup,
+                    ambiguous_lookup,
                     Context::line(0, line, offset + full.1, full.2),
                 )
             }
@@ -616,21 +683,21 @@ fn handle_ambiguous_modification(
     // Have a mod defined here, the name present in the lookup but not yet the mod
     (Ok(Some(m)), Some((index, false))) => {
         lookup[index].1 = Some(m);
-        Ok(Some(ReturnModification::Preferred(index, localisation_score)))
+        Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
     },
     // Have a mod defined here which is not present in the lookup
     (Ok(Some(m)), None) => {
         let index = lookup.len();
         lookup.push((Some(group_name), Some(m)));
-        Ok(Some(ReturnModification::Preferred(index, localisation_score)))
+        Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
     },
     // No mod defined, but the name is present in the lookup
-    (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Referenced(index, localisation_score))),
+    (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score))),
     // No mod defined, and no name present in the lookup
     (Ok(None), None) => {
         let index = lookup.len();
         lookup.push((Some(group_name), None));
-        Ok(Some(ReturnModification::Referenced(index, localisation_score)))},
+        Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score)))},
         // Earlier error
         (Err(e), _) => Err(e),
     }
@@ -644,9 +711,11 @@ pub enum ReturnModification {
     /// A fully self contained modification
     Defined(Modification),
     /// A modification that references an ambiguous modification
-    Referenced(usize, Option<OrderedFloat<f64>>),
+    AmbiguousReferenced(usize, Option<OrderedFloat<f64>>),
     /// A modification that references an ambiguous modification and is preferred on this location
-    Preferred(usize, Option<OrderedFloat<f64>>),
+    AmbiguousPreferred(usize, Option<OrderedFloat<f64>>),
+    /// A modification that references a cross-link
+    CrossLinkReferenced(usize),
 }
 
 impl ReturnModification {
@@ -713,7 +782,11 @@ mod tests {
     fn sloppy_names() {
         assert_eq!(
             Modification::sloppy_modification_internal("Deamidation (NQ)"),
-            Some(Ontology::Unimod.find_name("deamidated").unwrap())
+            Some(
+                Ontology::Unimod
+                    .find_modification_name("deamidated")
+                    .unwrap()
+            )
         );
     }
 }

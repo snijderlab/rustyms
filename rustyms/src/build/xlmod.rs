@@ -1,22 +1,33 @@
 use std::{ffi::OsString, io::Write, path::Path};
 
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 
 use crate::{formula::MolecularFormula, Linker, LinkerSpecificity};
 
 use super::{
     obo::OboOntology,
-    ontology_modification::{OntologyList, OntologyModification, PlacementRule, Position},
+    ontology_modification::{
+        OntologyLinkerList, OntologyModification, OntologyModificationList, PlacementRule, Position,
+    },
 };
 
 pub fn build_xlmod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_xlmod(debug);
 
-    let dest_path = Path::new(&out_dir).join("xlmod.dat");
-    let mut file = std::fs::File::create(dest_path).unwrap();
+    let mut mods_file = std::fs::File::create(Path::new(&out_dir).join("xlmod_mods.dat")).unwrap();
+    let mut linkers_file =
+        std::fs::File::create(Path::new(&out_dir).join("xlmod_linkers.dat")).unwrap();
     let final_mods = mods.0.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
-    file.write_all(&bincode::serialize::<OntologyList>(&final_mods).unwrap())
+    let final_linkers = mods
+        .1
+        .into_iter()
+        .map(|l| (l.id, l.name.clone(), l))
+        .collect_vec();
+    mods_file
+        .write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
+        .unwrap();
+    linkers_file
+        .write_all(&bincode::serialize::<OntologyLinkerList>(&final_linkers).unwrap())
         .unwrap();
 }
 
@@ -42,6 +53,7 @@ fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
         let mut mass = None;
         let mut formula = None;
         let mut origins = (Vec::new(), Vec::new());
+        let mut diagnostic_ions = Vec::new();
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("reactionSites") {
@@ -105,6 +117,14 @@ fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
                             .split(',')
                             .map(|s| s.trim()),
                     );
+                } else if line.starts_with("reporterMass") || line.starts_with("CID_Fragment") {
+                    // reporterMass: "555.2481" xsd:double
+                    // CID_Fragment: "828.5" xsd:double
+                    diagnostic_ions.push(crate::DiagnosticIon(
+                        MolecularFormula::with_additional_mass(
+                            line[15..line.len() - 12].parse().unwrap(),
+                        ),
+                    ))
                 }
             }
         }
@@ -113,24 +133,24 @@ fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
             read_placement_rules(&origins.1),
         );
         if let Some(mass) = mass {
-            if let Some(formula) = &mut formula {
-                formula.add_mass(mass);
-            } else {
+            // Ignore the mass if a formula is set
+            if formula.is_none() {
                 formula = Some(MolecularFormula::with_additional_mass(mass.0))
             }
         }
         if sites == Some(2) || !origins.1.is_empty() {
             linkers.push(Linker {
                 specificities: if !origins.1.is_empty() {
-                    LinkerSpecificity::Asymmetric(origins.0, origins.1)
+                    LinkerSpecificity::Asymmetric((origins.0, Vec::new()), (origins.1, Vec::new()))
                 } else {
-                    LinkerSpecificity::Symmetric(origins.0)
+                    LinkerSpecificity::Symmetric(origins.0, Vec::new())
                 },
                 formula: formula.unwrap_or_default(),
                 name,
                 id,
                 length,
                 ontology: super::Ontology::Xlmod,
+                diagnostic_ions,
             });
         } else if sites == Some(3) {
             continue; // Ignore
@@ -142,7 +162,7 @@ fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
                 full_name: name,
                 ontology: super::Ontology::Xlmod,
                 id,
-                rules: vec![(origins.0, Vec::new(), Vec::new())],
+                rules: vec![(origins.0, Vec::new(), diagnostic_ions)],
             });
         }
     }

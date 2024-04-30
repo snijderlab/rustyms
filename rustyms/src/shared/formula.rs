@@ -2,7 +2,6 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    element,
     error::{Context, CustomError},
     helper_functions::{self, explain_number_error},
     Element, ELEMENT_PARSE_LIST,

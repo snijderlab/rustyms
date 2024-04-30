@@ -135,6 +135,7 @@ impl CompoundPeptidoform {
         let mut ambiguous_aa_counter = 0;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
+        let mut cross_link_lookup = Vec::new();
         let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
             Vec::new();
         let mut unknown_position_modifications = Vec::new();
@@ -172,7 +173,7 @@ impl CompoundPeptidoform {
                 ));
             }
             peptide.n_term = Some(
-                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup)
+                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup, &mut cross_link_lookup)
                     .and_then(|m| {
                         m.defined().ok_or_else(|| {
                             CustomError::error(
@@ -223,7 +224,7 @@ impl CompoundPeptidoform {
                         ))?;
                         let modification = Modification::try_from(
                             line, index + 1..end_index,
-                            &mut ambiguous_lookup,
+                            &mut ambiguous_lookup, &mut cross_link_lookup,
                         )?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
@@ -257,7 +258,7 @@ impl CompoundPeptidoform {
                     ))?;
                     let modification = Modification::try_from(
                         line, index + 1..end_index,
-                        &mut ambiguous_lookup,
+                        &mut ambiguous_lookup, &mut cross_link_lookup,
                     )?;
                     let start_index = index +1;
                     index = end_index + 1;
@@ -294,12 +295,13 @@ impl CompoundPeptidoform {
                     match peptide.sequence.last_mut() {
                         Some(aa) => match modification {
                             ReturnModification::Defined(m) => aa.modifications.push(m),
-                            ReturnModification::Preferred(id, localisation_score) =>
+                            ReturnModification::AmbiguousPreferred(id, localisation_score) =>
                             ambiguous_found_positions.push(
                                 (peptide.sequence.len() -1, true, id, localisation_score)),
-                            ReturnModification::Referenced(id, localisation_score) =>
+                            ReturnModification::AmbiguousReferenced(id, localisation_score) =>
                             ambiguous_found_positions.push(
                                 (peptide.sequence.len() -1, false, id, localisation_score)),
+                                ReturnModification::CrossLinkReferenced(_i) => todo!(), // TODO: Build cross linking and branching position retrieval
                         },
                         None => {
                             return Err(
@@ -481,12 +483,12 @@ pub(crate) fn global_modifications(
                 ));
             }
             let modification =
-                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new())
+                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new(), &mut Vec::new())
                     .map(|m| {
                         m.defined().ok_or_else(|| {
                             CustomError::error(
                                 "Invalid global modification",
-                                "A global modification cannot be ambiguous",
+                                "A global modification cannot be ambiguous or a cross-linker",
                                 Context::line(0, line, index + 2, at_index - index - 4),
                             )
                         })
@@ -609,6 +611,7 @@ fn unknown_position_mods(
     let mut modifications = Vec::new();
     let mut errs = Vec::new();
     let mut ambiguous_lookup = Vec::new();
+    let mut cross_link_lookup = Vec::new();
 
     // Parse until no new modifications are found
     while chars[index] == b'[' {
@@ -619,6 +622,7 @@ fn unknown_position_mods(
             std::str::from_utf8(chars).unwrap(),
             index + 1..end_index,
             &mut ambiguous_lookup,
+            &mut cross_link_lookup,
         )
         .unwrap_or_else(|e| {
             errs.push(e);
@@ -681,12 +685,12 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            Modification::try_from(line, index + 1..end_index, &mut Vec::new())
+            Modification::try_from(line, index + 1..end_index, &mut Vec::new(), &mut Vec::new())
                 .and_then(|m| {
                     m.defined().ok_or_else(|| {
                         CustomError::error(
                             "Invalid labile modification",
-                            "A labile modification cannot be ambiguous",
+                            "A labile modification cannot be ambiguous or a cross-linker",
                             Context::line(0, line, index + 1, end_index - 1 - index),
                         )
                     })

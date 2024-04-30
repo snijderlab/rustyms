@@ -4,7 +4,9 @@ use crate::formula::MolecularFormula;
 
 use super::{
     obo::OboOntology,
-    ontology_modification::{OntologyList, OntologyModification, PlacementRule, Position},
+    ontology_modification::{
+        OntologyModification, OntologyModificationList, PlacementRule, Position,
+    },
 };
 
 pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
@@ -13,7 +15,7 @@ pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
     let dest_path = Path::new(&out_dir).join("psimod.dat");
     let mut file = std::fs::File::create(dest_path).unwrap();
     let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
-    file.write_all(&bincode::serialize::<OntologyList>(&final_mods).unwrap())
+    file.write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
 }
 
