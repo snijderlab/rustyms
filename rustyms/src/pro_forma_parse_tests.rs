@@ -4,6 +4,7 @@ use std::num::NonZeroU16;
 
 use crate::compound_peptidoform::{global_modifications, parse_charge_state};
 use crate::modification::{GlobalModification, SimpleModification};
+use crate::placement_rule::PlacementRule;
 use crate::system::usize::Charge;
 use crate::*;
 use crate::{model::Location, system::da, CompoundPeptidoform};
@@ -12,22 +13,22 @@ macro_rules! parse_test {
     ($case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = CompoundPeptidoform::pro_forma($case);
-            let res_upper = CompoundPeptidoform::pro_forma(&$case.to_ascii_uppercase());
-            let res_lower = CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase());
+            let res = CompoundPeptidoform::pro_forma($case, None);
+            let res_upper = CompoundPeptidoform::pro_forma(&$case.to_ascii_uppercase(), None);
+            let res_lower = CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase(), None);
             println!("{}", $case);
             assert!(res.is_ok());
             assert_eq!(res, res_upper);
             assert_eq!(res, res_lower);
             let back = res.as_ref().unwrap().to_string();
-            let res_back = CompoundPeptidoform::pro_forma(&back);
+            let res_back = CompoundPeptidoform::pro_forma(&back, None);
             assert_eq!(res, res_back, "{} != {back}", $case);
         }
     };
     (single $case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = CompoundPeptidoform::pro_forma($case);
+            let res = CompoundPeptidoform::pro_forma($case, None);
             println!("{}\n{:?}", $case, res);
             assert!(res.is_ok());
         }
@@ -120,22 +121,22 @@ parse_test!("EMEVEESPEK/2+ELVISLIVER/3", summary_10_2_02);
 
 #[test]
 fn parse_glycan() {
-    let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]").unwrap();
-    let spaces = LinearPeptide::pro_forma("A[Glycan:    Hex    ]").unwrap();
+    let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]", None).unwrap();
+    let spaces = LinearPeptide::pro_forma("A[Glycan:    Hex    ]", None).unwrap();
     assert_eq!(glycan.sequence.len(), 1);
     assert_eq!(spaces.sequence.len(), 1);
     assert_eq!(glycan, spaces);
-    let incorrect = CompoundPeptidoform::pro_forma("A[Glycan:Hec]");
+    let incorrect = CompoundPeptidoform::pro_forma("A[Glycan:Hec]", None);
     assert!(incorrect.is_err());
 }
 
 #[test]
 fn parse_formula() {
-    let peptide = LinearPeptide::pro_forma("A[Formula:C6H10O5]")
+    let peptide = LinearPeptide::pro_forma("A[Formula:C6H10O5]", None)
         .unwrap()
         .linear()
         .unwrap();
-    let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]")
+    let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]", None)
         .unwrap()
         .linear()
         .unwrap();
@@ -146,11 +147,14 @@ fn parse_formula() {
 
 #[test]
 fn parse_labile() {
-    let with = LinearPeptide::pro_forma("{Formula:C6H10O5}A")
+    let with = LinearPeptide::pro_forma("{Formula:C6H10O5}A", None)
         .unwrap()
         .linear()
         .unwrap();
-    let without = LinearPeptide::pro_forma("A").unwrap().linear().unwrap();
+    let without = LinearPeptide::pro_forma("A", None)
+        .unwrap()
+        .linear()
+        .unwrap();
     assert_eq!(with.sequence.len(), 1);
     assert_eq!(without.sequence.len(), 1);
     assert_eq!(with.formulas(), without.formulas());
@@ -159,23 +163,23 @@ fn parse_labile() {
 
 #[test]
 fn parse_ambiguous_modification() {
-    let with = LinearPeptide::pro_forma("A[Phospho#g0]A[#g0]").unwrap();
-    let without = LinearPeptide::pro_forma("AA").unwrap();
+    let with = LinearPeptide::pro_forma("A[Phospho#g0]A[#g0]", None).unwrap();
+    let without = LinearPeptide::pro_forma("AA", None).unwrap();
     assert_eq!(with.sequence.len(), 2);
     assert_eq!(without.sequence.len(), 2);
     assert_eq!(with.sequence[0].possible_modifications.len(), 1);
     assert_eq!(with.sequence[1].possible_modifications.len(), 1);
-    assert!(CompoundPeptidoform::pro_forma("A[#g0]A[#g0]").is_err());
-    assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[Phospho#g0]").is_err());
-    assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0(0.o1)]").is_err());
+    assert!(CompoundPeptidoform::pro_forma("A[#g0]A[#g0]", None).is_err());
+    assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[Phospho#g0]", None).is_err());
+    assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0(0.o1)]", None).is_err());
     assert_eq!(
-        LinearPeptide::pro_forma("A[+12#g0]A[#g0]")
+        LinearPeptide::pro_forma("A[+12#g0]A[#g0]", None)
             .unwrap()
             .to_string(),
         "A[+12#g0]A[#g0]".to_string()
     );
     assert_eq!(
-        LinearPeptide::pro_forma("A[#g0]A[+12#g0]")
+        LinearPeptide::pro_forma("A[#g0]A[+12#g0]", None)
             .unwrap()
             .to_string(),
         "A[#g0]A[+12#g0]".to_string()
@@ -184,11 +188,14 @@ fn parse_ambiguous_modification() {
 
 #[test]
 fn parse_ambiguous_aminoacid() {
-    let with = LinearPeptide::pro_forma("(?AA)C(?A)(?A)")
+    let with = LinearPeptide::pro_forma("(?AA)C(?A)(?A)", None)
         .unwrap()
         .linear()
         .unwrap();
-    let without = LinearPeptide::pro_forma("AACAA").unwrap().linear().unwrap();
+    let without = LinearPeptide::pro_forma("AACAA", None)
+        .unwrap()
+        .linear()
+        .unwrap();
     assert_eq!(with.sequence.len(), 5);
     assert_eq!(without.sequence.len(), 5);
     assert!(with.sequence[0].ambiguous.is_some());
@@ -199,12 +206,13 @@ fn parse_ambiguous_aminoacid() {
 
 #[test]
 fn parse_hard_tags() {
-    let peptide = LinearPeptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]")
+    let peptide = LinearPeptide::pro_forma("A[Formula:C6H10O5|INFO:hello world 🦀]", None)
         .unwrap()
         .linear()
         .unwrap();
     let glycan = LinearPeptide::pro_forma(
         "A[info:you can define a tag multiple times|Glycan:Hex|Formula:C6H10O5]",
+        None,
     )
     .unwrap()
     .linear()
@@ -216,8 +224,11 @@ fn parse_hard_tags() {
 
 #[test]
 fn parse_global() {
-    let deuterium = LinearPeptide::pro_forma("<D>A").unwrap().linear().unwrap();
-    let nitrogen_15 = LinearPeptide::pro_forma("<15N>A")
+    let deuterium = LinearPeptide::pro_forma("<D>A", None)
+        .unwrap()
+        .linear()
+        .unwrap();
+    let nitrogen_15 = LinearPeptide::pro_forma("<15N>A", None)
         .unwrap()
         .linear()
         .unwrap();
@@ -236,8 +247,8 @@ fn parse_global() {
 
 #[test]
 fn parse_chimeric() {
-    let dimeric = CompoundPeptidoform::pro_forma("A+AA").unwrap();
-    let trimeric = dbg!(CompoundPeptidoform::pro_forma("A+AA-[+2]+AAA").unwrap());
+    let dimeric = CompoundPeptidoform::pro_forma("A+AA", None).unwrap();
+    let trimeric = dbg!(CompoundPeptidoform::pro_forma("A+AA-[+2]+AAA", None).unwrap());
     assert_eq!(dimeric.peptidoforms().len(), 2);
     assert_eq!(dimeric.peptidoforms()[0].peptides()[0].len(), 1);
     assert_eq!(dimeric.peptidoforms()[1].peptides()[0].len(), 2);
@@ -251,9 +262,47 @@ fn parse_chimeric() {
 #[test]
 fn parse_unimod() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma(
-        "Q[U:Gln->pyro-Glu]E[Cation:Na]AA"
+        "Q[U:Gln->pyro-Glu]E[Cation:Na]AA",
+        None
     ));
     assert!(peptide.is_ok());
+}
+
+#[test]
+fn parse_custom() {
+    let peptide = dbg!(CompoundPeptidoform::pro_forma(
+        "A[C:WEEE]",
+        Some(&(
+            vec![(
+                0,
+                "weee".to_string(),
+                SimpleModification::Predefined(
+                    molecular_formula!(U 1),
+                    vec![(
+                        vec![PlacementRule::AminoAcid(
+                            AminoAcid::CANONICAL_AMINO_ACIDS.to_vec(),
+                            placement_rule::Position::Anywhere
+                        )],
+                        Vec::new(),
+                        Vec::new()
+                    )],
+                    modification::Ontology::Custom,
+                    "WEEE".to_string(),
+                    0
+                )
+            )],
+            Vec::new()
+        ))
+    ));
+    assert!(peptide.is_ok());
+    assert_eq!(
+        peptide.as_ref().unwrap().to_string(),
+        "A[Formula:U1|INFO:Custom:WEEE]"
+    );
+    assert_eq!(
+        peptide.unwrap().formulas(),
+        molecular_formula!(C 3 H 7 N 1 O 2 U 1).into()
+    );
 }
 
 #[test]
@@ -265,13 +314,13 @@ fn dimeric_peptide() {
     };
 
     // With two different sequences
-    let dimeric = CompoundPeptidoform::pro_forma("AA+CC").unwrap();
+    let dimeric = CompoundPeptidoform::pro_forma("AA+CC", None).unwrap();
     let fragments = dbg!(dimeric
         .generate_theoretical_fragments(Charge::new::<crate::system::charge::e>(1), &test_model));
     assert_eq!(fragments.len(), 4); // aA, aC, pAA, pCC
 
     // With two identical sequences
-    let dimeric = CompoundPeptidoform::pro_forma("AA+AA").unwrap();
+    let dimeric = CompoundPeptidoform::pro_forma("AA+AA", None).unwrap();
     let fragments = dbg!(dimeric
         .generate_theoretical_fragments(Charge::new::<crate::system::charge::e>(1), &test_model));
     assert_eq!(fragments.len(), 4); // aA, pAA (both twice once for each peptide)
@@ -279,7 +328,7 @@ fn dimeric_peptide() {
 
 #[test]
 fn parse_adduct_ions_01() {
-    let peptide = CompoundPeptidoform::pro_forma("A/2[2Na+]+A").unwrap();
+    let peptide = CompoundPeptidoform::pro_forma("A/2[2Na+]+A", None).unwrap();
     assert_eq!(peptide.peptidoforms().len(), 2);
     assert_eq!(
         peptide.peptidoforms()[0].peptides()[0]
@@ -297,7 +346,7 @@ fn parse_adduct_ions_01() {
 
 #[test]
 fn parse_adduct_ions_02() {
-    let peptide = dbg!(CompoundPeptidoform::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A").unwrap());
+    let peptide = dbg!(CompoundPeptidoform::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A", None).unwrap());
     assert_eq!(peptide.peptidoforms().len(), 2);
     assert_eq!(
         peptide.peptidoforms()[0].peptides()[0]
@@ -327,7 +376,7 @@ fn parse_adduct_ions_02() {
 
 #[test]
 fn parse_global_modifications() {
-    let parse = |str: &str| global_modifications(str.as_bytes(), 0, str);
+    let parse = |str: &str| global_modifications(str.as_bytes(), 0, str, None);
     assert_eq!(
         parse("<[+5]@D>"),
         Ok((
@@ -538,5 +587,6 @@ fn should_not_crash() {
     // Semantically not valid, but syntactically it is
     let _ = CompoundPeptidoform::pro_forma(
         r"<[Formula:[318  N  005][  7Rf1][93Sb   ]  |5.3|UNIMOD:>]@N-term,N-term,k>[R:-3.70#BRANCH]^012?[Info:[_]=#XL0|R:+734.7|-4.74]^64[Info:[]|GNO:( |Formula: [2  Ca  ] Nd5 [5Sg ]]?{UNIMOD:;}(?B[#BRANCH][Glycan:RES\n1b:x-lgal-HEX-x:x|6:d\nLIN\n235 ?-?-Tetx6 #BRANCH]k)(i[#XLd6]h[#XLW8][#BRANCH])[XLMOD:[=\]-#XL88|UNIMOD:\|[|][?.].|M:=[\][=]_](O[#XLtD]I[Formula: Es Ce  Bi   |Glycan:HexN1sulfate170 ?-?-Trix |Glycan:Neu5Ac903 ][GNO:/?#XL32s|RESID:/[][)-]{#XL35|[{]#mG(-7.5)])[G:\]-[#M(20.5)]",
+        None,
     );
 }

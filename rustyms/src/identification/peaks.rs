@@ -35,6 +35,7 @@ format_family!(
         peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
+                            None,
                         );
         tag_length: usize, |location: Location| location.parse(NUMBER_ERROR);
         /// Range [0-1]

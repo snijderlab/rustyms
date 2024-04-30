@@ -97,7 +97,10 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = LinearPeptide::pro_forma("WFWF").unwrap().linear().unwrap();
+        let peptide = LinearPeptide::pro_forma("WFWF", None)
+            .unwrap()
+            .linear()
+            .unwrap();
         let fragments = peptide.generate_theoretical_fragments(
             system::usize::Charge::new::<system::e>(1),
             &Model::all(),
@@ -110,7 +113,7 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = CompoundPeptidoform::pro_forma("WFWF").unwrap();
+        let peptide = CompoundPeptidoform::pro_forma("WFWF", None).unwrap();
         let fragments = peptide
             .generate_theoretical_fragments(system::usize::Charge::new::<system::e>(1), &model);
         let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);

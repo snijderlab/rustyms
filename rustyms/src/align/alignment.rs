@@ -426,10 +426,22 @@ mod tests {
     fn mass_difference() {
         // Test if the mass difference calculation is correct for some harder alignments.
         // A has an ambiguous AA, B and C have the two options, while D has a sub peptide of A.
-        let a = LinearPeptide::pro_forma("AABAA").unwrap().simple().unwrap();
-        let b = LinearPeptide::pro_forma("AANAA").unwrap().simple().unwrap();
-        let c = LinearPeptide::pro_forma("AADAA").unwrap().simple().unwrap();
-        let d = LinearPeptide::pro_forma("ADA").unwrap().simple().unwrap();
+        let a = LinearPeptide::pro_forma("AABAA", None)
+            .unwrap()
+            .simple()
+            .unwrap();
+        let b = LinearPeptide::pro_forma("AANAA", None)
+            .unwrap()
+            .simple()
+            .unwrap();
+        let c = LinearPeptide::pro_forma("AADAA", None)
+            .unwrap()
+            .simple()
+            .unwrap();
+        let d = LinearPeptide::pro_forma("ADA", None)
+            .unwrap()
+            .simple()
+            .unwrap();
 
         assert!(
             align::<1, Simple, Simple>(

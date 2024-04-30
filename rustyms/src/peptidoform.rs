@@ -43,7 +43,7 @@ impl Peptidoform {
     /// Assume there is exactly one peptide in this collection.
     pub fn singular(mut self) -> Option<LinearPeptide<Linked>> {
         if self.0.len() == 1 {
-            Some(self.0.pop().unwrap())
+            self.0.pop()
         } else {
             None
         }

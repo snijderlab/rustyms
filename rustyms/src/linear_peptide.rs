@@ -17,10 +17,11 @@ use crate::{
         SimpleModification,
     },
     molecular_charge::MolecularCharge,
+    ontologies::CustomDatabase,
     peptide_complexity::*,
     placement_rule::{PlacementRule, Position},
     CompoundPeptidoform, DiagnosticIon, Element, MolecularFormula, Multi, MultiChemical,
-    NeutralLoss, Peptidoform, Protease, SequenceElement,
+    NeutralLoss, Protease, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -149,6 +150,7 @@ impl LinearPeptide<VerySimple> {
     pub fn sloppy_pro_forma(
         line: &str,
         location: std::ops::Range<usize>,
+        custom_database: Option<&CustomDatabase>,
     ) -> Result<LinearPeptide<VerySimple>, CustomError> {
         if line[location.clone()].trim().is_empty() {
             return Err(CustomError::error(
@@ -157,7 +159,7 @@ impl LinearPeptide<VerySimple> {
                 Context::line(0, line, location.start, 1),
             ));
         }
-        let mut peptide = LinearPeptide::<VerySimple>::default();
+        let mut peptide = Self::default();
         let mut ambiguous_lookup = Vec::new();
         let mut cross_link_lookup = Vec::new();
         let chars: &[u8] = line[location.clone()].as_bytes();
@@ -185,6 +187,7 @@ impl LinearPeptide<VerySimple> {
                         location.start + index + 1..location.start + end_index,
                         &mut ambiguous_lookup,
                         &mut cross_link_lookup,
+                        custom_database,
                     )
                     .map(|m| {
                         m.defined().ok_or_else(|| {
@@ -513,7 +516,7 @@ impl<T> LinearPeptide<T> {
                         Some((ambiguous_lookup[*i].0.clone().unwrap(), false)),
                     )
                 }
-                ReturnModification::CrossLinkReferenced(i) => {
+                ReturnModification::CrossLinkReferenced(_i) => {
                     unreachable!()
                 }
             };
@@ -934,8 +937,11 @@ impl LinearPeptide<Linked> {
     /// # Errors
     /// It gives an error when the peptide is not correctly formatted. (Also see the `CompoundPeptidoform` main function for this.)
     /// It additionally gives an error if the peptide specified was chimeric (see [`CompoundPeptidoform::singular`] and [`Peptidoform::singular`]).
-    pub fn pro_forma(value: &str) -> Result<LinearPeptide<Linked>, CustomError> {
-        let complex = CompoundPeptidoform::pro_forma(value)?;
+    pub fn pro_forma(
+        value: &str,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<Self, CustomError> {
+        let complex = CompoundPeptidoform::pro_forma(value, custom_database)?;
         complex
             .singular()
             .ok_or_else(|| {
@@ -964,7 +970,7 @@ impl LinearPeptide<Linked> {
     pub(crate) fn formulas(
         &self,
         peptide_index: usize,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Self],
         visited_peptides: &[usize],
     ) -> Multi<MolecularFormula> {
         self.formulas_inner(peptide_index, all_peptides, visited_peptides)
@@ -974,7 +980,7 @@ impl LinearPeptide<Linked> {
     #[allow(clippy::missing_panics_doc)] // global isotope mods are guaranteed to be correct
     pub fn bare_formulas(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Self],
         visited_peptides: &[usize],
     ) -> Multi<MolecularFormula> {
         self.bare_formulas_inner(all_peptides, visited_peptides)

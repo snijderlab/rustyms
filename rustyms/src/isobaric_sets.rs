@@ -5,10 +5,10 @@ use itertools::Itertools;
 use crate::{
     fragment::PeptidePosition,
     modification::{Modification, SimpleModification},
-    peptide_complexity::{Linear, Simple},
+    peptide_complexity::Simple,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, MultiChemical, SequenceElement, Tolerance,
+    AminoAcid, Chemical, LinearPeptide, SequenceElement, Tolerance,
 };
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
@@ -473,7 +473,7 @@ mod tests {
     use super::*;
     #[test]
     fn simple_isobaric_sets() {
-        let pep = LinearPeptide::pro_forma("AG")
+        let pep = LinearPeptide::pro_forma("AG", None)
             .unwrap()
             .extremely_simple()
             .unwrap();
@@ -489,8 +489,14 @@ mod tests {
         assert_eq!(
             &sets,
             &[
-                LinearPeptide::pro_forma("GA").unwrap().simple().unwrap(),
-                LinearPeptide::pro_forma("Q").unwrap().simple().unwrap(),
+                LinearPeptide::pro_forma("GA", None)
+                    .unwrap()
+                    .simple()
+                    .unwrap(),
+                LinearPeptide::pro_forma("Q", None)
+                    .unwrap()
+                    .simple()
+                    .unwrap(),
             ]
         );
     }

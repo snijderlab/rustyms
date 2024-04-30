@@ -165,7 +165,7 @@ impl SequenceElement {
             formulas *= modification
                 .modification
                 .formula(all_peptides, visited_peptides)
-                .into_iter()
+                .iter()
                 .chain(std::iter::once(&MolecularFormula::default()))
                 .collect::<Multi<MolecularFormula>>();
         }

@@ -61,7 +61,7 @@ impl FastaData {
                 ));
                 last_sequence = Vec::new();
             } else {
-                let parsed = CompoundPeptidoform::pro_forma(&line)
+                let parsed = CompoundPeptidoform::pro_forma(&line, None)
                     .map_err(|e| e.overwrite_line_number(line_number))?
                     .singular()
                     .expect("A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform")

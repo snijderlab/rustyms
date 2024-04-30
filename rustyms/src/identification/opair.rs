@@ -115,6 +115,7 @@ format_family!(
         peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
+            None,
         );
         mod_number: usize, |location: Location| location.parse(NUMBER_ERROR);
         theoretical_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);

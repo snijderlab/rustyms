@@ -33,6 +33,7 @@ format_family!(
         sequence: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
+            None
         ));
         z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         fragmentation: String, |location: Location| Ok(location.get_string());
@@ -63,7 +64,7 @@ format_family!(
         score_diff: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         localisation_probability: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
         all_modified_sequences: Vec<LinearPeptide<VerySimple>>,|location: Location| location.array(';')
-                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location))
+                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, None))
                 .collect::<Result<Vec<LinearPeptide<VerySimple>>, CustomError>>();
         id: usize,|location: Location| location.parse::<usize>(NUMBER_ERROR);
         peptide_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);

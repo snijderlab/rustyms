@@ -80,7 +80,10 @@ mod tests {
             PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Alanine,
-                    modifications: vec![Ontology::Psimod.find_modification_id(30).unwrap().into()],
+                    modifications: vec![Ontology::Psimod
+                        .find_modification_id(30, None)
+                        .unwrap()
+                        .into()],
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
@@ -129,7 +132,7 @@ mod tests {
             "end"
         );
         assert!(
-            dbg!(Ontology::Unimod.find_modification_id(7).unwrap()).is_possible(
+            dbg!(Ontology::Unimod.find_modification_id(7, None).unwrap()).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
                     modifications: Vec::new(),

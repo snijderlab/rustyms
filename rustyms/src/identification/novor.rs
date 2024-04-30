@@ -33,6 +33,7 @@ format_family!(
         peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
+            None,
         );
     }
     optional {

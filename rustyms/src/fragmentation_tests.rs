@@ -39,7 +39,10 @@ fn triple_a() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("AAA").unwrap().linear().unwrap(),
+        &LinearPeptide::pro_forma("AAA", None)
+            .unwrap()
+            .linear()
+            .unwrap(),
         &model,
         1,
         true,
@@ -85,7 +88,7 @@ fn with_modifications() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]")
+        &LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -113,7 +116,7 @@ fn with_possible_modifications() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]")
+        &LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -146,7 +149,10 @@ fn higher_charges() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("ACD").unwrap().linear().unwrap(),
+        &LinearPeptide::pro_forma("ACD", None)
+            .unwrap()
+            .linear()
+            .unwrap(),
         &model,
         5,
         false,
@@ -304,7 +310,7 @@ fn all_aminoacids() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV")
+        &LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -338,7 +344,7 @@ fn glycan_fragmentation() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK")
+        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
             .unwrap()
             .linear()
             .unwrap(),

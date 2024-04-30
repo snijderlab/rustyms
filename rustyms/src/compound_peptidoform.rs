@@ -5,17 +5,9 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{Context, CustomError},
-    helper_functions::*,
-    modification::{
-        AmbiguousLookup, AmbiguousModification, GlobalModification, Modification,
-        ReturnModification, SimpleModification,
-    },
-    molecular_charge::MolecularCharge,
-    peptide_complexity::Linked,
-    system::{usize::Charge, OrderedMass},
-    AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
-    Peptidoform, SequenceElement,
+    error::{Context, CustomError}, helper_functions::*, modification::{
+        AmbiguousLookup, AmbiguousModification, GlobalModification, Modification, OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification
+    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptide_complexity::Linked, system::{usize::Charge, OrderedMass}, AminoAcid, Element, Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical, Peptidoform, SequenceElement
 };
 
 /// A single pro forma entry, can contain multiple peptidoforms
@@ -49,17 +41,17 @@ impl CompoundPeptidoform {
     /// # Errors
     /// It fails when the string is not a valid Pro Forma string or if it uses currently unsupported Pro Forma features.
     #[allow(clippy::too_many_lines)]
-    pub fn pro_forma(value: &str) -> Result<Self, CustomError> {
+    pub fn pro_forma(value: &str, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         let mut peptidoforms = Vec::new();
         // Global modification(s)
-        let (mut start, global_modifications) = global_modifications(value.as_bytes(), 0, value)?;
-        let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications)?;
+        let (mut start, global_modifications) = global_modifications(value.as_bytes(), 0, value, custom_database)?;
+        let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
         start = tail;
         peptidoforms.push(peptidoform);
 
         // Parse any following chimeric species
         while start < value.len() {
-            let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications)?;
+            let (peptidoform, tail) = Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
             peptidoforms.push(peptidoform);
             start = tail;
         }
@@ -83,18 +75,19 @@ impl CompoundPeptidoform {
         line: &str,
         mut index: usize,
         global_modifications: &[GlobalModification],
+        custom_database: Option<&CustomDatabase>,
     ) -> Result<(Peptidoform, usize), CustomError> {
         let mut peptides = Vec::new();
         let mut ending;
 
-        let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications)?;
+        let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications, custom_database)?;
         ending = end;
         index = tail;
         peptides.push(peptide);
 
         // Parse any following cross-linked species
         while index < line.len() && ending == End::CrossLink {
-            let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications)?;
+            let (peptide, tail, end) = Self::parse_linear_peptide(line, index, global_modifications, custom_database)?;
             ending = end;
             peptides.push(peptide);
             index = tail;
@@ -121,6 +114,7 @@ impl CompoundPeptidoform {
         line: &str,
         mut index: usize,
         global_modifications: &[GlobalModification],
+        custom_database: Option<&CustomDatabase>,
     ) -> Result<(LinearPeptide<Linked>, usize, End), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
@@ -143,7 +137,7 @@ impl CompoundPeptidoform {
         let mut end = End::Empty;
 
         // Unknown position mods
-        if let Some(result) = unknown_position_mods(chars, index, line) {
+        if let Some(result) = unknown_position_mods(chars, index, line, custom_database) {
             let (buf, mods, ambiguous_mods) =
                 result.map_err(|mut e| e.pop().unwrap_or_else(|| CustomError::error("Missing error in ambiguous mods", "Ambiguous modifications could not be parsed, but no error was returned, please report this error.", Context::Show { line: line.to_string() })))?; // TODO: at some point be able to return all errors
             index = buf;
@@ -153,7 +147,7 @@ impl CompoundPeptidoform {
         }
 
         // Labile modification(s)
-        let (mut index, labile) = labile_modifications(chars, index, line)?;
+        let (mut index, labile) = labile_modifications(chars, index, line, custom_database)?;
         peptide.labile = labile;
 
         // N term modification
@@ -173,7 +167,7 @@ impl CompoundPeptidoform {
                 ));
             }
             peptide.n_term = Some(
-                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup, &mut cross_link_lookup)
+                Modification::try_from(line, index + 1..end_index - 1, &mut ambiguous_lookup, &mut cross_link_lookup, custom_database)
                     .and_then(|m| {
                         m.defined().ok_or_else(|| {
                             CustomError::error(
@@ -224,7 +218,7 @@ impl CompoundPeptidoform {
                         ))?;
                         let modification = Modification::try_from(
                             line, index + 1..end_index,
-                            &mut ambiguous_lookup, &mut cross_link_lookup,
+                            &mut ambiguous_lookup, &mut cross_link_lookup, custom_database,
                         )?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
@@ -258,7 +252,7 @@ impl CompoundPeptidoform {
                     ))?;
                     let modification = Modification::try_from(
                         line, index + 1..end_index,
-                        &mut ambiguous_lookup, &mut cross_link_lookup,
+                        &mut ambiguous_lookup, &mut cross_link_lookup, custom_database,
                     )?;
                     let start_index = index +1;
                     index = end_index + 1;
@@ -393,7 +387,7 @@ impl CompoundPeptidoform {
     #[doc(alias = "assume_linear")]
     pub fn singular(mut self) -> Option<Peptidoform> {
         if self.0.len() == 1 {
-            Some(self.0.pop().unwrap())
+            self.0.pop()
         } else {
             None
         }
@@ -455,6 +449,7 @@ pub(crate) fn global_modifications(
     chars: &[u8],
     mut index: usize,
     line: &str,
+    custom_database: Option<&CustomDatabase>,
 ) -> Result<(usize, Vec<GlobalModification>), CustomError> {
     let mut global_modifications = Vec::new();
     while index < chars.len() && chars[index] == b'<' {
@@ -483,7 +478,7 @@ pub(crate) fn global_modifications(
                 ));
             }
             let modification =
-                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new(), &mut Vec::new())
+                Modification::try_from(line, index + 2..at_index - 2, &mut Vec::new(), &mut Vec::new(), custom_database)
                     .map(|m| {
                         m.defined().ok_or_else(|| {
                             CustomError::error(
@@ -606,6 +601,7 @@ fn unknown_position_mods(
     chars: &[u8],
     start: usize,
     line: &str,
+    custom_database: Option<&CustomDatabase>,
 ) -> Option<Result<UnknownPositionMods, Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
@@ -622,7 +618,7 @@ fn unknown_position_mods(
             std::str::from_utf8(chars).unwrap(),
             index + 1..end_index,
             &mut ambiguous_lookup,
-            &mut cross_link_lookup,
+            &mut cross_link_lookup, custom_database,
         )
         .unwrap_or_else(|e| {
             errs.push(e);
@@ -673,6 +669,7 @@ fn labile_modifications(
     chars: &[u8],
     mut index: usize,
     line: &str,
+    custom_database: Option<&CustomDatabase>,
 ) -> Result<(usize, Vec<SimpleModification>), CustomError> {
     let mut labile = Vec::new();
     while chars[index] == b'{' {
@@ -685,7 +682,7 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            Modification::try_from(line, index + 1..end_index, &mut Vec::new(), &mut Vec::new())
+            Modification::try_from(line, index + 1..end_index, &mut Vec::new(), &mut Vec::new(), custom_database)
                 .and_then(|m| {
                     m.defined().ok_or_else(|| {
                         CustomError::error(
