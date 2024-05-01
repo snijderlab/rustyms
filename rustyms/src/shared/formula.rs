@@ -133,7 +133,10 @@ impl MolecularFormula {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    if allow_electrons && &bytes[index + isotope..index + isotope + ele] == b"e" {
+                    if allow_electrons
+                        && (&bytes[index + isotope..index + isotope + ele] == b"e"
+                            || &bytes[index + isotope..index + isotope + ele] == b"E")
+                    {
                         element = Some(Element::Electron);
                     } else {
                         for possible in ELEMENT_PARSE_LIST {
@@ -192,6 +195,7 @@ impl MolecularFormula {
                         &bytes
                             .iter()
                             .skip(index)
+                            .take(end - index + 1) // Bind the maximal length if this is used as part of the molecular charge parsing
                             .take_while(|c| c.is_ascii_digit() || **c == b'-')
                             .copied()
                             .collect::<Vec<_>>(),
@@ -249,7 +253,7 @@ impl MolecularFormula {
                             continue 'main_parse_loop;
                         }
                     }
-                    if allow_electrons && bytes[index] == b'e' {
+                    if allow_electrons && (bytes[index] == b'e' || bytes[index] == b'E') {
                         element = Some(Element::Electron);
                         index += 1;
                         continue 'main_parse_loop;

@@ -87,7 +87,10 @@ impl std::fmt::Display for MolecularCharge {
         write!(
             f,
             "{}",
-            self.charge_carriers.iter().map(|c| c.0).sum::<isize>()
+            self.charge_carriers
+                .iter()
+                .map(|c| c.1.charge().value * c.0)
+                .sum::<isize>()
         )?;
         if !self.charge_carriers.iter().all(|c| {
             c.1 == MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
@@ -101,29 +104,8 @@ impl std::fmt::Display for MolecularCharge {
                 } else {
                     write!(f, ",")?;
                 }
-                let electron_index = formula
-                    .elements()
-                    .iter()
-                    .position(|e| e.0 == Element::Electron);
-                let charge = electron_index.map(|ei| match -formula.elements()[ei].2 {
-                    1 => "+".to_string(),
-                    -1 => "-".to_string(),
-                    n => n.to_string(),
-                });
-                if let (Some(electron_index), Some(charge), 2) =
-                    (electron_index, &charge, formula.elements().len())
-                {
-                    let element_index = 1 - electron_index;
-                    write!(
-                        f,
-                        "{}{}{}",
-                        amount,
-                        formula.elements()[element_index].0,
-                        charge
-                    )?;
-                } else {
-                    write!(f, "{}({}){}", amount, formula, charge.unwrap_or_default())?;
-                }
+                let charge = formula.charge().value;
+                write!(f, "{amount}{formula}{charge:+}")?;
             }
             write!(f, "]")?;
         }

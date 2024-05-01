@@ -8,8 +8,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::*,
     modification::{
-        AmbiguousLookup, AmbiguousModification, GlobalModification, Linker, Modification,
-        OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification,
+        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, GlobalModification, Linker, Modification, OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification
     },
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
@@ -122,33 +121,38 @@ impl CompoundPeptidoform {
                 match locations.len() {
                     0 => {return Err(CustomError::error(
                         "Invalid cross-link",
-                        format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0),
+                        format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0.as_deref().unwrap_or("#BRANCH")),
                         Context::full_line(0, line),
                     ))},
-                    1 => (), // TODO: assumed that the modification is already placed so this works out fine
+                    1 => (), // TODO: assumed that the modification is already placed so this works out fine (it is not)
                     2 => {
                         let (peptide_1, position_1) = locations[0];
                         let (peptide_2, position_2) = locations[1];
-                        let (m1, m2) = if peptide_1 == peptide_2 {
-                            (Modification::IntraLink { index: position_2, linker: linker.clone(), name: definition.0.clone()},
-                            Modification::IntraLink { index: position_1, linker: linker.clone(), name: definition.0.clone()})
+                        if let Some(name) = &definition.0 {
+                            let (m1, m2) = if peptide_1 == peptide_2 {
+                                (Modification::IntraLink { index: position_2, linker: linker.clone(), name: name.clone()},
+                                Modification::IntraLink { index: position_1, linker: linker.clone(), name: name.clone()})
+                            } else {
+                                (Modification::CrossLink { peptide: peptide_2, index: position_2, linker: linker.clone(), name: name.clone() },
+                                Modification::CrossLink { peptide: peptide_1, index: position_1, linker: linker.clone(), name: name.clone() })
+                            };
+                            peptides[peptide_1].sequence[position_1].modifications.push(m1);
+                            peptides[peptide_2].sequence[position_2].modifications.push(m2);
                         } else {
-                            (Modification::CrossLink { peptide: peptide_2, index: position_2, linker: linker.clone(), name: definition.0.clone() },
-                            Modification::CrossLink { peptide: peptide_1, index: position_1, linker: linker.clone(), name: definition.0.clone() })
-                        };
-                        peptides[peptide_1].sequence[position_1].modifications.push(m1);
-                        peptides[peptide_2].sequence[position_2].modifications.push(m2);
+                            peptides[peptide_1].sequence[position_1].modifications.push(Modification::Branch { peptide: peptide_2, index: position_2 });
+                            peptides[peptide_2].sequence[position_2].modifications.push(Modification::Branch { peptide: peptide_1, index: position_1 });
+                        }
                     },
                     _ => {return Err(CustomError::error(
                         "Invalid cross-link",
-                        format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0),
+                        format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0.as_deref().unwrap_or("#BRANCH")),
                         Context::full_line(0, line),
                     ))}
                 }
             } else {
                 return Err(CustomError::error(
                     "Invalid cross-link",
-                    format!("The cross-link named '{0}' is never defined, define it like: '[X:DSS#XL{0}]'", definition.0),
+                    format!("The cross-link named '{0}' is never defined, define it like: '[X:DSS#XL{0}]'", definition.0.as_ref().map_or("#BRANCH".to_string(), |n| format!("#XL{n}"))),
                     Context::full_line(0, line),
                 ));
             }
@@ -173,7 +177,7 @@ impl CompoundPeptidoform {
         mut index: usize,
         global_modifications: &[GlobalModification],
         custom_database: Option<&CustomDatabase>,
-        cross_link_lookup: &mut Vec<(String, Option<Linker>)>,
+        cross_link_lookup: &mut CrossLinkLookup,
     ) -> Result<(LinearPeptide<Linked>, usize, End, Vec<(usize, usize)>), CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
@@ -260,7 +264,21 @@ impl CompoundPeptidoform {
         let mut braces_start = None; // Sequence index where the last unopened braces started
         while index < chars.len() {
             match (c_term, chars[index]) {
-                (false, b'(') if chars[index + 1] == b'?' && ambiguous_aa.is_none() => {
+                (false, b'(') if chars[index + 1] == b'?' => {
+                    if braces_start.is_some() {
+                        return Err(CustomError::error(
+                            "Invalid ambiguous amino acid set",
+                            "Ambiguous amino acid sets cannot be nested within ranged ambiguous modifications",
+                            Context::line(0, line, index, 1),
+                        ));
+                    }
+                    if ambiguous_aa.is_some() {
+                        return Err(CustomError::error(
+                            "Invalid ambiguous amino acid set",
+                            "Ambiguous amino acid sets cannot be nested within ambiguous amino acid sets",
+                            Context::line(0, line, index, 1),
+                        ));
+                    }
                     ambiguous_aa = Some(ambiguous_aa_counter);
                     ambiguous_aa_counter += 1;
                     index += 2;
@@ -270,10 +288,24 @@ impl CompoundPeptidoform {
                     index += 1;
                 }
                 (false, b'(') => {
+                    if braces_start.is_some() {
+                        return Err(CustomError::error(
+                            "Invalid ranged ambiguous modification",
+                            "Ranged ambiguous modifications cannot be nested within ranged ambiguous modifications",
+                            Context::line(0, line, index, 1),
+                        ));
+                    }
+                    if ambiguous_aa.is_some() {
+                        return Err(CustomError::error(
+                            "Invalid ranged ambiguous modification",
+                            "Ranged ambiguous modifications cannot be nested within ambiguous amino acid sets",
+                            Context::line(0, line, index, 1),
+                        ));
+                    }
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
                 }
-                (false, b')') if braces_start.is_some()=> {
+                (false, b')') if braces_start.is_some() => {
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
                     while chars[index] == b'[' {
@@ -310,7 +342,7 @@ impl CompoundPeptidoform {
                     }
                     break;
                 }
-                (c_term, b'[') => {
+                (is_c_term, b'[') => {
                     let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
                         "Invalid modification",
                         "No valid closing delimiter",
@@ -322,7 +354,7 @@ impl CompoundPeptidoform {
                     )?;
                     let start_index = index +1;
                     index = end_index + 1;
-                    if c_term {
+                    if is_c_term {
                         peptide.c_term =
                             Some(modification.defined().ok_or_else(|| CustomError::error(
                                 "Invalid C terminal modification",
@@ -337,24 +369,25 @@ impl CompoundPeptidoform {
                                     )
                                 })
                             })?);
-                        dbg!(index,chars.len(),&chars[index..]);
+
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
                             let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
                             index = buf;
                             peptide.charge_carriers = Some(charge_carriers);
                         }
                         if index < chars.len() && chars[index] == b'+' {
-                            index+=1; // If a peptide in a chimeric definition contains a C terminal modification
+                            index += 1; // If a peptide in a chimeric definition contains a C terminal modification
                             end = End::Chimeric;
                         } else if index + 1 < chars.len() && chars[index..=index+1] == *b"//" {
-                            index+=2; // If a peptide in a cross-linked definition contains a C terminal modification
+                            index += 2; // If a peptide in a cross-linked definition contains a C terminal modification
                             end = End::CrossLink;
                         }
+                        c_term = false; // Fix false negative errors on single ending hyphen
                         break;
                     }
-                    let sequence_index = peptide.sequence.len() - 1;
-                    match peptide.sequence.last_mut() {
-                        Some(aa) => match modification {
+                    
+                    if let Some((sequence_index, aa)) = peptide.sequence.iter_mut().enumerate().next_back() {
+                        match modification {
                             ReturnModification::Defined(m) => aa.modifications.push(m),
                             ReturnModification::AmbiguousPreferred(id, localisation_score) =>
                                 ambiguous_found_positions.push((sequence_index, true, id, localisation_score)),
@@ -362,16 +395,15 @@ impl CompoundPeptidoform {
                                 ambiguous_found_positions.push((sequence_index, false, id, localisation_score)),
                             ReturnModification::CrossLinkReferenced(id) =>
                                 cross_link_found_positions.push((id, sequence_index)),
-                        },
-                        None => {
-                            return Err(
-                                CustomError::error(
-                                    "Invalid modification",
-                                    "A modification cannot be placed before any amino acid, did you want to use an N terminal modification ('[mod]-AA..')? or did you want a modification of unknown position ('[mod]?AA..')?",
-                                    Context::line(0, line, start_index, start_index - index - 1),
-                                )
-                            )
                         }
+                    } else {
+                        return Err(
+                            CustomError::error(
+                                "Invalid modification",
+                                "A modification cannot be placed before any amino acid, did you want to use an N terminal modification ('[mod]-AA..')? or did you want a modification of unknown position ('[mod]?AA..')?",
+                                Context::line(0, line, start_index, index - start_index - 1),
+                            )
+                        )
                     }
                 }
                 (false, b'-') => {
@@ -406,6 +438,14 @@ impl CompoundPeptidoform {
                 }
             }
         }
+        if c_term {
+            return Err(CustomError::error(
+                "Invalid peptide",
+                "A single hyphen cannot end the definition, if a C terminal modification is intended use 'SEQ-[MOD]'",
+                Context::line(0, line, line.len() - 2, 1),
+            ));
+        }
+
         // Fill in ambiguous positions
         for (index, preferred, id, localisation_score) in ambiguous_found_positions.iter().copied()
         {
@@ -431,7 +471,6 @@ impl CompoundPeptidoform {
             .map(|(_, group)| group.into_iter().map(|p| p.0).collect())
             .collect();
 
-        // Check all placement rules
         if !peptide.apply_global_modifications(global_modifications) {
             return Err(CustomError::error(
                 "Invalid global isotope modification",

@@ -468,7 +468,33 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 },
             ),
             (
+                "neuac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Nonose,
+                    substituents: vec![
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Acetyl,
+                        GlycanSubstituent::Acid,
+                    ],
+                    proforma_name: Some("Neu5Ac".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
                 "neu5gc".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Nonose,
+                    substituents: vec![
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Glycolyl,
+                        GlycanSubstituent::Acid,
+                    ],
+                    proforma_name: Some("Neu5Gc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "neugc".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Nonose,
                     substituents: vec![

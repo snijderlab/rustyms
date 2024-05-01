@@ -407,8 +407,8 @@ pub enum ModificationSearchResult {
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
 pub type AmbiguousLookup = Vec<(Option<String>, Option<SimpleModification>)>;
-/// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name and the actual linker itself (if already defined)
-pub type CrossLinkLookup = Vec<(String, Option<Linker>)>;
+/// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name or None if it is a branch and the actual linker itself (if already defined)
+pub type CrossLinkLookup = Vec<(Option<String>, Option<Linker>)>;
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
@@ -667,6 +667,8 @@ fn parse_single_modification(
                         full.2,
                     ))),
                 }
+            } else if full.0.is_empty() {
+                Ok(None)
             } else {
                 Err(CustomError::error(
                     "Invalid linker",
@@ -680,22 +682,37 @@ fn parse_single_modification(
 
         if let Some(group) = label_group {
             if group.0.to_ascii_lowercase() == "branch" {
-                Ok(Some(ReturnModification::Defined(Modification::Branch {
-                    peptide: 0,
-                    index: 0,
-                }))) // TODO: figure out correct location, for now store empty and then fix up in a pass when the whole peptidoform is done?
-            } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
-                cross_link_lookup
+                let index = cross_link_lookup
                     .iter()
-                    .position(|c| c.0 == name)
+                    .position(|c| c.0.is_none())
                     .map_or_else(
                         || {
                             let index = cross_link_lookup.len();
-                            cross_link_lookup.push((name.to_string(), linker?));
-                            Ok(Some(ReturnModification::CrossLinkReferenced(index)))
+                            cross_link_lookup.push((None, None));
+                            index
                         },
-                        |index| Ok(Some(ReturnModification::CrossLinkReferenced(index))),
-                    )
+                        |index| index,
+                    );
+                if let Some(linker) = linker? {
+                    cross_link_lookup[index].1 = Some(linker);
+                }
+                Ok(Some(ReturnModification::CrossLinkReferenced(index)))
+            } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
+                let index = cross_link_lookup
+                    .iter()
+                    .position(|c| c.0.as_ref().is_some_and(|c| c == name))
+                    .map_or_else(
+                        || {
+                            let index = cross_link_lookup.len();
+                            cross_link_lookup.push((Some(name.to_string()), None));
+                            index
+                        },
+                        |index| index,
+                    );
+                if let Some(linker) = linker? {
+                    cross_link_lookup[index].1 = Some(linker);
+                }
+                Ok(Some(ReturnModification::CrossLinkReferenced(index)))
             } else {
                 handle_ambiguous_modification(
                     modification,
