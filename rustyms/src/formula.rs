@@ -256,7 +256,7 @@ mod tests {
     fn xlmod() {
         assert_eq!(
             MolecularFormula::from_xlmod("C7 D10 H2 N4").unwrap(),
-            molecular_formula!(C 7 (2) H 10 H 2 N 4)
+            molecular_formula!(C 7 [2 H 10] H 2 N 4)
         );
         assert_eq!(
             MolecularFormula::from_xlmod("-C1 -H2 O1").unwrap(),
@@ -264,7 +264,7 @@ mod tests {
         );
         assert_eq!(
             MolecularFormula::from_xlmod("13C6 H6 O2").unwrap(),
-            molecular_formula!((13)C 6 H 6 O 2)
+            molecular_formula!([13 C 6] H 6 O 2)
         );
     }
 }

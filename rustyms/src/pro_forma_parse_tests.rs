@@ -238,11 +238,11 @@ fn parse_global() {
     // Formula: A + H2O
     assert_eq!(
         deuterium.formulas(),
-        molecular_formula!((2)H 7 C 3 O 2 N 1).into()
+        molecular_formula!([2 H 7] C 3 O 2 N 1).into()
     );
     assert_eq!(
         nitrogen_15.formulas(),
-        molecular_formula!(H 7 C 3 O 2 (15)N 1).into()
+        molecular_formula!(H 7 C 3 O 2 [15 N 1]).into()
     );
 }
 
@@ -512,7 +512,7 @@ fn charge_state_positive() {
         parse("/1[+[15N1]+]"),
         Ok(MolecularCharge::new(&[(
             1,
-            molecular_formula!((15)N 1 Electron -1)
+            molecular_formula!([15 N 1] Electron -1)
         ),]))
     );
     assert_eq!(

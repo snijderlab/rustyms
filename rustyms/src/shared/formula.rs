@@ -772,10 +772,11 @@ impl std::iter::Sum<Self> for MolecularFormula {
 }
 
 #[macro_export]
-/// Easily define molecular formulas using the following syntax: `<element> <num>` or `(<isotope>)<element> <num>`.
+/// Easily define molecular formulas using the following syntax: `<element> <num>` or `[<isotope> <element> <num>]`.
+/// The spaces are required by the Rust compiler.
 /// ```
 /// # use rustyms::*;
-/// molecular_formula!(C 12 (13)C 1 H 24);
+/// molecular_formula!(C 12 [13 C 1] H 24);
 /// ```
 /// # Panics
 /// It panics if the defined molecular formula is not valid. A formula is not valid if not existing isotopes are used
@@ -793,13 +794,13 @@ macro_rules! formula_internal {
     ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
         formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, None, $n),])
     };
-    ([($i:literal)$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
+    ([[$i:literal $e:ident $n:literal] $($tail:tt)*] -> [$($output:tt)*]) => {
         formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([$e:ident $n:expr] -> [$($output:tt)*]) =>{
         formula_internal!([] -> [$($output)*($crate::Element::$e, None, $n),])
     };
-    ([($i:literal)$e:ident $n:expr] -> [$($output:tt)*]) =>{
+    ([[$i:literal $e:ident] $n:expr] -> [$($output:tt)*]) =>{
         formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
