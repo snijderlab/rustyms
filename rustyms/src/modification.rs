@@ -493,6 +493,19 @@ fn parse_single_modification(
                         )
                     })
                 }
+                ("custom", tail) => {
+                    let id = tail.parse::<usize>().map_err(|_| {
+                        basic_error
+                            .with_long_description("Custom accession number should be a number")
+                    })?;
+                    Ontology::Custom
+                    .find_modification_id(id, custom_database)
+                    .map(Some)
+                    .ok_or_else(|| {
+                        basic_error.with_long_description(
+                                "The supplied Custom accession number is not an existing modification",
+                            )
+                    })},
                 ("u", tail) => Ontology::Unimod
                     .find_modification_name(tail, custom_database)
                     .ok_or_else(|| numerical_mod(tail))
@@ -610,6 +623,20 @@ fn parse_single_modification(
                                 })
                         })
                         .flat_err(),
+                    ("custom", tail) => {
+                        let id = tail.parse::<usize>().map_err(|_| {
+                            basic_error
+                                .with_long_description("Custom accession number should be a number")
+                        })?;
+                        Ontology::Custom
+                        .find_linker_id(id, custom_database)
+                        .map(Some)
+                        .ok_or_else(|| {
+                            basic_error.with_long_description(
+                                    "The supplied Custom accession number is not an existing linker",
+                                )
+                        })
+                    }
                     ("x", tail) => Ontology::Xlmod
                         .find_linker_name(tail, custom_database)
                         .map(Some)

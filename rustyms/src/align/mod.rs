@@ -18,8 +18,8 @@
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
 //! use rustyms::{*, align::*, peptide_complexity::*};
-//! let a = LinearPeptide::pro_forma("ANA").unwrap().simple().unwrap();
-//! let b = LinearPeptide::pro_forma("AGGA").unwrap().simple().unwrap();
+//! let a = LinearPeptide::pro_forma("ANA", None).unwrap().simple().unwrap();
+//! let b = LinearPeptide::pro_forma("AGGA", None).unwrap().simple().unwrap();
 //! let alignment = align::<4, Simple, Simple>(&a, &b, &matrix::BLOSUM62,
 //!                    Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");

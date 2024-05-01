@@ -17,6 +17,7 @@ macro_rules! parse_test {
             let res_upper = CompoundPeptidoform::pro_forma(&$case.to_ascii_uppercase(), None);
             let res_lower = CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase(), None);
             println!("{}", $case);
+            dbg!(&res);
             assert!(res.is_ok());
             assert_eq!(res, res_upper);
             assert_eq!(res, res_lower);

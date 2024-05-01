@@ -296,17 +296,17 @@ impl CompoundPeptidoform {
                 }
                 (false, b'/') => {
                     // Chimeric peptide
-                    if chars.len() > index+1 && chars[index+1] == b'/' {
-                        index+=1; // Potentially this can be followed by another peptide
+                    if chars.get(index+1) == Some(&b'/') {
+                        index += 2; // Potentially this can be followed by another peptide
                         end = End::CrossLink;
-                        break;
-                    }
-                    let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
-                    index = buf;
-                    peptide.charge_carriers = Some(charge_carriers);
-                    if index < chars.len() && chars[index] == b'+' {
-                        index+=1; // Potentially this can be followed by another peptide
-                        end = End::Chimeric;
+                    } else {
+                        let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
+                        index = buf;
+                        peptide.charge_carriers = Some(charge_carriers);
+                        if index < chars.len() && chars[index] == b'+' {
+                            index += 1; // Potentially this can be followed by another peptide
+                            end = End::Chimeric;
+                        }
                     }
                     break;
                 }
