@@ -445,7 +445,7 @@ impl<T> LinearPeptide<T> {
     /// Place all global unknown positions at all possible locations as ambiguous modifications
     pub(crate) fn apply_unknown_position_modification(
         &mut self,
-        unknown_position_modifications: &[Modification],
+        unknown_position_modifications: &[SimpleModification],
     ) {
         for modification in unknown_position_modifications {
             let id = self.ambiguous_modifications.len();
@@ -481,46 +481,11 @@ impl<T> LinearPeptide<T> {
     /// It panics when information for an ambiguous modification is missing (name/mod).
     pub(crate) fn apply_ranged_unknown_position_modification(
         &mut self,
-        ranged_unknown_position_modifications: &[(usize, usize, ReturnModification)],
+        ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
         ambiguous_lookup: &[(Option<String>, Option<SimpleModification>)],
     ) {
-        for (start, end, ret_modification) in ranged_unknown_position_modifications {
-            let (id, modification, score, group) = match ret_modification {
-                ReturnModification::Defined(def) => {
-                    self.ambiguous_modifications.push(Vec::new());
-                    (
-                        self.ambiguous_modifications.len() - 1,
-                        def.clone(),
-                        None,
-                        None,
-                    )
-                }
-                ReturnModification::AmbiguousPreferred(i, score) => {
-                    if *i >= self.ambiguous_modifications.len() {
-                        self.ambiguous_modifications.push(Vec::new());
-                    }
-                    (
-                        *i,
-                        Modification::Simple(ambiguous_lookup[*i].1.clone().unwrap()),
-                        *score,
-                        Some((ambiguous_lookup[*i].0.clone().unwrap(), true)), // TODO: now all possible location in the range are listed as preferred
-                    )
-                }
-                ReturnModification::AmbiguousReferenced(i, score) => {
-                    if *i >= self.ambiguous_modifications.len() {
-                        self.ambiguous_modifications.push(Vec::new());
-                    }
-                    (
-                        *i,
-                        Modification::Simple(ambiguous_lookup[*i].1.clone().unwrap()),
-                        *score,
-                        Some((ambiguous_lookup[*i].0.clone().unwrap(), false)),
-                    )
-                }
-                ReturnModification::CrossLinkReferenced(_i) => {
-                    unreachable!()
-                }
-            };
+        let mut id = ambiguous_lookup.len();
+        for (start, end, modification) in ranged_unknown_position_modifications {
             let length = self.len();
             #[allow(clippy::unnecessary_filter_map)]
             // Side effects so the lint does not apply here
@@ -533,7 +498,7 @@ impl<T> LinearPeptide<T> {
                                 id,
                                 modification: modification.clone(),
                                 localisation_score: None,
-                                group: group.clone(),
+                                group: None,
                             });
                         Some(i)
                     } else {
@@ -541,17 +506,8 @@ impl<T> LinearPeptide<T> {
                     }
                 })
                 .collect_vec();
-            if let Some(score) = score {
-                let individual_score = score / positions.len() as f64;
-                for pos in &positions {
-                    self.sequence[*pos]
-                        .possible_modifications
-                        .last_mut()
-                        .unwrap()
-                        .localisation_score = Some(individual_score);
-                }
-            }
             self.ambiguous_modifications[id].extend(positions);
+            id += 1;
         }
     }
 
@@ -566,6 +522,7 @@ impl<T> LinearPeptide<T> {
         base: &MolecularFormula,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let result = self
             .ambiguous_modifications
@@ -613,6 +570,7 @@ impl<T> LinearPeptide<T> {
                                 .collect_vec(),
                             all_peptides,
                             visited_peptides,
+                            applied_cross_links,
                         )
                     })
                     .iter()
@@ -621,12 +579,11 @@ impl<T> LinearPeptide<T> {
                             .possible_modifications
                             .iter()
                             .filter(|&am| ambiguous_local.contains(&&am.id))
-                            .map(|am| am.modification.formula(all_peptides, visited_peptides))
-                            .sum::<Multi<MolecularFormula>>()
+                            .map(Chemical::formula)
+                            .sum::<MolecularFormula>()
                             + base
                             + m
                     })
-                    .flat_map(|m| m.to_vec())
                     .collect_vec()
             })
             .collect::<Multi<MolecularFormula>>();
@@ -646,7 +603,6 @@ impl<T> LinearPeptide<T> {
         model: &Model,
         peptide_index: usize,
         all_peptides: &[LinearPeptide<Linked>],
-        visited_peptides: &[usize],
     ) -> Vec<Fragment> {
         let default_charge = MolecularCharge::proton(max_charge.value as isize);
         let charge_carriers = self.charge_carriers.as_ref().unwrap_or(&default_charge);
@@ -662,7 +618,8 @@ impl<T> LinearPeptide<T> {
                 &self.get_n_term(),
                 model.modification_specific_neutral_losses,
                 all_peptides,
-                visited_peptides,
+                &[],
+                &mut Vec::new(),
             );
             let c_term = self.all_masses(
                 index..,
@@ -671,12 +628,13 @@ impl<T> LinearPeptide<T> {
                 &self.get_c_term(),
                 model.modification_specific_neutral_losses,
                 all_peptides,
-                visited_peptides,
+                &[],
+                &mut Vec::new(),
             );
             let modifications_total = self.sequence[index]
                 .modifications
                 .iter()
-                .map(|m| m.formula(all_peptides, visited_peptides))
+                .map(|m| m.formula(all_peptides, &[], &mut Vec::new()))
                 .sum::<Multi<MolecularFormula>>();
 
             output.append(&mut self.sequence[index].aminoacid.fragments(
@@ -693,7 +651,7 @@ impl<T> LinearPeptide<T> {
             if model.m {
                 // m fragment: precursor amino acid side chain losses
                 output.extend(
-                    self.formulas_inner(peptide_index, all_peptides, visited_peptides)
+                    self.formulas_inner(peptide_index, all_peptides, &[], &mut Vec::new())
                         .iter()
                         .flat_map(|m| {
                             self.sequence[index]
@@ -725,7 +683,7 @@ impl<T> LinearPeptide<T> {
 
         // Generate precursor peak
         output.extend(
-            self.formulas_inner(peptide_index, all_peptides, visited_peptides)
+            self.formulas_inner(peptide_index, all_peptides, &[], &mut Vec::new())
                 .iter()
                 .flat_map(|m| {
                     Fragment::new(
@@ -756,7 +714,12 @@ impl<T> LinearPeptide<T> {
                                 model,
                                 peptide_index,
                                 charge_carriers,
-                                &self.formulas_inner(peptide_index, all_peptides, visited_peptides),
+                                &self.formulas_inner(
+                                    peptide_index,
+                                    all_peptides,
+                                    &[],
+                                    &mut Vec::new(),
+                                ),
                                 (position.aminoacid, sequence_index),
                             ),
                     );
@@ -773,7 +736,12 @@ impl<T> LinearPeptide<T> {
                                 model,
                                 peptide_index,
                                 charge_carriers,
-                                &self.formulas_inner(peptide_index, all_peptides, visited_peptides),
+                                &self.formulas_inner(
+                                    peptide_index,
+                                    all_peptides,
+                                    &[],
+                                    &mut Vec::new(),
+                                ),
                                 (position.aminoacid, sequence_index),
                             ),
                     );
@@ -810,6 +778,7 @@ impl<T> LinearPeptide<T> {
         apply_neutral_losses: bool,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let ambiguous_mods_masses = self.ambiguous_patterns(
             range.clone(),
@@ -818,6 +787,7 @@ impl<T> LinearPeptide<T> {
             base,
             all_peptides,
             visited_peptides,
+            applied_cross_links,
         );
         if apply_neutral_losses {
             let neutral_losses = self.potential_neutral_losses(range);
@@ -839,11 +809,17 @@ impl<T> LinearPeptide<T> {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let mut formulas = Multi::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {
-            formulas *= pos.formulas_greedy(&mut placed, all_peptides, visited_peptides);
+            formulas *= pos.formulas_greedy(
+                &mut placed,
+                all_peptides,
+                visited_peptides,
+                applied_cross_links,
+            );
         }
 
         formulas
@@ -856,19 +832,31 @@ impl<T> LinearPeptide<T> {
     }
 
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
+    /// # Panics
+    /// When this peptide is already in the set of visited peptides.
     pub(crate) fn formulas_inner(
         &self,
         peptide_index: usize,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
+        debug_assert!(
+            !visited_peptides.contains(&peptide_index),
+            "Cannot get the formula for a peptide that is already visited"
+        );
         let mut new_visited_peptides = vec![peptide_index];
-        new_visited_peptides.extend_from_slice(&visited_peptides);
+        new_visited_peptides.extend_from_slice(visited_peptides);
         let mut formulas: Multi<MolecularFormula> =
             vec![self.get_n_term() + self.get_c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {
-            formulas *= pos.formulas_greedy(&mut placed, all_peptides, &new_visited_peptides);
+            formulas *= pos.formulas_greedy(
+                &mut placed,
+                all_peptides,
+                &new_visited_peptides,
+                applied_cross_links,
+            );
         }
 
         formulas
@@ -973,29 +961,36 @@ impl LinearPeptide<Linked> {
         peptide_index: usize,
         all_peptides: &[Self],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
-        self.formulas_inner(peptide_index, all_peptides, visited_peptides)
+        self.formulas_inner(
+            peptide_index,
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+        )
     }
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
     #[allow(clippy::missing_panics_doc)] // global isotope mods are guaranteed to be correct
-    pub fn bare_formulas(
+    pub(crate) fn bare_formulas(
         &self,
         all_peptides: &[Self],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
-        self.bare_formulas_inner(all_peptides, visited_peptides)
+        self.bare_formulas_inner(all_peptides, visited_peptides, applied_cross_links)
     }
 }
 
 impl<T: Into<Linear>> LinearPeptide<T> {
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    pub(crate) fn formulas(&self) -> Multi<MolecularFormula> {
+    pub fn formulas(&self) -> Multi<MolecularFormula> {
         let mut formulas: Multi<MolecularFormula> =
             vec![self.get_n_term() + self.get_c_term()].into();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for pos in &self.sequence {
-            formulas *= pos.formulas_greedy(&mut placed, &[], &[]);
+            formulas *= pos.formulas_greedy(&mut placed, &[], &[], &mut Vec::new());
         }
 
         formulas
@@ -1006,7 +1001,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
     pub fn bare_formulas(&self) -> Multi<MolecularFormula> {
-        self.bare_formulas_inner(&[], &[])
+        self.bare_formulas_inner(&[], &[], &mut Vec::new())
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -1019,7 +1014,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
         max_charge: Charge,
         model: &Model,
     ) -> Vec<Fragment> {
-        self.generate_theoretical_fragments_inner(max_charge, model, 0, &[], &[])
+        self.generate_theoretical_fragments_inner(max_charge, model, 0, &[])
     }
 }
 

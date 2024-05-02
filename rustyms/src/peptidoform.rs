@@ -9,14 +9,14 @@ use crate::{
 pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
 impl MultiChemical for Peptidoform {
-    /// Gives all possible formulas for this peptidoform
+    /// Gives all possible formulas for this peptidoform.
+    /// Assumes all peptides in this peptidoform are connected.
+    /// If there are no peptides in this peptidoform it returns [`Multi::default`].
     fn formulas(&self) -> Multi<MolecularFormula> {
         self.0
-            .iter()
-            .enumerate()
-            .fold(Multi::default(), |acc, (i, p)| {
-                acc * p.formulas(i, &self.0, &[])
-            })
+            .first()
+            .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new()))
+            .unwrap_or_default()
     }
 }
 
@@ -29,13 +29,9 @@ impl Peptidoform {
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
         for (index, peptide) in self.peptides().iter().enumerate() {
-            base.extend(peptide.generate_theoretical_fragments_inner(
-                max_charge,
-                model,
-                index,
-                &self.0,
-                &[],
-            ));
+            base.extend(
+                peptide.generate_theoretical_fragments_inner(max_charge, model, index, &self.0),
+            );
         }
         base
     }

@@ -317,7 +317,11 @@ impl CompoundPeptidoform {
                         let modification = Modification::try_from(
                             line, index + 1..end_index,
                             &mut ambiguous_lookup, cross_link_lookup, custom_database,
-                        )?;
+                        )?.defined().and_then(|m|m.into_simple()).ok_or_else(|| CustomError::error(
+                            "Invalid ranged ambiguous modification",
+                            "A ranged ambiguous modification has to be fully defined and simple, so no ambiguous modification or cross link is allowed",
+                            Context::line(0, line, index, 1),
+                        ))?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
                             braces_start.unwrap(),
@@ -452,13 +456,13 @@ impl CompoundPeptidoform {
             peptide.sequence[index].possible_modifications.push(
                 AmbiguousModification {
                     id,
-                    modification: Modification::Simple(ambiguous_lookup[id].1.clone().ok_or_else(||
+                    modification: ambiguous_lookup[id].1.clone().ok_or_else(||
                         CustomError::error(
                             "Invalid ambiguous modification",
                             format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0.as_ref().map_or(id.to_string(), ToString::to_string)),
                             Context::full_line(0, line),
                         )
-                        )?),
+                        )?,
                     localisation_score,
                     group: ambiguous_lookup[id].0.as_ref().map(|n| (n.to_string(), preferred)) });
         }
@@ -701,7 +705,7 @@ pub(crate) fn global_modifications(
 }
 
 /// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
-type UnknownPositionMods = (usize, Vec<Modification>, AmbiguousLookup);
+type UnknownPositionMods = (usize, Vec<SimpleModification>, AmbiguousLookup);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
 /// # Errors
@@ -739,6 +743,7 @@ fn unknown_position_mods(
             )))
         })
         .defined()
+        .and_then(|m| m.into_simple())
         .map_or_else(
             || {
                 errs.push(CustomError::error(
@@ -746,7 +751,7 @@ fn unknown_position_mods(
                     "A modification of unknown position cannot be ambiguous",
                     Context::line(0, line, index + 1, end_index - 1 - index),
                 ));
-                Modification::Simple(SimpleModification::Mass(OrderedMass::default()))
+                SimpleModification::Mass(OrderedMass::default())
             },
             |m| m,
         );

@@ -128,23 +128,45 @@ impl Modification {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         match self {
             Self::Simple(s) => s.formula().into(),
             Self::CrossLink {
-                peptide, linker, ..
+                peptide,
+                linker,
+                name,
+                ..
             } => {
+                let link = (!applied_cross_links.contains(name))
+                    .then(|| {
+                        applied_cross_links.push(name.clone());
+                        linker.formula()
+                    })
+                    .unwrap_or_default();
                 if visited_peptides.contains(peptide) {
-                    linker.formula().into()
+                    link.into()
                 } else {
-                    all_peptides[*peptide].formulas_inner(*peptide, all_peptides, visited_peptides)
-                        + linker.formula()
+                    all_peptides[*peptide].formulas_inner(
+                        *peptide,
+                        all_peptides,
+                        visited_peptides,
+                        applied_cross_links,
+                    ) + link
                 }
             } // TODO: impl neutral losses for that other peptide
-            Self::IntraLink { linker, .. } => linker.formula().into(), // TODO: impossible, return None?
-            Self::Branch { peptide, .. } => {
-                all_peptides[*peptide].formulas_inner(*peptide, all_peptides, visited_peptides)
-            } // TODO: any linking chemistry? + impl neutral losses for that other peptide
+            Self::IntraLink { linker, name, .. } => (!applied_cross_links.contains(name))
+                .then(|| {
+                    applied_cross_links.push(name.clone());
+                    linker.formula().into()
+                })
+                .unwrap_or_default(),
+            Self::Branch { peptide, .. } => all_peptides[*peptide].formulas_inner(
+                *peptide,
+                all_peptides,
+                visited_peptides,
+                applied_cross_links,
+            ), // TODO: any linking chemistry? + impl neutral losses for that other peptide
         }
     }
 
@@ -179,8 +201,9 @@ impl Modification {
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Simple(modification) => modification.ontology_url(),
-            Self::CrossLink { linker, .. } => linker.ontology.url(linker.id, &linker.name),
-            Self::IntraLink { linker, .. } => linker.ontology.url(linker.id, &linker.name),
+            Self::CrossLink { linker, .. } | Self::IntraLink { linker, .. } => {
+                linker.ontology.url(linker.id, &linker.name)
+            }
             Self::Branch { .. } => None,
         }
     }
@@ -815,11 +838,17 @@ pub struct AmbiguousModification {
     /// The id to compare be able to find the other locations where this modifications can be placed
     pub id: usize,
     /// The modification itself
-    pub modification: Modification,
+    pub modification: SimpleModification,
     /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
     pub localisation_score: Option<OrderedFloat<f64>>,
     /// If this is a named group contain the name and track if this is the preferred location or not
     pub group: Option<(String, bool)>,
+}
+
+impl Chemical for AmbiguousModification {
+    fn formula(&self) -> MolecularFormula {
+        self.modification.formula()
+    }
 }
 
 /// Intermediate representation of a global modification

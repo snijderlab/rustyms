@@ -5,7 +5,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::AmbiguousModification,
     peptide_complexity::Linked,
-    LinearPeptide, MolecularFormula, Multi, MultiChemical,
+    Chemical, LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
 use serde::{Deserialize, Serialize};
 
@@ -88,18 +88,19 @@ impl SequenceElement {
         selected_ambiguous: &[usize],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides))
+            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
             .sum::<Multi<MolecularFormula>>()
-            * self
+            + self
                 .possible_modifications
                 .iter()
                 .filter(|&m| selected_ambiguous.contains(&m.id))
-                .map(|m| m.modification.formula(all_peptides, visited_peptides))
-                .sum::<Multi<MolecularFormula>>();
+                .map(Chemical::formula)
+                .sum::<MolecularFormula>();
         modifications * self.aminoacid.formulas()
     }
 
@@ -109,23 +110,24 @@ impl SequenceElement {
         placed: &mut [bool],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         #[allow(clippy::filter_map_bool_then)] // otherwise crashes
         let modifications = self
             .modifications
             .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides))
+            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
             .sum::<Multi<MolecularFormula>>()
-            * self
+            + self
                 .possible_modifications
                 .iter()
                 .filter_map(|m| {
                     (!placed[m.id]).then(|| {
                         placed[m.id] = true;
-                        m.modification.formula(all_peptides, visited_peptides)
+                        m.formula()
                     })
                 })
-                .sum::<Multi<MolecularFormula>>();
+                .sum::<MolecularFormula>();
         modifications * self.aminoacid.formulas()
     }
 
@@ -134,17 +136,18 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides))
+            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
             .sum::<Multi<MolecularFormula>>()
-            * self
+            + self
                 .possible_modifications
                 .iter()
-                .map(|m| m.modification.formula(all_peptides, visited_peptides))
-                .sum::<Multi<MolecularFormula>>();
+                .map(Chemical::formula)
+                .sum::<MolecularFormula>();
         modifications * self.aminoacid.formulas()
     }
 
@@ -154,20 +157,16 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<String>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
             .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides))
+            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
             .sum::<Multi<MolecularFormula>>();
         let mut formulas: Multi<MolecularFormula> = modifications * self.aminoacid.formulas();
         for modification in &self.possible_modifications {
-            formulas *= modification
-                .modification
-                .formula(all_peptides, visited_peptides)
-                .iter()
-                .chain(std::iter::once(&MolecularFormula::default()))
-                .collect::<Multi<MolecularFormula>>();
+            formulas = formulas + modification.formula();
         }
         formulas
     }

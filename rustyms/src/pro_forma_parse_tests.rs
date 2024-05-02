@@ -594,12 +594,12 @@ fn parse_custom() {
 #[test]
 fn parse_xl_intra() {
     let peptide = CompoundPeptidoform::pro_forma("A[XLMOD:02001#XLTEST]A[#XLTEST]", None).unwrap();
-    let singular = peptide.singular_peptide();
-    assert!(singular.is_some(), "Peptide is not a singular peptide");
-    let singular = singular.unwrap();
+    let singular = peptide
+        .singular()
+        .expect("Peptide is not a singular peptide");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas(0, &[], &[]),
+        singular.formulas(),
         (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1))
@@ -683,8 +683,8 @@ fn parse_adduct_ions_02() {
     );
     // Check if the C term mod is applied
     assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(&[], &[]),
-        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(&[], &[])
+        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(&[], &[], &mut Vec::new()),
+        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(&[], &[], &mut Vec::new())
     );
     assert_eq!(
         peptide.peptidoforms()[0].peptides()[0].get_c_term(),
