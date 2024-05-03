@@ -1,6 +1,6 @@
 use crate::{
     error::CustomError,
-    peptide_complexity::VerySimple,
+    peptide::VerySimple,
     system::{usize::Charge, Mass, Ratio, Time},
     LinearPeptide,
 };

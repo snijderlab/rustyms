@@ -17,7 +17,7 @@ use crate::{
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::CustomDatabase,
-    peptide_complexity::Linked,
+    peptide::Linked,
     placement_rule::{PlacementRule, Position},
     system::{dalton, Mass, OrderedMass},
     AminoAcid, Chemical, DiagnosticIon, Element, LinearPeptide, MolecularFormula, Multi,

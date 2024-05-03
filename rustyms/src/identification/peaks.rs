@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    peptide_complexity::VerySimple,
+    peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };

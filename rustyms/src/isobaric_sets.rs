@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     fragment::PeptidePosition,
     modification::{Modification, SimpleModification},
-    peptide_complexity::Simple,
+    peptide::Simple,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
     AminoAcid, Chemical, LinearPeptide, SequenceElement, Tolerance,

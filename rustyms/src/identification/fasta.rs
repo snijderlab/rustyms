@@ -1,6 +1,6 @@
 use crate::{
     error::{Context, CustomError},
-    peptide_complexity::VerySimple,
+    peptide::VerySimple,
     CompoundPeptidoform, LinearPeptide, SequenceElement,
 };
 use serde::{Deserialize, Serialize};

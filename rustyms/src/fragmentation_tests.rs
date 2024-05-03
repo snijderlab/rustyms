@@ -5,7 +5,7 @@ use crate::{
     *,
 };
 
-use self::peptide_complexity::Linear;
+use self::peptide::Linear;
 
 #[test]
 fn triple_a() {

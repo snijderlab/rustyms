@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::{Fragment, FragmentKind},
-    peptide_complexity::ExtremelySimple,
+    peptide::ExtremelySimple,
     system::{
         f64::{MassOverCharge, Ratio},
         mass_over_charge::mz,

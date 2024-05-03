@@ -59,7 +59,7 @@ use alignment::AlignmentInner;
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{peptide_complexity::Simple, LinearPeptide};
+    use crate::{peptide::Simple, LinearPeptide};
 
     use super::{AlignType, Alignment, RefAlignment};
 

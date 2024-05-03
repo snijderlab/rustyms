@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use crate::peptide_complexity::Linear;
+use crate::peptide::Linear;
 use crate::{
-    peptide_complexity::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
+    peptide::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
     SequenceElement, Tolerance, WithinTolerance,
 };
 

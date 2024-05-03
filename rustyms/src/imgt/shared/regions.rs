@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{peptide_complexity::ExtremelySimple, LinearPeptide};
+use crate::{ExtremelySimple, LinearPeptide};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 

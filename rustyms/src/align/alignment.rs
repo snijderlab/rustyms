@@ -9,8 +9,8 @@ use super::align_type::*;
 use super::piece::*;
 use super::scoring::*;
 
-use crate::peptide_complexity::Linear;
-use crate::peptide_complexity::Simple;
+use crate::peptide::Linear;
+use crate::peptide::Simple;
 use crate::system::Mass;
 use crate::system::Ratio;
 use crate::LinearPeptide;
@@ -417,7 +417,7 @@ pub struct Score {
 mod tests {
     use crate::{
         align::{align, matrix::BLOSUM62, AlignType, Alignment},
-        peptide_complexity::Simple,
+        peptide::Simple,
         system::da,
         AminoAcid, LinearPeptide, MultiChemical,
     };

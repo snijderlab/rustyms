@@ -4,7 +4,7 @@ use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
     modification::AmbiguousModification,
-    peptide_complexity::Linked,
+    peptide::Linked,
     Chemical, LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
 use serde::{Deserialize, Serialize};

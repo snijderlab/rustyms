@@ -3,8 +3,8 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::Alignment;
-use rustyms::peptide_complexity::ExtremelySimple;
 use rustyms::system::{dalton, Mass};
+use rustyms::ExtremelySimple;
 use rustyms::LinearPeptide;
 
 use crate::imgt_gene::IMGTGene;

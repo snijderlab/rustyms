@@ -2,7 +2,7 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 
-use crate::peptide_complexity::ExtremelySimple;
+use crate::peptide::ExtremelySimple;
 use crate::LinearPeptide;
 
 pub use super::fancy::FancyDisplay;

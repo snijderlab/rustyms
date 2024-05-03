@@ -6,7 +6,7 @@ use super::opair::OpairData;
 use super::peaks::PeaksData;
 use super::{MaxQuantData, SageData};
 use crate::error::CustomError;
-use crate::peptide_complexity::VerySimple;
+use crate::peptide::VerySimple;
 use crate::system::usize::Charge;
 use crate::LinearPeptide;
 

@@ -39,7 +39,6 @@ pub mod csv;
 
 pub mod aminoacid_properties;
 mod aminoacids;
-mod compound_peptidoform;
 mod element;
 pub mod error;
 pub mod fragment;
@@ -48,7 +47,6 @@ pub mod glycan;
 mod isobaric_sets;
 mod isotopes;
 mod itertools_extension;
-mod linear_peptide;
 mod mass_mode;
 pub mod model;
 pub mod modification;
@@ -57,8 +55,7 @@ mod multi;
 mod multi_formula;
 mod neutral_loss;
 pub mod ontologies;
-pub mod peptide_complexity;
-mod peptidoform;
+mod peptide;
 pub mod placement_rule;
 mod protease;
 pub mod rawfile;
@@ -67,11 +64,9 @@ pub mod spectrum;
 pub mod system;
 mod tolerance;
 
-pub use crate::compound_peptidoform::CompoundPeptidoform;
 pub use crate::element::*;
 pub use crate::formula::*;
 pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
-pub use crate::linear_peptide::LinearPeptide;
 pub use crate::mass_mode::MassMode;
 pub use crate::model::Model;
 pub use crate::modification::Modification;
@@ -79,7 +74,10 @@ pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
-pub use crate::peptidoform::Peptidoform;
+pub use crate::peptide::{
+    CompoundPeptidoform, ExtremelySimple, Linear, LinearPeptide, Linked, Peptidoform, Simple,
+    VerySimple,
+};
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::spectrum::{AnnotatedSpectrum, RawSpectrum};

@@ -6,7 +6,7 @@ use super::{
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    peptide_complexity::VerySimple,
+    peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };

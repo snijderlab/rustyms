@@ -1,9 +1,9 @@
 use std::hint::black_box;
 
 use rustyms::align::*;
-use rustyms::peptide_complexity::Simple;
 use rustyms::system::dalton;
 use rustyms::system::Mass;
+use rustyms::Simple;
 use rustyms::*;
 
 use iai_callgrind::{

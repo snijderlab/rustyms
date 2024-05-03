@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     error::{Context, CustomError},
-    peptide_complexity::VerySimple,
+    peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
 };

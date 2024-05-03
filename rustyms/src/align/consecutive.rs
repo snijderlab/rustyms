@@ -2,7 +2,7 @@ use crate::{
     align::*,
     imgt::*,
     itertools_extension::ItertoolsExt,
-    peptide_complexity::{ExtremelySimple, Simple},
+    peptide::{ExtremelySimple, Simple},
     system::Mass,
     *,
 };
