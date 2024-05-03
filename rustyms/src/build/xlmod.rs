@@ -2,39 +2,29 @@ use std::{ffi::OsString, io::Write, path::Path};
 
 use itertools::Itertools;
 
-use crate::{formula::MolecularFormula, Linker, LinkerSpecificity};
+use crate::{formula::MolecularFormula, LinkerSpecificity};
 
 use super::{
     obo::OboOntology,
     ontology_modification::{
-        OntologyLinkerList, OntologyModification, OntologyModificationList, PlacementRule, Position,
+        OntologyModification, OntologyModificationList, PlacementRule, Position,
     },
+    ModData,
 };
 
 pub fn build_xlmod_ontology(out_dir: &OsString, debug: bool) {
     let mods = parse_xlmod(debug);
 
-    let mut mods_file = std::fs::File::create(Path::new(&out_dir).join("xlmod_mods.dat")).unwrap();
-    let mut linkers_file =
-        std::fs::File::create(Path::new(&out_dir).join("xlmod_linkers.dat")).unwrap();
-    let final_mods = mods.0.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
-    let final_linkers = mods
-        .1
-        .into_iter()
-        .map(|l| (l.id, l.name.to_ascii_lowercase(), l))
-        .collect_vec();
+    let mut mods_file = std::fs::File::create(Path::new(&out_dir).join("xlmod.dat")).unwrap();
+    let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
     mods_file
         .write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
-    linkers_file
-        .write_all(&bincode::serialize::<OntologyLinkerList>(&final_linkers).unwrap())
-        .unwrap();
 }
 
-fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
+fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
     let obo = OboOntology::from_file("databases/XLMOD.obo.gz").expect("Not a valid obo file");
     let mut mods = Vec::new();
-    let mut linkers = Vec::new();
 
     for obj in obo.objects {
         if obj.name != "Term" {
@@ -139,35 +129,43 @@ fn parse_xlmod(_debug: bool) -> (Vec<OntologyModification>, Vec<Linker>) {
             }
         }
         if sites == Some(2) || !origins.1.is_empty() {
-            linkers.push(Linker {
-                specificities: if !origins.1.is_empty() {
-                    LinkerSpecificity::Asymmetric((origins.0, Vec::new()), (origins.1, Vec::new()))
-                } else {
-                    LinkerSpecificity::Symmetric(origins.0, Vec::new())
-                },
+            mods.push(OntologyModification {
                 formula: formula.unwrap_or_default(),
-                name,
+                code_name: name.clone(),
+                full_name: name,
                 id,
-                length,
                 ontology: super::Ontology::Xlmod,
-                diagnostic_ions,
+                data: ModData::Linker {
+                    diagnostic_ions,
+                    length,
+                    specificities: if !origins.1.is_empty() {
+                        LinkerSpecificity::Asymmetric(
+                            (origins.0, Vec::new()),
+                            (origins.1, Vec::new()),
+                        )
+                    } else {
+                        LinkerSpecificity::Symmetric(origins.0, Vec::new())
+                    },
+                },
             });
         } else if sites == Some(3) {
             continue; // Ignore
         } else {
             mods.push(OntologyModification {
-                diff_formula: formula.unwrap_or_default(),
-                monosaccharides: Vec::new(),
+                formula: formula.unwrap_or_default(),
                 code_name: name.clone(),
                 full_name: name,
                 ontology: super::Ontology::Xlmod,
                 id,
-                rules: vec![(origins.0, Vec::new(), diagnostic_ions)],
+                data: ModData::Mod {
+                    rules: vec![(origins.0, Vec::new(), diagnostic_ions)],
+                    monosaccharides: Vec::new(),
+                },
             });
         }
     }
 
-    (mods, linkers)
+    mods
 }
 
 fn read_placement_rules(bricks: &[&str]) -> Vec<PlacementRule> {

@@ -7,39 +7,24 @@ use itertools::Itertools;
 pub use crate::modification::OntologyModificationList;
 use crate::{
     error::{Context, CustomError},
-    modification::{Linker, Ontology, OntologyLinkerList, SimpleModification},
+    modification::{Ontology, SimpleModification},
 };
 
 /// A database of custom modifications
-pub type CustomDatabase = (OntologyModificationList, OntologyLinkerList);
+pub type CustomDatabase = OntologyModificationList;
 
 /// An empty list of modifications (needed for lifetime reasons)
 static EMPTY_LIST: OntologyModificationList = Vec::new();
 
 impl Ontology {
     /// Get the modifications lookup list for this ontology
-    pub fn modifications_lookup(
-        self,
-        custom_database: Option<&CustomDatabase>,
-    ) -> &OntologyModificationList {
+    pub fn lookup(self, custom_database: Option<&CustomDatabase>) -> &OntologyModificationList {
         match self {
             Self::Gnome => gnome_ontology(),
             Self::Psimod => psimod_ontology(),
             Self::Unimod => unimod_ontology(),
-            Self::Xlmod => xlmod_modifications_ontology(),
-            Self::Custom => custom_database.map_or(&EMPTY_LIST, |c| &c.0),
-        }
-    }
-
-    /// Get the linkers lookup list for this ontology
-    pub fn linkers_lookup(
-        self,
-        custom_database: Option<&CustomDatabase>,
-    ) -> Option<&OntologyLinkerList> {
-        match self {
-            Self::Xlmod => Some(xlmod_linker_ontology()),
-            Self::Custom => custom_database.map(|c| &c.1),
-            _ => None,
+            Self::Xlmod => xlmod_ontology(),
+            Self::Custom => custom_database.map_or(&EMPTY_LIST, |c| c),
         }
     }
 
@@ -88,17 +73,11 @@ impl Ontology {
     ) -> Vec<String> {
         let mut resulting = Vec::new();
         for ontology in ontologies {
-            let mut options: Vec<&str> = ontology
-                .modifications_lookup(custom_database)
+            let options: Vec<&str> = ontology
+                .lookup(custom_database)
                 .iter()
                 .map(|option| option.1.as_str())
                 .collect();
-            options.extend(
-                ontology
-                    .linkers_lookup(custom_database)
-                    .iter()
-                    .flat_map(|f| f.iter().map(|option| option.1.as_str())),
-            );
             resulting.extend(
                 similar::get_close_matches(code, &options, 3, 0.75)
                     .iter()
@@ -109,32 +88,13 @@ impl Ontology {
     }
 
     /// Find the given name in this ontology.
-    pub fn find_modification_name(
+    pub fn find_name(
         self,
         code: &str,
         custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
         let code = code.to_ascii_lowercase();
-        for option in self.modifications_lookup(custom_database) {
-            if option.1 == code {
-                return Some(option.2.clone());
-            }
-        }
-        None
-    }
-
-    /// Find the given name in this ontology.
-    pub fn find_linker_name(
-        self,
-        code: &str,
-        custom_database: Option<&CustomDatabase>,
-    ) -> Option<Linker> {
-        let code = code.to_ascii_lowercase();
-        for option in self
-            .linkers_lookup(custom_database)
-            .iter()
-            .flat_map(|f| f.iter())
-        {
+        for option in self.lookup(custom_database) {
             if option.1 == code {
                 return Some(option.2.clone());
             }
@@ -143,30 +103,12 @@ impl Ontology {
     }
 
     /// Find the given id in this ontology
-    pub fn find_modification_id(
+    pub fn find_id(
         self,
         id: usize,
         custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
-        for option in self.modifications_lookup(custom_database) {
-            if option.0 == id {
-                return Some(option.2.clone());
-            }
-        }
-        None
-    }
-
-    /// Find the given id in this ontology
-    pub fn find_linker_id(
-        self,
-        id: usize,
-        custom_database: Option<&CustomDatabase>,
-    ) -> Option<Linker> {
-        for option in self
-            .linkers_lookup(custom_database)
-            .iter()
-            .flat_map(|f| f.iter())
-        {
+        for option in self.lookup(custom_database) {
             if option.0 == id {
                 return Some(option.2.clone());
             }
@@ -202,25 +144,12 @@ fn gnome_ontology() -> &'static OntologyModificationList {
 /// Get the Xlmod ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
-fn xlmod_modifications_ontology() -> &'static OntologyModificationList {
-    XLMOD_MODS_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/xlmod_mods.dat"))).unwrap()
-    })
-}
-/// Get the Xlmod ontology
-/// # Panics
-/// Panics when the linkers are not correctly provided at compile time, always report a panic if it occurs here.
-fn xlmod_linker_ontology() -> &'static OntologyLinkerList {
-    XLMOD_LINKER_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(
-            env!("OUT_DIR"),
-            "/xlmod_linkers.dat"
-        )))
-        .unwrap()
+fn xlmod_ontology() -> &'static OntologyModificationList {
+    XLMOD_CELL.get_or_init(|| {
+        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/xlmod.dat"))).unwrap()
     })
 }
 static UNIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static PSIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static GNOME_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
-static XLMOD_MODS_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
-static XLMOD_LINKER_CELL: OnceLock<OntologyLinkerList> = OnceLock::new();
+static XLMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();

@@ -54,8 +54,7 @@ impl Ontology {
             Self::Gnome => Some(format!(
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={name}"
             )),
-            Self::Xlmod => None,
-            Self::Custom => None,
+            Self::Xlmod | Self::Custom => None,
         }
     }
 }
@@ -78,4 +77,3 @@ impl std::fmt::Display for Ontology {
 
 /// The shared type for contact between the build and compile steps
 pub type OntologyModificationList = Vec<(usize, String, SimpleModification)>;
-pub type OntologyLinkerList = Vec<(usize, String, Linker)>;

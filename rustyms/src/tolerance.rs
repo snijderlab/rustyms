@@ -98,9 +98,9 @@ impl FromStr for Tolerance<Mass> {
 
 impl<T> TryFrom<&str> for Tolerance<T>
 where
-    Tolerance<T>: FromStr,
+    Self: FromStr,
 {
-    type Error = <Tolerance<T> as std::str::FromStr>::Err;
+    type Error = <Self as std::str::FromStr>::Err;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         value.parse()
     }

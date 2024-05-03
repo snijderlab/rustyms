@@ -11,6 +11,7 @@ use crate::{
 use super::{
     obo::OboOntology,
     ontology_modification::{OntologyModification, OntologyModificationList, PlacementRule},
+    ModData,
 };
 
 pub fn build_unimod_ontology(out_dir: &OsString, debug: bool) {
@@ -48,7 +49,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
             let re_site = Regex::new("spec_(\\d+)_site \"(.+)\"").unwrap();
             let re_neutral_loss =
                 Regex::new("spec_(\\d+)_neutral_loss_\\d+_composition \"(.+)\"").unwrap();
-            let mut rules = Vec::new();
+            let mut mod_rules = Vec::new();
             for line in xref {
                 if line.starts_with("delta_composition") {
                     modification
@@ -58,23 +59,23 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                 } else if let Some(groups) = re_position.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
                     let position = groups.get(2).unwrap().as_str().to_string();
-                    if rules.len() <= index {
-                        rules.extend(
+                    if mod_rules.len() <= index {
+                        mod_rules.extend(
                             iter::repeat((String::new(), String::new(), Vec::new()))
-                                .take(index + 1 - rules.len()),
+                                .take(index + 1 - mod_rules.len()),
                         );
                     }
-                    rules[index].1 = position;
+                    mod_rules[index].1 = position;
                 } else if let Some(groups) = re_site.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
                     let site = groups.get(2).unwrap().as_str().to_string();
-                    if rules.len() <= index {
-                        rules.extend(
+                    if mod_rules.len() <= index {
+                        mod_rules.extend(
                             iter::repeat((String::new(), String::new(), Vec::new()))
-                                .take(index + 1 - rules.len()),
+                                .take(index + 1 - mod_rules.len()),
                         );
                     }
-                    rules[index].0.push_str(&site);
+                    mod_rules[index].0.push_str(&site);
                 } else if let Some(groups) = re_neutral_loss.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
                     if !groups
@@ -91,44 +92,47 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                                     .map(|(m, n)| m.formula() * *n)
                                     .sum::<MolecularFormula>(),
                         );
-                        if rules.len() <= index {
-                            rules.extend(
+                        if mod_rules.len() <= index {
+                            mod_rules.extend(
                                 iter::repeat((String::new(), String::new(), Vec::new()))
-                                    .take(index + 1 - rules.len()),
+                                    .take(index + 1 - mod_rules.len()),
                             );
                         }
-                        rules[index].2.push(loss);
+                        mod_rules[index].2.push(loss);
                     }
                 } else {
                     continue;
                 }
             }
-            modification.rules = rules
-                .into_iter()
-                .filter_map(|rule| match (rule.0.as_str(), rule.1.as_str()) {
-                    ("C-term", pos) => Some((
-                        vec![PlacementRule::Terminal(pos.try_into().unwrap())],
-                        rule.2,
-                        Vec::new(),
-                    )),
-                    ("N-term", pos) => Some((
-                        vec![PlacementRule::Terminal(pos.try_into().unwrap())],
-                        rule.2,
-                        Vec::new(),
-                    )),
-                    ("", "") => None,
-                    (aa, pos) => Some((
-                        vec![PlacementRule::AminoAcid(
-                            aa.chars()
-                                .map(|c| c.try_into().unwrap_or_else(|_| panic!("Not an AA: {c}")))
-                                .collect(),
-                            pos.try_into().unwrap(),
-                        )],
-                        rule.2,
-                        Vec::new(),
-                    )),
-                })
-                .collect();
+            if let ModData::Mod { rules, .. } = &mut modification.data {
+                rules.extend(mod_rules.into_iter().filter_map(|rule| {
+                    match (rule.0.as_str(), rule.1.as_str()) {
+                        ("C-term", pos) => Some((
+                            vec![PlacementRule::Terminal(pos.try_into().unwrap())],
+                            rule.2,
+                            Vec::new(),
+                        )),
+                        ("N-term", pos) => Some((
+                            vec![PlacementRule::Terminal(pos.try_into().unwrap())],
+                            rule.2,
+                            Vec::new(),
+                        )),
+                        ("", "") => None,
+                        (aa, pos) => Some((
+                            vec![PlacementRule::AminoAcid(
+                                aa.chars()
+                                    .map(|c| {
+                                        c.try_into().unwrap_or_else(|_| panic!("Not an AA: {c}"))
+                                    })
+                                    .collect(),
+                                pos.try_into().unwrap(),
+                            )],
+                            rule.2,
+                            Vec::new(),
+                        )),
+                    }
+                }));
+            }
         }
         if take {
             mods.push(modification);
@@ -222,9 +226,14 @@ fn parse_unimod_composition(
 impl OntologyModification {
     #[deny(clippy::unwrap_used)]
     fn with_unimod_composition(&mut self, composition: &str) -> Result<(), ()> {
-        let (diff_formula, monosaccharides) = parse_unimod_composition(composition)?;
-        self.diff_formula = diff_formula;
-        self.monosaccharides = monosaccharides;
+        let (diff_formula, sugars) = parse_unimod_composition(composition)?;
+        self.formula = diff_formula;
+        if let ModData::Mod {
+            monosaccharides, ..
+        } = &mut self.data
+        {
+            monosaccharides.extend(sugars);
+        }
         Ok(())
     }
 }

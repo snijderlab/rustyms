@@ -88,7 +88,7 @@ impl SequenceElement {
         selected_ambiguous: &[usize],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<String>,
+        applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
@@ -110,7 +110,7 @@ impl SequenceElement {
         placed: &mut [bool],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<String>,
+        applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
         #[allow(clippy::filter_map_bool_then)] // otherwise crashes
         let modifications = self
@@ -136,7 +136,7 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<String>,
+        applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications
@@ -157,7 +157,7 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<String>,
+        applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
         let modifications = self
             .modifications

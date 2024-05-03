@@ -121,10 +121,10 @@ parse_test!(
     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
     positive_example_36
 );
-// parse_test!(
-//     "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
-//     positive_example_37
-// ); TODO: MOD linker
+parse_test!(
+    "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
+    positive_example_37
+);
 parse_test!(
     "(?DQ)NGTWEM[Oxidation]ESNENFEGYM[Oxidation]K",
     positive_example_38
@@ -204,7 +204,7 @@ parse_test!(
     positive_example_70
 );
 parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK", positive_example_71);
-// parse_test!("EMEVTK[XLMOD:02001]SESPEK", positive_example_72); TODO: this is a linker not a mod
+parse_test!("EMEVTK[XLMOD:02001]SESPEK", positive_example_72); // TODO: make sure the hydrolysed status of this linker actually applied
 parse_test!(
     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
     positive_example_73
@@ -213,19 +213,15 @@ parse_test!(
     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[#XL1]SESPEK",
     positive_example_74
 );
-// parse_test!("EVTSEKC[MOD:00034#XL1]LEMSC[#XL1]EFD", positive_example_75); TODO: MOD linker
-// parse_test!(
-//     "EVTSEKC[L-cystine (cross-link)#XL1]LEMSC[#XL1]EFD",
-//     positive_example_76
-// ); TODO: MOD linker
-// parse_test!(
-//     "FVNQHLC[MOD:00034#XL1]GSHLVEALYLVC[MOD:00034#XL2]GERGFFYTPK",
-//     positive_example_77
-// ); TODO: MOD linker
-// parse_test!(
-//     "A//GIVEQC[MOD:00034#XL3]C[#XL1]TSIC[#XL3]SLYQLENYC[#XL2]N",
-//     positive_example_78
-// ); TODO: MOD linker
+parse_test!("EVTSEKC[MOD:00034#XL1]LEMSC[#XL1]EFD", positive_example_75);
+parse_test!(
+    "EVTSEKC[L-cystine (cross-link)#XL1]LEMSC[#XL1]EFD",
+    positive_example_76
+);
+parse_test!(
+    "FVNQHLC[MOD:00034#XL1]GSHLVEALYLVC[MOD:00034#XL2]GERGFFYTPKA//GIVEQC[MOD:00034#XL3]C[#XL1]TSIC[#XL3]SLYQLENYC[#XL2]N",
+    positive_example_77
+);
 parse_test!(
     "EVTSEKC[XLMOD:02009#XL1]LEMSC[#XL1]EFD",
     positive_example_79
@@ -242,16 +238,16 @@ parse_test!(
     "EVTSEKC[MOD:00798]LEMSC[MOD:00798]EFDEVTSEKC[MOD:00798]LEMSC[MOD:00798]EFD",
     positive_example_82
 );
-// parse_test!("EVTSEKC[UNIMOD:374#XL1]LEMSC[#XL1]EFD", positive_example_83); TODO: UNIMOD linker
-// parse_test!("EVTSEKC[Dehydro#XL1]LEMSC[#XL1]EFD", positive_example_84); TODO: MOD linker
-// parse_test!(
-//     "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
-//     positive_example_85
-// ); TODO: MOD linker
+parse_test!("EVTSEKC[UNIMOD:374#XL1]LEMSC[#XL1]EFD", positive_example_83);
+parse_test!("EVTSEKC[Dehydro#XL1]LEMSC[#XL1]EFD", positive_example_84);
+parse_test!(
+    "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
+    positive_example_85
+);
 // parse_test!(
 //     "AVTKYTSSK[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
 //     positive_example_86
-// ); TODO: MOD linker
+// ); TODO: cross link on terminal position
 parse_test!("NEEYN[GNO:G59626AS]K", positive_example_87);
 parse_test!(
     "YPVLN[GNO:G62765YT]VTMPN[GNO:G02815KT]NSNGKFDK",
@@ -558,27 +554,24 @@ fn parse_unimod() {
 fn parse_custom() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma(
         "A[C:WEEE]",
-        Some(&(
-            vec![(
-                0,
-                "weee".to_string(),
-                SimpleModification::Predefined(
-                    molecular_formula!(U 1),
-                    vec![(
-                        vec![PlacementRule::AminoAcid(
-                            AminoAcid::CANONICAL_AMINO_ACIDS.to_vec(),
-                            placement_rule::Position::Anywhere
-                        )],
-                        Vec::new(),
-                        Vec::new()
+        Some(&vec![(
+            0,
+            "weee".to_string(),
+            SimpleModification::Predefined(
+                molecular_formula!(U 1),
+                vec![(
+                    vec![PlacementRule::AminoAcid(
+                        AminoAcid::CANONICAL_AMINO_ACIDS.to_vec(),
+                        placement_rule::Position::Anywhere
                     )],
-                    modification::Ontology::Custom,
-                    "WEEE".to_string(),
-                    0
-                )
-            )],
-            Vec::new()
-        ))
+                    Vec::new(),
+                    Vec::new()
+                )],
+                modification::Ontology::Custom,
+                "WEEE".to_string(),
+                0
+            )
+        )])
     ));
     assert!(peptide.is_ok());
     assert_eq!(

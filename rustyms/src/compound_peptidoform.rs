@@ -8,7 +8,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::*,
     modification::{
-        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, GlobalModification, Linker, Modification, OntologyLinkerList, OntologyModificationList, ReturnModification, SimpleModification
+        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, GlobalModification, Modification, ReturnModification, SimpleModification
     },
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
@@ -128,20 +128,8 @@ impl CompoundPeptidoform {
                     2 => {
                         let (peptide_1, position_1) = locations[0];
                         let (peptide_2, position_2) = locations[1];
-                        if let Some(name) = &definition.0 {
-                            let (m1, m2) = if peptide_1 == peptide_2 {
-                                (Modification::IntraLink { index: position_2, linker: linker.clone(), name: name.clone()},
-                                Modification::IntraLink { index: position_1, linker: linker.clone(), name: name.clone()})
-                            } else {
-                                (Modification::CrossLink { peptide: peptide_2, index: position_2, linker: linker.clone(), name: name.clone() },
-                                Modification::CrossLink { peptide: peptide_1, index: position_1, linker: linker.clone(), name: name.clone() })
-                            };
-                            peptides[peptide_1].sequence[position_1].modifications.push(m1);
-                            peptides[peptide_2].sequence[position_2].modifications.push(m2);
-                        } else {
-                            peptides[peptide_1].sequence[position_1].modifications.push(Modification::Branch { peptide: peptide_2, index: position_2 });
-                            peptides[peptide_2].sequence[position_2].modifications.push(Modification::Branch { peptide: peptide_1, index: position_1 });
-                        }
+                        peptides[peptide_1].sequence[position_1].modifications.push(Modification::CrossLink { peptide: peptide_2, sequence_index: position_2, linker: linker.clone(), name: definition.0.clone()});
+                        peptides[peptide_2].sequence[position_2].modifications.push(Modification::CrossLink { peptide: peptide_1, sequence_index: position_1, linker: linker.clone(), name: definition.0.clone()});
                     },
                     _ => {return Err(CustomError::error(
                         "Invalid cross-link",
@@ -317,7 +305,7 @@ impl CompoundPeptidoform {
                         let modification = Modification::try_from(
                             line, index + 1..end_index,
                             &mut ambiguous_lookup, cross_link_lookup, custom_database,
-                        )?.defined().and_then(|m|m.into_simple()).ok_or_else(|| CustomError::error(
+                        )?.defined().and_then(Modification::into_simple).ok_or_else(|| CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "A ranged ambiguous modification has to be fully defined and simple, so no ambiguous modification or cross link is allowed",
                             Context::line(0, line, index, 1),
@@ -363,7 +351,7 @@ impl CompoundPeptidoform {
                             Some(modification.defined().ok_or_else(|| CustomError::error(
                                 "Invalid C terminal modification",
                                 "A C terminal modification cannot be ambiguous",
-                                Context::line(0, line, start_index, start_index - index - 1),
+                                Context::line(0, line, start_index, index - start_index - 1),
                             )).and_then(|m| {
                                 m.into_simple().ok_or_else(|| {
                                     CustomError::error(
@@ -743,7 +731,7 @@ fn unknown_position_mods(
             )))
         })
         .defined()
-        .and_then(|m| m.into_simple())
+        .and_then(Modification::into_simple)
         .map_or_else(
             || {
                 errs.push(CustomError::error(

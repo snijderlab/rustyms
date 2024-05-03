@@ -7,6 +7,7 @@ use super::{
     ontology_modification::{
         OntologyModification, OntologyModificationList, PlacementRule, Position,
     },
+    ModData,
 };
 
 pub fn build_psi_mod_ontology(out_dir: &OsString, debug: bool) {
@@ -39,13 +40,14 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             ontology: super::ontology_modification::Ontology::Psimod,
             ..Default::default()
         };
+        let mut rules = Vec::new();
 
         let mut origins = Vec::new();
         let mut term = None;
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("DiffFormula") {
-                    modification.diff_formula =
+                    modification.formula =
                         MolecularFormula::from_psi_mod(&line[13..line.len() - 12]).unwrap();
                 } else if line.starts_with("Origin") {
                     origins = line[8..line.len() - 12]
@@ -69,7 +71,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         if !all_aminoacids {
             for origin in &origins {
                 if origin.len() == 1 {
-                    modification.rules.push((
+                    rules.push((
                         vec![PlacementRule::AminoAcid(
                             vec![(*origin).try_into().unwrap()],
                             term.unwrap_or(Position::Anywhere),
@@ -78,7 +80,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                         Vec::new(),
                     ));
                 } else {
-                    modification.rules.push((
+                    rules.push((
                         vec![PlacementRule::PsiModification(
                             origin
                                 .split_once(':')
@@ -96,13 +98,13 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         }
         if origins.is_empty() || all_aminoacids {
             if let Some(term) = term {
-                modification.rules.push((
-                    vec![PlacementRule::Terminal(term)],
-                    Vec::new(),
-                    Vec::new(),
-                ))
+                rules.push((vec![PlacementRule::Terminal(term)], Vec::new(), Vec::new()))
             }
         }
+        modification.data = ModData::Mod {
+            monosaccharides: Vec::new(),
+            rules,
+        };
         mods.push(modification);
     }
 
