@@ -19,6 +19,13 @@ enum End {
     Chimeric,
 }
 
+struct LinearPeptideResult {
+    peptide: LinearPeptide<Linked>,
+    index: usize, 
+    ending: End, 
+    cross_links: Vec<(usize, usize)>,
+}
+
 impl LinearPeptide<Linked> {
     /// Convenience wrapper to parse a linear peptide in pro forma notation, to handle all possible pro forma sequences look at [`CompoundPeptidoform::pro_forma`].
     /// # Errors
@@ -109,17 +116,23 @@ impl CompoundPeptidoform {
 
         // Parse any following cross-linked species
         while index < line.len() && ending == End::CrossLink {
-            let (peptide, tail, end, cross_links) = Self::parse_linear_peptide(
+            let mut result = Self::parse_linear_peptide(
                 line,
                 index,
-                global_modifications,
                 custom_database,
                 &mut cross_link_lookup,
             )?;
-            peptides.push(peptide);
-            index = tail;
-            ending = end;
-            for cross_link in cross_links {
+            if !result.peptide.apply_global_modifications(global_modifications) {
+                return Err(CustomError::error(
+                    "Invalid global isotope modification",
+                    "There is an invalid global isotope modification",
+                    Context::full_line(0, line),
+                ));
+            }
+            peptides.push(result.peptide);
+            index = result.index;
+            ending = result.ending;
+            for cross_link in result.cross_links {
                 cross_links_found
                     .entry(cross_link.0)
                     .or_insert(Vec::new())
@@ -175,10 +188,9 @@ impl CompoundPeptidoform {
     fn parse_linear_peptide(
         line: &str,
         mut index: usize,
-        global_modifications: &[GlobalModification],
         custom_database: Option<&CustomDatabase>,
         cross_link_lookup: &mut CrossLinkLookup,
-    ) -> Result<(LinearPeptide<Linked>, usize, End, Vec<(usize, usize)>), CustomError> {
+    ) -> Result<LinearPeptideResult, CustomError> {
         if line.trim().is_empty() {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
@@ -198,7 +210,7 @@ impl CompoundPeptidoform {
             Vec::new();
         let mut unknown_position_modifications = Vec::new();
         let mut ranged_unknown_position_modifications = Vec::new();
-        let mut end = End::Empty;
+        let mut ending = End::Empty;
 
         // Unknown position mods
         if let Some(result) = unknown_position_mods(chars, index, line, custom_database) {
@@ -334,14 +346,14 @@ impl CompoundPeptidoform {
                     // Chimeric peptide
                     if chars.get(index+1) == Some(&b'/') {
                         index += 2; // Potentially this can be followed by another peptide
-                        end = End::CrossLink;
+                        ending = End::CrossLink;
                     } else {
                         let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
                         index = buf;
                         peptide.charge_carriers = Some(charge_carriers);
                         if index < chars.len() && chars[index] == b'+' {
                             index += 1; // Potentially this can be followed by another peptide
-                            end = End::Chimeric;
+                            ending = End::Chimeric;
                         }
                     }
                     break;
@@ -381,10 +393,10 @@ impl CompoundPeptidoform {
                         }
                         if index < chars.len() && chars[index] == b'+' {
                             index += 1; // If a peptide in a chimeric definition contains a C terminal modification
-                            end = End::Chimeric;
+                            ending = End::Chimeric;
                         } else if index + 1 < chars.len() && chars[index..=index+1] == *b"//" {
                             index += 2; // If a peptide in a cross-linked definition contains a C terminal modification
-                            end = End::CrossLink;
+                            ending = End::CrossLink;
                         }
                         c_term = false; // Fix false negative errors on single ending hyphen
                         break;
@@ -417,7 +429,7 @@ impl CompoundPeptidoform {
                 (false, b'+') => {
                     // Chimeric spectrum stop for now, remove the plus
                     index += 1;
-                    end = End::Chimeric;
+                    ending = End::Chimeric;
                     break;
                 }
                 (false, ch) => {
@@ -475,14 +487,6 @@ impl CompoundPeptidoform {
             .map(|(_, group)| group.into_iter().map(|p| p.0).collect())
             .collect();
 
-        if !peptide.apply_global_modifications(global_modifications) {
-            return Err(CustomError::error(
-                "Invalid global isotope modification",
-                "There is an invalid global isotope modification",
-                Context::full_line(0, line),
-            ));
-        }
-
         peptide.apply_unknown_position_modification(&unknown_position_modifications);
         peptide.apply_ranged_unknown_position_modification(
             &ranged_unknown_position_modifications,
@@ -490,7 +494,7 @@ impl CompoundPeptidoform {
         );
         peptide.enforce_modification_rules()?;
 
-        Ok((peptide, index, end, cross_link_found_positions))
+        Ok(LinearPeptideResult{ peptide, index, ending, cross_links: cross_link_found_positions})
     }
 }
 
@@ -498,7 +502,7 @@ impl CompoundPeptidoform {
 /// Parse global modifications
 /// # Errors
 /// If the global modifications are not defined to the specification
-fn global_modifications(
+pub(super) fn global_modifications(
     chars: &[u8],
     mut index: usize,
     line: &str,
@@ -655,7 +659,7 @@ type UnknownPositionMods = (usize, Vec<SimpleModification>, AmbiguousLookup);
 /// Give all errors when the text cannot be read as mods of unknown position.
 /// # Panics
 /// Breaks if the text is not valid UTF-8
-fn unknown_position_mods(
+pub(super) fn unknown_position_mods(
     chars: &[u8],
     start: usize,
     line: &str,
@@ -779,7 +783,7 @@ fn labile_modifications(
 /// If the charge state is not following the specification.
 /// # Panics
 /// Panics if the text is not UTF-8.
-fn parse_charge_state(
+pub(super) fn parse_charge_state(
     chars: &[u8],
     index: usize,
     line: &str,
@@ -887,220 +891,5 @@ fn parse_charge_state(
             index + charge_len + 1,
             MolecularCharge::proton(total_charge),
         ))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::system::da;
-
-    use super::*;
-    
-    #[test]
-    fn parse_global_modifications() {
-        let parse = |str: &str| global_modifications(str.as_bytes(), 0, str, None);
-        assert_eq!(
-            parse("<[+5]@D>"),
-            Ok((
-                8,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::Anywhere,
-                    Some(AminoAcid::D),
-                    Modification::Simple(SimpleModification::Mass(da(5.0).into()))
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@d>"),
-            Ok((
-                8,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::Anywhere,
-                    Some(AminoAcid::D),
-                    Modification::Simple(SimpleModification::Mass(da(5.0).into()))
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@N-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyNTerm,
-                    Some(AminoAcid::D),
-                    Modification::Simple(SimpleModification::Mass(da(5.0).into()))
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@n-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyNTerm,
-                    Some(AminoAcid::D),
-                    Modification::Simple(SimpleModification::Mass(da(5.0).into()))
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<[+5]@C-term:D>"),
-            Ok((
-                15,
-                vec![GlobalModification::Fixed(
-                    crate::placement_rule::Position::AnyCTerm,
-                    Some(AminoAcid::D),
-                    Modification::Simple(SimpleModification::Mass(da(5.0).into()))
-                )]
-            ))
-        );
-        assert_eq!(
-            parse("<D>"),
-            Ok((
-                3,
-                vec![GlobalModification::Isotope(Element::H, NonZeroU16::new(2))]
-            ))
-        );
-        assert_eq!(
-            parse("<12C>"),
-            Ok((
-                5,
-                vec![GlobalModification::Isotope(Element::C, NonZeroU16::new(12))]
-            ))
-        );
-        assert!(parse("<D").is_err());
-        assert!(parse("<[+5]>").is_err());
-        assert!(parse("<[+5]@DD>").is_err());
-        assert!(parse("<[5+]@D>").is_err());
-        assert!(parse("<[+5@D>").is_err());
-        assert!(parse("<+5]@D>").is_err());
-        assert!(parse("<[+5#g1]@D>").is_err());
-        assert!(parse("<[+5#g1>").is_err());
-        assert!(parse("<C12>").is_err());
-        assert!(parse("<>").is_err());
-        assert!(parse("<@>").is_err());
-        assert!(parse("<@D,E,R,T>").is_err());
-        assert!(parse("<[+5]@D,E,R,Te>").is_err());
-        assert!(parse("<[+5]@D,E,R,N-term:OO>").is_err());
-    }
-
-    #[test]
-    fn charge_state_positive() {
-        let parse = |str: &str| {
-            parse_charge_state(str.as_bytes(), 0, str).map(|(len, res)| {
-                assert_eq!(
-                    len,
-                    str.len(),
-                    "Not full parsed: '{str}', amount parsed: {len} as '{res}'"
-                );
-                res
-            })
-        };
-        assert_eq!(parse("/1"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(parse("/5"), Ok(MolecularCharge::proton(5)));
-        assert_eq!(parse("/-5"), Ok(MolecularCharge::proton(-5)));
-        assert_eq!(parse("/1[+H+]"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(parse("/2[+H+,+H+]"), Ok(MolecularCharge::proton(2)));
-        assert_eq!(
-            parse("/1[+Na+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Na 1 Electron -1)
-            )]))
-        );
-        assert_eq!(
-            parse("/3[2Na+1,1H1+1]"),
-            Ok(MolecularCharge::new(&[
-                (2, molecular_formula!(Na 1 Electron -1)),
-                (1, molecular_formula!(H 1 Electron -1))
-            ]))
-        );
-        assert_eq!(
-            parse("/1[-OH-]"),
-            Ok(MolecularCharge::new(&[(
-                -1,
-                molecular_formula!(O 1 H 1 Electron 1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/1[+N1H3+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(N 1 H 3 Electron -1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/1[+[15N1]+]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!([15 N 1] Electron -1)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+ Fe +3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/-1[+e-]"),
-            Ok(MolecularCharge::new(
-                &[(1, molecular_formula!(Electron 1)),]
-            ))
-        );
-        assert_eq!(parse("/1[+H1e-1+]"), Ok(MolecularCharge::proton(1)));
-        assert_eq!(
-            parse("/3[+Fe1e0+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-1+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-2+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-        assert_eq!(
-            parse("/3[+Fe1e-3+3]"),
-            Ok(MolecularCharge::new(&[(
-                1,
-                molecular_formula!(Fe 1 Electron -3)
-            ),]))
-        );
-    }
-
-    #[test]
-    fn charge_state_negative() {
-        let parse = |str: &str| parse_charge_state(str.as_bytes(), 0, str);
-        assert!(parse("/3[+Fe+]").is_err());
-        assert!(parse("/3[+Fe]").is_err());
-        assert!(parse("/3[+Fe 1]").is_err());
-        assert!(parse("/3[+[54Fe1+3]").is_err());
-        assert!(parse("/3[+54Fe1]+3]").is_err());
-        assert!(parse("/1[1H1-1]").is_err());
-        assert!(parse("/1[1H1+1").is_err());
-        assert!(parse("/1[1+1]").is_err());
-        assert!(parse("/1[H+1]").is_err());
-        assert!(parse("/1[1H]").is_err());
-        assert!(parse("/1[1H1]").is_err());
-        assert!(parse("/ 1 [ 1 H 1]").is_err());
     }
 }

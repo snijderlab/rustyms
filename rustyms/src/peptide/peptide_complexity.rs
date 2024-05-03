@@ -44,58 +44,59 @@ pub struct VerySimple;
 )]
 pub struct ExtremelySimple;
 
-impl Into<Linked> for Linear {
-    fn into(self) -> Linked {
-        Linked
+impl From<Linear> for Linked {
+    fn from(_val: Linear) -> Self {
+        Self
     }
 }
-impl Into<Linked> for Simple {
-    fn into(self) -> Linked {
-        Linked
+impl From<Simple> for Linked {
+    fn from(_val: Simple) -> Self {
+        Self
     }
 }
-impl Into<Linked> for VerySimple {
-    fn into(self) -> Linked {
-        Linked
+impl From<VerySimple> for Linked {
+    fn from(_val: VerySimple) -> Self {
+        Self
     }
 }
-impl Into<Linked> for ExtremelySimple {
-    fn into(self) -> Linked {
-        Linked
+impl From<ExtremelySimple> for Linked {
+    fn from(_val: ExtremelySimple) -> Self {
+        Self
     }
 }
-impl Into<Linear> for Simple {
-    fn into(self) -> Linear {
-        Linear
+impl From<Simple> for Linear {
+    fn from(_val: Simple) -> Self {
+        Self
     }
 }
-impl Into<Linear> for VerySimple {
-    fn into(self) -> Linear {
-        Linear
+impl From<VerySimple> for Linear {
+    fn from(_val: VerySimple) -> Self {
+        Self
     }
 }
-impl Into<Linear> for ExtremelySimple {
-    fn into(self) -> Linear {
-        Linear
+impl From<ExtremelySimple> for Linear {
+    fn from(_val: ExtremelySimple) -> Self {
+        Self
     }
 }
-impl Into<Simple> for VerySimple {
-    fn into(self) -> Simple {
-        Simple
+impl From<VerySimple> for Simple {
+    fn from(_val: VerySimple) -> Self {
+        Self
     }
 }
-impl Into<Simple> for ExtremelySimple {
-    fn into(self) -> Simple {
-        Simple
+impl From<ExtremelySimple> for Simple {
+    fn from(_val: ExtremelySimple) -> Self {
+        Self
     }
 }
-impl Into<VerySimple> for ExtremelySimple {
-    fn into(self) -> VerySimple {
-        VerySimple
+impl From<ExtremelySimple> for VerySimple {
+    fn from(_val: ExtremelySimple) -> Self {
+        Self
     }
 }
 
 impl LinearPeptide<Linked> {
+    /// Try and check if this peptide is linear.
     pub fn linear(self) -> Option<LinearPeptide<Linear>> {
         if self
             .sequence
@@ -108,14 +109,17 @@ impl LinearPeptide<Linked> {
         }
     }
 
+    /// Try and check if this peptide is simple.
     pub fn simple(self) -> Option<LinearPeptide<Simple>> {
         self.linear().and_then(LinearPeptide::<Linear>::simple)
     }
 
+    /// Try and check if this peptide is very simple.
     pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
         self.linear().and_then(LinearPeptide::<Linear>::very_simple)
     }
 
+    /// Try and check if this peptide is extremely simple.
     pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
         self.linear()
             .and_then(LinearPeptide::<Linear>::extremely_simple)
@@ -123,6 +127,7 @@ impl LinearPeptide<Linked> {
 }
 
 impl LinearPeptide<Linear> {
+    /// Try and check if this peptide is simple.
     pub fn simple(self) -> Option<LinearPeptide<Simple>> {
         if self.labile.is_empty()
             && self.get_global().is_empty()
@@ -139,10 +144,12 @@ impl LinearPeptide<Linear> {
         }
     }
 
+    /// Try and check if this peptide is very simple.
     pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
         self.simple().and_then(LinearPeptide::<Simple>::very_simple)
     }
 
+    /// Try and check if this peptide is extremely simple.
     pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
         self.simple()
             .and_then(LinearPeptide::<Simple>::extremely_simple)
@@ -150,6 +157,7 @@ impl LinearPeptide<Linear> {
 }
 
 impl LinearPeptide<Simple> {
+    /// Try and check if this peptide is very simple.
     pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
         if self.ambiguous_modifications.is_empty()
             && !self.sequence.iter().any(|seq| seq.ambiguous.is_some())
@@ -160,6 +168,7 @@ impl LinearPeptide<Simple> {
         }
     }
 
+    /// Try and check if this peptide is extremely simple.
     pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
         self.very_simple()
             .and_then(LinearPeptide::<VerySimple>::extremely_simple)
@@ -167,15 +176,16 @@ impl LinearPeptide<Simple> {
 }
 
 impl LinearPeptide<VerySimple> {
+    /// Try and check if this peptide is extremely simple.
     pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        if !self
+        if self
             .sequence
             .iter()
             .any(|seq| seq.aminoacid == crate::AminoAcid::B || seq.aminoacid == crate::AminoAcid::Z)
         {
-            Some(self.mark())
-        } else {
             None
+        } else {
+            Some(self.mark())
         }
     }
 }

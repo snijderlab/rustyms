@@ -5,25 +5,18 @@ use crate::{
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{
-    fmt::{Display, Write},
-    num::NonZeroU16,
-    ops::Range,
-};
+use std::{num::NonZeroU16, ops::Range};
 
 use regex::Regex;
 
 use crate::{
     error::{Context, CustomError},
-    fragment::PeptidePosition,
     glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::CustomDatabase,
-    peptide::Linked,
-    placement_rule::{PlacementRule, Position},
+    placement_rule::Position,
     system::{dalton, Mass, OrderedMass},
-    AminoAcid, Chemical, DiagnosticIon, Element, LinearPeptide, MolecularFormula, Multi,
-    NeutralLoss, SequenceElement, Tolerance, WithinTolerance,
+    AminoAcid, Element, MolecularFormula,
 };
 
 impl Modification {
