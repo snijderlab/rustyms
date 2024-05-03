@@ -11,7 +11,7 @@ mod helper_functions;
 #[path = "./src/shared/element.rs"]
 mod element;
 #[macro_use]
-#[path = "./src/shared/formula.rs"]
+#[path = "./src/shared/formula/mod.rs"]
 mod formula;
 #[path = "./src/build/mod.rs"]
 mod build;

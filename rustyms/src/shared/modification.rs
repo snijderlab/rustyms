@@ -5,9 +5,13 @@ pub enum Modification {
     Simple(SimpleModification),
     /// A cross link to another (or the same) peptide, a branch is also seen as a cross-link but then the name is None.
     CrossLink {
+        /// The index of the peptide this cross-link is bound to (can be the index for this peptide if it is an intra link)
         peptide: usize,
+        /// The sequence index where this cross-link is bound to
         sequence_index: usize,
+        /// The linker that defines the chemical structure that is the actual linker
         linker: SimpleModification,
+        /// The name of the cross-linker, if None it is a branch instead of cross-link
         name: Option<String>,
     },
 }

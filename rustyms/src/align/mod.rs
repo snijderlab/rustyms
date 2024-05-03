@@ -17,7 +17,7 @@
 //! ```
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
-//! use rustyms::{*, align::*, peptide_complexity::*};
+//! use rustyms::{*, align::*};
 //! let a = LinearPeptide::pro_forma("ANA", None).unwrap().simple().unwrap();
 //! let b = LinearPeptide::pro_forma("AGGA", None).unwrap().simple().unwrap();
 //! let alignment = align::<4, Simple, Simple>(&a, &b, &matrix::BLOSUM62,

@@ -82,6 +82,21 @@ impl SequenceElement {
         Ok(extra_placed)
     }
 
+    /// The base constant molecular formula
+    fn base_formula(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<Option<String>>,
+    ) -> Multi<MolecularFormula> {
+        self.aminoacid.formulas()
+            * self
+                .modifications
+                .iter()
+                .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
+                .sum::<Multi<MolecularFormula>>()
+    }
+
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
     pub fn formulas(
         &self,
@@ -90,21 +105,17 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
-        let modifications = self
-            .modifications
-            .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
-            .sum::<Multi<MolecularFormula>>()
+        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
             + self
                 .possible_modifications
                 .iter()
                 .filter(|&m| selected_ambiguous.contains(&m.id))
                 .map(Chemical::formula)
-                .sum::<MolecularFormula>();
-        modifications * self.aminoacid.formulas()
+                .sum::<MolecularFormula>()
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
+    #[allow(clippy::filter_map_bool_then)] // has side effects
     pub fn formulas_greedy(
         &self,
         placed: &mut [bool],
@@ -112,12 +123,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
-        #[allow(clippy::filter_map_bool_then)] // otherwise crashes
-        let modifications = self
-            .modifications
-            .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
-            .sum::<Multi<MolecularFormula>>()
+        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
             + self
                 .possible_modifications
                 .iter()
@@ -127,8 +133,7 @@ impl SequenceElement {
                         m.formula()
                     })
                 })
-                .sum::<MolecularFormula>();
-        modifications * self.aminoacid.formulas()
+                .sum::<MolecularFormula>()
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
@@ -138,17 +143,12 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
-        let modifications = self
-            .modifications
-            .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
-            .sum::<Multi<MolecularFormula>>()
+        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
             + self
                 .possible_modifications
                 .iter()
                 .map(Chemical::formula)
-                .sum::<MolecularFormula>();
-        modifications * self.aminoacid.formulas()
+                .sum::<MolecularFormula>()
     }
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
@@ -159,12 +159,8 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
     ) -> Multi<MolecularFormula> {
-        let modifications = self
-            .modifications
-            .iter()
-            .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
-            .sum::<Multi<MolecularFormula>>();
-        let mut formulas: Multi<MolecularFormula> = modifications * self.aminoacid.formulas();
+        let mut formulas: Multi<MolecularFormula> =
+            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         for modification in &self.possible_modifications {
             formulas = formulas + modification.formula();
         }

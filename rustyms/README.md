@@ -1,7 +1,7 @@
 # Match those fragments!
 
 Handle mass spectrometry data in Rust. This crate is set up to handle very complex peptides with
-loads of ambiguity and complexity. It pivots around the [`ComplexPeptide`] and [`LinearPeptide`]
+loads of ambiguity and complexity. It pivots around the [`CompoundPeptidoform`], [`Peptidoform`] and [`LinearPeptide`]
 which encode the [ProForma](https://github.com/HUPO-PSI/ProForma) specification. Additionally
 this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotation](RawSpectrum::annotate)
 (BU/MD/TD), finding [isobaric sequences](find_isobaric_sets), doing [alignments of peptides](align::align)
@@ -40,7 +40,7 @@ assert!(fdr.sigma() < 2.0);
 # fn main() -> Result<(), rustyms::error::CustomError> {
 // Check how this peptide compares to a similar peptide (using `align`)
 // (same sequence, repeated for easy reference)
-use rustyms::{*, align::*, peptide_complexity::*};
+use rustyms::{*, align::*};
 let first_peptide = LinearPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVS", None)?.simple().unwrap();
 let second_peptide = LinearPeptide::pro_forma("E[Glu->pyro-Glu]VQVES", None)?.simple().unwrap();
 let alignment = align::<4, Simple, Simple>(&first_peptide, &second_peptide,

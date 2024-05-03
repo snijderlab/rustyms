@@ -4,7 +4,12 @@ use crate::{
 };
 use std::fmt::Write;
 
-include!("shared/formula.rs");
+#[macro_use]
+#[path = "shared/formula/mod.rs"]
+mod formula_shared;
+
+pub use formula_shared::*;
+use ordered_float::OrderedFloat;
 
 impl From<&MolecularFormula> for OrderedMass {
     /// Create an ordered mass from the monoisotopic mass (needed for [`Multi<MolecularFormula>`](crate::Multi))
@@ -62,11 +67,6 @@ impl MolecularFormula {
         }
     }
 
-    /// Check if the formula is empty
-    pub fn is_empty(&self) -> bool {
-        self.elements.is_empty()
-    }
-
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
         self.hill_notation_generic(|element, buffer| {
@@ -119,43 +119,6 @@ impl MolecularFormula {
             }
         })
     }
-
-    /// The generic backbone to do the Hill notation sorting
-    fn hill_notation_generic(
-        &self,
-        f: impl Fn(&(Element, Option<NonZeroU16>, i32), &mut String),
-    ) -> String {
-        let mut buffer = String::new();
-        if let Some(carbon) = self
-            .elements
-            .iter()
-            .find(|e| e.0 == Element::C && e.1.is_none())
-        {
-            f(carbon, &mut buffer);
-            if let Some(hydrogen) = self
-                .elements
-                .iter()
-                .find(|e| e.0 == Element::H && e.1.is_none())
-            {
-                f(hydrogen, &mut buffer);
-            }
-            for element in self
-                .elements
-                .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
-            {
-                f(element, &mut buffer);
-            }
-        } else {
-            for element in &self.elements {
-                f(element, &mut buffer);
-            }
-        }
-        if self.additional_mass != 0.0 {
-            write!(&mut buffer, "{:+}", self.additional_mass).unwrap();
-        }
-        buffer
-    }
 }
 
 #[allow(clippy::missing_panics_doc)] // Cannot panic
@@ -200,7 +163,7 @@ impl std::fmt::Display for MolecularFormula {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::MolecularFormula;
+    use crate::{molecular_formula, MolecularFormula};
 
     #[test]
     fn sorted() {
