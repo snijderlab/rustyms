@@ -228,20 +228,11 @@ impl CompoundPeptidoform {
 
         // N term modification
         if chars[index] == b'[' {
-            let mut end_index = 0;
-            for i in index..line.len() - 1 {
-                if chars[i] == b']' && chars[i + 1] == b'-' {
-                    end_index = i + 1;
-                    break;
-                }
-            }
-            if end_index == 0 {
-                return Err(CustomError::error(
+            let end_index = end_of_enclosure(chars, index+1, b'[', b']').and_then(|i| (chars[i+1] == b'-').then_some(i+1)).ok_or_else(|| CustomError::error(
                     "Invalid N terminal modification",
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(0, line, index, 1),
-                ));
-            }
+                ))?;
             peptide.n_term = Some(
                 Modification::try_from(
                     line,
