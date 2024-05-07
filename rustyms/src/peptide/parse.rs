@@ -129,6 +129,13 @@ impl CompoundPeptidoform {
                     Context::full_line(0, line),
                 ));
             }
+            if result.peptide.is_empty() {
+                return Err(CustomError::error(
+                    "No peptide found",
+                    "The peptide definition is empty",
+                    Context::full_line(0, line),
+                ));
+            }
             peptides.push(result.peptide);
             index = result.index;
             ending = result.ending;
@@ -227,8 +234,8 @@ impl CompoundPeptidoform {
         peptide.labile = labile;
 
         // N term modification
-        if chars[index] == b'[' {
-            let end_index = end_of_enclosure(chars, index+1, b'[', b']').and_then(|i| (chars[i+1] == b'-').then_some(i+1)).ok_or_else(|| CustomError::error(
+        if chars.get(index) == Some(&b'[') {
+            let end_index = end_of_enclosure(chars, index+1, b'[', b']').and_then(|i| (chars.get(i+1) == Some(&b'-')).then_some(i+1)).ok_or_else(|| CustomError::error(
                     "Invalid N terminal modification",
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(0, line, index, 1),
@@ -267,7 +274,7 @@ impl CompoundPeptidoform {
         let mut braces_start = None; // Sequence index where the last unopened braces started
         while index < chars.len() {
             match (c_term, chars[index]) {
-                (false, b'(') if chars[index + 1] == b'?' => {
+                (false, b'(') if chars.get(index + 1) == Some(&b'?') => {
                     if braces_start.is_some() {
                         return Err(CustomError::error(
                             "Invalid ambiguous amino acid set",
@@ -311,7 +318,7 @@ impl CompoundPeptidoform {
                 (false, b')') if braces_start.is_some() => {
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
-                    while chars[index] == b'[' {
+                    while chars.get(index) == Some(&b'[') {
                         let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "No valid closing delimiter",
@@ -449,7 +456,21 @@ impl CompoundPeptidoform {
             return Err(CustomError::error(
                 "Invalid peptide",
                 "A single hyphen cannot end the definition, if a C terminal modification is intended use 'SEQ-[MOD]'",
-                Context::line(0, line, line.len() - 2, 1),
+                Context::line(0, line, line.len().saturating_sub(2), 1),
+            ));
+        }
+        if let Some(pos) = braces_start {
+            return Err(CustomError::error(
+                "Invalid peptide",
+                "Unclosed brace",
+                Context::line(0, line, pos, 1),
+            ));
+        }
+        if ambiguous_aa.is_some() {
+            return Err(CustomError::error(
+                "Invalid peptide",
+                "Unclosed ambiguous amino acid group",
+                Context::line(0, line, 0, line.len()),
             ));
         }
 
@@ -663,7 +684,7 @@ pub(super) fn unknown_position_mods(
     let mut cross_link_lookup = Vec::new();
 
     // Parse until no new modifications are found
-    while chars[index] == b'[' {
+    while chars.get(index) == Some(&b'[') {
         let end_index = next_char(chars, index + 1, b']')?;
         #[allow(clippy::map_unwrap_or)]
         // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
@@ -694,7 +715,7 @@ pub(super) fn unknown_position_mods(
             |m| m,
         );
         index = end_index + 1;
-        let number = if chars[index] == b'^' {
+        let number = if chars.get(index) == Some(&b'^') {
             if let Some((len, num)) = next_num(chars, index + 1, false) {
                 index += len + 1;
                 num as usize
@@ -708,7 +729,7 @@ pub(super) fn unknown_position_mods(
         };
         modifications.extend(std::iter::repeat(modification).take(number));
     }
-    (chars[index] == b'?').then_some({
+    (chars.get(index) == Some(&b'?')).then_some({
         if errs.is_empty() {
             Ok((index + 1, modifications, ambiguous_lookup))
         } else {
@@ -727,7 +748,7 @@ fn labile_modifications(
     custom_database: Option<&CustomDatabase>,
 ) -> Result<(usize, Vec<SimpleModification>), CustomError> {
     let mut labile = Vec::new();
-    while chars[index] == b'{' {
+    while chars.get(index) == Some(&b'{') {
         let end_index = end_of_enclosure(chars, index + 1, b'{', b'}').ok_or_else(|| {
             CustomError::error(
                 "Invalid labile modification",
@@ -786,7 +807,7 @@ pub(super) fn parse_charge_state(
             Context::line(0, line, index + 1, 1),
         )
     })?;
-    if index + 1 + charge_len < chars.len() && chars[index + 1 + charge_len] == b'[' {
+    if chars.get(index + 1 + charge_len) == Some(&b'[') {
         let end_index =
             end_of_enclosure(chars, index + 2 + charge_len, b'[', b']').ok_or_else(|| {
                 CustomError::error(
@@ -824,9 +845,9 @@ pub(super) fn parse_charge_state(
                         )
                     })?
             };
-            let (charge_len, charge) = match set[set.len() - charge_len - 1] {
-                b'+' => (charge_len + 1, charge),
-                b'-' => (charge_len + 1, -charge),
+            let (charge_len, charge) = match (set.len() - charge_len).checked_sub(1).and_then(|i| set.get(i)) {
+                Some(b'+') => (charge_len + 1, charge),
+                Some(b'-') => (charge_len + 1, -charge),
                 _ => {
                     return Err(CustomError::error(
                         "Invalid adduct ion",

@@ -1,0 +1,23 @@
+[package]
+name = "rustyms-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+afl = "*"
+rustyms = { path = "../rustyms" }
+
+[[bin]]
+name = "pro_forma"
+path = "fuzz_targets/pro_forma.rs"
+test = false
+doc = false
+bench = false
+
+# cargo afl build (in correct dir)
+# cargo afl fuzz -i fuzz/in -o out target/debug/pro_forma
+# open out/default/crashes/* | save crashes.txt -f

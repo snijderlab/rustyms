@@ -397,6 +397,118 @@ parse_test!(ne "{TMT6plex#g1}AA", negative_example_12);
 parse_test!(ne "{TMT6plex#XL1}AA", negative_example_13);
 parse_test!(ne "{TMT6plex#BRANCH}AA", negative_example_14);
 
+// FUZZED CRASHES
+
+parse_test!(ne "ESNCe/", fuzz_1);
+parse_test!(ne "/", fuzz_2);
+parse_test!(ne "[XLMOd:02001#XL1]", fuzz_3);
+parse_test!(ne "[XLOOD:02001#X1]", fuzz_4);
+parse_test!(ne "<[TMT6plex]@K,N-term>AtPEILTCNSIGCL/", fuzz_5);
+parse_test!(ne "-", fuzz_6);
+parse_test!(ne "Y(", fuzz_7);
+parse_test!(ne "((", fuzz_8);
+parse_test!(ne "()", fuzz_9);
+parse_test!(ne "///", fuzz_10);
+parse_test!(ne "S///////", fuzz_11);
+parse_test!(ne "S//////////(", fuzz_12);
+parse_test!(ne "[XLMO01#XL1]", fuzz_13);
+parse_test!(ne "SrS/////////", fuzz_14);
+parse_test!(ne "S/////////0?", fuzz_15);
+parse_test!(ne "[XLMOD:07001#XL1]", fuzz_16);
+parse_test!(ne "S//////////ETKvXLSES/0/", fuzz_17);
+parse_test!(ne "S///////////////7777777777777777777777777777////E", fuzz_18);
+parse_test!(ne "S//Q+++++++/", fuzz_19);
+parse_test!(ne "-[Phospho]ddddd(", fuzz_20);
+parse_test!(ne "KSPEK/3[1]SE1#XX+2Na", fuzz_21);
+parse_test!(ne
+    "KgPEKME/3[+222222222222222222222222222222Na1#XX1]SE",
+    fuzz_22
+);
+parse_test!(ne "S//QES/0/0+K/3EK/3EK/3[1]f5[+", fuzz_23);
+parse_test!(ne "S//+++/", fuzz_24);
+parse_test!(ne "SEK[XLMOD:001#XQ1]SESPE/", fuzz_25);
+parse_test!(ne "[[ZPX[[[[[[1]k]]]]]]]", fuzz_26);
+parse_test!(ne "[Formula:[09F6]^", fuzz_27);
+parse_test!(ne "[Formulaaaaaaaaaaaaaaaaaaaaaa:[13C2][#XL1]SESho]", fuzz_28);
+parse_test!(ne "[Formula:[13C2][/EMEVTK[#XL1]", fuzz_29);
+parse_test!(ne "[Formul[:\\13C8]^", fuzz_30);
+parse_test!(ne "[Fula:[13C23C2]", fuzz_31);
+parse_test!(ne "[FoFormula:[13C[EMEVEESPEK/3[+2Na+,+H+]", fuzz_32);
+parse_test!(ne "[Formula0m//13CC2]", fuzz_33);
+parse_test!(ne "[F][XLMOD:02001#XL1]", fuzz_34);
+parse_test!(ne "K[1#Phospho]ddKphoK/", fuzz_35);
+parse_test!(ne "K[1#Phospho]tdKSPEK/", fuzz_36);
+parse_test!(ne "SEQUEN[Formula:[13C2][12C-2]H2N]CENCE//EME//E/", fuzz_37);
+parse_test!(ne "<[TMT6plex]@K,N-term>ddGddd//E/////", fuzz_38);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term>dSEK[XLMOD:020#XXXXXXLLLLLLLLLL1]UENCE///////////////////3///////",
+    fuzz_39
+);
+parse_test!(ne
+    "[NCE//EMEVTK[XLMO[NCE//EMEVTK[XLMOD:02001UUUUUUJ[phlspho]",
+    fuzz_40
+);
+parse_test!(ne "[+2EMEVEENa1#Xa+, 2SPEK/3[+2N+H+]", fuzz_41);
+parse_test!(ne "[PhosK[phlspho]d2NaE#Xa+, +H+]", fuzz_42);
+parse_test!(ne
+    "UE+[Formula:}13Cd [12C-2UE+[Formula:}13Cd [1}13Cd [12C-2BE2NH2N]",
+    fuzz_43
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]@K,N-terMT6plex]@K,N-term]@K,N-termS//m>S/",
+    fuzz_44
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]@K,N-terMT6plex]@<,N-term]@K,N-term>S//m>S/",
+    fuzz_45
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]@K,N-terMT6@K,N-term]@K,N-terMT6plexS//m>S/",
+    fuzz_46
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]  KK[Phos -tWrMT6]lex]@K,N-term]@K,N-termY//m>S/",
+    fuzz_47
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]@Kpho]erMT6plex<@K,N-term]@K,N-term>S//m>S/",
+    fuzz_48
+);
+parse_test!(ne
+    "<[TMT6plex]@K,N-term]@K,N-terMT6plex]ex]@K,C-term>S//Q+++++++//?",
+    fuzz_49
+);
+parse_test!(ne "EMEVEESPEK/3[+5555555555555555555555555Na1#Xa+, ]", fuzz_50);
+parse_test!(ne "EMEVEESPEK/3[+26255555555555555555[-hospho]dAddd]", fuzz_51);
+parse_test!(ne "DMEVEESPEK/3[+2,2555555555555555555555dNa1#Xa+, ]", fuzz_52);
+parse_test!(ne "EMEV+[X://Q++[XS//Q+++++++////////R22222/5NXa+, ]", fuzz_53);
+parse_test!(ne "[Formula:   CE[Formula:   C2]", fuzz_54);
+parse_test!(ne "EK/3[+2Na+,+H+]PAK/3K/", fuzz_55);
+parse_test!(ne "SEK[XLMOD:02001#XL1]UENCE//////////////MEV//E///", fuzz_56);
+parse_test!(ne
+    "EMEVESEQU//Q++[X://Q++[XS//Q+++++++////////R+/////0//R:/201#X2]",
+    fuzz_57
+);
+parse_test!(ne
+    "EMEVESEQU//Q++[j://^++[XS//Q+++++++/3[+2NSRa//////////////R+/R:0201#X2]",
+    fuzz_58
+);
+parse_test!(ne "[TMT6plex]", fuzz_59);
+parse_test!(ne "[pphlpho]", fuzz_60);
+parse_test!(ne "SSSHSSSSSSSM+S+NPS+S+NPSS+?", fuzz_61);
+parse_test!(ne "SESPEK/3[+2N1111111111N1111111111										11111a+,2N]CCE", fuzz_62);
+parse_test!(ne "?", fuzz_63);
+parse_test!(ne "[TMT6plex]?", fuzz_64);
+parse_test!(ne "[]?", fuzz_65);
+parse_test!(ne "{}{}", fuzz_66);
+parse_test!(ne "EMEVEESH+?", fuzz_67);
+parse_test!(ne "EM/3A+H+?", fuzz_68);
+parse_test!(ne "{}{}{6}", fuzz_69);
+parse_test!(ne "EM/3[+SPEKEVVEE2Na+,+VW( EE3Na+,+HPFKAUBE2Nb+,+HPFKAUBE2`{b,++]", fuzz_70);
+parse_test!(ne "EM/3[+SPEKEVEE2Na+,+VEE2Na+,+HPFKAUBE2Nb+,+HPFKAUBW( E2Nb+,++]", fuzz_71);
+parse_test!(ne "EM/3[+SPEKEVEE2Na+,+VEE2Na+,+HPFKAUBW( E2Nb+,+HPFKAMOD:0200L11[X]2|||||UBE2Nb++++]", fuzz_72);
+parse_test!(ne "{}", fuzz_73);
+
 // Personal tests
 
 #[test]

@@ -6,3 +6,4 @@ imgt.dat.Z
 imgt.dat
 .venv/
 docs/**/_build/
+out

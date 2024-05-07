@@ -90,7 +90,9 @@ impl MolecularFormula {
     }
 
     /// Add the given element to this formula (while keeping it ordered and simplified).
-    /// If the isotope for the added element is not valid it returns `false`.
+    /// If the isotope for the added element is not valid it returns `false`. It also
+    /// does so if the addition of this element overflows the maximal number of atoms
+    /// in a formula.
     #[must_use]
     pub fn add(&mut self, element: (crate::Element, Option<NonZeroU16>, i32)) -> bool {
         if element.0.is_valid(element.1) {
@@ -103,7 +105,11 @@ impl MolecularFormula {
                     if el > re || (el == re && i > ri) {
                         index += 1;
                     } else if el == re && i == ri {
-                        self.elements[index].2 += n;
+                        if let Some(n) = self.elements[index].2.checked_add(n) {
+                            self.elements[index].2 = n;
+                        } else {
+                            return false;
+                        }
                         done = true;
                     } else {
                         self.elements.insert(index, (el, i, n));
