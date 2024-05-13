@@ -9,6 +9,7 @@ mod peptidoform;
 mod pro_forma_parse_tests;
 #[cfg(test)]
 mod tests;
+mod validate;
 
 pub use compound_peptidoform::*;
 pub use linear_peptide::*;

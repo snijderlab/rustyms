@@ -1,3 +1,4 @@
+#![allow(clippy::missing_panics_doc)]
 use std::num::NonZeroU16;
 
 use tests::parse::{global_modifications, parse_charge_state};

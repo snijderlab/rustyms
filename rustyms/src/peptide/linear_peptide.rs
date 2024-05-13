@@ -1,13 +1,12 @@
 #![warn(dead_code)]
 
-use super::GlobalModification;
 use crate::{
     error::CustomError,
     fragment::{DiagnosticPosition, PeptidePosition},
-    modification::{AmbiguousModification, GnoComposition, SimpleModification},
+    modification::{GnoComposition, SimpleModification},
     molecular_charge::MolecularCharge,
     peptide::*,
-    placement_rule::{PlacementRule, Position},
+    placement_rule::PlacementRule,
     DiagnosticIon, Element, MolecularFormula, Multi, MultiChemical, NeutralLoss, Protease,
     SequenceElement,
 };
@@ -33,7 +32,7 @@ pub struct LinearPeptide<T> {
     /// Global isotope modifications, saved as the element and the species that
     /// all occurrence of that element will consist of. Eg (N, 15) will make
     /// all occurring nitrogens be isotope 15.
-    global: Vec<(Element, Option<NonZeroU16>)>,
+    pub(super) global: Vec<(Element, Option<NonZeroU16>)>,
     /// Labile modifications, which will not be found in the actual spectrum.
     pub labile: Vec<SimpleModification>,
     /// N terminal modification
@@ -174,15 +173,6 @@ impl<T> LinearPeptide<T> {
         &self.global
     }
 
-    /// # Errors
-    /// If a modification rule is broken it returns an error.
-    pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
-        for (position, seq) in self.iter(..) {
-            seq.enforce_modification_rules(&position)?;
-        }
-        Ok(())
-    }
-
     /// Find all neutral losses in the given stretch of peptide
     fn potential_neutral_losses(
         &self,
@@ -274,7 +264,7 @@ impl<T> LinearPeptide<T> {
     }
 
     /// Iterate over a range in the peptide and keep track of the position
-    fn iter(
+    pub(super) fn iter(
         &self,
         range: impl RangeBounds<usize>,
     ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &SequenceElement)> + '_ {
@@ -287,124 +277,6 @@ impl<T> LinearPeptide<T> {
             .iter()
             .enumerate()
             .map(move |(index, seq)| (PeptidePosition::n(index + start, self.len()), seq))
-    }
-
-    /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false
-    #[must_use]
-    pub(crate) fn apply_global_modifications(
-        &mut self,
-        global_modifications: &[GlobalModification],
-    ) -> bool {
-        let length = self.len();
-        for modification in global_modifications {
-            match modification {
-                GlobalModification::Fixed(pos, aa, modification) => {
-                    for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
-                        pos.is_possible(&PeptidePosition::n(*index, length))
-                            && aa.map_or(true, |aa| aa == seq.aminoacid)
-                            && modification.is_possible(seq, &PeptidePosition::n(*index, length))
-                    }) {
-                        match pos {
-                            Position::Anywhere => seq.modifications.push(modification.clone()),
-                            Position::AnyNTerm | Position::ProteinNTerm => {
-                                self.n_term = Some(
-                                    modification
-                                        .simple()
-                                        .expect(
-                                            "Can only put a simple modification on an N terminus",
-                                        )
-                                        .clone(),
-                                );
-                            }
-                            Position::AnyCTerm | Position::ProteinCTerm => {
-                                self.c_term = Some(
-                                    modification
-                                        .simple()
-                                        .expect(
-                                            "Can only put a simple modification on a C terminus",
-                                        )
-                                        .clone(),
-                                );
-                            }
-                        }
-                    }
-                }
-                GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {
-                    self.global.push((*el, *isotope));
-                }
-                GlobalModification::Isotope(..) => return false,
-            }
-        }
-        true
-    }
-
-    /// Place all global unknown positions at all possible locations as ambiguous modifications
-    pub(crate) fn apply_unknown_position_modification(
-        &mut self,
-        unknown_position_modifications: &[SimpleModification],
-    ) {
-        for modification in unknown_position_modifications {
-            let id = self.ambiguous_modifications.len();
-            let length = self.len();
-            #[allow(clippy::unnecessary_filter_map)]
-            // Side effects so the lint does not apply here
-            self.ambiguous_modifications.push(
-                (0..length)
-                    .filter_map(|i| {
-                        if modification
-                            .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
-                        {
-                            self.sequence[i]
-                                .possible_modifications
-                                .push(AmbiguousModification {
-                                    id,
-                                    modification: modification.clone(),
-                                    localisation_score: None,
-                                    group: None,
-                                });
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect(),
-            );
-        }
-    }
-
-    /// Place all ranged unknown positions at all possible locations as ambiguous modifications
-    /// # Panics
-    /// It panics when information for an ambiguous modification is missing (name/mod).
-    pub(crate) fn apply_ranged_unknown_position_modification(
-        &mut self,
-        ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
-        ambiguous_lookup: &[(Option<String>, Option<SimpleModification>)],
-    ) {
-        let mut id = ambiguous_lookup.len();
-        for (start, end, modification) in ranged_unknown_position_modifications {
-            let length = self.len();
-            #[allow(clippy::unnecessary_filter_map)]
-            // Side effects so the lint does not apply here
-            let positions = (*start..=*end)
-                .filter_map(|i| {
-                    if modification.is_possible(&self.sequence[i], &PeptidePosition::n(i, length)) {
-                        self.sequence[i]
-                            .possible_modifications
-                            .push(AmbiguousModification {
-                                id,
-                                modification: modification.clone(),
-                                localisation_score: None,
-                                group: None,
-                            });
-                        Some(i)
-                    } else {
-                        None
-                    }
-                })
-                .collect_vec();
-            self.ambiguous_modifications[id].extend(positions);
-            id += 1;
-        }
     }
 
     /// Generate all possible patterns for the ambiguous positions (Mass, String:Label).

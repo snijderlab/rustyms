@@ -272,6 +272,17 @@ fn parse_single_modification(
                         |index| index,
                     );
                 if let Some(linker) = modification? {
+                    if cross_link_lookup[index]
+                        .1
+                        .as_ref()
+                        .is_some_and(|l| *l != linker)
+                    {
+                        return Err(CustomError::error(
+                                "Invalid branch definition", 
+                                "A branch definition has to be identical at both sites, or only defined at one site.", 
+                                Context::line(0, line, offset+full.1, full.2)
+                            ));
+                    }
                     cross_link_lookup[index].1 = Some(linker);
                 }
                 Ok(Some(ReturnModification::CrossLinkReferenced(index)))
@@ -288,6 +299,17 @@ fn parse_single_modification(
                         |index| index,
                     );
                 if let Some(linker) = modification? {
+                    if cross_link_lookup[index]
+                        .1
+                        .as_ref()
+                        .is_some_and(|l| *l != linker)
+                    {
+                        return Err(CustomError::error(
+                            "Invalid cross-link definition", 
+                            "A cross-link definition has to be identical at both sites, or only defined at one site.", 
+                            Context::line(0, line, offset+full.1, full.2)
+                        ));
+                    }
                     cross_link_lookup[index].1 = Some(linker);
                 }
                 Ok(Some(ReturnModification::CrossLinkReferenced(index)))

@@ -4,10 +4,17 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
 use crate::{
-    error::{Context, CustomError}, helper_functions::*, modification::{
-        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, Modification,
-        SimpleModification,
-    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptide::Linked, system::OrderedMass, AminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform, SequenceElement
+    error::{Context, CustomError},
+    helper_functions::*,
+    modification::{
+        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, Modification, SimpleModification,
+    },
+    molecular_charge::MolecularCharge,
+    ontologies::CustomDatabase,
+    peptide::Linked,
+    system::OrderedMass,
+    AminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform,
+    SequenceElement,
 };
 
 use super::{GlobalModification, ReturnModification};
@@ -21,8 +28,8 @@ enum End {
 
 struct LinearPeptideResult {
     peptide: LinearPeptide<Linked>,
-    index: usize, 
-    ending: End, 
+    index: usize,
+    ending: End,
     cross_links: Vec<(usize, usize)>,
 }
 
@@ -116,20 +123,18 @@ impl CompoundPeptidoform {
 
         // Parse any following cross-linked species
         while index < line.len() && ending == End::CrossLink {
-            let mut result = Self::parse_linear_peptide(
-                line,
-                index,
-                custom_database,
-                &mut cross_link_lookup,
-            )?;
-            if !result.peptide.apply_global_modifications(global_modifications) {
+            let mut result =
+                Self::parse_linear_peptide(line, index, custom_database, &mut cross_link_lookup)?;
+            if !result
+                .peptide
+                .apply_global_modifications(global_modifications)
+            {
                 return Err(CustomError::error(
                     "Invalid global isotope modification",
                     "There is an invalid global isotope modification",
                     Context::full_line(0, line),
                 ));
-            }
-            if result.peptide.is_empty() {
+            } else if result.peptide.is_empty() {
                 return Err(CustomError::error(
                     "No peptide found",
                     "The peptide definition is empty",
@@ -147,36 +152,8 @@ impl CompoundPeptidoform {
             }
         }
 
-        for (id, locations) in cross_links_found {
-            let definition = &cross_link_lookup[id];
-            if let Some(linker) = &definition.1 {
-                match locations.len() {
-                    0 => {return Err(CustomError::error(
-                        "Invalid cross-link",
-                        format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0.as_deref().unwrap_or("#BRANCH")),
-                        Context::full_line(0, line),
-                    ))},
-                    1 => (), // TODO: assumed that the modification is already placed so this works out fine (it is not)
-                    2 => {
-                        let (peptide_1, position_1) = locations[0];
-                        let (peptide_2, position_2) = locations[1];
-                        peptides[peptide_1].sequence[position_1].modifications.push(Modification::CrossLink { peptide: peptide_2, sequence_index: position_2, linker: linker.clone(), name: definition.0.clone()});
-                        peptides[peptide_2].sequence[position_2].modifications.push(Modification::CrossLink { peptide: peptide_1, sequence_index: position_1, linker: linker.clone(), name: definition.0.clone()});
-                    },
-                    _ => {return Err(CustomError::error(
-                        "Invalid cross-link",
-                        format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0.as_deref().unwrap_or("#BRANCH")),
-                        Context::full_line(0, line),
-                    ))}
-                }
-            } else {
-                return Err(CustomError::error(
-                    "Invalid cross-link",
-                    format!("The cross-link named '{0}' is never defined, define it like: '[X:DSS#XL{0}]'", definition.0.as_ref().map_or("#BRANCH".to_string(), |n| format!("#XL{n}"))),
-                    Context::full_line(0, line),
-                ));
-            }
-        }
+        let peptides =
+            super::validate::cross_links(peptides, cross_links_found, &cross_link_lookup, line)?;
 
         if peptides.is_empty() {
             Err(CustomError::error(
@@ -399,7 +376,7 @@ impl CompoundPeptidoform {
                         c_term = false; // Fix false negative errors on single ending hyphen
                         break;
                     }
-                    
+
                     if let Some((sequence_index, aa)) = peptide.sequence.iter_mut().enumerate().next_back() {
                         match modification {
                             ReturnModification::Defined(m) => aa.modifications.push(m),
@@ -506,10 +483,14 @@ impl CompoundPeptidoform {
         );
         peptide.enforce_modification_rules()?;
 
-        Ok(LinearPeptideResult{ peptide, index, ending, cross_links: cross_link_found_positions})
+        Ok(LinearPeptideResult {
+            peptide,
+            index,
+            ending,
+            cross_links: cross_link_found_positions,
+        })
     }
 }
-
 
 /// Parse global modifications
 /// # Errors
@@ -845,7 +826,10 @@ pub(super) fn parse_charge_state(
                         )
                     })?
             };
-            let (charge_len, charge) = match (set.len() - charge_len).checked_sub(1).and_then(|i| set.get(i)) {
+            let (charge_len, charge) = match (set.len() - charge_len)
+                .checked_sub(1)
+                .and_then(|i| set.get(i))
+            {
                 Some(b'+') => (charge_len + 1, charge),
                 Some(b'-') => (charge_len + 1, -charge),
                 _ => {
