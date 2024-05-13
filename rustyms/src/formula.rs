@@ -48,7 +48,10 @@ impl MolecularFormula {
     /// The most abundant mass, meaning the isotope that will have the highest intensity.
     /// It uses an averagine model for the isotopes so the mass will not reflect any isotopomer exact mass
     /// but will be in the form of monoisotopic exact mass + n, where n is the integer dalton offset for that isomer.
+    ///
+    /// Only available with crate feature 'isotopes'.
     #[allow(clippy::missing_panics_doc)]
+    #[cfg(feature = "isotopes")]
     pub fn most_abundant_mass(&self) -> Mass {
         let isotopes = self.isotopic_distribution(0.01);
         let max = isotopes
@@ -63,6 +66,7 @@ impl MolecularFormula {
         match mode {
             MassMode::Monoisotopic => self.monoisotopic_mass(),
             MassMode::Average => self.average_weight(),
+            #[cfg(feature = "isotopes")]
             MassMode::MostAbundant => self.most_abundant_mass(),
         }
     }

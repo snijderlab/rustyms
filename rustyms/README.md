@@ -60,3 +60,5 @@ It has multiple features which allow you to slim it down if needed (all are enab
 * `imgt` - enables access to the IMGT database of antibodies germline sequences, with annotations.
 * `rayon` - enables parallel iterators using rayon, mostly for `imgt` but also in consecutive
   align.
+* `isotopes` - gives access to generation of an averagine model for isotopes, also enables two additional dependencies
+* `rand` - allows the generation of random peptides

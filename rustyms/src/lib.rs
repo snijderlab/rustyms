@@ -43,6 +43,8 @@ pub mod fragment;
 mod fragmentation;
 pub mod glycan;
 mod isobaric_sets;
+#[cfg(feature = "isotopes")]
+/// Only available with feature `isotopes`.
 mod isotopes;
 mod itertools_extension;
 mod mass_mode;
@@ -56,6 +58,9 @@ pub mod ontologies;
 mod peptide;
 pub mod placement_rule;
 mod protease;
+#[cfg(feature = "rand")]
+/// Only available with features `rand`.
+mod rand;
 pub mod rawfile;
 mod sequence_element;
 pub mod spectrum;

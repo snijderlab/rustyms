@@ -7,6 +7,11 @@ pub struct GlycanStructure {
 }
 
 impl GlycanStructure {
+    /// Create a new glycan structure
+    pub fn new(sugar: MonoSaccharide, branches: Vec<GlycanStructure>) -> Self {
+        Self { sugar, branches }
+    }
+
     /// Parse a short IUPAC glycan structure
     /// # Panics
     /// Panics if there is no single sugar found
