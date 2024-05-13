@@ -252,19 +252,19 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
         self.and_then(Location::or_empty)
     }
     fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<Option<T>, CustomError> {
-        self.map(|l| l.parse::<T>(base_error)).invert()
+        self.map(|l| l.parse::<T>(base_error)).transpose()
     }
     fn parse_with<T>(
         self,
         f: impl Fn(Location<'a>) -> Result<T, CustomError>,
     ) -> Result<Option<T>, CustomError> {
-        self.map(f).invert()
+        self.map(f).transpose()
     }
     fn get_id(
         self,
         base_error: (&str, &str),
     ) -> Result<Option<(Option<usize>, usize)>, CustomError> {
-        self.map(|l| l.get_id(base_error)).invert()
+        self.map(|l| l.get_id(base_error)).transpose()
     }
     fn get_string(self) -> Option<String> {
         self.map(Location::get_string)

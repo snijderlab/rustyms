@@ -699,7 +699,17 @@ pub(super) fn unknown_position_mods(
         let number = if chars.get(index) == Some(&b'^') {
             if let Some((len, num)) = next_num(chars, index + 1, false) {
                 index += len + 1;
-                num as usize
+                if num < 0 {
+                    errs.push(
+                        CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies cannot have more a negative number of copies", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                    0
+                } else if num > i16::MAX as isize {
+                    errs.push(
+                        CustomError::error("Invalid unknown position modification", format!("A modification of unknown position with multiple copies cannot have more then {} copies", i16::MAX), Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                    0
+                } else {
+                    num as usize
+                }
             } else {
                 errs.push(
                     CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));

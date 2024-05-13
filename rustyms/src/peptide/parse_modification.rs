@@ -112,7 +112,7 @@ fn parse_single_modification(
                     )
                         })
                 })
-                .invert()?,
+                .transpose()?,
         );
 
         let modification = if let (Some(head), Some(tail)) = (head.as_ref(), tail) {
