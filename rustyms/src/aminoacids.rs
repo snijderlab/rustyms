@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -396,17 +397,8 @@ impl AminoAcid {
         }
         if ions.d.0 {
             base_fragments.extend(Fragment::generate_all(
-                &if self == Self::B || self == Self::Z {
-                    self.formulas()
-                        .iter()
-                        .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat)
-                        .collect::<Multi<MolecularFormula>>()
-                        + molecular_formula!(H 1 C 1 O 1)
-                } else {
-                    -self.satellite_ion_fragments() * self.formulas()
-                        + molecular_formula!(H 1 C 1 O 1)
-                },
+                &(-self.satellite_ion_fragments() * self.formulas()
+                    + molecular_formula!(H 1 C 1 O 1)),
                 peptide_index,
                 &FragmentType::d(PeptidePosition::n(sequence_index, sequence_length)),
                 n_term,
@@ -415,7 +407,7 @@ impl AminoAcid {
         }
         if ions.v.0 {
             base_fragments.extend(Fragment::generate_all(
-                &molecular_formula!(H 3 C 2 N 1 O 1).into(), // TODO: are the modifications needed here? Some are on the side chain but some are on the backbone as well
+                &molecular_formula!(H 3 C 2 N 1 O 1).into(),
                 peptide_index,
                 &FragmentType::v(PeptidePosition::n(sequence_index, sequence_length)),
                 c_term,
@@ -424,16 +416,7 @@ impl AminoAcid {
         }
         if ions.w.0 {
             base_fragments.extend(Fragment::generate_all(
-                &if self == Self::B || self == Self::Z {
-                    self.formulas()
-                        .iter()
-                        .zip(self.satellite_ion_fragments().iter())
-                        .map(|(mass, sat)| mass - sat)
-                        .collect::<Multi<MolecularFormula>>()
-                        + molecular_formula!(H 2 N 1)
-                } else {
-                    -self.satellite_ion_fragments() * self.formulas() + molecular_formula!(H 2 N 1)
-                },
+                &(-self.satellite_ion_fragments() * self.formulas() + molecular_formula!(H 2 N 1)),
                 peptide_index,
                 &FragmentType::w(PeptidePosition::c(sequence_index, sequence_length)),
                 c_term,
@@ -477,10 +460,11 @@ impl AminoAcid {
         }
         let charge_options = charge_carriers.all_charge_options();
         let mut charged = Vec::with_capacity(base_fragments.len() * charge_options.len());
-        for base in base_fragments {
-            for charge in &charge_options {
-                charged.push(base.with_charge(charge));
-            }
+        for (base, charge) in base_fragments
+            .iter()
+            .cartesian_product(charge_options.iter())
+        {
+            charged.push(base.with_charge(charge));
         }
         // Immonium ions will only be generated with charge 1
         if ions.immonium {
@@ -546,6 +530,12 @@ impl AminoAcid {
             | (Self::Q | Self::E, Self::Z) => true,
             _ => false,
         }
+    }
+}
+
+impl std::fmt::Display for AminoAcid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.char())
     }
 }
 

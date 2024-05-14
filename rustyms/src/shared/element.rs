@@ -7,6 +7,8 @@ use crate::system::f64::Mass;
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
 )]
 pub enum Element {
+    /// Not necessarily an element but handy to have: electron
+    Electron = 0,
     /// Element Hydrogen (H) atomic number: 1
     #[default]
     H = 1,
@@ -244,8 +246,6 @@ pub enum Element {
     Ts,
     /// Element Oganesson (Og) atomic number: 118
     Og,
-    /// Not necessarily an element but handy to have: electron
-    Electron,
 }
 
 impl TryFrom<&str> for Element {
@@ -381,6 +381,7 @@ impl TryFrom<usize> for Element {
     #[allow(clippy::too_many_lines)]
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
+            0 => Ok(Self::Electron),
             1 => Ok(Self::H),
             2 => Ok(Self::He),
             3 => Ok(Self::Li),

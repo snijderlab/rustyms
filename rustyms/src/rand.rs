@@ -129,7 +129,7 @@ impl Distribution<BaseSugar> for Standard {
 
 impl Distribution<Element> for Standard {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> Element {
-        Element::try_from(rng.gen_range(Element::H as usize..Element::Electron as usize)).unwrap()
+        Element::try_from(rng.gen_range(Element::Electron as usize..Element::Og as usize)).unwrap()
     }
 }
 

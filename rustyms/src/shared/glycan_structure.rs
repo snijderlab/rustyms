@@ -1,3 +1,6 @@
+use crate::helper_functions::{end_of_enclosure, next_char};
+use std::ops::Range;
+
 /// Rose tree representation of glycan structure
 #[allow(dead_code)]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
@@ -8,6 +11,7 @@ pub struct GlycanStructure {
 
 impl GlycanStructure {
     /// Create a new glycan structure
+    #[allow(dead_code)]
     pub fn new(sugar: MonoSaccharide, branches: Vec<GlycanStructure>) -> Self {
         Self { sugar, branches }
     }

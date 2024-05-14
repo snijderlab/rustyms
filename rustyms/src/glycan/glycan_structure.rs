@@ -1,6 +1,6 @@
 //! Handle glycan structures
 use std::str::FromStr;
-use std::{fmt::Display, hash::Hash, ops::Range};
+use std::{fmt::Display, hash::Hash};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,6 @@ use super::{glycan_parse_list, BaseSugar, MonoSaccharide, PositionedGlycanStruct
 use crate::{
     error::{Context, CustomError},
     formula::{Chemical, MolecularFormula},
-    helper_functions::*,
 };
 
 include!("../shared/glycan_structure.rs");

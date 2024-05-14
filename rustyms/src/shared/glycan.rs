@@ -1,4 +1,4 @@
-use std::{fmt::Display, hash::Hash, ops::Range, sync::OnceLock};
+use std::{fmt::Display, hash::Hash, sync::OnceLock};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{Context, CustomError},
     formula::{Chemical, MolecularFormula},
-    helper_functions::*,
     Element, ELEMENT_PARSE_LIST,
 };
 
@@ -65,8 +64,7 @@ impl MonoSaccharide {
         let mut substituents = Vec::new();
 
         // ignore stuff
-        index += line[index..].ignore(&["keto-"]);
-        index += line[index..].ignore(&["d-", "l-", "?-"]);
+        index += line[index..].ignore(&["keto-", "d-", "l-", "?-"]);
         // Prefix mods
         let mut amount = 1;
         if bytes[index].is_ascii_digit() {
