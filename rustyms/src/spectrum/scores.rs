@@ -17,29 +17,40 @@ impl AnnotatedSpectrum {
     /// Get the spectrum scores for this annotated spectrum.
     /// The returned tuple has the scores for all peptides combined as first item
     /// and as second item a vector with for each peptide its individual scores.
-    pub fn scores(&self, fragments: &[Fragment]) -> (Scores, Vec<Scores>) {
-        let mut individual_peptides = Vec::new();
+    pub fn scores(&self, fragments: &[Fragment]) -> (Scores, Vec<Vec<Scores>>) {
         let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
-        for (peptidoform_index, peptidoform) in self.peptide.peptidoforms().iter().enumerate() {
-            for (peptide_index, peptide) in peptidoform.peptides().iter().enumerate() {
-                let (recovered_fragments, peaks, intensity_annotated) =
-                    self.base_score(fragments, Some(peptide_index), None);
-                let positions = self.score_positions(peptide_index, None);
-                individual_peptides.push(Scores {
-                    score: Score::Position {
-                        fragments: recovered_fragments,
-                        peaks,
-                        intensity: Recovered::new(intensity_annotated, total_intensity),
-                        positions: Recovered::new(positions, peptide.len() as u32),
-                    },
-                    ions: self.score_individual_ions(
-                        fragments,
-                        Some((peptide_index, peptide)),
-                        total_intensity,
-                    ),
-                });
-            }
-        }
+        let individual_peptides = self
+            .peptide
+            .peptidoforms()
+            .iter()
+            .enumerate()
+            .map(|(peptidoform_index, peptidoform)| {
+                peptidoform
+                    .peptides()
+                    .iter()
+                    .enumerate()
+                    .map(|(peptide_index, peptide)| {
+                        let (recovered_fragments, peaks, intensity_annotated) =
+                            self.base_score(fragments, Some(peptide_index), None);
+                        let positions =
+                            self.score_positions(peptidoform_index, peptide_index, None);
+                        Scores {
+                            score: Score::Position {
+                                fragments: recovered_fragments,
+                                peaks,
+                                intensity: Recovered::new(intensity_annotated, total_intensity),
+                                positions: Recovered::new(positions, peptide.len() as u32),
+                            },
+                            ions: self.score_individual_ions(
+                                fragments,
+                                Some((peptidoform_index, peptide_index, peptide)),
+                                total_intensity,
+                            ),
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
         // Get the statistics for the combined peptides
         let (recovered_fragments, peaks, intensity_annotated) =
             self.base_score(fragments, None, None);
@@ -105,14 +116,20 @@ impl AnnotatedSpectrum {
     }
 
     /// Get the total number of positions covered
-    fn score_positions(&self, peptide_index: usize, ion: Option<FragmentKind>) -> u32 {
+    fn score_positions(
+        &self,
+        peptidoform_index: usize,
+        peptide_index: usize,
+        ion: Option<FragmentKind>,
+    ) -> u32 {
         self.spectrum
             .iter()
             .flat_map(|p| {
                 p.annotation
                     .iter()
                     .filter(|(a, _)| {
-                        a.peptide_index == peptide_index
+                        a.peptidoform_index == peptidoform_index
+                            && a.peptide_index == peptide_index
                             && ion.map_or(true, |kind| a.ion.kind() == kind)
                     })
                     .filter_map(|(a, _)| a.ion.position())
@@ -157,7 +174,7 @@ impl AnnotatedSpectrum {
     fn score_individual_ions<T>(
         &self,
         fragments: &[Fragment],
-        peptide: Option<(usize, &LinearPeptide<T>)>,
+        peptide: Option<(usize, usize, &LinearPeptide<T>)>,
         total_intensity: f64,
     ) -> Vec<(FragmentKind, Score)> {
         [
@@ -176,9 +193,10 @@ impl AnnotatedSpectrum {
         .filter_map(|ion| {
             let (recovered_fragments, peaks, intensity_annotated) =
                 self.base_score(fragments, peptide.as_ref().map(|p| p.0), Some(ion));
-            if let Some((index, peptide)) = peptide {
+            if let Some((peptidoform_index, peptide_index, peptide)) = peptide {
                 if recovered_fragments.total > 0 {
-                    let positions = self.score_positions(index, Some(ion));
+                    let positions =
+                        self.score_positions(peptidoform_index, peptide_index, Some(ion));
                     Some((
                         ion,
                         Score::Position {
@@ -266,7 +284,7 @@ impl AnnotatedSpectrum {
                 // Get the index of the element closest to this value (spectrum is defined to always be sorted)
                 let index = peaks
                     .binary_search_by(|p| p.value.total_cmp(&mass.value))
-                    .map_or_else(|i| i, |i| i);
+                    .unwrap_or_else(|i| i);
 
                 // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
                 let mut closest = (0, Ratio::new::<crate::system::ratio::ppm>(f64::INFINITY));

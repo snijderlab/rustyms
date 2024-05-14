@@ -26,12 +26,17 @@ impl Peptidoform {
         &self,
         max_charge: Charge,
         model: &Model,
+        peptidoform_index: usize,
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
         for (index, peptide) in self.peptides().iter().enumerate() {
-            base.extend(
-                peptide.generate_theoretical_fragments_inner(max_charge, model, index, &self.0),
-            );
+            base.extend(peptide.generate_theoretical_fragments_inner(
+                max_charge,
+                model,
+                peptidoform_index,
+                index,
+                &self.0,
+            ));
         }
         base
     }

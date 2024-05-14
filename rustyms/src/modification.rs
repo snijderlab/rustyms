@@ -114,7 +114,7 @@ impl From<SimpleModification> for Modification {
 
 impl Modification {
     /// Get the formula for the whole addition (or subtraction) for this modification
-    pub fn formula(
+    pub(crate) fn formula_inner(
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
@@ -152,11 +152,11 @@ impl Modification {
         }
     }
 
-    /// Get the formula for a simple modification
-    pub fn simple_formula(&self) -> Option<MolecularFormula> {
+    /// Get the formula for a modification, if it is a cross linked modification only get the cross link
+    pub fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Simple(s) => s.formula().into(),
-            Self::CrossLink { .. } => None,
+            Self::Simple(s) => s.formula(),
+            Self::CrossLink { linker, .. } => linker.formula(),
         }
     }
 }

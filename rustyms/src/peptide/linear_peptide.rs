@@ -370,6 +370,7 @@ impl<T> LinearPeptide<T> {
         &self,
         max_charge: Charge,
         model: &Model,
+        peptidoform_index: usize,
         peptide_index: usize,
         all_peptides: &[LinearPeptide<Linked>],
     ) -> Vec<Fragment> {
@@ -406,7 +407,7 @@ impl<T> LinearPeptide<T> {
             let modifications_total = self.sequence[index]
                 .modifications
                 .iter()
-                .map(|m| m.formula(all_peptides, &[], &mut Vec::new()))
+                .map(|m| m.formula_inner(all_peptides, &[], &mut Vec::new()))
                 .sum::<Multi<MolecularFormula>>();
 
             output.append(&mut self.sequence[index].aminoacid.fragments(
@@ -417,6 +418,7 @@ impl<T> LinearPeptide<T> {
                 index,
                 self.sequence.len(),
                 &model.ions(position),
+                peptidoform_index,
                 peptide_index,
             ));
 
@@ -434,6 +436,7 @@ impl<T> LinearPeptide<T> {
                                     Fragment::generate_all(
                                         &((-modifications_total.clone()) + m.clone() - aa.clone()
                                             + molecular_formula!(C 2 H 2 N 1 O 1)),
+                                        peptidoform_index,
                                         peptide_index,
                                         &FragmentType::m(position, self.sequence[index].aminoacid),
                                         &Multi::default(),
@@ -461,6 +464,7 @@ impl<T> LinearPeptide<T> {
                     Fragment::new(
                         m.clone(),
                         Charge::zero(),
+                        peptidoform_index,
                         peptide_index,
                         FragmentType::precursor,
                         String::new(),
@@ -484,6 +488,7 @@ impl<T> LinearPeptide<T> {
                             .determine_positions()
                             .generate_theoretical_fragments(
                                 model,
+                                peptidoform_index,
                                 peptide_index,
                                 charge_carriers,
                                 &self.formulas_inner(
@@ -506,6 +511,7 @@ impl<T> LinearPeptide<T> {
                             .determine_positions()
                             .generate_theoretical_fragments(
                                 model,
+                                peptidoform_index,
                                 peptide_index,
                                 charge_carriers,
                                 &self.formulas_inner(
@@ -528,6 +534,7 @@ impl<T> LinearPeptide<T> {
                     formula: dia.0,
                     charge: Charge::default(),
                     ion: FragmentType::diagnostic(pos),
+                    peptidoform_index,
                     peptide_index,
                     neutral_loss: None,
                     label: String::new(),
@@ -753,7 +760,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
         max_charge: Charge,
         model: &Model,
     ) -> Vec<Fragment> {
-        self.generate_theoretical_fragments_inner(max_charge, model, 0, &[])
+        self.generate_theoretical_fragments_inner(max_charge, model, 0, 0, &[])
     }
 }
 

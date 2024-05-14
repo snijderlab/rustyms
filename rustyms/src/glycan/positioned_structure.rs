@@ -42,6 +42,7 @@ impl PositionedGlycanStructure {
     pub fn generate_theoretical_fragments(
         &self,
         model: &Model,
+        peptidoform_index: usize,
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
         full_formula: &Multi<MolecularFormula>,
@@ -52,7 +53,7 @@ impl PositionedGlycanStructure {
         model.glycan.as_ref().map_or(vec![], |neutral_losses| {
             // Get all base fragments from this node and all its children
             let mut base_fragments = self
-                .oxonium_fragments(peptide_index, attachment)
+                .oxonium_fragments(peptidoform_index, peptide_index, attachment)
                 .into_iter()
                 .flat_map(|f| f.with_charges(&single_charges))
                 .flat_map(|f| f.with_neutral_losses(neutral_losses))
@@ -70,6 +71,7 @@ impl PositionedGlycanStructure {
                             Fragment::new(
                                 full - self.formula() + f,
                                 Charge::zero(),
+                                peptidoform_index,
                                 peptide_index,
                                 FragmentType::Y(
                                     bonds
@@ -88,7 +90,7 @@ impl PositionedGlycanStructure {
             );
             // Generate all diagnostic ions
             base_fragments.extend(
-                self.diagnostic_ions(peptide_index, attachment)
+                self.diagnostic_ions(peptidoform_index, peptide_index, attachment)
                     .into_iter()
                     .flat_map(|f| f.with_charges(&single_charges)),
             );
@@ -99,16 +101,17 @@ impl PositionedGlycanStructure {
     /// Get uncharged diagnostic ions from all positions
     fn diagnostic_ions(
         &self,
+        peptidoform_index: usize,
         peptide_index: usize,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
-        let mut output = self
-            .sugar
-            .diagnostic_ions(peptide_index, self.position(attachment));
+        let mut output =
+            self.sugar
+                .diagnostic_ions(peptidoform_index, peptide_index, self.position(attachment));
         output.extend(
             self.branches
                 .iter()
-                .flat_map(|b| b.diagnostic_ions(peptide_index, attachment)),
+                .flat_map(|b| b.diagnostic_ions(peptidoform_index, peptide_index, attachment)),
         );
 
         output
@@ -117,6 +120,7 @@ impl PositionedGlycanStructure {
     /// Generate all fragments without charge and neutral loss options
     fn oxonium_fragments(
         &self,
+        peptidoform_index: usize,
         peptide_index: usize,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
@@ -124,6 +128,7 @@ impl PositionedGlycanStructure {
         let mut base_fragments = vec![Fragment::new(
             self.formula(),
             Charge::zero(),
+            peptidoform_index,
             peptide_index,
             FragmentType::B(self.position(attachment)),
             String::new(),
@@ -148,6 +153,7 @@ impl PositionedGlycanStructure {
                     Fragment::new(
                         formula,
                         Charge::zero(),
+                        peptidoform_index,
                         peptide_index,
                         FragmentType::Oxonium(breakages),
                         String::new(),
@@ -158,7 +164,7 @@ impl PositionedGlycanStructure {
         base_fragments.extend(
             self.branches
                 .iter()
-                .flat_map(|b| b.oxonium_fragments(peptide_index, attachment)),
+                .flat_map(|b| b.oxonium_fragments(peptidoform_index, peptide_index, attachment)),
         );
         base_fragments
     }

@@ -59,8 +59,8 @@ impl CompoundPeptidoform {
         model: &Model,
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
-        for peptidoform in self.peptidoforms() {
-            base.extend(peptidoform.generate_theoretical_fragments(max_charge, model));
+        for (index, peptidoform) in self.peptidoforms().iter().enumerate() {
+            base.extend(peptidoform.generate_theoretical_fragments(max_charge, model, index));
         }
         base
     }

@@ -68,12 +68,14 @@ impl MonoSaccharide {
     /// According to: <https://doi.org/10.1016/j.trac.2018.09.007>.
     pub(crate) fn diagnostic_ions(
         &self,
+        peptidoform_index: usize,
         peptide_index: usize,
         position: GlycanPosition,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
             self.formula(),
             Charge::default(),
+            peptidoform_index,
             peptide_index,
             FragmentType::diagnostic(crate::fragment::DiagnosticPosition::Glycan(
                 position,

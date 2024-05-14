@@ -78,8 +78,8 @@ pub use crate::multi::*;
 pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::{
-    CompoundPeptidoform, ExtremelySimple, Linear, LinearPeptide, Linked, Peptidoform, Simple,
-    VerySimple,
+    CompoundPeptidoform, ExtremelySimple, Linear, LinearPeptide, Linked, Peptidoform,
+    ReturnModification, Simple, VerySimple,
 };
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;

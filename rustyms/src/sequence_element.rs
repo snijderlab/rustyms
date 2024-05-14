@@ -93,7 +93,7 @@ impl SequenceElement {
             * self
                 .modifications
                 .iter()
-                .map(|m| m.formula(all_peptides, visited_peptides, applied_cross_links))
+                .map(|m| m.formula_inner(all_peptides, visited_peptides, applied_cross_links))
                 .sum::<Multi<MolecularFormula>>()
     }
 

@@ -29,7 +29,9 @@ pub struct Fragment {
     pub charge: Charge,
     /// All possible annotations for this fragment saved as a tuple of peptide index and its type
     pub ion: FragmentType,
-    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`crate::ComplexPeptide`] struct
+    /// The peptidoform this fragment comes from, saved as the index into the list of peptidoform in the overarching [`crate::CompoundPeptidoform`] struct
+    pub peptidoform_index: usize,
+    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`crate::Peptidoform`] struct
     pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
@@ -54,6 +56,7 @@ impl Fragment {
     pub fn new(
         theoretical_mass: MolecularFormula,
         charge: Charge,
+        peptidoform_index: usize,
         peptide_index: usize,
         ion: FragmentType,
         label: String,
@@ -62,6 +65,7 @@ impl Fragment {
             formula: theoretical_mass,
             charge,
             ion,
+            peptidoform_index,
             peptide_index,
             label,
             neutral_loss: None,
@@ -72,6 +76,7 @@ impl Fragment {
     #[must_use]
     pub fn generate_all(
         theoretical_mass: &Multi<MolecularFormula>,
+        peptidoform_index: usize,
         peptide_index: usize,
         annotation: &FragmentType,
         termini: &Multi<MolecularFormula>,
@@ -84,6 +89,7 @@ impl Fragment {
                 Self::new(
                     term + mass,
                     Charge::zero(),
+                    peptidoform_index,
                     peptide_index,
                     annotation.clone(),
                     String::new(),
@@ -573,6 +579,7 @@ mod tests {
         let a = Fragment::new(
             AminoAcid::AsparticAcid.formulas()[0].clone(),
             Charge::new::<crate::system::charge::e>(1),
+            0,
             0,
             FragmentType::precursor,
             String::new(),
