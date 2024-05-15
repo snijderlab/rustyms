@@ -79,7 +79,7 @@ impl Ontology {
                 .map(|option| option.1.as_str())
                 .collect();
             resulting.extend(
-                similar::get_close_matches(code, &options, 3, 0.75)
+                similar::get_close_matches(code, &options, 3, 0.7)
                     .iter()
                     .map(|o| format!("{}:{}", ontology.char(), o)),
             );

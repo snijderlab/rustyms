@@ -11,7 +11,10 @@ use std::{
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::CustomError, helper_functions::check_extension};
+use crate::{
+    error::{Context, CustomError},
+    helper_functions::check_extension,
+};
 
 /// A single line in a CSV file
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
@@ -128,8 +131,16 @@ pub fn parse_csv(
     path: impl AsRef<std::path::Path>,
     separator: u8,
     provided_header: Option<Vec<String>>,
-) -> Result<Box<dyn Iterator<Item = Result<CsvLine, String>>>, String> {
-    let file = File::open(path.as_ref()).map_err(|e| e.to_string())?;
+) -> Result<Box<dyn Iterator<Item = Result<CsvLine, CustomError>>>, CustomError> {
+    let file = File::open(path.as_ref()).map_err(|e| {
+        CustomError::error(
+            "Could not open file",
+            e,
+            crate::error::Context::Show {
+                line: path.as_ref().to_string_lossy().to_string(),
+            },
+        )
+    })?;
     if check_extension(path, "gz") {
         Ok(Box::new(parse_csv_raw(
             GzDecoder::new(file),
@@ -148,17 +159,19 @@ pub fn parse_csv_raw<T: std::io::Read>(
     reader: T,
     separator: u8,
     provided_header: Option<Vec<String>>,
-) -> Result<CsvLineIter<T>, String> {
+) -> Result<CsvLineIter<T>, CustomError> {
     let reader = BufReader::new(reader);
     let mut lines = reader.lines().enumerate();
     let column_headers = if let Some(header) = provided_header {
         header
     } else {
-        let (_, column_headers) = lines
-            .next()
-            .ok_or("Empty CSV file, but it should contain a header")?;
-        let header_line =
-            column_headers.map_err(|err| format!("Could not read header line: {err}"))?;
+        let (_, column_headers) = lines.next().ok_or(CustomError::error(
+            "Could parse csv file",
+            "The file is empty",
+            Context::None,
+        ))?;
+        let header_line = column_headers
+            .map_err(|err| CustomError::error("Could not read header line", err, Context::None))?;
         csv_separate(&header_line, separator)?
             .into_iter()
             .map(|r| header_line[r].to_lowercase())
@@ -180,13 +193,16 @@ pub struct CsvLineIter<T: std::io::Read> {
 }
 
 impl<T: std::io::Read> Iterator for CsvLineIter<T> {
-    type Item = Result<CsvLine, String>;
+    type Item = Result<CsvLine, CustomError>;
     fn next(&mut self) -> Option<Self::Item> {
         self.lines.next().map(|(line_index, line)| {
-            let line = if let Ok(line) = line {
-                line.trim_end().to_string()
-            } else {
-                return Err(format!("Could no read line {line_index}"));
+            let line = match line {
+                Ok(line) => line.trim_end().to_string(),
+                Err(err) => return Err(CustomError::error(
+                    "Could not read line",
+                    err,
+                    Context::full_line(line_index, "(failed)"),
+                ))
             };
             csv_separate(&line, self.separator).and_then(|row| {
                 if self.header.len() == row.len() {
@@ -196,7 +212,11 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
                         fields: self.header.iter().cloned().zip(row).collect(),
                     })
                 } else {
-                    Err(format!("Line {line_index} does not have the correct number of columns. {} columns were expected but {} were found.", self.header.len(), row.len()))
+                    Err(CustomError::error(
+                        "Incorrect number of columns",
+                        format!("It does not have the correct number of columns. {} columns were expected but {} were found.", self.header.len(), row.len()),
+                        Context::full_line(line_index, line),
+                    ))
                 }
             })
         })
@@ -205,9 +225,13 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
 
 /// # Errors
 /// If the line is empty.
-fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, String> {
+fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, CustomError> {
     if line.is_empty() {
-        return Err("Empty line".to_string());
+        return Err(CustomError::error(
+            "Empty line",
+            "The line is empty",
+            Context::None,
+        ));
     }
     let mut enclosed = None;
     let mut was_enclosed = false;

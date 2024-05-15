@@ -205,32 +205,44 @@ impl Modification {
             Self::Simple(SimpleModification::Mass(mass)) => ModificationSearchResult::Mass(
                 mass.into_inner(),
                 tolerance,
-                [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
+                [
+                    Ontology::Unimod,
+                    Ontology::Psimod,
+                    Ontology::Gnome,
+                    Ontology::Xlmod,
+                    Ontology::Custom,
+                ]
+                .iter()
+                .flat_map(|o| {
+                    o.lookup(custom_database)
+                        .iter()
+                        .map(|(i, n, m)| (*o, *i, n, m))
+                })
+                .filter(|(_, _, _, m)| {
+                    tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
+                })
+                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
+                .collect(),
+            ),
+            Self::Simple(SimpleModification::Formula(formula)) => {
+                ModificationSearchResult::Formula(
+                    formula.clone(),
+                    [
+                        Ontology::Unimod,
+                        Ontology::Psimod,
+                        Ontology::Gnome,
+                        Ontology::Xlmod,
+                        Ontology::Custom,
+                    ]
                     .iter()
                     .flat_map(|o| {
                         o.lookup(custom_database)
                             .iter()
                             .map(|(i, n, m)| (*o, *i, n, m))
                     })
-                    .filter(|(_, _, _, m)| {
-                        tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
-                    })
+                    .filter(|(_, _, _, m)| *formula == m.formula())
                     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                     .collect(),
-            ),
-            Self::Simple(SimpleModification::Formula(formula)) => {
-                ModificationSearchResult::Formula(
-                    formula.clone(),
-                    [Ontology::Unimod, Ontology::Psimod, Ontology::Gnome]
-                        .iter()
-                        .flat_map(|o| {
-                            o.lookup(custom_database)
-                                .iter()
-                                .map(|(i, n, m)| (*o, *i, n, m))
-                        })
-                        .filter(|(_, _, _, m)| *formula == m.formula())
-                        .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                        .collect(),
                 )
             }
             Self::Simple(SimpleModification::Glycan(glycan)) => {

@@ -56,7 +56,7 @@ macro_rules! format_family {
             }
             fn parse_file(
                 path: impl AsRef<std::path::Path>,
-            ) -> Result<BoxedIdentifiedPeptideIter<Self>, String> {
+            ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError> {
                 parse_csv(path, $separator, None).map(|lines| {
                     Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
                         lines.map(Result::unwrap),

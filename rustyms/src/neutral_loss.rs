@@ -11,6 +11,13 @@ use crate::{
 include!("shared/neutral_loss.rs");
 
 impl NeutralLoss {
+    /// Check if this neutral loss if empty (has an empty molecular formula)
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Loss(f) | Self::Gain(f) => f.is_empty(),
+        }
+    }
+
     /// Generate a nice HTML notation for this `NeutralLoss`
     pub fn hill_notation_html(&self) -> String {
         match self {

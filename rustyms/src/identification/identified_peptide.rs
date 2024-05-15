@@ -111,7 +111,7 @@ where
     /// Returns Err when the file could not be opened
     fn parse_file(
         path: impl AsRef<std::path::Path>,
-    ) -> Result<BoxedIdentifiedPeptideIter<Self>, String>;
+    ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError>;
 }
 
 /// Convenience type to not have to type out long iterator types
