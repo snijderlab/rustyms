@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// A theoretical fragment of a peptide
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct Fragment {
     /// The theoretical composition
     pub formula: MolecularFormula,
@@ -277,7 +277,7 @@ pub enum DiagnosticPosition {
 }
 
 /// The possible types of fragments
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize, Default)]
 #[allow(non_camel_case_types)]
 pub enum FragmentType {
     /// a
@@ -321,6 +321,7 @@ pub enum FragmentType {
     /// Diagnostic ion for a given position
     diagnostic(DiagnosticPosition),
     /// precursor
+    #[default]
     precursor,
 }
 
