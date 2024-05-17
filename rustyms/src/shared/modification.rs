@@ -43,13 +43,12 @@ pub enum SimpleModification {
     ),
     /// A cross linker
     Linker {
-        specificities: LinkerSpecificity,
+        specificities: Vec<LinkerSpecificity>,
         formula: MolecularFormula,
         name: String,
         id: usize,
         length: Option<OrderedFloat<f64>>,
         ontology: Ontology,
-        diagnostic_ions: Vec<DiagnosticIon>,
     },
 }
 
@@ -59,13 +58,18 @@ pub enum LinkerSpecificity {
     /// A symmetric specificity where both ends have the same specificity.
     /// The first list is all possible positions. The second list is all
     /// stubs that can be left after cleaving or breaking of the cross-link.
-    Symmetric(Vec<PlacementRule>, Vec<MolecularFormula>),
+    Symmetric(
+        Vec<PlacementRule>,
+        Vec<(MolecularFormula, MolecularFormula)>,
+        Vec<DiagnosticIon>,
+    ),
     /// An asymmetric specificity where both ends have a different specificity.
     /// The first list is all possible positions. The second list is all
     /// stubs that can be left after cleaving or breaking of the cross-link.
     Asymmetric(
-        (Vec<PlacementRule>, Vec<MolecularFormula>),
-        (Vec<PlacementRule>, Vec<MolecularFormula>),
+        (Vec<PlacementRule>, Vec<PlacementRule>),
+        Vec<(MolecularFormula, MolecularFormula)>,
+        Vec<DiagnosticIon>,
     ),
 }
 

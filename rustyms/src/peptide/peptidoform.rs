@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -21,6 +23,16 @@ impl MultiChemical for Peptidoform {
 }
 
 impl Peptidoform {
+    /// Gives all possible formulas for this peptidoform.
+    /// Assumes all peptides in this peptidoform are connected.
+    /// If there are no peptides in this peptidoform it returns [`Multi::default`].
+    pub(super) fn formulas_inner(&self) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        self.0
+            .first()
+            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new()))
+            .unwrap_or_default()
+    }
+
     /// Generate the theoretical fragments for this peptide collection.
     pub fn generate_theoretical_fragments(
         &self,

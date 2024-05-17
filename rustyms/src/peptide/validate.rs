@@ -6,7 +6,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::{AmbiguousModification, SimpleModification},
     placement_rule::Position,
-    LinearPeptide, Linked, Modification,
+    LinearPeptide, Linked, Modification, Peptidoform,
 };
 
 use super::GlobalModification;
@@ -19,7 +19,7 @@ pub fn cross_links(
     cross_links_found: HashMap<usize, Vec<(usize, usize)>>,
     cross_link_lookup: &[(Option<String>, Option<SimpleModification>)],
     line: &str,
-) -> Result<Vec<LinearPeptide<Linked>>, CustomError> {
+) -> Result<Peptidoform, CustomError> {
     for (id, locations) in cross_links_found {
         let definition = &cross_link_lookup[id];
         if let Some(linker) = &definition.1 {
@@ -55,7 +55,19 @@ pub fn cross_links(
             ));
         }
     }
-    Ok(peptides)
+    let peptidoform = Peptidoform(peptides);
+
+    // TODO: create a function that list all peptides you can reach from a given peptide and check if all are connected
+    // let mut connected = peptidoform.formulas_inner().1;
+    // if peptidoform.peptides().len() > 1 && connected.len() != peptidoform.peptides().len() {
+    //     return Err(CustomError::error(
+    //         "Unconnected peptidoform",
+    //         "Not all peptides in this peptidoform are connected with cross-links or branches, if separate peptides were intended use the chimeric notation `+` instead of the peptidoform notation `//`.",
+    //          Context::full_line(0, line),
+    //     ));
+    // }
+
+    Ok(peptidoform)
 }
 
 impl LinearPeptide<Linked> {

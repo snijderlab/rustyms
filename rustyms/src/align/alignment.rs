@@ -226,7 +226,9 @@ pub trait Alignment: PrivateAlignment {
             self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
                 .iter()
                 .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new())
+                    acc * s
+                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new())
+                        .0
                 })
         }
     }
@@ -240,7 +242,9 @@ pub trait Alignment: PrivateAlignment {
             self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
                 .iter()
                 .fold(Multi::default(), |acc, s| {
-                    acc * s.formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new())
+                    acc * s
+                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new())
+                        .0
                 })
         }
     }

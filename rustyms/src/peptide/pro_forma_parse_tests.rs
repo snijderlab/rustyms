@@ -396,6 +396,7 @@ parse_test!(ne "<[TMT6plex#BRANCH]@A>AA", negative_example_11);
 parse_test!(ne "{TMT6plex#g1}AA", negative_example_12);
 parse_test!(ne "{TMT6plex#XL1}AA", negative_example_13);
 parse_test!(ne "{TMT6plex#BRANCH}AA", negative_example_14);
+parse_test!(ne "AA//AA", negative_example_15);
 
 // FUZZED CRASHES
 

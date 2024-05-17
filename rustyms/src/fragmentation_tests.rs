@@ -1,11 +1,13 @@
 #![allow(clippy::missing_panics_doc)]
 use crate::{
     model::*,
-    system::{usize::Charge, MassOverCharge},
+    system::{ratio::ppm, usize::Charge, MassOverCharge, Ratio},
     *,
 };
 
-use self::peptide::Linear;
+use self::{
+    modification::SimpleModification, ontologies::CustomDatabase, placement_rule::PlacementRule,
+};
 
 #[test]
 fn triple_a() {
@@ -39,7 +41,7 @@ fn triple_a() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("AAA", None)
+        LinearPeptide::pro_forma("AAA", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -88,7 +90,7 @@ fn with_modifications() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None)
+        LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -116,7 +118,7 @@ fn with_possible_modifications() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
+        LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -149,7 +151,7 @@ fn higher_charges() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("ACD", None)
+        LinearPeptide::pro_forma("ACD", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -310,7 +312,7 @@ fn all_aminoacids() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV", None)
+        LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -344,7 +346,7 @@ fn glycan_fragmentation() {
     };
     test(
         theoretical_fragments,
-        &LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
+        LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -354,15 +356,64 @@ fn glycan_fragmentation() {
     );
 }
 
+fn custom_dsso_database() -> CustomDatabase {
+    vec![(
+        0,
+        "dsso".to_string(),
+        SimpleModification::Linker {
+            specificities: vec![modification::LinkerSpecificity::Symmetric(
+                vec![PlacementRule::AminoAcid(
+                    vec![AminoAcid::K],
+                    placement_rule::Position::Anywhere,
+                )],
+                vec![(
+                    molecular_formula!(C 3 O 2 H 1 N -1),
+                    molecular_formula!(C 3 O 3 H 1 N -1 S 1),
+                )],
+                Vec::new(),
+            )],
+            formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
+            name: "DSSO".to_string(),
+            id: 0,
+            length: None,
+            ontology: modification::Ontology::Custom,
+        },
+    )]
+}
+
+#[test]
+fn intra_link() {
+    // TODO: For this example y4 is also generated, which is wrong
+    // TODO: store for the precursor the fact that there is a loop in the structure
+    #[allow(clippy::unreadable_literal)]
+    let theoretical_fragments = &[
+        (260.196, "y2+"),
+        (407.265, "y3+"),
+        (439.7200472739809, "precursor/loop#XL1++"),
+        (472.17481251740094, "b3+"),
+        (619.2432264279929, "b4+"),
+        (732.327290402381, "b5+"),
+    ];
+    let peptide =
+        CompoundPeptidoform::pro_forma("K[C:DSSO#XL1]GK[#XL1]FLK", Some(&custom_dsso_database()))
+            .unwrap();
+    let model = Model::none()
+        .b(Location::All, Vec::new())
+        .y(Location::All, Vec::new())
+        .allow_cross_link_cleavage(true);
+    test(theoretical_fragments, peptide, &model, 2, true);
+}
+
 fn test(
     theoretical_fragments: &[(f64, &str)],
-    peptide: &LinearPeptide<Linear>,
+    peptide: impl Into<CompoundPeptidoform>,
     model: &Model,
     charge: usize,
     allow_left_over_generated: bool,
 ) {
-    let mut calculated_fragments =
-        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(charge), model);
+    let mut calculated_fragments = peptide
+        .into()
+        .generate_theoretical_fragments(Charge::new::<crate::system::e>(charge), model);
     let mut found = Vec::new();
     let mut this_found;
     for goal in theoretical_fragments {
@@ -371,9 +422,12 @@ fn test(
             if calculated_fragments[fragment]
                 .mz(MassMode::Monoisotopic)
                 .ppm(MassOverCharge::new::<crate::system::mz>(goal.0))
-                .value
-                < 20.0
+                < Ratio::new::<ppm>(20.0)
             {
+                println!(
+                    "Match: {}@{} with {}",
+                    goal.1, goal.0, calculated_fragments[fragment]
+                );
                 calculated_fragments.remove(fragment);
                 this_found = true;
                 break;

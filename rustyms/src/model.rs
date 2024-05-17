@@ -39,6 +39,8 @@ pub struct Model {
     pub modification_specific_diagnostic_ions: bool,
     /// If some search for glycan (B/Y/Internal) with the given neutral losses
     pub glycan: Option<Vec<NeutralLoss>>,
+    /// Allow any MS cleavable cross-link to be cleaved
+    pub allow_cross_link_cleavage: bool,
     /// The matching tolerance
     pub tolerance: Tolerance<MassOverCharge>,
 }
@@ -210,6 +212,14 @@ impl Model {
     }
     /// Set the tolerance
     #[must_use]
+    pub fn allow_cross_link_cleavage(self, state: bool) -> Self {
+        Self {
+            allow_cross_link_cleavage: state,
+            ..self
+        }
+    }
+    /// Set the tolerance
+    #[must_use]
     pub fn tolerance(self, tolerance: impl Into<Tolerance<MassOverCharge>>) -> Self {
         Self {
             tolerance: tolerance.into(),
@@ -284,6 +294,7 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
             ]),
+            allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
     }
@@ -306,6 +317,7 @@ impl Model {
             modification_specific_neutral_losses: false,
             modification_specific_diagnostic_ions: false,
             glycan: None,
+            allow_cross_link_cleavage: false,
             tolerance: Tolerance::new_ppm(20.0),
         }
     }
@@ -346,6 +358,7 @@ impl Model {
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
                 NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
             ]),
+            allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
     }
@@ -380,6 +393,7 @@ impl Model {
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: None,
+            allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
     }
@@ -414,6 +428,7 @@ impl Model {
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
             glycan: None,
+            allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
     }

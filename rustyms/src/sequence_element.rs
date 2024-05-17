@@ -1,5 +1,7 @@
 #![warn(dead_code)]
 
+use std::collections::HashSet;
+
 use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
@@ -88,13 +90,15 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
-        self.aminoacid.formulas()
-            * self
-                .modifications
-                .iter()
-                .map(|m| m.formula_inner(all_peptides, visited_peptides, applied_cross_links))
-                .sum::<Multi<MolecularFormula>>()
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        let (formula, seen) = self
+            .modifications
+            .iter()
+            .map(|m| m.formula_inner(all_peptides, visited_peptides, applied_cross_links))
+            .fold((Multi::default(), HashSet::new()), |(am, av), (m, v)| {
+                (am * m, av.union(&v).cloned().collect())
+            });
+        (self.aminoacid.formulas() * formula, seen)
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
@@ -104,14 +108,19 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
-        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
-            + self
-                .possible_modifications
-                .iter()
-                .filter(|&m| selected_ambiguous.contains(&m.id))
-                .map(Chemical::formula)
-                .sum::<MolecularFormula>()
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        let (formula, seen) =
+            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        (
+            formula
+                + self
+                    .possible_modifications
+                    .iter()
+                    .filter(|&m| selected_ambiguous.contains(&m.id))
+                    .map(Chemical::formula)
+                    .sum::<MolecularFormula>(),
+            seen,
+        )
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
@@ -122,18 +131,23 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
-        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
-            + self
-                .possible_modifications
-                .iter()
-                .filter_map(|m| {
-                    (!placed[m.id]).then(|| {
-                        placed[m.id] = true;
-                        m.formula()
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        let (formula, seen) =
+            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        (
+            formula
+                + self
+                    .possible_modifications
+                    .iter()
+                    .filter_map(|m| {
+                        (!placed[m.id]).then(|| {
+                            placed[m.id] = true;
+                            m.formula()
+                        })
                     })
-                })
-                .sum::<MolecularFormula>()
+                    .sum::<MolecularFormula>(),
+            seen,
+        )
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
@@ -142,13 +156,18 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
-        self.base_formula(all_peptides, visited_peptides, applied_cross_links)
-            + self
-                .possible_modifications
-                .iter()
-                .map(Chemical::formula)
-                .sum::<MolecularFormula>()
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        let (formula, seen) =
+            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        (
+            formula
+                + self
+                    .possible_modifications
+                    .iter()
+                    .map(Chemical::formula)
+                    .sum::<MolecularFormula>(),
+            seen,
+        )
     }
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
@@ -158,13 +177,13 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
-        let mut formulas: Multi<MolecularFormula> =
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        let (mut formulas, seen) =
             self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         for modification in &self.possible_modifications {
             formulas = formulas + modification.formula();
         }
-        formulas
+        (formulas, seen)
     }
 
     /// Enforce the placement rules of predefined modifications.

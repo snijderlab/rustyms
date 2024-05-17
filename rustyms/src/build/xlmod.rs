@@ -136,16 +136,16 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
                 id,
                 ontology: super::Ontology::Xlmod,
                 data: ModData::Linker {
-                    diagnostic_ions,
                     length,
-                    specificities: if !origins.1.is_empty() {
+                    specificities: vec![if !origins.1.is_empty() {
                         LinkerSpecificity::Asymmetric(
-                            (origins.0, Vec::new()),
-                            (origins.1, Vec::new()),
+                            (origins.0, origins.1),
+                            Vec::new(),
+                            diagnostic_ions,
                         )
                     } else {
-                        LinkerSpecificity::Symmetric(origins.0, Vec::new())
-                    },
+                        LinkerSpecificity::Symmetric(origins.0, Vec::new(), diagnostic_ions)
+                    }],
                 },
             });
         } else if sites == Some(3) {

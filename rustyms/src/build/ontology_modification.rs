@@ -24,9 +24,8 @@ pub enum ModData {
         monosaccharides: Vec<(MonoSaccharide, i32)>,
     },
     Linker {
-        diagnostic_ions: Vec<DiagnosticIon>,
         length: Option<OrderedFloat<f64>>,
-        specificities: LinkerSpecificity,
+        specificities: Vec<LinkerSpecificity>,
     },
 }
 
@@ -111,7 +110,6 @@ impl OntologyModification {
             ModData::Linker {
                 specificities,
                 length,
-                diagnostic_ions,
             } => (
                 self.id,
                 self.code_name.to_ascii_lowercase(),
@@ -122,7 +120,6 @@ impl OntologyModification {
                     id: self.id,
                     length,
                     ontology: self.ontology,
-                    diagnostic_ions,
                 },
             ),
         }

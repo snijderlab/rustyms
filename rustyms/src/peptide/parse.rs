@@ -152,17 +152,17 @@ impl CompoundPeptidoform {
             }
         }
 
-        let peptides =
+        let peptidoform =
             super::validate::cross_links(peptides, cross_links_found, &cross_link_lookup, line)?;
 
-        if peptides.is_empty() {
+        if peptidoform.peptides().is_empty() {
             Err(CustomError::error(
                 "No peptide found",
-                "The peptide definition is empty",
+                "The peptidoform definition is empty",
                 Context::full_line(0, line),
             ))
         } else {
-            Ok((Peptidoform(peptides), index))
+            Ok((peptidoform, index))
         }
     }
 

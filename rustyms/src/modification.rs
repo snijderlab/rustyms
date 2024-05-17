@@ -3,7 +3,10 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::fmt::{Display, Write};
+use std::{
+    collections::HashSet,
+    fmt::{Display, Write},
+};
 
 use crate::{
     fragment::PeptidePosition,
@@ -119,13 +122,14 @@ impl Modification {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<Option<String>>,
-    ) -> Multi<MolecularFormula> {
+    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
-            Self::Simple(SimpleModification::Linker { formula, .. }) => {
-                (formula.clone() + molecular_formula!(H 2 O 1)).into()
-            }
-            Self::Simple(s) => s.formula().into(),
+            Self::Simple(SimpleModification::Linker { formula, .. }) => (
+                (formula.clone() + molecular_formula!(H 2 O 1)).into(),
+                HashSet::new(),
+            ),
+            Self::Simple(s) => (s.formula().into(), HashSet::new()),
             Self::CrossLink {
                 peptide,
                 linker,
@@ -139,14 +143,16 @@ impl Modification {
                     })
                     .unwrap_or_default();
                 if visited_peptides.contains(peptide) {
-                    link.into()
+                    (link.into(), HashSet::from([name.clone()]))
                 } else {
-                    all_peptides[*peptide].formulas_inner(
+                    let (f, mut seen) = all_peptides[*peptide].formulas_inner(
                         *peptide,
                         all_peptides,
                         visited_peptides,
                         applied_cross_links,
-                    ) + link
+                    );
+                    seen.insert(name.clone());
+                    (f + link, seen)
                 }
             } // TODO: impl neutral losses for that other peptide
         }
