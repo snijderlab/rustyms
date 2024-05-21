@@ -169,25 +169,29 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
 }
 
 fn read_placement_rules(bricks: &[&str]) -> Vec<PlacementRule> {
-    bricks
-        .iter()
-        .filter_map(|brick| {
-            if brick.len() == 1 {
-                Some(PlacementRule::AminoAcid(
-                    vec![(*brick).try_into().unwrap()],
-                    Position::Anywhere,
-                ))
-            } else if *brick == "Protein N-term" {
-                Some(PlacementRule::Terminal(Position::ProteinNTerm))
-            } else if *brick == "Protein C-term" {
-                Some(PlacementRule::Terminal(Position::ProteinCTerm))
-            } else if ["Thy"].contains(brick) {
-                None
-            } else {
-                panic!("Invalid placement rule: '{brick}'")
-            }
-        })
-        .collect_vec()
+    if bricks.is_empty() {
+        vec![PlacementRule::Anywhere]
+    } else {
+        bricks
+            .iter()
+            .filter_map(|brick| {
+                if brick.len() == 1 {
+                    Some(PlacementRule::AminoAcid(
+                        vec![(*brick).try_into().unwrap()],
+                        Position::Anywhere,
+                    ))
+                } else if *brick == "Protein N-term" {
+                    Some(PlacementRule::Terminal(Position::ProteinNTerm))
+                } else if *brick == "Protein C-term" {
+                    Some(PlacementRule::Terminal(Position::ProteinCTerm))
+                } else if ["Thy"].contains(brick) {
+                    None
+                } else {
+                    panic!("Invalid placement rule: '{brick}'")
+                }
+            })
+            .collect_vec()
+    }
 }
 
 #[cfg(test)]

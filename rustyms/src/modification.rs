@@ -58,13 +58,24 @@ impl SimpleModification {
 
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
-        if let Self::Predefined(_, positions, _, _, _) = self {
-            // If any of the rules match the current situation then it can be placed
-            positions
-                .iter()
-                .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
-        } else {
-            true
+        match self {
+            Self::Predefined(_, positions, _, _, _) => {
+                // If any of the rules match the current situation then it can be placed
+                positions
+                    .iter()
+                    .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
+            }
+            Self::Linker { specificities, .. } => specificities.iter().any(|spec| match spec {
+                LinkerSpecificity::Symmetric(rules, _, _) => {
+                    PlacementRule::any_possible(rules, seq, position)
+                }
+                LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
+                    PlacementRule::any_possible(rules_left, seq, position)
+                        || PlacementRule::any_possible(rules_right, seq, position)
+                    // TODO: check if an asymmetric rule indeed applies asymmetrically
+                }
+            }),
+            _ => true,
         }
     }
 }
@@ -121,8 +132,8 @@ impl Modification {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
             Self::Simple(SimpleModification::Linker { formula, .. }) => (
@@ -304,7 +315,7 @@ pub enum ModificationSearchResult {
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
 pub type AmbiguousLookup = Vec<(Option<String>, Option<SimpleModification>)>;
 /// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name or None if it is a branch and the actual linker itself (if already defined)
-pub type CrossLinkLookup = Vec<(Option<String>, Option<SimpleModification>)>;
+pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 
 /// An ambiguous modification which could be placed on any of a set of locations
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
@@ -329,15 +340,19 @@ impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Simple(sim) => write!(f, "{sim}"),
-            Self::CrossLink { name, linker, .. } => write!(
-                f,
-                "{linker}#{}",
-                name.as_ref()
-                    .map_or("BRANCH".to_string(), |n| format!("XL{n}"))
-            ),
+            Self::CrossLink { name, linker, .. } => write!(f, "{linker}{name}"),
         }
         .unwrap();
         Ok(())
+    }
+}
+
+impl Display for CrossLinkName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Branch => write!(f, "#BRANCH"),
+            Self::Name(n) => write!(f, "#XL{n}"),
+        }
     }
 }
 

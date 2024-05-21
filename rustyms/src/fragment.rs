@@ -12,6 +12,7 @@ use uom::num_traits::Zero;
 
 use crate::{
     glycan::MonoSaccharide,
+    modification::CrossLinkName,
     molecular_charge::MolecularCharge,
     system::{
         f64::{MassOverCharge, Ratio},
@@ -37,6 +38,8 @@ pub struct Fragment {
     pub neutral_loss: Option<NeutralLoss>,
     /// Additional description for humans
     pub label: String,
+    /// All cycles this fragment contains as determined by the cross-links and peptides involved
+    pub cycles: Vec<(Vec<usize>, Vec<CrossLinkName>)>,
 }
 
 impl Fragment {
@@ -69,6 +72,7 @@ impl Fragment {
             peptide_index,
             label,
             neutral_loss: None,
+            cycles: Vec::new(),
         }
     }
 

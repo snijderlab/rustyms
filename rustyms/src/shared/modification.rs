@@ -11,8 +11,8 @@ pub enum Modification {
         sequence_index: usize,
         /// The linker that defines the chemical structure that is the actual linker
         linker: SimpleModification,
-        /// The name of the cross-linker, if None it is a branch instead of cross-link
-        name: Option<String>,
+        /// The name of the cross-linker, if [`CrossLinkName::Branch`] it is a branch instead of cross-link
+        name: CrossLinkName,
     },
 }
 
@@ -50,6 +50,15 @@ pub enum SimpleModification {
         length: Option<OrderedFloat<f64>>,
         ontology: Ontology,
     },
+}
+
+/// The name of a cross-link
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+pub enum CrossLinkName {
+    /// A branch
+    Branch,
+    /// A cross-link
+    Name(String),
 }
 
 /// The linker position specificities for a linker

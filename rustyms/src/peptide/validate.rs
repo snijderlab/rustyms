@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
-    modification::{AmbiguousModification, SimpleModification},
+    modification::{AmbiguousModification, CrossLinkName, SimpleModification},
     placement_rule::Position,
     LinearPeptide, Linked, Modification, Peptidoform,
 };
@@ -17,7 +17,7 @@ use super::GlobalModification;
 pub fn cross_links(
     mut peptides: Vec<LinearPeptide<Linked>>,
     cross_links_found: HashMap<usize, Vec<(usize, usize)>>,
-    cross_link_lookup: &[(Option<String>, Option<SimpleModification>)],
+    cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
 ) -> Result<Peptidoform, CustomError> {
     for (id, locations) in cross_links_found {
@@ -26,7 +26,7 @@ pub fn cross_links(
             match locations.len() {
                 0 => {return Err(CustomError::error(
                     "Invalid cross-link",
-                    format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0.as_deref().unwrap_or("#BRANCH")),
+                    format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0),
                     Context::full_line(0, line),
                 ))},
                 1 => (), // TODO: assumed that the modification is already placed so this works out fine (it is not)
@@ -38,19 +38,19 @@ pub fn cross_links(
                 },
                 _ => {return Err(CustomError::error(
                     "Invalid cross-link",
-                    format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0.as_deref().unwrap_or("#BRANCH")),
+                    format!("The cross-link named '{}' has more than 2 attachment locations, only cross-links spanning two locations are allowed", definition.0),
                     Context::full_line(0, line),
                 ))}
             }
         } else {
-            let (c, name, description) = if definition.0.is_some() {
-                ("X", "DSS", "")
-            } else {
+            let (c, name, description) = if let CrossLinkName::Branch = definition.0 {
                 ("MOD", "00134", " N6-glycyl-L-lysine")
+            } else {
+                ("X", "DSS", "")
             };
             return Err(CustomError::error(
                 "Invalid cross-link",
-                format!("The cross-link named '{0}' is never defined, for example for {name}{description} define it like: '[{c}:{name}{0}]'", definition.0.as_ref().map_or("#BRANCH".to_string(), |n| format!("#XL{n}"))),
+                format!("The cross-link named '{0}' is never defined, for example for {name}{description} define it like: '[{c}:{name}{0}]'", definition.0),
                 Context::full_line(0, line),
             ));
         }

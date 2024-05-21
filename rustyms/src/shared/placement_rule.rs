@@ -7,6 +7,8 @@ pub enum PlacementRule {
     PsiModification(usize, Position),
     /// Placed on a terminal position
     Terminal(Position),
+    /// Just anywhere
+    Anywhere,
 }
 
 /// A position where a modification can be placed

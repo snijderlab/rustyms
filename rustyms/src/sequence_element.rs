@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
-    modification::AmbiguousModification,
+    modification::{AmbiguousModification, CrossLinkName},
     peptide::Linked,
     Chemical, LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
@@ -89,8 +89,8 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
             .iter()
@@ -107,8 +107,8 @@ impl SequenceElement {
         selected_ambiguous: &[usize],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) =
             self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         (
@@ -130,8 +130,8 @@ impl SequenceElement {
         placed: &mut [bool],
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) =
             self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         (
@@ -155,8 +155,8 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) =
             self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         (
@@ -176,8 +176,8 @@ impl SequenceElement {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (mut formulas, seen) =
             self.base_formula(all_peptides, visited_peptides, applied_cross_links);
         for modification in &self.possible_modifications {

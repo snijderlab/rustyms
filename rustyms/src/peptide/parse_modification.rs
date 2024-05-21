@@ -1,5 +1,5 @@
 use crate::{
-    modification::{AmbiguousLookup, CrossLinkLookup, Ontology, SimpleModification},
+    modification::{AmbiguousLookup, CrossLinkLookup, CrossLinkName, Ontology, SimpleModification},
     Modification,
 };
 use ordered_float::OrderedFloat;
@@ -262,11 +262,11 @@ fn parse_single_modification(
             if group.0.to_ascii_lowercase() == "branch" {
                 let index = cross_link_lookup
                     .iter()
-                    .position(|c| c.0.is_none())
+                    .position(|c| c.0 == CrossLinkName::Branch)
                     .map_or_else(
                         || {
                             let index = cross_link_lookup.len();
-                            cross_link_lookup.push((None, None));
+                            cross_link_lookup.push((CrossLinkName::Branch, None));
                             index
                         },
                         |index| index,
@@ -287,13 +287,14 @@ fn parse_single_modification(
                 }
                 Ok(Some(ReturnModification::CrossLinkReferenced(index)))
             } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
+                let name = CrossLinkName::Name(name.to_string());
                 let index = cross_link_lookup
                     .iter()
-                    .position(|c| c.0.as_ref().is_some_and(|c| c == name))
+                    .position(|c| c.0 == name)
                     .map_or_else(
                         || {
                             let index = cross_link_lookup.len();
-                            cross_link_lookup.push((Some(name.to_string()), None));
+                            cross_link_lookup.push((name, None));
                             index
                         },
                         |index| index,

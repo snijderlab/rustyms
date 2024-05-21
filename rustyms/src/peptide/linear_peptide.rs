@@ -3,7 +3,7 @@
 use crate::{
     error::CustomError,
     fragment::{DiagnosticPosition, PeptidePosition},
-    modification::{GnoComposition, SimpleModification},
+    modification::{CrossLinkName, GnoComposition, SimpleModification},
     molecular_charge::MolecularCharge,
     peptide::*,
     placement_rule::PlacementRule,
@@ -292,8 +292,8 @@ impl<T> LinearPeptide<T> {
         base: &MolecularFormula,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let result = self
             .ambiguous_modifications
             .iter()
@@ -561,6 +561,7 @@ impl<T> LinearPeptide<T> {
                     peptide_index,
                     neutral_loss: None,
                     label: String::new(),
+                    cycles: Vec::new(),
                 }
                 .with_charges(&single_charges)
             }));
@@ -580,8 +581,8 @@ impl<T> LinearPeptide<T> {
         apply_neutral_losses: bool,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (ambiguous_mods_masses, seen) = self.ambiguous_patterns(
             range.clone(),
             aa_range,
@@ -611,7 +612,7 @@ impl<T> LinearPeptide<T> {
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
+        applied_cross_links: &mut Vec<CrossLinkName>,
     ) -> Multi<MolecularFormula> {
         let mut formulas = Multi::default();
         let mut placed = vec![false; self.ambiguous_modifications.len()];
@@ -643,8 +644,8 @@ impl<T> LinearPeptide<T> {
         peptide_index: usize,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
-    ) -> (Multi<MolecularFormula>, HashSet<Option<String>>) {
+        applied_cross_links: &mut Vec<CrossLinkName>,
+    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         debug_assert!(
             !visited_peptides.contains(&peptide_index),
             "Cannot get the formula for a peptide that is already visited"
@@ -735,7 +736,7 @@ impl LinearPeptide<Linked> {
         peptide_index: usize,
         all_peptides: &[Self],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
+        applied_cross_links: &mut Vec<CrossLinkName>,
     ) -> Multi<MolecularFormula> {
         self.formulas_inner(
             peptide_index,
@@ -752,7 +753,7 @@ impl LinearPeptide<Linked> {
         &self,
         all_peptides: &[Self],
         visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<Option<String>>,
+        applied_cross_links: &mut Vec<CrossLinkName>,
     ) -> Multi<MolecularFormula> {
         self.bare_formulas_inner(all_peptides, visited_peptides, applied_cross_links)
     }

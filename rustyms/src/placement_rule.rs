@@ -37,6 +37,7 @@ impl PlacementRule {
                 r_pos.is_possible(position)
                     && (position.is_n_terminal() || position.is_c_terminal())
             }
+            Self::Anywhere => true,
         }
     }
 
