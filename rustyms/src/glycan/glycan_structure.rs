@@ -314,6 +314,20 @@ mod test {
             "HexNAc(Hex(Hex(HexNAc(Hex)),Hex(HexNAc),HexNAc))"
         );
     }
+    #[test]
+    fn correct_structure_g04605kt() {
+        let structure = GlycanStructure::from_short_iupac(
+            "L-GlcNAc(b1-2)L-Man(a1-3)[GlcNAc(b1-4)][L-Gal(b1-4)GlcNAc(b1-2)L-Man(a1-6)]Man(b1-4)L-GlcNAc(b1-4)GlcNAc(b1-",
+            0..108,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            structure.to_string(),
+            "HexNAc(HexNAc(Hex(Hex(HexNAc),HexNAc,Hex(HexNAc(Hex)))))"
+        );
+    }
 
     #[test]
     fn correct_structure_g67881ee() {

@@ -15,7 +15,9 @@ pub fn build_gnome_ontology(out_dir: &OsString, debug: bool) {
         if modification.mass.is_none() {
             modification.mass = find_mass(&read_mods, modification.is_a.clone());
         }
-        if let Some(id) = &modification.topology {
+        if let Some(structure) = structures.get(&modification.code_name) {
+            modification.structure = Some(structure.clone());
+        } else if let Some(id) = &modification.topology {
             modification.structure = structures.get(id).cloned();
         }
     }
@@ -36,7 +38,7 @@ fn find_mass(mods: &HashMap<String, GNOmeModification>, mut name: String) -> Opt
     let mut mass = None;
     while mass.is_none() {
         mass = mods.get(&name)?.mass;
-        name = mods[&name].is_a.clone();
+        name.clone_from(&mods[&name].is_a);
     }
     mass
 }

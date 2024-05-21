@@ -7,3 +7,6 @@ imgt.dat
 .venv/
 docs/**/_build/
 out
+/rustyms/databases/*.csv
+/rustyms/databases/*.obo
+/rustyms/databases/*.xml
