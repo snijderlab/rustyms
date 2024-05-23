@@ -90,10 +90,7 @@ fn with_modifications() {
     };
     test(
         theoretical_fragments,
-        LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None)
-            .unwrap()
-            .linear()
-            .unwrap(),
+        LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None).unwrap(),
         &model,
         1,
         true,
@@ -383,7 +380,6 @@ fn custom_dsso_database() -> CustomDatabase {
 
 #[test]
 fn intra_link() {
-    // TODO: For this example y4 is also generated, which is wrong
     // TODO: store for the precursor the fact that there is a loop in the structure
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[

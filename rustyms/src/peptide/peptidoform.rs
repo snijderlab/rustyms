@@ -1,10 +1,13 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Index};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    modification::CrossLinkName, peptide::Linked, system::usize::Charge, Fragment, LinearPeptide,
-    Model, MolecularFormula, Multi, MultiChemical,
+    fragment::PeptidePosition,
+    modification::{CrossLikeSide, CrossLinkName, RulePossible, SimpleModification},
+    peptide::Linked,
+    system::usize::Charge,
+    Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
 };
 /// A single peptidoform, can contain multiple linear peptides
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
@@ -65,6 +68,68 @@ impl Peptidoform {
     /// Get all peptides making up this `Peptidoform`
     pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         &self.0
+    }
+
+    /// Add a cross-link to this peptidoform and check if it is placed according to its placement rules.
+    /// The positions are first the peptide index and second the sequence index.
+    pub fn add_cross_link(
+        &mut self,
+        position_1: (usize, usize),
+        position_2: (usize, usize),
+        linker: SimpleModification,
+        name: CrossLinkName,
+    ) -> bool {
+        let pos_1 = self
+            .0
+            .get(position_1.0)
+            .and_then(|seq| seq.iter(position_1.1..=position_1.1).next());
+        let pos_2 = self
+            .0
+            .get(position_2.0)
+            .and_then(|seq| seq.iter(position_2.1..=position_2.1).next());
+        if let (Some(pos_1), Some(pos_2)) = (pos_1, pos_2) {
+            let left = linker.is_possible(pos_1.1, &pos_1.0);
+            let right = linker.is_possible(pos_2.1, &pos_2.0);
+            let specificity = match (left, right) {
+                (RulePossible::Symmetric, RulePossible::Symmetric) => {
+                    Some((CrossLikeSide::Symmetric, CrossLikeSide::Symmetric))
+                }
+                (
+                    RulePossible::AsymmetricLeft,
+                    RulePossible::AsymmetricRight | RulePossible::Symmetric,
+                ) => Some((CrossLikeSide::Left, CrossLikeSide::Right)),
+                (
+                    RulePossible::AsymmetricRight,
+                    RulePossible::AsymmetricLeft | RulePossible::Symmetric,
+                ) => Some((CrossLikeSide::Right, CrossLikeSide::Left)),
+                _ => None,
+            };
+            if let Some((left, right)) = specificity {
+                self.0[position_1.0].sequence[position_1.1]
+                    .modifications
+                    .push(crate::Modification::CrossLink {
+                        peptide: position_2.0,
+                        sequence_index: position_2.1,
+                        linker: linker.clone(),
+                        name: name.clone(),
+                        side: left,
+                    });
+                self.0[position_2.0].sequence[position_2.1]
+                    .modifications
+                    .push(crate::Modification::CrossLink {
+                        peptide: position_1.0,
+                        sequence_index: position_1.1,
+                        linker,
+                        name,
+                        side: right,
+                    });
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 

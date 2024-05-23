@@ -5,9 +5,13 @@ use std::collections::HashSet;
 use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
-    modification::{AmbiguousModification, CrossLinkName},
+    modification::{
+        AmbiguousModification, CrossLikeSide, CrossLinkName, LinkerSpecificity, RulePossible,
+        SimpleModification,
+    },
     peptide::Linked,
-    Chemical, LinearPeptide, MolecularFormula, Multi, MultiChemical,
+    placement_rule::PlacementRule,
+    Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
 use serde::{Deserialize, Serialize};
 
@@ -194,7 +198,7 @@ impl SequenceElement {
         position: &PeptidePosition,
     ) -> Result<(), CustomError> {
         for modification in &self.modifications {
-            if !modification.is_possible(self, position) {
+            if modification.is_possible(self, position) == RulePossible::No {
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
                     format!(
@@ -207,6 +211,78 @@ impl SequenceElement {
             }
         }
         Ok(())
+    }
+
+    /// Get all possible diagnostic ions
+    pub(crate) fn diagnostic_ions(&self, position: &PeptidePosition) -> Vec<DiagnosticIon> {
+        let mut diagnostic_ions = Vec::new();
+        for modification in &self.modifications {
+            match modification {
+                Modification::CrossLink {
+                    linker: SimpleModification::Predefined(_, rules, _, _, _),
+                    ..
+                }
+                | Modification::Simple(SimpleModification::Predefined(_, rules, _, _, _)) => {
+                    for (rules, _, ions) in rules {
+                        if PlacementRule::any_possible(rules, self, position) {
+                            diagnostic_ions.extend_from_slice(ions);
+                        }
+                    }
+                }
+                Modification::CrossLink {
+                    linker: SimpleModification::Linker { specificities, .. },
+                    side,
+                    ..
+                } => {
+                    for rule in specificities {
+                        match rule {
+                            LinkerSpecificity::Symmetric(rules, _, ions) => {
+                                if PlacementRule::any_possible(rules, self, position) {
+                                    diagnostic_ions.extend_from_slice(ions);
+                                }
+                            }
+                            LinkerSpecificity::Asymmetric((rules_left, rules_right), _, ions) => {
+                                if *side == CrossLikeSide::Symmetric {
+                                    if PlacementRule::any_possible(rules_left, self, position)
+                                        || PlacementRule::any_possible(rules_right, self, position)
+                                    {
+                                        diagnostic_ions.extend_from_slice(ions);
+                                    }
+                                } else if *side == CrossLikeSide::Left {
+                                    if PlacementRule::any_possible(rules_left, self, position) {
+                                        diagnostic_ions.extend_from_slice(ions);
+                                    }
+                                } else if *side == CrossLikeSide::Right {
+                                    if PlacementRule::any_possible(rules_right, self, position) {
+                                        diagnostic_ions.extend_from_slice(ions);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Modification::Simple(SimpleModification::Linker { specificities, .. }) => {
+                    for rule in specificities {
+                        match rule {
+                            LinkerSpecificity::Symmetric(rules, _, ions) => {
+                                if PlacementRule::any_possible(rules, self, position) {
+                                    diagnostic_ions.extend_from_slice(ions);
+                                }
+                            }
+                            LinkerSpecificity::Asymmetric((rules_left, rules_right), _, ions) => {
+                                if PlacementRule::any_possible(rules_left, self, position)
+                                    || PlacementRule::any_possible(rules_right, self, position)
+                                {
+                                    diagnostic_ions.extend_from_slice(ions);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+        diagnostic_ions
     }
 }
 

@@ -62,6 +62,8 @@ impl Position {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
 
+    use crate::modification::RulePossible;
+
     use super::*;
     #[test]
     fn multi_level_rule() {
@@ -129,7 +131,7 @@ mod tests {
             ),
             "end"
         );
-        assert!(
+        assert_eq!(
             dbg!(Ontology::Unimod.find_id(7, None).unwrap()).is_possible(
                 &SequenceElement {
                     aminoacid: AminoAcid::Q,
@@ -139,6 +141,7 @@ mod tests {
                 },
                 &PeptidePosition::n(4, 5)
             ),
+            RulePossible::Symmetric,
             "unimod deamidated at end"
         );
     }

@@ -13,7 +13,20 @@ pub enum Modification {
         linker: SimpleModification,
         /// The name of the cross-linker, if [`CrossLinkName::Branch`] it is a branch instead of cross-link
         name: CrossLinkName,
+        /// To determine if the cross-link is placed symmetrically or if asymmetrically if this is the left or right side
+        side: CrossLikeSide,
     },
+}
+
+/// Indicate the cross-link side
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+pub enum CrossLikeSide {
+    /// The cross-link is symmetric, or if asymmetric it can be placed in both orientations
+    Symmetric,
+    /// The cross-link is asymmetric and this is the 'left' side
+    Left,
+    /// The cross-link is asymmetric and this is the 'right' side
+    Right,
 }
 
 /// A modification on an amino acid
@@ -41,13 +54,19 @@ pub enum SimpleModification {
         GnoComposition,
         String, // Name
     ),
-    /// A cross linker
+    /// A cross-linker
     Linker {
+        /// All possible specificities for this linker
         specificities: Vec<LinkerSpecificity>,
+        /// The chemical formula for this linker (diff formula)
         formula: MolecularFormula,
+        /// The name
         name: String,
+        /// The id
         id: usize,
+        /// The length, if known
         length: Option<OrderedFloat<f64>>,
+        /// The ontology where this linker is defined
         ontology: Ontology,
     },
 }

@@ -15,11 +15,12 @@ use super::GlobalModification;
 /// # Errors
 /// If there is a cross link with more then 2 locations. Or if there never is a definition for this cross link.
 pub fn cross_links(
-    mut peptides: Vec<LinearPeptide<Linked>>,
+    peptides: Vec<LinearPeptide<Linked>>,
     cross_links_found: HashMap<usize, Vec<(usize, usize)>>,
     cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
 ) -> Result<Peptidoform, CustomError> {
+    let mut peptidoform = Peptidoform(peptides);
     for (id, locations) in cross_links_found {
         let definition = &cross_link_lookup[id];
         if let Some(linker) = &definition.1 {
@@ -31,10 +32,13 @@ pub fn cross_links(
                 ))},
                 1 => (), // TODO: assumed that the modification is already placed so this works out fine (it is not)
                 2 => {
-                    let (peptide_1, position_1) = locations[0];
-                    let (peptide_2, position_2) = locations[1];
-                    peptides[peptide_1].sequence[position_1].modifications.push(Modification::CrossLink { peptide: peptide_2, sequence_index: position_2, linker: linker.clone(), name: definition.0.clone()});
-                    peptides[peptide_2].sequence[position_2].modifications.push(Modification::CrossLink { peptide: peptide_1, sequence_index: position_1, linker: linker.clone(), name: definition.0.clone()});
+                    if !peptidoform.add_cross_link(locations[0], locations[1], linker.clone(), definition.0.clone()) {
+                        return Err(CustomError::error(
+                            "Invalid cross-link",
+                            format!("The cross-link named '{}' cannot be placed according to its location specificities", definition.0),
+                            Context::full_line(0, line),
+                        ))
+                    }
                 },
                 _ => {return Err(CustomError::error(
                     "Invalid cross-link",
@@ -55,7 +59,6 @@ pub fn cross_links(
             ));
         }
     }
-    let peptidoform = Peptidoform(peptides);
 
     // TODO: create a function that list all peptides you can reach from a given peptide and check if all are connected
     // let mut connected = peptidoform.formulas_inner().1;
@@ -84,7 +87,9 @@ impl LinearPeptide<Linked> {
                     for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
                         pos.is_possible(&PeptidePosition::n(*index, length))
                             && aa.map_or(true, |aa| aa == seq.aminoacid)
-                            && modification.is_possible(seq, &PeptidePosition::n(*index, length))
+                            && modification
+                                .is_possible(seq, &PeptidePosition::n(*index, length))
+                                .possible()
                     }) {
                         match pos {
                             Position::Anywhere => seq.modifications.push(modification.clone()),
@@ -135,6 +140,7 @@ impl LinearPeptide<Linked> {
                     .filter_map(|i| {
                         if modification
                             .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
+                            .possible()
                         {
                             self.sequence[i]
                                 .possible_modifications
@@ -169,7 +175,10 @@ impl LinearPeptide<Linked> {
             // Side effects so the lint does not apply here
             let positions = (*start..=*end)
                 .filter_map(|i| {
-                    if modification.is_possible(&self.sequence[i], &PeptidePosition::n(i, length)) {
+                    if modification
+                        .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
+                        .possible()
+                    {
                         self.sequence[i]
                             .possible_modifications
                             .push(AmbiguousModification {

@@ -6,6 +6,7 @@ use std::{
 pub trait ResultExtensions<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.
+    #[allow(dead_code)]
     fn flat_err(self) -> Result<T, E>;
 }
 
@@ -30,6 +31,7 @@ impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
 pub trait InvertResult<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.
+    #[allow(dead_code)]
     fn invert(self) -> Result<Option<T>, E>;
 }
 

@@ -179,6 +179,7 @@ impl MolecularFormula {
     }
 
     /// The generic backbone to do the Hill notation sorting
+    #[allow(dead_code)]
     pub(in super::super) fn hill_notation_generic(
         &self,
         f: impl Fn(&(Element, Option<NonZeroU16>, i32), &mut String),

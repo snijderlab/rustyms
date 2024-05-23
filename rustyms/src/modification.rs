@@ -42,6 +42,53 @@ impl Chemical for SimpleModification {
     }
 }
 
+/// The result of checking if a modification can be placed somewhere.
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Clone, Copy)]
+pub enum RulePossible {
+    /// This modification cannot be placed
+    No,
+    /// This modification can be placed and if it is a cross-link it can be placed on both ends
+    Symmetric,
+    /// This modification can be placed and if it is a cross-link it can only be placed on the 'left' side of the cross-link
+    AsymmetricLeft,
+    /// This modification can be placed and if it is a cross-link it can only be placed on the 'right' side of the cross-link
+    AsymmetricRight,
+}
+
+impl RulePossible {
+    /// Flatten this into a bool, check if the rule is not [`Self::No`]
+    pub fn possible(self) -> bool {
+        self != Self::No
+    }
+}
+
+impl std::ops::Add for RulePossible {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (RulePossible::Symmetric, _)
+            | (_, RulePossible::Symmetric)
+            | (RulePossible::AsymmetricLeft, RulePossible::AsymmetricRight)
+            | (RulePossible::AsymmetricRight, RulePossible::AsymmetricLeft) => {
+                RulePossible::Symmetric
+            }
+            (RulePossible::AsymmetricLeft, _) | (_, RulePossible::AsymmetricLeft) => {
+                RulePossible::AsymmetricLeft
+            }
+            (RulePossible::AsymmetricRight, _) | (_, RulePossible::AsymmetricRight) => {
+                RulePossible::AsymmetricRight
+            }
+            _ => RulePossible::No,
+        }
+    }
+}
+
+impl std::iter::Sum for RulePossible {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(RulePossible::No, |acc, i| acc + i)
+    }
+}
+
 impl SimpleModification {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
@@ -57,25 +104,45 @@ impl SimpleModification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
+    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
         match self {
             Self::Predefined(_, positions, _, _, _) => {
                 // If any of the rules match the current situation then it can be placed
-                positions
+                if positions
                     .iter()
                     .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
+                {
+                    RulePossible::Symmetric
+                } else {
+                    RulePossible::No
+                }
             }
-            Self::Linker { specificities, .. } => specificities.iter().any(|spec| match spec {
-                LinkerSpecificity::Symmetric(rules, _, _) => {
-                    PlacementRule::any_possible(rules, seq, position)
-                }
-                LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
-                    PlacementRule::any_possible(rules_left, seq, position)
-                        || PlacementRule::any_possible(rules_right, seq, position)
-                    // TODO: check if an asymmetric rule indeed applies asymmetrically
-                }
-            }),
-            _ => true,
+            Self::Linker { specificities, .. } => specificities
+                .iter()
+                .map(|spec| match spec {
+                    LinkerSpecificity::Symmetric(rules, _, _) => {
+                        if PlacementRule::any_possible(rules, seq, position) {
+                            RulePossible::Symmetric
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                    LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
+                        let left = PlacementRule::any_possible(rules_left, seq, position);
+                        let right = PlacementRule::any_possible(rules_right, seq, position);
+                        if left && right {
+                            RulePossible::Symmetric
+                        } else if left {
+                            RulePossible::AsymmetricLeft
+                        } else if right {
+                            RulePossible::AsymmetricRight
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                })
+                .sum::<RulePossible>(),
+            _ => RulePossible::Symmetric,
         }
     }
 }
@@ -165,7 +232,7 @@ impl Modification {
                     seen.insert(name.clone());
                     (f + link, seen)
                 }
-            } // TODO: impl neutral losses for that other peptide
+            }
         }
     }
 
@@ -205,8 +272,9 @@ impl Modification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
-        self.simple().map_or(true, |s| s.is_possible(seq, position))
+    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
+        self.simple()
+            .map_or(RulePossible::Symmetric, |s| s.is_possible(seq, position))
     }
 
     /// Search matching modification based on what modification is provided. If a mass modification is provided

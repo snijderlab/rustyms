@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,14 +21,7 @@ impl MultiChemical for CompoundPeptidoform {
 
 impl Display for CompoundPeptidoform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: aggregate global, handle inconsistent global cases?
-        if let Some(p) = self.0.first() {
-            write!(f, "{p}")?;
-        }
-        for p in self.peptidoforms().iter().skip(1) {
-            write!(f, "+{p}")?;
-        }
-        Ok(())
+        write!(f, "{}", self.peptidoforms().iter().join("+"))
     }
 }
 

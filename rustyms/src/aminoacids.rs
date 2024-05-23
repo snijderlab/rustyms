@@ -367,9 +367,10 @@ impl AminoAcid {
         ions: &PossibleIons,
         peptidoform_index: usize,
         peptide_index: usize,
+        allow_side: (bool, bool),
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
-        if ions.a.0 {
+        if ions.a.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() * (modifications - molecular_formula!(H 1 C 1 O 1))),
                 peptidoform_index,
@@ -379,7 +380,7 @@ impl AminoAcid {
                 ions.a.1,
             ));
         }
-        if ions.b.0 {
+        if ions.b.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() * (modifications - molecular_formula!(H 1))),
                 peptidoform_index,
@@ -389,7 +390,7 @@ impl AminoAcid {
                 ions.b.1,
             ));
         }
-        if ions.c.0 {
+        if ions.c.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() * (modifications + molecular_formula!(H 2 N 1))),
                 peptidoform_index,
@@ -399,7 +400,7 @@ impl AminoAcid {
                 ions.c.1,
             ));
         }
-        if ions.d.0 {
+        if ions.d.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments() * self.formulas()
                     + molecular_formula!(H 1 C 1 O 1)),
@@ -410,7 +411,7 @@ impl AminoAcid {
                 ions.d.1,
             ));
         }
-        if ions.v.0 {
+        if ions.v.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
                 &molecular_formula!(H 3 C 2 N 1 O 1).into(),
                 peptidoform_index,
@@ -420,7 +421,7 @@ impl AminoAcid {
                 ions.v.1,
             ));
         }
-        if ions.w.0 {
+        if ions.w.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments() * self.formulas() + molecular_formula!(H 2 N 1)),
                 peptidoform_index,
@@ -430,7 +431,7 @@ impl AminoAcid {
                 ions.w.1,
             ));
         }
-        if ions.x.0 {
+        if ions.x.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas()
                     * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
@@ -441,7 +442,7 @@ impl AminoAcid {
                 ions.x.1,
             ));
         }
-        if ions.y.0 {
+        if ions.y.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() * (modifications + molecular_formula!(H 1))),
                 peptidoform_index,
@@ -451,7 +452,7 @@ impl AminoAcid {
                 ions.y.1,
             ));
         }
-        if ions.z.0 {
+        if ions.z.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas() * (modifications - molecular_formula!(H 2 N 1))),
                 peptidoform_index,

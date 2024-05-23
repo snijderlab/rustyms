@@ -87,7 +87,7 @@ impl IMGTGene {
                     additional_annotations.extend(j.1);
                     j.0
                 } else {
-                    vec![j] // TODO: not fully correct right, has some CDR3 as well, and has quite some conserved residues
+                    vec![j]
                 }
             }
             "D-GENE" => {

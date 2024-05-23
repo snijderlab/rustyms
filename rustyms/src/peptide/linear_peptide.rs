@@ -3,7 +3,7 @@
 use crate::{
     error::CustomError,
     fragment::{DiagnosticPosition, PeptidePosition},
-    modification::{CrossLinkName, GnoComposition, SimpleModification},
+    modification::{CrossLinkName, GnoComposition, LinkerSpecificity, SimpleModification},
     molecular_charge::MolecularCharge,
     peptide::*,
     placement_rule::PlacementRule,
@@ -215,52 +215,41 @@ impl<T> LinearPeptide<T> {
     fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, DiagnosticPosition)> {
         self.iter(..)
             .flat_map(|(pos, aa)| {
-                aa.modifications
-                    .iter()
-                    .filter_map(move |modification| {
-                        if let Modification::Simple(SimpleModification::Predefined(
-                            _,
-                            rules,
-                            _,
-                            _,
-                            _,
-                        )) = modification
-                        {
-                            Some(rules)
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-                    .filter_map(move |(rules, _, rule_diagnostic)| {
-                        if PlacementRule::any_possible(rules, aa, &pos) {
-                            Some(rule_diagnostic)
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-                    .map(move |loss| (loss.clone(), DiagnosticPosition::Peptide(pos, aa.aminoacid)))
+                aa.diagnostic_ions(&pos)
+                    .into_iter()
+                    .map(move |diag| (diag, DiagnosticPosition::Peptide(pos, aa.aminoacid)))
             })
-            .chain(
-                self.labile
-                    .iter()
-                    .filter_map(move |modification| {
-                        if let SimpleModification::Predefined(_, rules, _, _, _) = modification {
-                            Some((rules, modification))
-                        } else {
-                            None
-                        }
-                    })
-                    .flat_map(|(rules, labile)| {
-                        rules.iter().flat_map(|(_, _, diag)| diag).map(|diag| {
+            .chain(self.labile.iter().flat_map(move |modification| {
+                if let SimpleModification::Predefined(_, rules, _, _, _) = modification {
+                    rules
+                        .iter()
+                        .flat_map(|(_, _, diag)| diag)
+                        .map(|diag| {
                             (
                                 diag.clone(),
-                                DiagnosticPosition::Labile(labile.clone().into()),
+                                DiagnosticPosition::Labile(modification.clone().into()),
                             )
                         })
-                    }),
-            )
+                        .collect_vec()
+                } else if let SimpleModification::Linker { specificities, .. } = modification {
+                    specificities
+                        .iter()
+                        .flat_map(|rule| match rule {
+                            LinkerSpecificity::Symmetric(_, _, ions)
+                            | LinkerSpecificity::Asymmetric(_, _, ions) => ions,
+                        })
+                        .map(|diag| {
+                            (
+                                diag.clone(),
+                                DiagnosticPosition::Labile(modification.clone().into()),
+                            )
+                        })
+                        .collect_vec()
+                } else {
+                    Vec::new()
+                }
+            }))
+            .unique()
             .collect()
     }
 
@@ -278,6 +267,23 @@ impl<T> LinearPeptide<T> {
             .iter()
             .enumerate()
             .map(move |(index, seq)| (PeptidePosition::n(index + start, self.len()), seq))
+    }
+
+    /// Iterate over a range in the peptide and keep track of the position
+    pub(super) fn iter_mut(
+        &mut self,
+        range: impl RangeBounds<usize>,
+    ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &mut SequenceElement)> + '_ {
+        let start = match range.start_bound() {
+            std::ops::Bound::Unbounded => 0,
+            std::ops::Bound::Included(i) => (*i).max(0),
+            std::ops::Bound::Excluded(ex) => (ex + 1).max(0),
+        };
+        let len = self.len();
+        self.sequence[(range.start_bound().cloned(), range.end_bound().cloned())]
+            .iter_mut()
+            .enumerate()
+            .map(move |(index, seq)| (PeptidePosition::n(index + start, len), seq))
     }
 
     /// Generate all possible patterns for the ambiguous positions (Mass, String:Label).
@@ -392,13 +398,13 @@ impl<T> LinearPeptide<T> {
         let single_charges = charge_carriers.all_single_charge_options();
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
-        for index in 0..self.sequence.len() {
-            let position = PeptidePosition::n(index, self.len());
+        for sequence_index in 0..self.sequence.len() {
+            let position = PeptidePosition::n(sequence_index, self.len());
             let mut cross_links = Vec::new();
             let (n_term, n_term_seen) = self.all_masses(
-                ..=index,
-                ..index,
-                index,
+                ..=sequence_index,
+                ..sequence_index,
+                sequence_index,
                 &self.get_n_term(),
                 model.modification_specific_neutral_losses,
                 all_peptides,
@@ -406,9 +412,9 @@ impl<T> LinearPeptide<T> {
                 &mut cross_links,
             );
             let (c_term, c_term_seen) = self.all_masses(
-                index..,
-                index + 1..,
-                index,
+                sequence_index..,
+                sequence_index + 1..,
+                sequence_index,
                 &self.get_c_term(),
                 model.modification_specific_neutral_losses,
                 all_peptides,
@@ -416,27 +422,31 @@ impl<T> LinearPeptide<T> {
                 &mut cross_links,
             );
             if !n_term_seen.is_disjoint(&c_term_seen) {
-                continue; //TODO: MS cleavable, if allowed in model
+                continue; // There is a link reachable from both sides so there is a loop
             }
-            let modifications_total = self.sequence[index]
+            let (modifications_total, modifications_cross_links) = self.sequence[sequence_index]
                 .modifications
                 .iter()
-                .map(|m| {
-                    m.formula_inner(all_peptides, &[peptide_index], &mut cross_links)
-                        .0
-                })
-                .sum::<Multi<MolecularFormula>>();
+                .fold((Multi::default(), HashSet::new()), |acc, m| {
+                    let (f, s) = m.formula_inner(all_peptides, &[peptide_index], &mut cross_links);
+                    (acc.0 * f, acc.1.union(&s).cloned().collect())
+                });
 
-            output.append(&mut self.sequence[index].aminoacid.fragments(
+            output.append(&mut self.sequence[sequence_index].aminoacid.fragments(
                 &n_term,
                 &c_term,
                 &modifications_total,
                 charge_carriers,
-                index,
+                sequence_index,
                 self.sequence.len(),
                 &model.ions(position),
                 peptidoform_index,
                 peptide_index,
+                (
+                    // Allow any N terminal fragment if there is no cross-link to the C terminal side
+                    c_term_seen.is_disjoint(&modifications_cross_links),
+                    n_term_seen.is_disjoint(&modifications_cross_links),
+                ),
             ));
 
             if model.m {
@@ -446,7 +456,7 @@ impl<T> LinearPeptide<T> {
                         .0
                         .iter()
                         .flat_map(|m| {
-                            self.sequence[index]
+                            self.sequence[sequence_index]
                                 .aminoacid
                                 .formulas()
                                 .iter()
@@ -456,7 +466,10 @@ impl<T> LinearPeptide<T> {
                                             + molecular_formula!(C 2 H 2 N 1 O 1)),
                                         peptidoform_index,
                                         peptide_index,
-                                        &FragmentType::m(position, self.sequence[index].aminoacid),
+                                        &FragmentType::m(
+                                            position,
+                                            self.sequence[sequence_index].aminoacid,
+                                        ),
                                         &Multi::default(),
                                         &[],
                                     )
@@ -474,24 +487,29 @@ impl<T> LinearPeptide<T> {
                 .expect("Invalid global isotope modification");
         }
 
-        // Generate precursor peak
-        output.extend(
-            self.formulas_inner(peptide_index, all_peptides, &[], &mut Vec::new())
-                .0
-                .iter()
-                .flat_map(|m| {
-                    Fragment::new(
-                        m.clone(),
-                        Charge::zero(),
-                        peptidoform_index,
-                        peptide_index,
-                        FragmentType::precursor,
-                        String::new(),
-                    )
-                    .with_charge(charge_carriers)
-                    .with_neutral_losses(&model.precursor)
-                }),
-        );
+        // Generate precursor peak TODO: generate all masses when cross links break
+        let (full_precursor, all_cross_links) =
+            self.formulas_inner(peptide_index, all_peptides, &[], &mut Vec::new());
+        output.extend(full_precursor.iter().flat_map(|m| {
+            Fragment::new(
+                m.clone(),
+                Charge::zero(),
+                peptidoform_index,
+                peptide_index,
+                FragmentType::precursor,
+                String::new(),
+            )
+            .with_charge(charge_carriers)
+            .with_neutral_losses(&model.precursor)
+        }));
+
+        // Generate broken cross-link precursor
+        // if model.allow_cross_link_cleavage {
+        //     for link in all_cross_links {
+        //         let mass = self.formulas_inner(peptide_index, all_peptides, &[], &mut vec![link]).0;
+
+        //     }
+        // }
 
         // Add glycan fragmentation to all peptide fragments
         // Assuming that only one glycan can ever fragment at the same time,
