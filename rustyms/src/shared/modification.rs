@@ -41,34 +41,48 @@ pub enum SimpleModification {
     Glycan(Vec<(MonoSaccharide, isize)>),
     /// A glycan with a defined structure
     GlycanStructure(GlycanStructure),
-    /// A modification from one of the modification ontologies
-    Predefined(
-        MolecularFormula,
-        Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
-        Ontology, // Context
-        String,   // Name
-        usize,    // Index
-    ),
     /// A modification from the GNOme ontology
     Gno(
         GnoComposition,
         String, // Name
     ),
+    /// A modification from one of the modification ontologies
+    Database {
+        /// The placement rules, neutral losses, and diagnostic ions
+        specificities: Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
+        /// The chemical formula for this modification (diff formula)
+        formula: MolecularFormula,
+        /// The id/name
+        id: ModificationId,
+    },
     /// A cross-linker
     Linker {
         /// All possible specificities for this linker
         specificities: Vec<LinkerSpecificity>,
         /// The chemical formula for this linker (diff formula)
         formula: MolecularFormula,
-        /// The name
-        name: String,
-        /// The id
-        id: usize,
+        /// The id/name
+        id: ModificationId,
         /// The length, if known
         length: Option<OrderedFloat<f64>>,
-        /// The ontology where this linker is defined
-        ontology: Ontology,
     },
+}
+
+/// A modification id/name
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash, Default)]
+pub struct ModificationId {
+    /// The ontology where this linker is defined
+    pub ontology: Ontology,
+    /// The name
+    pub name: String,
+    /// The id
+    pub id: usize,
+    /// The description, mostly for search results
+    pub description: String,
+    /// Any synonyms
+    pub synonyms: Vec<String>,
+    /// Cross reference IDs
+    pub cross_ids: Vec<(String, String)>,
 }
 
 /// The name of a cross-link

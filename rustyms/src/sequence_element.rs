@@ -219,11 +219,11 @@ impl SequenceElement {
         for modification in &self.modifications {
             match modification {
                 Modification::CrossLink {
-                    linker: SimpleModification::Predefined(_, rules, _, _, _),
+                    linker: SimpleModification::Database { specificities, .. },
                     ..
                 }
-                | Modification::Simple(SimpleModification::Predefined(_, rules, _, _, _)) => {
-                    for (rules, _, ions) in rules {
+                | Modification::Simple(SimpleModification::Database { specificities, .. }) => {
+                    for (rules, _, ions) in specificities {
                         if PlacementRule::any_possible(rules, self, position) {
                             diagnostic_ions.extend_from_slice(ions);
                         }

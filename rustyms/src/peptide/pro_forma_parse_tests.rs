@@ -1,7 +1,7 @@
 //! Tests all examples provided in the Pro Forma specification chapter 8 Appendix III
 #![allow(clippy::missing_panics_doc)]
 
-use crate::modification::SimpleModification;
+use crate::modification::{ModificationId, SimpleModification};
 use crate::placement_rule::PlacementRule;
 use crate::system::usize::Charge;
 use crate::*;
@@ -689,9 +689,9 @@ fn parse_custom() {
         Some(&vec![(
             0,
             "weee".to_string(),
-            SimpleModification::Predefined(
-                molecular_formula!(U 1),
-                vec![(
+            SimpleModification::Database {
+                formula: molecular_formula!(U 1),
+                specificities: vec![(
                     vec![PlacementRule::AminoAcid(
                         AminoAcid::CANONICAL_AMINO_ACIDS.to_vec(),
                         placement_rule::Position::Anywhere
@@ -699,10 +699,13 @@ fn parse_custom() {
                     Vec::new(),
                     Vec::new()
                 )],
-                modification::Ontology::Custom,
-                "WEEE".to_string(),
-                0
-            )
+                id: ModificationId {
+                    ontology: modification::Ontology::Custom,
+                    name: "WEEE".to_string(),
+                    id: 0,
+                    ..ModificationId::default()
+                }
+            }
         )])
     ));
     assert!(peptide.is_ok());

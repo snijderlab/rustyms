@@ -44,6 +44,26 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
         let mut formula = None;
         let mut origins = (Vec::new(), Vec::new());
         let mut diagnostic_ions = Vec::new();
+        let mut description = String::new();
+        let mut cross_ids = Vec::new();
+        let mut synonyms = Vec::new();
+        if let Some(values) = obj.lines.get("def") {
+            assert!(values.len() == 1);
+            let line = values[0][1..].split_once('\"').unwrap();
+            description = line.0.to_string();
+            let ids = line.1.trim();
+            cross_ids = ids[1..ids.len() - 1]
+                .split(',')
+                .map(|id| id.trim().split_once(':').unwrap())
+                .map(|(r, i)| (r.to_string(), i.to_string()))
+                .collect();
+        }
+        if let Some(values) = obj.lines.get("synonym") {
+            for line in values {
+                let line = line[1..].split_once('\"').unwrap();
+                synonyms.push(line.0.to_string());
+            }
+        }
         if let Some(values) = obj.lines.get("property_value") {
             for line in values {
                 if line.starts_with("reactionSites") {
@@ -131,8 +151,10 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
         if sites == Some(2) || !origins.1.is_empty() {
             mods.push(OntologyModification {
                 formula: formula.unwrap_or_default(),
-                code_name: name.clone(),
-                full_name: name,
+                name,
+                description,
+                cross_ids,
+                synonyms,
                 id,
                 ontology: super::Ontology::Xlmod,
                 data: ModData::Linker {
@@ -153,12 +175,14 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
         } else {
             mods.push(OntologyModification {
                 formula: formula.unwrap_or_default(),
-                code_name: name.clone(),
-                full_name: name,
+                name,
+                description,
+                cross_ids,
+                synonyms,
                 ontology: super::Ontology::Xlmod,
                 id,
                 data: ModData::Mod {
-                    rules: vec![(origins.0, Vec::new(), diagnostic_ions)],
+                    specificities: vec![(origins.0, Vec::new(), diagnostic_ions)],
                     monosaccharides: Vec::new(),
                 },
             });

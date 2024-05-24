@@ -81,10 +81,10 @@
 
 ## Ontologies
 
-| Name    | Modifications | Numbered | Rules | Diagnostic ions / neutral losses |
-| ------- | ------------- | -------- | ----- | -------------------------------- |
-| Unimod  | Yes           | Yes      | Yes   | Yes (neutral losses)             |
-| PSI-MOD | Yes           | Yes      | Yes   | NA                               |
-| RESID   | -             | -        | -     | -                                |
-| XL-MOD  | YES           | YES      | YES   | YES                              |
-| GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      |
+| Name    | Modifications | Numbered | Rules | Diagnostic ions / neutral losses | Description / synonyms / cross ids |
+| ------- | ------------- | -------- | ----- | -------------------------------- | ---------------------------------- |
+| Unimod  | Yes           | Yes      | Yes   | Yes                              | -                                  |
+| PSI-MOD | Yes           | Yes      | Yes   | NA                               | -                                  |
+| RESID   | -             | -        | -     | -                                | -                                  |
+| XL-MOD  | YES           | YES      | YES   | YES                              | Yes                                |
+| GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      | NA                                 |

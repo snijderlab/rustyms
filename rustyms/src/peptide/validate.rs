@@ -6,7 +6,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::{AmbiguousModification, CrossLinkName, SimpleModification},
     placement_rule::Position,
-    LinearPeptide, Linked, Modification, Peptidoform,
+    LinearPeptide, Linked, Peptidoform,
 };
 
 use super::GlobalModification;
@@ -92,26 +92,14 @@ impl LinearPeptide<Linked> {
                                 .possible()
                     }) {
                         match pos {
-                            Position::Anywhere => seq.modifications.push(modification.clone()),
+                            Position::Anywhere => {
+                                seq.modifications.push(modification.clone().into())
+                            }
                             Position::AnyNTerm | Position::ProteinNTerm => {
-                                self.n_term = Some(
-                                    modification
-                                        .simple()
-                                        .expect(
-                                            "Can only put a simple modification on an N terminus",
-                                        )
-                                        .clone(),
-                                );
+                                self.n_term = Some(modification.clone());
                             }
                             Position::AnyCTerm | Position::ProteinCTerm => {
-                                self.c_term = Some(
-                                    modification
-                                        .simple()
-                                        .expect(
-                                            "Can only put a simple modification on a C terminus",
-                                        )
-                                        .clone(),
-                                );
+                                self.c_term = Some(modification.clone());
                             }
                         }
                     }

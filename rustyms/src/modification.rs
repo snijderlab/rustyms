@@ -21,6 +21,27 @@ use crate::{
 
 include!("shared/modification.rs");
 
+impl ModificationId {
+    /// Get the accession number name for the ontology
+    pub fn url(&self) -> Option<String> {
+        match self.ontology {
+            Ontology::Unimod => Some(format!(
+                "https://www.unimod.org/modifications_view.php?editid1={}",
+                self.id
+            )),
+            Ontology::Psimod => Some(format!(
+                "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{:5}",
+                self.id
+            )),
+            Ontology::Gnome => Some(format!(
+                "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
+                self.name
+            )),
+            Ontology::Xlmod | Ontology::Custom => None,
+        }
+    }
+}
+
 impl Chemical for SimpleModification {
     fn formula(&self) -> MolecularFormula {
         match self {
@@ -34,7 +55,7 @@ impl Chemical for SimpleModification {
             Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
                 glycan.formula()
             }
-            Self::Predefined(formula, _, _, _, _) | Self::Linker { formula, .. } => formula.clone(),
+            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
             Self::Gno(GnoComposition::Mass(m), _) => {
                 MolecularFormula::with_additional_mass(m.value)
             }
@@ -66,26 +87,20 @@ impl std::ops::Add for RulePossible {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (RulePossible::Symmetric, _)
-            | (_, RulePossible::Symmetric)
-            | (RulePossible::AsymmetricLeft, RulePossible::AsymmetricRight)
-            | (RulePossible::AsymmetricRight, RulePossible::AsymmetricLeft) => {
-                RulePossible::Symmetric
-            }
-            (RulePossible::AsymmetricLeft, _) | (_, RulePossible::AsymmetricLeft) => {
-                RulePossible::AsymmetricLeft
-            }
-            (RulePossible::AsymmetricRight, _) | (_, RulePossible::AsymmetricRight) => {
-                RulePossible::AsymmetricRight
-            }
-            _ => RulePossible::No,
+            (Self::Symmetric, _)
+            | (_, Self::Symmetric)
+            | (Self::AsymmetricLeft, Self::AsymmetricRight)
+            | (Self::AsymmetricRight, Self::AsymmetricLeft) => Self::Symmetric,
+            (Self::AsymmetricLeft, _) | (_, Self::AsymmetricLeft) => Self::AsymmetricLeft,
+            (Self::AsymmetricRight, _) | (_, Self::AsymmetricRight) => Self::AsymmetricRight,
+            _ => Self::No,
         }
     }
 }
 
 impl std::iter::Sum for RulePossible {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(RulePossible::No, |acc, i| acc + i)
+        iter.fold(Self::No, |acc, i| acc + i)
     }
 }
 
@@ -95,20 +110,19 @@ impl SimpleModification {
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
-            Self::Predefined(_, _, ontology, name, id)
-            | Self::Linker {
-                ontology, name, id, ..
-            } => ontology.url(*id, name),
-            Self::Gno(_, name) => Ontology::Gnome.url(0, name),
+            Self::Database { id, .. } | Self::Linker { id, .. } => id.url(),
+            Self::Gno(_, name) => Some(format!(
+                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}",
+            )),
         }
     }
 
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
         match self {
-            Self::Predefined(_, positions, _, _, _) => {
+            Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
-                if positions
+                if specificities
                     .iter()
                     .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
                 {
@@ -174,14 +188,23 @@ impl Display for SimpleModification {
                         acc
                     })
             )?,
-            Self::Predefined(formula, _, Ontology::Custom, name, _) => {
+            Self::Database {
+                formula,
+                id:
+                    ModificationId {
+                        name,
+                        ontology: Ontology::Custom,
+                        ..
+                    },
+                ..
+            } => {
                 write!(f, "Formula:{formula}|INFO:Custom:{name}")?;
             }
-            Self::Predefined(_, _, ontology, name, _) => {
-                write!(f, "{}:{name}", ontology.char())?;
+            Self::Database { id, .. } => {
+                write!(f, "{}:{}", id.name, id.ontology.char())?;
             }
             Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
-            Self::Linker { ontology, name, .. } => write!(f, "{}:{name}", ontology.char())?,
+            Self::Linker { id, .. } => write!(f, "{}:{}", id.name, id.ontology.char())?,
         }
         Ok(())
     }
@@ -276,7 +299,9 @@ impl Modification {
         self.simple()
             .map_or(RulePossible::Symmetric, |s| s.is_possible(seq, position))
     }
+}
 
+impl SimpleModification {
     /// Search matching modification based on what modification is provided. If a mass modification is provided
     /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
     /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
@@ -287,7 +312,7 @@ impl Modification {
         custom_database: Option<&CustomDatabase>,
     ) -> ModificationSearchResult {
         match modification {
-            Self::Simple(SimpleModification::Mass(mass)) => ModificationSearchResult::Mass(
+            Self::Mass(mass) => ModificationSearchResult::Mass(
                 mass.into_inner(),
                 tolerance,
                 [
@@ -309,28 +334,26 @@ impl Modification {
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
             ),
-            Self::Simple(SimpleModification::Formula(formula)) => {
-                ModificationSearchResult::Formula(
-                    formula.clone(),
-                    [
-                        Ontology::Unimod,
-                        Ontology::Psimod,
-                        Ontology::Gnome,
-                        Ontology::Xlmod,
-                        Ontology::Custom,
-                    ]
-                    .iter()
-                    .flat_map(|o| {
-                        o.lookup(custom_database)
-                            .iter()
-                            .map(|(i, n, m)| (*o, *i, n, m))
-                    })
-                    .filter(|(_, _, _, m)| *formula == m.formula())
-                    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                    .collect(),
-                )
-            }
-            Self::Simple(SimpleModification::Glycan(glycan)) => {
+            Self::Formula(formula) => ModificationSearchResult::Formula(
+                formula.clone(),
+                [
+                    Ontology::Unimod,
+                    Ontology::Psimod,
+                    Ontology::Gnome,
+                    Ontology::Xlmod,
+                    Ontology::Custom,
+                ]
+                .iter()
+                .flat_map(|o| {
+                    o.lookup(custom_database)
+                        .iter()
+                        .map(|(i, n, m)| (*o, *i, n, m))
+                })
+                .filter(|(_, _, _, m)| *formula == m.formula())
+                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
+                .collect(),
+            ),
+            Self::Glycan(glycan) => {
                 let search = MonoSaccharide::search_composition(glycan.clone());
                 ModificationSearchResult::Glycan(
                     glycan.clone(),
@@ -338,11 +361,7 @@ impl Modification {
                         .lookup(custom_database)
                         .iter()
                         .filter(|(_, _, m)| {
-                            if let SimpleModification::Gno(
-                                GnoComposition::Structure(structure),
-                                _,
-                            ) = m
-                            {
+                            if let Self::Gno(GnoComposition::Structure(structure), _) = m {
                                 MonoSaccharide::search_composition(structure.composition())
                                     == *search
                             } else {
@@ -361,7 +380,7 @@ impl Modification {
 /// The result of a modification search, see [`Modification::search`].
 pub enum ModificationSearchResult {
     /// The modification was already defined
-    Single(Modification),
+    Single(SimpleModification),
     /// All modifications with the same mass, within the tolerance
     Mass(
         Mass,

@@ -3,9 +3,7 @@ use std::num::NonZeroU16;
 
 use tests::parse::{global_modifications, parse_charge_state};
 
-use crate::{
-    modification::SimpleModification, system::da, AminoAcid, Element, Modification, MolecularCharge,
-};
+use crate::{modification::SimpleModification, system::da, AminoAcid, Element, MolecularCharge};
 
 use super::*;
 
@@ -19,7 +17,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::D),
-                Modification::Simple(SimpleModification::Mass(da(5.0).into()))
+                SimpleModification::Mass(da(5.0).into())
             )]
         ))
     );
@@ -30,7 +28,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::D),
-                Modification::Simple(SimpleModification::Mass(da(5.0).into()))
+                SimpleModification::Mass(da(5.0).into())
             )]
         ))
     );
@@ -41,7 +39,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::D),
-                Modification::Simple(SimpleModification::Mass(da(5.0).into()))
+                SimpleModification::Mass(da(5.0).into())
             )]
         ))
     );
@@ -52,7 +50,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::D),
-                Modification::Simple(SimpleModification::Mass(da(5.0).into()))
+                SimpleModification::Mass(da(5.0).into())
             )]
         ))
     );
@@ -63,7 +61,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyCTerm,
                 Some(AminoAcid::D),
-                Modification::Simple(SimpleModification::Mass(da(5.0).into()))
+                SimpleModification::Mass(da(5.0).into())
             )]
         ))
     );

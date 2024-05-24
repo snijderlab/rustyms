@@ -4,23 +4,25 @@ use serde::{Deserialize, Serialize};
 use crate::{
     build::glycan::MonoSaccharide,
     formula::{Chemical, MolecularFormula},
-    DiagnosticIon, LinkerSpecificity, NeutralLoss, SimpleModification,
+    DiagnosticIon, LinkerSpecificity, ModificationId, NeutralLoss, SimpleModification,
 };
 
 #[derive(Debug, Default)]
 pub struct OntologyModification {
     pub formula: MolecularFormula,
-    pub code_name: String,
-    pub full_name: String,
+    pub name: String,
     pub ontology: Ontology,
     pub id: usize,
+    pub description: String,
+    pub synonyms: Vec<String>,
+    pub cross_ids: Vec<(String, String)>,
     pub data: ModData,
 }
 
 #[derive(Debug)]
 pub enum ModData {
     Mod {
-        rules: Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
+        specificities: Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
         monosaccharides: Vec<(MonoSaccharide, i32)>,
     },
     Linker {
@@ -32,7 +34,7 @@ pub enum ModData {
 impl Default for ModData {
     fn default() -> Self {
         Self::Mod {
-            rules: Vec::new(),
+            specificities: Vec::new(),
             monosaccharides: Vec::new(),
         }
     }
@@ -41,7 +43,11 @@ impl Default for ModData {
 impl OntologyModification {
     /// Simplify the placement rules
     pub fn simplify_rules(&mut self) {
-        if let ModData::Mod { ref mut rules, .. } = self.data {
+        if let ModData::Mod {
+            specificities: ref mut rules,
+            ..
+        } = self.data
+        {
             let mut new = Vec::new();
             for rule in rules.iter() {
                 if new.is_empty() {
@@ -88,38 +94,42 @@ impl OntologyModification {
 
     pub fn into_mod(mut self) -> (usize, String, SimpleModification) {
         self.simplify_rules();
+        let id = ModificationId {
+            ontology: self.ontology,
+            name: self.name.clone(),
+            id: self.id,
+            description: self.description,
+            synonyms: self.synonyms,
+            cross_ids: self.cross_ids,
+        };
         match self.data {
             ModData::Mod {
                 monosaccharides,
-                rules,
+                specificities,
             } => (
                 self.id,
-                self.code_name.to_ascii_lowercase(),
-                SimpleModification::Predefined(
-                    self.formula
+                self.name.to_ascii_lowercase(),
+                SimpleModification::Database {
+                    id,
+                    formula: self.formula
                         + monosaccharides
                             .iter()
                             .map(|(s, n)| s.formula() * n)
                             .sum::<MolecularFormula>(),
-                    rules,
-                    self.ontology,
-                    self.code_name,
-                    self.id,
-                ),
+                    specificities,
+                },
             ),
             ModData::Linker {
                 specificities,
                 length,
             } => (
                 self.id,
-                self.code_name.to_ascii_lowercase(),
+                self.name.to_ascii_lowercase(),
                 SimpleModification::Linker {
                     specificities,
                     formula: self.formula,
-                    name: self.code_name,
-                    id: self.id,
+                    id,
                     length,
-                    ontology: self.ontology,
                 },
             ),
         }

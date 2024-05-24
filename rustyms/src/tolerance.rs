@@ -2,6 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use uom::fmt::DisplayStyle;
 
 use crate::{
     system::{da, Mass, MassOverCharge, OrderedRatio, Ratio},
@@ -64,6 +65,26 @@ impl<T: Display> Display for Tolerance<T> {
             match self {
                 Self::Absolute(value) => format!("{value} abs"),
                 Self::Relative(tolerance) => format!("{} rel", tolerance.value),
+            }
+        )
+    }
+}
+
+impl Display for Tolerance<Mass> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Absolute(value) => format!(
+                    "{}",
+                    value.into_format_args(crate::system::mass::dalton, DisplayStyle::Abbreviation)
+                ),
+                Self::Relative(tolerance) => format!(
+                    "{}",
+                    tolerance
+                        .into_format_args(crate::system::ratio::ppm, DisplayStyle::Abbreviation)
+                ),
             }
         )
     }

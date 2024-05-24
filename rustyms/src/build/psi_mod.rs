@@ -36,7 +36,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 .1
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
-            code_name: obj.lines["name"][0].to_string(),
+            name: obj.lines["name"][0].to_string(),
             ontology: super::ontology_modification::Ontology::Psimod,
             ..Default::default()
         };
@@ -103,7 +103,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         }
         modification.data = ModData::Mod {
             monosaccharides: Vec::new(),
-            rules,
+            specificities: rules,
         };
         mods.push(modification);
     }

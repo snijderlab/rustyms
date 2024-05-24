@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::PeptidePosition,
-    modification::{Modification, Ontology, SimpleModification},
+    modification::{Modification, ModificationId, Ontology, SimpleModification},
     AminoAcid, SequenceElement,
 };
 
@@ -19,15 +19,17 @@ impl PlacementRule {
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
-                    if let Modification::Simple(SimpleModification::Predefined(
-                        _,
-                        _,
-                        Ontology::Psimod,
-                        _,
-                        i,
-                    )) = m
+                    if let Modification::Simple(SimpleModification::Database {
+                        id:
+                            ModificationId {
+                                ontology: Ontology::Psimod,
+                                id,
+                                ..
+                            },
+                        ..
+                    }) = m
                     {
-                        i == mod_index
+                        id == mod_index
                     } else {
                         false
                     }

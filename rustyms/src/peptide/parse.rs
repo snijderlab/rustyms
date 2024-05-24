@@ -218,7 +218,7 @@ impl CompoundPeptidoform {
                     Context::line(0, line, index, 1),
                 ))?;
             peptide.n_term = Some(
-                Modification::try_from(
+                SimpleModification::try_from(
                     line,
                     index + 1..end_index - 1,
                     &mut ambiguous_lookup,
@@ -230,15 +230,6 @@ impl CompoundPeptidoform {
                         CustomError::error(
                             "Invalid N terminal modification",
                             "An N terminal modification cannot be ambiguous",
-                            Context::line(0, line, index + 1, end_index - 2 - index),
-                        )
-                    })
-                })
-                .and_then(|m| {
-                    m.into_simple().ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid N terminal modification",
-                            "An N terminal modification cannot be a cross linking modification",
                             Context::line(0, line, index + 1, end_index - 2 - index),
                         )
                     })
@@ -301,12 +292,12 @@ impl CompoundPeptidoform {
                             "No valid closing delimiter",
                             Context::line(0, line, index, 1),
                         ))?;
-                        let modification = Modification::try_from(
+                        let modification = SimpleModification::try_from(
                             line, index + 1..end_index,
                             &mut ambiguous_lookup, cross_link_lookup, custom_database,
-                        )?.defined().and_then(Modification::into_simple).ok_or_else(|| CustomError::error(
+                        )?.defined().ok_or_else(|| CustomError::error(
                             "Invalid ranged ambiguous modification",
-                            "A ranged ambiguous modification has to be fully defined and simple, so no ambiguous modification or cross link is allowed",
+                            "A ranged ambiguous modification has to be fully defined, so no ambiguous modification is allowed",
                             Context::line(0, line, index, 1),
                         ))?;
                         index = end_index + 1;
@@ -339,7 +330,7 @@ impl CompoundPeptidoform {
                         "No valid closing delimiter",
                         Context::line(0, line, index, 1),
                     ))?;
-                    let modification = Modification::try_from(
+                    let modification = SimpleModification::try_from(
                         line, index + 1..end_index,
                         &mut ambiguous_lookup, cross_link_lookup, custom_database,
                     )?;
@@ -351,15 +342,7 @@ impl CompoundPeptidoform {
                                 "Invalid C terminal modification",
                                 "A C terminal modification cannot be ambiguous",
                                 Context::line(0, line, start_index, index - start_index - 1),
-                            )).and_then(|m| {
-                                m.into_simple().ok_or_else(|| {
-                                    CustomError::error(
-                                        "Invalid C terminal modification",
-                                        "A C terminal modification cannot be a cross linking modification",
-                                        Context::line(0, line, index + 1, end_index - 2 - index),
-                                    )
-                                })
-                            })?);
+                            ))?);
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
                             let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
@@ -379,7 +362,7 @@ impl CompoundPeptidoform {
 
                     if let Some((sequence_index, aa)) = peptide.sequence.iter_mut().enumerate().next_back() {
                         match modification {
-                            ReturnModification::Defined(m) => aa.modifications.push(m),
+                            ReturnModification::Defined(m) => aa.modifications.push(Modification::Simple(m)),
                             ReturnModification::AmbiguousPreferred(id, localisation_score) =>
                                 ambiguous_found_positions.push((sequence_index, true, id, localisation_score)),
                             ReturnModification::AmbiguousReferenced(id, localisation_score) =>
@@ -527,7 +510,7 @@ pub(super) fn global_modifications(
                     Context::line(0, line, index + 1, at_index - index - 2),
                 ));
             }
-            let modification = Modification::try_from(
+            let modification = SimpleModification::try_from(
                 line,
                 index + 2..at_index - 2,
                 &mut Vec::new(),
@@ -669,7 +652,7 @@ pub(super) fn unknown_position_mods(
         let end_index = next_char(chars, index + 1, b']')?;
         #[allow(clippy::map_unwrap_or)]
         // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
-        let modification = Modification::try_from(
+        let modification = SimpleModification::try_from(
             std::str::from_utf8(chars).unwrap(),
             index + 1..end_index,
             &mut ambiguous_lookup,
@@ -678,12 +661,9 @@ pub(super) fn unknown_position_mods(
         )
         .unwrap_or_else(|e| {
             errs.push(e);
-            ReturnModification::Defined(Modification::Simple(SimpleModification::Mass(
-                OrderedMass::default(),
-            )))
+            ReturnModification::Defined(SimpleModification::Mass(OrderedMass::default()))
         })
         .defined()
-        .and_then(Modification::into_simple)
         .map_or_else(
             || {
                 errs.push(CustomError::error(
@@ -749,7 +729,7 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            Modification::try_from(
+            SimpleModification::try_from(
                 line,
                 index + 1..end_index,
                 &mut Vec::new(),
@@ -761,15 +741,6 @@ fn labile_modifications(
                     CustomError::error(
                         "Invalid labile modification",
                         "A labile modification cannot be ambiguous or a cross-linker",
-                        Context::line(0, line, index + 1, end_index - 1 - index),
-                    )
-                })
-            })
-            .and_then(|m| {
-                m.into_simple().ok_or_else(|| {
-                    CustomError::error(
-                        "Invalid labile modification",
-                        "A labile modification cannot be a cross-link or branch",
                         Context::line(0, line, index + 1, end_index - 1 - index),
                     )
                 })

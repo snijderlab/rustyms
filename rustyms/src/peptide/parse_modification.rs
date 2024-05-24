@@ -19,7 +19,7 @@ use crate::{
     AminoAcid, Element, MolecularFormula,
 };
 
-impl Modification {
+impl SimpleModification {
     /// Try to parse the modification. Any ambiguous modification will be numbered
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
@@ -61,9 +61,7 @@ impl Modification {
             || {
                 last_result.map(|m| {
                     m.unwrap_or_else(|| {
-                        ReturnModification::Defined(Self::Simple(SimpleModification::Mass(
-                            OrderedMass::zero(),
-                        )))
+                        ReturnModification::Defined(SimpleModification::Mass(OrderedMass::zero()))
                     })
                 })
             },
@@ -388,7 +386,7 @@ fn handle_ambiguous_modification(
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum ReturnModification {
     /// A fully self contained modification
-    Defined(Modification),
+    Defined(SimpleModification),
     /// A modification that references an ambiguous modification
     AmbiguousReferenced(usize, Option<OrderedFloat<f64>>),
     /// A modification that references an ambiguous modification and is preferred on this location
@@ -400,7 +398,7 @@ pub enum ReturnModification {
 impl ReturnModification {
     /// Force this modification to be defined
     #[must_use]
-    pub fn defined(self) -> Option<Modification> {
+    pub fn defined(self) -> Option<SimpleModification> {
         match self {
             Self::Defined(modification) => Some(modification),
             _ => None,
@@ -414,7 +412,7 @@ pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, Option<NonZeroU16>),
     /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
-    Fixed(Position, Option<AminoAcid>, Modification),
+    Fixed(Position, Option<AminoAcid>, SimpleModification),
 }
 
 /// # Errors

@@ -40,7 +40,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                 .1
                 .parse()
                 .expect("Incorrect psi mod id, should be numerical"),
-            code_name: obj.lines["name"][0].to_string(),
+            name: obj.lines["name"][0].to_string(),
             ontology: super::ontology_modification::Ontology::Unimod,
             ..Default::default()
         };
@@ -104,7 +104,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                     continue;
                 }
             }
-            if let ModData::Mod { rules, .. } = &mut modification.data {
+            if let ModData::Mod { specificities: rules, .. } = &mut modification.data {
                 rules.extend(mod_rules.into_iter().filter_map(|rule| {
                     match (rule.0.as_str(), rule.1.as_str()) {
                         ("C-term", pos) => Some((

@@ -35,9 +35,9 @@ pub fn building_blocks(
         seq: &SequenceElement,
         position: &PeptidePosition,
     ) -> bool {
-        if let SimpleModification::Predefined(_, rules, _, _, _) = modification {
-            rules.is_empty()
-                || rules
+        if let SimpleModification::Database { specificities, .. } = modification {
+            specificities.is_empty()
+                || specificities
                     .iter()
                     .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
         } else {
@@ -85,8 +85,8 @@ pub fn building_blocks(
             .flat_map(|(modification, rule)| {
                 rule.as_ref().map_or_else(
                     || {
-                        if let SimpleModification::Predefined(_, rules, _, _, _) = modification {
-                            rules
+                        if let SimpleModification::Database { specificities, .. } = modification {
+                            specificities
                                 .iter()
                                 .flat_map(|(rules, _, _)| {
                                     rules.iter().flat_map(position).collect_vec()

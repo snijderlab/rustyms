@@ -25,6 +25,22 @@ impl NeutralLoss {
             Self::Gain(c) => format!("+{}", c.hill_notation_html()),
         }
     }
+
+    /// Generate a nice fancy notation for this `NeutralLoss`
+    pub fn hill_notation_fancy(&self) -> String {
+        match self {
+            Self::Loss(c) => format!("-{}", c.hill_notation_fancy()),
+            Self::Gain(c) => format!("+{}", c.hill_notation_fancy()),
+        }
+    }
+
+    /// Generate a notation for this `NeutralLoss` with pure ASCII characters
+    pub fn hill_notation(&self) -> String {
+        match self {
+            Self::Loss(c) => format!("-{}", c.hill_notation()),
+            Self::Gain(c) => format!("+{}", c.hill_notation()),
+        }
+    }
 }
 
 impl FromStr for NeutralLoss {

@@ -184,15 +184,12 @@ impl<T> LinearPeptide<T> {
                 aa.modifications
                     .iter()
                     .filter_map(move |modification| {
-                        if let Modification::Simple(SimpleModification::Predefined(
-                            _,
-                            rules,
-                            _,
-                            _,
-                            _,
-                        )) = modification
+                        if let Modification::Simple(SimpleModification::Database {
+                            specificities,
+                            ..
+                        }) = modification
                         {
-                            Some(rules)
+                            Some(specificities)
                         } else {
                             None
                         }
@@ -220,8 +217,8 @@ impl<T> LinearPeptide<T> {
                     .map(move |diag| (diag, DiagnosticPosition::Peptide(pos, aa.aminoacid)))
             })
             .chain(self.labile.iter().flat_map(move |modification| {
-                if let SimpleModification::Predefined(_, rules, _, _, _) = modification {
-                    rules
+                if let SimpleModification::Database { specificities, .. } = modification {
+                    specificities
                         .iter()
                         .flat_map(|(_, _, diag)| diag)
                         .map(|diag| {

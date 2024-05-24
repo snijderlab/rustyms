@@ -58,7 +58,7 @@ impl LinearPeptide<VerySimple> {
                                 Context::line(0, line, location.start + index, 1),
                             )
                         })?;
-                    let modification = Modification::try_from(
+                    let modification = SimpleModification::try_from(
                         line,
                         location.start + index + 1..location.start + end_index,
                         &mut ambiguous_lookup,
@@ -87,9 +87,9 @@ impl LinearPeptide<VerySimple> {
                             peptide.sequence.last(),
                         )
                         .ok_or(err)
-                        .map(Modification::Simple)
                     })
-                    .flat_err()?;
+                    .flat_err()
+                    .map(Modification::Simple)?;
                     index = end_index + 1;
 
                     match peptide.sequence.last_mut() {

@@ -1,6 +1,7 @@
 #![allow(clippy::missing_panics_doc)]
 use crate::{
     model::*,
+    modification::ModificationId,
     system::{ratio::ppm, usize::Charge, MassOverCharge, Ratio},
     *,
 };
@@ -370,10 +371,13 @@ fn custom_dsso_database() -> CustomDatabase {
                 Vec::new(),
             )],
             formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
-            name: "DSSO".to_string(),
-            id: 0,
+            id: ModificationId {
+                name: "DSSO".to_string(),
+                id: 0,
+                ontology: modification::Ontology::Custom,
+                ..ModificationId::default()
+            },
             length: None,
-            ontology: modification::Ontology::Custom,
         },
     )]
 }
