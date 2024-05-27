@@ -1,14 +1,16 @@
 //! Methods for reading and parsing CSV files. (Internal use mostly).
 
 use std::{
+    collections::HashMap,
     fmt::Debug,
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     ops::Range,
     str::FromStr,
 };
 
 use flate2::read::GzDecoder;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -116,6 +118,18 @@ impl CsvLine {
     }
 }
 
+impl<Hasher: ::std::hash::BuildHasher + Default> From<&CsvLine>
+    for HashMap<String, String, Hasher>
+{
+    fn from(value: &CsvLine) -> Self {
+        value
+            .fields
+            .iter()
+            .map(|(name, range)| (name.to_string(), value.line[range.clone()].to_string()))
+            .collect()
+    }
+}
+
 impl std::ops::Index<usize> for CsvLine {
     type Output = str;
     fn index(&self, index: usize) -> &str {
@@ -165,11 +179,9 @@ pub fn parse_csv_raw<T: std::io::Read>(
     let column_headers = if let Some(header) = provided_header {
         header
     } else {
-        let (_, column_headers) = lines.next().ok_or(CustomError::error(
-            "Could parse csv file",
-            "The file is empty",
-            Context::None,
-        ))?;
+        let (_, column_headers) = lines.next().ok_or_else(|| {
+            CustomError::error("Could parse csv file", "The file is empty", Context::None)
+        })?;
         let header_line = column_headers
             .map_err(|err| CustomError::error("Could not read header line", err, Context::None))?;
         csv_separate(&header_line, separator)?
@@ -337,4 +349,47 @@ impl std::fmt::Display for CsvLine {
             fields
         )
     }
+}
+
+/// Write a CSV file from a vector of HashMaps. It fill empty columns with empty space, ensures the correct amount
+/// of columns on each line, and auto wraps any comma (,) containing values and headers in apostrophes (").
+pub fn write_csv(
+    mut f: impl Write,
+    data: impl IntoIterator<Item = HashMap<String, String>>,
+) -> Result<(), std::io::Error> {
+    let mut order: Vec<String> = Vec::new();
+    let sorted: Vec<Vec<String>> = data
+        .into_iter()
+        .map(|row| {
+            let mut new_row = vec![String::new(); order.len()];
+            for (column, mut value) in row {
+                if value.contains(',') {
+                    value = format!("\"{value}\"");
+                }
+                if let Some(index) = order.iter().position(|i| *i == column) {
+                    new_row[index] = value;
+                } else {
+                    if column.contains(',') {
+                        order.push(format!("\"{column}\""));
+                    } else {
+                        order.push(column.to_string());
+                    }
+                    new_row.push(value);
+                }
+            }
+            new_row
+        })
+        .collect_vec();
+    writeln!(f, "{}", order.iter().join(","))?;
+    for row in sorted {
+        let len = order.len() - row.len();
+        writeln!(
+            f,
+            "{}",
+            row.into_iter()
+                .chain(std::iter::repeat(String::new()).take(len))
+                .join(",")
+        )?;
+    }
+    Ok(())
 }
