@@ -83,8 +83,8 @@
 
 | Name    | Modifications | Numbered | Rules | Diagnostic ions / neutral losses | Description / synonyms / cross ids |
 | ------- | ------------- | -------- | ----- | -------------------------------- | ---------------------------------- |
-| Unimod  | Yes           | Yes      | Yes   | Yes                              | -                                  |
-| PSI-MOD | Yes           | Yes      | Yes   | NA                               | -                                  |
+| Unimod  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
+| PSI-MOD | Yes           | Yes      | Yes   | NA                               | Yes                                |
 | RESID   | -             | -        | -     | -                                | -                                  |
-| XL-MOD  | YES           | YES      | YES   | YES                              | Yes                                |
+| XL-MOD  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
 | GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      | NA                                 |

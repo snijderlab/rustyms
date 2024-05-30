@@ -40,8 +40,26 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             ontology: super::ontology_modification::Ontology::Psimod,
             ..Default::default()
         };
-        let mut rules = Vec::new();
+        if let Some(values) = obj.lines.get("def") {
+            assert!(values.len() == 1);
+            let line = values[0][1..].split_once('\"').unwrap();
+            modification.description = line.0.to_string();
+            let ids = line.1.trim();
+            modification.cross_ids = ids[1..ids.len() - 1]
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .map(|id| id.trim().split_once(':').unwrap())
+                .map(|(r, i)| (r.to_string(), i.to_string()))
+                .collect();
+        }
+        if let Some(values) = obj.lines.get("synonym") {
+            for line in values {
+                let line = line[1..].split_once('\"').unwrap();
+                modification.synonyms.push(line.0.to_string());
+            }
+        }
 
+        let mut rules = Vec::new();
         let mut origins = Vec::new();
         let mut term = None;
         if let Some(values) = obj.lines.get("property_value") {

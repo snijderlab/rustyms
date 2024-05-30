@@ -44,6 +44,24 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
             ontology: super::ontology_modification::Ontology::Unimod,
             ..Default::default()
         };
+        if let Some(values) = obj.lines.get("def") {
+            assert!(values.len() == 1);
+            let line = values[0][1..].split_once('\"').unwrap();
+            modification.description = line.0.to_string();
+            let ids = line.1.trim();
+            modification.cross_ids = ids[1..ids.len() - 1]
+                .split(',')
+                .map(|id| id.trim().split_once(':').unwrap())
+                .filter(|(r, _)| *r != "UNIMODURL")
+                .map(|(r, i)| (r.to_string(), i.replace("\\:", ":").to_string())) // Some urls have escaped colons
+                .collect();
+        }
+        if let Some(values) = obj.lines.get("synonym") {
+            for line in values {
+                let line = line[1..].split_once('\"').unwrap();
+                modification.synonyms.push(line.0.to_string());
+            }
+        }
         if let Some(xref) = obj.lines.get("xref") {
             let re_position = Regex::new("spec_(\\d+)_position \"(.+)\"").unwrap();
             let re_site = Regex::new("spec_(\\d+)_site \"(.+)\"").unwrap();
@@ -104,7 +122,11 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                     continue;
                 }
             }
-            if let ModData::Mod { specificities: rules, .. } = &mut modification.data {
+            if let ModData::Mod {
+                specificities: rules,
+                ..
+            } = &mut modification.data
+            {
                 rules.extend(mod_rules.into_iter().filter_map(|rule| {
                     match (rule.0.as_str(), rule.1.as_str()) {
                         ("C-term", pos) => Some((
