@@ -41,7 +41,7 @@ impl MolecularFormula {
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It can panic if the string contains not UTF8 symbols.
-    pub(crate) fn from_pro_forma_inner(
+    pub fn from_pro_forma_inner(
         value: &str,
         range: impl RangeBounds<usize>,
         allow_electrons: bool,
