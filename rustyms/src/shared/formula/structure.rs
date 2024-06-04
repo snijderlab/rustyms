@@ -136,6 +136,11 @@ impl MolecularFormula {
         &self.elements
     }
 
+    /// Get the additional mass of this formula
+    pub fn additional_mass(&self) -> OrderedFloat<f64> {
+        self.additional_mass
+    }
+
     /// Create a new molecular formula with the given global isotope modifications. If the given isotope is not valid for this element it returns `None`.
     #[must_use]
     pub fn with_global_isotope_modifications(
@@ -173,9 +178,9 @@ impl MolecularFormula {
             })
     }
 
-    /// Check if the formula is empty
+    /// Check if the formula is empty (no elements and no additional mass)
     pub fn is_empty(&self) -> bool {
-        self.elements.is_empty()
+        self.elements.is_empty() && self.additional_mass == 0.0
     }
 
     /// The generic backbone to do the Hill notation sorting

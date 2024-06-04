@@ -52,9 +52,9 @@ impl MolecularFormula {
             std::ops::Bound::Excluded(s) => s + 1,
         };
         let end = match range.end_bound() {
-            std::ops::Bound::Unbounded => value.len() - 1,
+            std::ops::Bound::Unbounded => value.len().saturating_sub(1),
             std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s - 1,
+            std::ops::Bound::Excluded(s) => s.saturating_sub(1),
         };
         let mut element = None;
         let bytes = value.as_bytes();

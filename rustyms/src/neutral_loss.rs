@@ -21,24 +21,24 @@ impl NeutralLoss {
     /// Generate a nice HTML notation for this `NeutralLoss`
     pub fn hill_notation_html(&self) -> String {
         match self {
-            Self::Loss(c) => format!("-{}", c.hill_notation_html()),
-            Self::Gain(c) => format!("+{}", c.hill_notation_html()),
+            Self::Loss(c) => format!("-{}", c.hill_notation_html().trim_start_matches('+')),
+            Self::Gain(c) => format!("+{}", c.hill_notation_html().trim_start_matches('+')),
         }
     }
 
     /// Generate a nice fancy notation for this `NeutralLoss`
     pub fn hill_notation_fancy(&self) -> String {
         match self {
-            Self::Loss(c) => format!("-{}", c.hill_notation_fancy()),
-            Self::Gain(c) => format!("+{}", c.hill_notation_fancy()),
+            Self::Loss(c) => format!("-{}", c.hill_notation_fancy().trim_start_matches('+')),
+            Self::Gain(c) => format!("+{}", c.hill_notation_fancy().trim_start_matches('+')),
         }
     }
 
     /// Generate a notation for this `NeutralLoss` with pure ASCII characters
     pub fn hill_notation(&self) -> String {
         match self {
-            Self::Loss(c) => format!("-{}", c.hill_notation()),
-            Self::Gain(c) => format!("+{}", c.hill_notation()),
+            Self::Loss(c) => format!("-{}", c.hill_notation().trim_start_matches('+')),
+            Self::Gain(c) => format!("+{}", c.hill_notation().trim_start_matches('+')),
         }
     }
 }
@@ -46,10 +46,28 @@ impl NeutralLoss {
 impl FromStr for NeutralLoss {
     type Err = CustomError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some(c) = s.chars().next() {
+        // Allow a numeric neutral loss
+        if let Ok(number) = s.parse::<f64>() {
+            if number > 0.0 {
+                Ok(Self::Gain(MolecularFormula::with_additional_mass(number)))
+            } else {
+                Ok(Self::Loss(MolecularFormula::with_additional_mass(
+                    number.abs(),
+                )))
+            }
+        } else if let Some(c) = s.chars().next() {
+            // Or match a molecular formula
             match c {
-                '+' => Ok(Self::Gain(MolecularFormula::from_pro_forma(&s[1..])?)),
-                '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma(&s[1..])?)),
+                '+' => Ok(Self::Gain(MolecularFormula::from_pro_forma_inner(
+                    s,
+                    1..,
+                    false,
+                )?)),
+                '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma_inner(
+                    s,
+                    1..,
+                    false,
+                )?)),
                 _ => Err(CustomError::error(
                     "Invalid neutral loss",
                     "A neutral loss can only start with '+' or '-'",

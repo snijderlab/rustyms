@@ -1,8 +1,11 @@
 //! Rules regarding the placement of modifications
 
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    error::{Context, CustomError},
     fragment::PeptidePosition,
     modification::{Modification, ModificationId, Ontology, SimpleModification},
     AminoAcid, SequenceElement,
@@ -49,6 +52,48 @@ impl PlacementRule {
     }
 }
 
+impl FromStr for PlacementRule {
+    type Err = CustomError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((head, tail)) = s.split_once('@') {
+            let aa: Vec<AminoAcid> = head
+                .chars()
+                .enumerate()
+                .map(|(i, c)| {
+                    AminoAcid::try_from(c).map_err(|()| {
+                        CustomError::error(
+                            "Invalid amino acid",
+                            "Invalid amino acid in specified amino acids in placement rule",
+                            Context::line(0, s, i, 1),
+                        )
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            tail.parse().map_or_else(
+                |()| {
+                    Err(CustomError::error(
+                        "Invalid position",
+                        "Use any of the following for the position: Anywhere, AnyNTerm, ProteinNTerm, AnyCTerm, ProteinCTerm",
+                        Context::line(0, s, head.len() + 1, tail.len()),
+                    ))
+                },
+                |position| Ok(Self::AminoAcid(aa, position)),
+            )
+        } else if let Ok(position) = s.parse() {
+            Ok(match position {
+                Position::Anywhere => Self::Anywhere,
+                pos => Self::Terminal(pos),
+            })
+        } else {
+            Err(CustomError::error(
+                "Invalid position",
+                "Use any of the following for the position: Anywhere, AnyNTerm, ProteinNTerm, AnyCTerm, ProteinCTerm",
+                Context::full_line(0, s),
+            ))
+        }
+    }
+}
+
 impl Position {
     /// See if the given peptide position is a valid position given this [`Position`] as placement rule.
     pub const fn is_possible(self, position: &PeptidePosition) -> bool {
@@ -56,6 +101,20 @@ impl Position {
             Self::Anywhere => true,
             Self::AnyNTerm | Self::ProteinNTerm => position.is_n_terminal(),
             Self::AnyCTerm | Self::ProteinCTerm => position.is_c_terminal(),
+        }
+    }
+}
+
+impl FromStr for Position {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "anywhere" => Ok(Self::Anywhere),
+            "anynterm" => Ok(Self::AnyNTerm),
+            "proteinnterm" => Ok(Self::ProteinNTerm),
+            "anycterm" => Ok(Self::AnyCTerm),
+            "proteincterm" => Ok(Self::ProteinCTerm),
+            _ => Err(()),
         }
     }
 }
