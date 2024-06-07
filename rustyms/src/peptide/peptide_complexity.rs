@@ -95,7 +95,7 @@ impl From<ExtremelySimple> for VerySimple {
     }
 }
 
-impl LinearPeptide<Linked> {
+impl<T> LinearPeptide<T> {
     /// Try and check if this peptide is linear.
     pub fn linear(self) -> Option<LinearPeptide<Linear>> {
         if self
@@ -111,81 +111,46 @@ impl LinearPeptide<Linked> {
 
     /// Try and check if this peptide is simple.
     pub fn simple(self) -> Option<LinearPeptide<Simple>> {
-        self.linear().and_then(LinearPeptide::<Linear>::simple)
+        self.linear().and_then(|s| {
+            if s.labile.is_empty()
+                && s.get_global().is_empty()
+                && s.charge_carriers.is_none()
+                && !s.sequence.is_empty()
+                && !s
+                    .sequence
+                    .iter()
+                    .any(|s| s.modifications.iter().any(|m| m.simple().is_none()))
+            {
+                Some(s.mark())
+            } else {
+                None
+            }
+        })
     }
 
     /// Try and check if this peptide is very simple.
     pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
-        self.linear().and_then(LinearPeptide::<Linear>::very_simple)
+        self.simple().and_then(|s| {
+            if s.ambiguous_modifications.is_empty()
+                && !s.sequence.iter().any(|seq| seq.ambiguous.is_some())
+            {
+                Some(s.mark())
+            } else {
+                None
+            }
+        })
     }
 
     /// Try and check if this peptide is extremely simple.
     pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        self.linear()
-            .and_then(LinearPeptide::<Linear>::extremely_simple)
-    }
-}
-
-impl LinearPeptide<Linear> {
-    /// Try and check if this peptide is simple.
-    pub fn simple(self) -> Option<LinearPeptide<Simple>> {
-        if self.labile.is_empty()
-            && self.get_global().is_empty()
-            && self.charge_carriers.is_none()
-            && !self.sequence.is_empty()
-            && !self
-                .sequence
-                .iter()
-                .any(|s| s.modifications.iter().any(|m| m.simple().is_none()))
-        {
-            Some(self.mark())
-        } else {
-            None
-        }
-    }
-
-    /// Try and check if this peptide is very simple.
-    pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
-        self.simple().and_then(LinearPeptide::<Simple>::very_simple)
-    }
-
-    /// Try and check if this peptide is extremely simple.
-    pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        self.simple()
-            .and_then(LinearPeptide::<Simple>::extremely_simple)
-    }
-}
-
-impl LinearPeptide<Simple> {
-    /// Try and check if this peptide is very simple.
-    pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
-        if self.ambiguous_modifications.is_empty()
-            && !self.sequence.iter().any(|seq| seq.ambiguous.is_some())
-        {
-            Some(self.mark())
-        } else {
-            None
-        }
-    }
-
-    /// Try and check if this peptide is extremely simple.
-    pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        self.very_simple()
-            .and_then(LinearPeptide::<VerySimple>::extremely_simple)
-    }
-}
-
-impl LinearPeptide<VerySimple> {
-    /// Try and check if this peptide is extremely simple.
-    pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        if self
-            .sequence
-            .iter()
-            .any(|seq| seq.aminoacid == crate::AminoAcid::B || seq.aminoacid == crate::AminoAcid::Z)
-        {
-            None
-        } else {
-            Some(self.mark())
-        }
+        self.very_simple().and_then(|s| {
+            if s.sequence.iter().any(|seq| {
+                seq.aminoacid == crate::AminoAcid::B || seq.aminoacid == crate::AminoAcid::Z
+            }) {
+                None
+            } else {
+                Some(s.mark())
+            }
+        })
     }
 }

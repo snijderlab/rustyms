@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use crate::peptide::Linear;
 use crate::{
     peptide::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
     SequenceElement, Tolerance, WithinTolerance,
@@ -8,10 +7,8 @@ use crate::{
 
 use super::alignment::Score;
 
-use super::{
-    align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*, AlignmentInner,
-    RefAlignment,
-};
+use super::Alignment;
+use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*};
 
 // TODO: no way of handling terminal modifications yet
 /// Create an alignment of two peptides based on mass and homology.
@@ -22,18 +19,13 @@ use super::{
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<
-    'a,
-    const STEPS: u16,
-    A: Into<Simple> + Into<Linear>,
-    B: Into<Simple> + Into<Linear>,
->(
-    seq_a: &'a LinearPeptide<A>,
-    seq_b: &'a LinearPeptide<B>,
+pub fn align<'lifetime, const STEPS: u16, A: Into<Simple> + Clone, B: Into<Simple> + Clone>(
+    seq_a: &'lifetime LinearPeptide<A>,
+    seq_b: &'lifetime LinearPeptide<B>,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     tolerance: Tolerance<Mass>,
     align_type: AlignType,
-) -> RefAlignment<'a, A, B> {
+) -> Alignment<'lifetime, A, B> {
     assert!(isize::try_from(seq_a.len()).is_ok());
     assert!(isize::try_from(seq_b.len()).is_ok());
 
@@ -84,14 +76,14 @@ pub fn align<
                         Some(score_pair(
                             unsafe {
                                 (
-                                    &seq_a.sequence.get_unchecked(index_a - 1),
-                                    &masses_a.get_unchecked([index_a - 1, 0]),
+                                    seq_a.sequence.get_unchecked(index_a - 1),
+                                    masses_a.get_unchecked([index_a - 1, 0]),
                                 )
                             },
                             unsafe {
                                 (
-                                    &seq_b.sequence.get_unchecked(index_b - 1),
-                                    &masses_b.get_unchecked([index_b - 1, 0]),
+                                    seq_b.sequence.get_unchecked(index_b - 1),
+                                    masses_b.get_unchecked([index_b - 1, 0]),
                                 )
                             },
                             scoring_matrix,
@@ -102,25 +94,25 @@ pub fn align<
                         score(
                             unsafe {
                                 (
-                                    &seq_a.sequence.get_unchecked(
+                                    seq_a.sequence.get_unchecked(
                                         (index_a - len_a).saturating_sub(1)..index_a - 1,
                                     ),
                                     if len_a == 0 {
                                         &zero
                                     } else {
-                                        &masses_a.get_unchecked([index_a - 1, len_a - 1])
+                                        masses_a.get_unchecked([index_a - 1, len_a - 1])
                                     },
                                 )
                             },
                             unsafe {
                                 (
-                                    &seq_b.sequence.get_unchecked(
+                                    seq_b.sequence.get_unchecked(
                                         (index_b - len_b).saturating_sub(1)..index_b - 1,
                                     ),
                                     if len_b == 0 {
                                         &zero
                                     } else {
-                                        &masses_b.get_unchecked([index_b - 1, len_b - 1])
+                                        masses_b.get_unchecked([index_b - 1, len_b - 1])
                                     },
                                 )
                             },
@@ -150,12 +142,12 @@ pub fn align<
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
                         (
-                            &seq_a.sequence.get_unchecked(index_a - 1),
-                            &masses_a.get_unchecked([index_a - 1, 0]),
+                            seq_a.sequence.get_unchecked(index_a - 1),
+                            masses_a.get_unchecked([index_a - 1, 0]),
                         ),
                         (
-                            &seq_b.sequence.get_unchecked(index_b - 1),
-                            &masses_b.get_unchecked([index_b - 1, 0]),
+                            seq_b.sequence.get_unchecked(index_b - 1),
+                            masses_b.get_unchecked([index_b - 1, 0]),
                         ),
                         scoring_matrix,
                         matrix.get_unchecked([index_a - 1, index_b - 1]).score,
@@ -178,23 +170,19 @@ pub fn align<
             .sum::<isize>())
         / 2;
 
-    RefAlignment {
-        inner: AlignmentInner {
-            score: Score {
-                absolute: absolute_score,
-                normalised: ordered_float::OrderedFloat(
-                    absolute_score as f64 / maximal_score as f64,
-                ),
-                max: maximal_score,
-            },
-            path,
-            start_a,
-            start_b,
-            align_type,
-            maximal_step: STEPS,
+    Alignment {
+        seq_a: std::borrow::Cow::Borrowed(seq_a),
+        seq_b: std::borrow::Cow::Borrowed(seq_b),
+        score: Score {
+            absolute: absolute_score,
+            normalised: ordered_float::OrderedFloat(absolute_score as f64 / maximal_score as f64),
+            max: maximal_score,
         },
-        seq_a,
-        seq_b,
+        path,
+        start_a,
+        start_b,
+        align_type,
+        maximal_step: STEPS,
     }
 }
 

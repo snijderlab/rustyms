@@ -1,5 +1,7 @@
 //! Functions to generate alignments of peptides based on homology, while taking mass spectrometry errors into account.
 
+use std::borrow::Cow;
+
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::Deserialize;
@@ -10,179 +12,123 @@ use super::piece::*;
 use super::scoring::*;
 
 use crate::peptide::Linear;
-use crate::peptide::Simple;
 use crate::system::Mass;
 use crate::system::Ratio;
 use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;
 
-/// An alignment of two reads. Which has a reference to the sequences.
+/// An alignment of two reads. It has either a reference to the two sequences to prevent overzealous use of memory, or if needed use [`Self::to_owned`] to get a variant that clones the sequences and so can be used in more places.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct RefAlignment<'a, A, B> {
+pub struct Alignment<'lifetime, A: Clone, B: Clone> {
     /// The first sequence
-    pub(super) seq_a: &'a LinearPeptide<A>,
+    pub(super) seq_a: Cow<'lifetime, LinearPeptide<A>>,
     /// The second sequence
-    pub(super) seq_b: &'a LinearPeptide<B>,
-    pub(super) inner: AlignmentInner,
+    pub(super) seq_b: Cow<'lifetime, LinearPeptide<B>>,
+    /// The scores of this alignment
+    pub(super) score: Score,
+    /// The path or steps taken for the alignment
+    pub(super) path: Vec<Piece>,
+    /// The position in the first sequence where the alignment starts
+    pub(super) start_a: usize,
+    /// The position in the second sequence where the alignment starts
+    pub(super) start_b: usize,
+    /// The alignment type
+    pub(super) align_type: AlignType,
+    /// The maximal step size (the const generic STEPS)
+    pub(super) maximal_step: u16,
 }
 
-impl<'a, A, B> RefAlignment<'a, A, B>
-where
-    LinearPeptide<A>: Into<LinearPeptide<Simple>> + Clone,
-    LinearPeptide<B>: Into<LinearPeptide<Simple>> + Clone,
-{
+impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
     /// Clone the referenced sequences to make an alignment that owns the sequences.
     /// This can be necessary in some context where the references cannot be guaranteed to stay as long as you need the alignment.
     #[must_use]
-    pub fn to_owned(&self) -> OwnedAlignment {
-        OwnedAlignment {
-            seq_a: self.seq_a.clone().into(),
-            seq_b: self.seq_b.clone().into(),
-            inner: self.inner.clone(),
+    pub fn to_owned(&self) -> Alignment<'static, A, B> {
+        Alignment {
+            seq_a: Cow::Owned(self.seq_a.clone().into_owned()),
+            seq_b: Cow::Owned(self.seq_b.clone().into_owned()),
+            ..self.clone()
         }
     }
 }
 
-impl<'a, A: Ord, B: Ord> PartialOrd for RefAlignment<'a, A, B>
-where
-    LinearPeptide<A>: PartialOrd<LinearPeptide<B>>,
-{
+impl<'lifetime, A: Eq + Clone, B: Eq + Clone> PartialOrd for Alignment<'lifetime, A, B> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a, A: Ord, B: Ord> Ord for RefAlignment<'a, A, B>
-where
-    LinearPeptide<A>: PartialOrd<LinearPeptide<B>>,
-{
+impl<'lifetime, A: Eq + Clone, B: Eq + Clone> Ord for Alignment<'lifetime, A, B> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner.cmp(&other.inner)
+        self.score.normalised.cmp(&other.score.normalised)
     }
-}
-
-impl<'a, A, B> PrivateAlignment for RefAlignment<'a, A, B> {
-    fn inner(&self) -> &AlignmentInner {
-        &self.inner
-    }
-}
-
-impl<'a, A: Into<Simple> + Into<Linear>, B: Into<Simple> + Into<Linear>> Alignment
-    for RefAlignment<'a, A, B>
-{
-    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
-        self.seq_a
-    }
-    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
-        self.seq_b
-    }
-}
-
-/// An alignment of two reads. Which owns the sequences.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub struct OwnedAlignment {
-    /// The first sequence
-    seq_a: LinearPeptide<Simple>,
-    /// The second sequence
-    seq_b: LinearPeptide<Simple>,
-    inner: AlignmentInner,
-}
-
-impl PartialOrd for OwnedAlignment {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for OwnedAlignment {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner.cmp(&other.inner)
-    }
-}
-
-impl PrivateAlignment for OwnedAlignment {
-    fn inner(&self) -> &AlignmentInner {
-        &self.inner
-    }
-}
-
-impl Alignment for OwnedAlignment {
-    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
-        &self.seq_a
-    }
-    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>> {
-        &self.seq_b
-    }
-}
-
-/// The link to the inner data structure shared between all alignments, but private to prevent inner details from leaking to the public
-trait PrivateAlignment {
-    /// Get the shared inner stuff
-    fn inner(&self) -> &AlignmentInner;
 }
 
 /// A generalised alignment with all behaviour.
 #[allow(private_bounds)] // Intended behaviour no one should build on the inner structure
-pub trait Alignment: PrivateAlignment {
+impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
     /// The first sequence
-    fn seq_a(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>>;
+    pub fn seq_a(&self) -> &LinearPeptide<A> {
+        &self.seq_a
+    }
     /// The second sequence
-    fn seq_b(&self) -> &LinearPeptide<impl Into<Simple> + Into<Linear>>;
+    pub fn seq_b(&self) -> &LinearPeptide<B> {
+        &self.seq_b
+    }
 
     /// The normalised score, normalised for the alignment length and for the used alphabet.
     /// The normalisation is calculated as follows `absolute_score / max_score`.
-    fn normalised_score(&self) -> f64 {
-        self.inner().score.normalised.0
+    pub const fn normalised_score(&self) -> f64 {
+        self.score.normalised.0
     }
 
     /// All three scores for this alignment.
-    fn score(&self) -> Score {
-        self.inner().score
+    pub const fn score(&self) -> Score {
+        self.score
     }
 
     /// The path or steps taken for the alignment
-    fn path(&self) -> &[Piece] {
-        &self.inner().path
+    pub fn path(&self) -> &[Piece] {
+        &self.path
     }
 
     /// The position in the sequences where the alignment starts (a, b)
-    fn start(&self) -> (usize, usize) {
-        (self.inner().start_a, self.inner().start_b)
+    pub const fn start(&self) -> (usize, usize) {
+        (self.start_a, self.start_b)
     }
 
     /// The position in the first sequence where the alignment starts
-    fn start_a(&self) -> usize {
-        self.inner().start_a
+    pub const fn start_a(&self) -> usize {
+        self.start_a
     }
 
     /// The position in the second sequence where the alignment starts
-    fn start_b(&self) -> usize {
-        self.inner().start_b
+    pub const fn start_b(&self) -> usize {
+        self.start_b
     }
 
     /// The alignment type
-    fn align_type(&self) -> AlignType {
-        self.inner().align_type
+    pub const fn align_type(&self) -> AlignType {
+        self.align_type
     }
 
     /// The maximal step size (the const generic STEPS)
-    fn max_step(&self) -> u16 {
-        self.inner().maximal_step
+    pub const fn max_step(&self) -> u16 {
+        self.maximal_step
     }
 
     /// The total number of residues matched on the first sequence
-    fn len_a(&self) -> usize {
+    pub fn len_a(&self) -> usize {
         self.path().iter().map(|p| p.step_a as usize).sum()
     }
 
     /// The total number of residues matched on the second sequence
-    fn len_b(&self) -> usize {
+    pub fn len_b(&self) -> usize {
         self.path().iter().map(|p| p.step_b as usize).sum()
     }
 
     /// Returns statistics for this match.
-    fn stats(&self) -> Stats {
+    pub fn stats(&self) -> Stats {
         let (identical, mass_similar, similar, gaps, length) =
             self.path().iter().fold((0, 0, 0, 0, 0), |acc, p| {
                 let m = p.match_type;
@@ -216,9 +162,11 @@ pub trait Alignment: PrivateAlignment {
             length,
         }
     }
+}
 
+impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lifetime, A, B> {
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
-    fn mass_a(&self) -> Multi<MolecularFormula> {
+    pub fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_a() && self.align_type().right.global_a() {
             self.seq_a().bare_formulas()
         } else {
@@ -234,7 +182,7 @@ pub trait Alignment: PrivateAlignment {
     }
 
     /// The mass(es) for the matched portion of the second sequence
-    fn mass_b(&self) -> Multi<MolecularFormula> {
+    pub fn mass_b(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_b() && self.align_type().right.global_b() {
             self.seq_b().bare_formulas()
         } else {
@@ -252,7 +200,7 @@ pub trait Alignment: PrivateAlignment {
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
     #[allow(clippy::missing_panics_doc)]
-    fn mass_difference(&self) -> Mass {
+    pub fn mass_difference(&self) -> Mass {
         self.mass_a()
             .iter()
             .cartesian_product(self.mass_b().iter())
@@ -263,7 +211,7 @@ pub trait Alignment: PrivateAlignment {
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    fn ppm(&self) -> Ratio {
+    pub fn ppm(&self) -> Ratio {
         self.mass_a()
             .iter()
             .cartesian_product(self.mass_b().iter())
@@ -274,7 +222,7 @@ pub trait Alignment: PrivateAlignment {
 
     /// Get a short representation of the alignment in CIGAR like format.
     /// It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
-    fn short(&self) -> String {
+    pub fn short(&self) -> String {
         #[derive(PartialEq, Eq)]
         enum StepType {
             Insertion,
@@ -339,34 +287,6 @@ pub trait Alignment: PrivateAlignment {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub(super) struct AlignmentInner {
-    /// The scores of this alignment
-    pub score: Score,
-    /// The path or steps taken for the alignment
-    pub path: Vec<Piece>,
-    /// The position in the first sequence where the alignment starts
-    pub start_a: usize,
-    /// The position in the second sequence where the alignment starts
-    pub start_b: usize,
-    /// The alignment type
-    pub align_type: AlignType,
-    /// The maximal step size (the const generic STEPS)
-    pub maximal_step: u16,
-}
-
-impl PartialOrd for AlignmentInner {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for AlignmentInner {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.score.normalised.cmp(&other.score.normalised)
-    }
-}
-
 /// Statistics for an alignment with some helper functions to easily retrieve the number of interest.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct Stats {
@@ -420,7 +340,7 @@ pub struct Score {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
-        align::{align, matrix::BLOSUM62, AlignType, Alignment},
+        align::{align, matrix::BLOSUM62, AlignType},
         peptide::Simple,
         system::da,
         AminoAcid, LinearPeptide, MultiChemical,

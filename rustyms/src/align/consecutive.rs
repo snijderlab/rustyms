@@ -25,9 +25,10 @@ pub fn consecutive_align<const STEPS: u16>(
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
-) -> Vec<Vec<(Allele<'static>, OwnedAlignment)>> {
+) -> Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, Simple>)>> {
     assert!(genes.len() >= 2);
-    let mut output: Vec<Vec<(Allele<'static>, OwnedAlignment)>> = Vec::with_capacity(genes.len());
+    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, Simple>)>> =
+        Vec::with_capacity(genes.len());
 
     let mut prev = 0;
     for n in 0..genes.len() {
@@ -37,7 +38,7 @@ pub fn consecutive_align<const STEPS: u16>(
             prev += output[n - 1][0].1.start_b() + output[n - 1][0].1.len_b();
             let mut left_sequence: LinearPeptide<Simple> =
                 sequence.clone().sequence.into_iter().skip(prev).collect();
-            left_sequence.c_term = sequence.c_term.clone();
+            left_sequence.c_term.clone_from(&sequence.c_term);
             (left_sequence, Some([output[n - 1][0].0.species].into()))
         };
 
@@ -86,11 +87,12 @@ pub fn par_consecutive_align<const STEPS: u16>(
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
-) -> Vec<Vec<(Allele<'static>, OwnedAlignment)>> {
+) -> Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, Simple>)>> {
     use rayon::iter::ParallelIterator;
 
     assert!(genes.len() >= 2);
-    let mut output: Vec<Vec<(Allele<'static>, OwnedAlignment)>> = Vec::with_capacity(genes.len());
+    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, Simple>)>> =
+        Vec::with_capacity(genes.len());
 
     let mut prev = 0;
     for n in 0..genes.len() {
@@ -100,7 +102,7 @@ pub fn par_consecutive_align<const STEPS: u16>(
             prev += output[n - 1][0].1.start_b() + output[n - 1][0].1.len_b();
             let mut left_sequence: LinearPeptide<Simple> =
                 sequence.clone().sequence.into_iter().skip(prev).collect();
-            left_sequence.c_term = sequence.c_term.clone();
+            left_sequence.c_term.clone_from(&sequence.c_term);
             (left_sequence, Some([output[n - 1][0].0.species].into()))
         };
 

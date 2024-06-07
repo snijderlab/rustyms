@@ -40,7 +40,7 @@ mod consecutive;
 pub use consecutive::*;
 
 pub use align_type::{AlignType, Side};
-pub use alignment::{Alignment, OwnedAlignment, RefAlignment, Score, Stats};
+pub use alignment::{Alignment, Score, Stats};
 pub use mass_alignment::align;
 pub use piece::Piece;
 pub use scoring::MatchType;
@@ -54,19 +54,17 @@ pub mod matrix {
     pub use scoring::matrices::*;
 }
 
-use alignment::AlignmentInner;
-
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{peptide::Simple, LinearPeptide};
 
-    use super::{AlignType, Alignment, RefAlignment};
+    use super::{AlignType, Alignment};
 
     fn align<'a, const STEPS: u16>(
         a: &'a LinearPeptide<Simple>,
         b: &'a LinearPeptide<Simple>,
-    ) -> RefAlignment<'a, Simple, Simple> {
+    ) -> Alignment<'a, Simple, Simple> {
         super::align::<STEPS, Simple, Simple>(
             a,
             b,

@@ -1,7 +1,6 @@
 #![warn(dead_code)]
 
 use crate::{
-    error::CustomError,
     fragment::{DiagnosticPosition, PeptidePosition},
     modification::{CrossLinkName, GnoComposition, LinkerSpecificity, SimpleModification},
     molecular_charge::MolecularCharge,
@@ -741,6 +740,35 @@ impl<T: Clone> LinearPeptide<T> {
             }
         }
         result
+    }
+
+    /// Concatenate another peptide after this peptide. This will fail if any of these conditions are true:
+    /// * The global modifications for the two peptides are not identical
+    /// * This peptide has a C terminal modification
+    /// * The other peptide has a N terminal modification
+    /// * Any of the peptides has ambiguous modifications
+    /// * The charge carriers of the two peptides are not identical
+    pub fn concatenate(self, other: Self) -> Option<Self> {
+        if self.global == other.global
+            && self.c_term.is_none()
+            && other.n_term.is_none()
+            && self.charge_carriers == other.charge_carriers
+            && self.ambiguous_modifications.is_empty()
+            && other.ambiguous_modifications.is_empty()
+        {
+            Some(Self {
+                global: self.global,
+                labile: self.labile.into_iter().chain(other.labile).collect(),
+                n_term: self.n_term,
+                c_term: other.c_term,
+                sequence: self.sequence.into_iter().chain(other.sequence).collect(),
+                ambiguous_modifications: Vec::new(),
+                charge_carriers: self.charge_carriers,
+                marker: self.marker,
+            })
+        } else {
+            None
+        }
     }
 }
 
