@@ -56,6 +56,7 @@ impl MetaData {
             Self::Fasta(_) | Self::None => None,
         }
     }
+
     /// Which fragmentation mode was used, if known
     pub fn mode(&self) -> Option<&str> {
         match self {
@@ -63,6 +64,7 @@ impl MetaData {
             _ => None,
         }
     }
+
     /// The scan number of the spectrum for this identified peptide, if known.
     // TODO: Allow multiple scan numbers to be returned, but think about merging spectra then as well
     pub fn scan_number(&self) -> Option<usize> {
@@ -76,6 +78,17 @@ impl MetaData {
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
             Self::Sage(SageData { scan_nr, .. }) => Some(scan_nr.2),
             Self::Fasta(_) | Self::None => None,
+        }
+    }
+
+    /// Get the file name for the rawfile
+    pub fn raw_file(&self) -> Option<&str> {
+        match self {
+            Self::Peaks(PeaksData { source_file, .. }) => source_file.as_ref().map(String::as_str),
+            Self::Opair(OpairData { file_name, .. }) => Some(file_name),
+            Self::MaxQuant(MaxQuantData { raw_file, .. }) => Some(raw_file),
+            Self::Sage(SageData { filename, .. }) => Some(filename),
+            Self::Novor(_) | Self::Fasta(_) | Self::None => None,
         }
     }
 }

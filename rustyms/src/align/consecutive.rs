@@ -34,16 +34,18 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
 
     let mut prev = 0;
     for gene in genes {
-        let (left_sequence, use_species) = output.last().and_then(|v| v.first()).map_or_else(
-            || (sequence.clone(), species.clone()),
-            |last| {
-                prev += last.1.start_b() + last.1.len_b();
-                (
-                    sequence.sub_peptide(prev + 1..),
-                    Some([last.0.species].into()),
-                )
-            },
-        );
+        let (left_sequence, use_species, use_chains) =
+            output.last().and_then(|v| v.first()).map_or_else(
+                || (sequence.clone(), species.clone(), chains.clone()),
+                |last| {
+                    prev += last.1.start_b() + last.1.len_b();
+                    (
+                        sequence.sub_peptide(prev..),
+                        Some([last.0.species].into()),
+                        Some([last.0.gene.chain].into()),
+                    )
+                },
+            );
 
         if left_sequence.is_empty() {
             break;
@@ -52,7 +54,7 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
         output.push(
             Selection {
                 species: use_species,
-                chains: chains.clone(),
+                chains: use_chains,
                 allele: allele.clone(),
                 genes: Some([gene.0].into()),
             }
@@ -101,16 +103,18 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
 
     let mut prev = 0;
     for gene in genes {
-        let (left_sequence, use_species) = output.last().and_then(|v| v.first()).map_or_else(
-            || (sequence.clone(), species.clone()),
-            |last| {
-                prev += last.1.start_b() + last.1.len_b();
-                (
-                    sequence.sub_peptide(prev + 1..),
-                    Some([last.0.species].into()),
-                )
-            },
-        );
+        let (left_sequence, use_species, use_chains) =
+            output.last().and_then(|v| v.first()).map_or_else(
+                || (sequence.clone(), species.clone(), chains.clone()),
+                |last| {
+                    prev += last.1.start_b() + last.1.len_b();
+                    (
+                        sequence.sub_peptide(prev..),
+                        Some([last.0.species].into()),
+                        Some([last.0.gene.chain].into()),
+                    )
+                },
+            );
 
         if left_sequence.is_empty() {
             break;
@@ -119,7 +123,7 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
         output.push(
             Selection {
                 species: use_species,
-                chains: chains.clone(),
+                chains: use_chains,
                 allele: allele.clone(),
                 genes: Some([gene.0].into()),
             }
