@@ -34,6 +34,9 @@ pub fn parse_dat<T: std::io::Read>(
 
 /// Parse a data item line and return if it is finished or not.
 fn parse_dat_line(data: &mut PreDataItem, line: &str) -> bool {
+    if line.len() < 2 {
+        return false;
+    }
     match &line[..2] {
         "//" => return true,
         "ID" => data.id = line.to_string(),
@@ -76,37 +79,31 @@ impl DataItem {
 
         for line in data.ft {
             if !line.starts_with(' ') || current.is_none() {
-                if let Some(region) = current {
+                if let Some(region) = current.take() {
                     result.add_region(region);
                 }
-                let (key, location) = (
-                    line[..data.ft_key_width].trim().to_string(),
-                    line[data.ft_key_width..].parse().unwrap_or_else(|err| {
-                        panic!(
-                            "`{}` not a valid location: {err}",
-                            &line[data.ft_key_width..]
-                        )
-                    }),
-                );
-                current = Some(Region {
-                    acc: result.id.clone(),
-                    key,
-                    location,
-                    reported_seq: String::new(),
-                    found_seq: Err("Not loaded".to_string()),
-                    allele: String::new(),
-                    functional: false,
-                    partial: false,
-                    shift: 0,
-                    splice_aa: None,
-                });
+                if let Ok(location) = line[data.ft_key_width..].parse() {
+                    let (key, location) = (line[..data.ft_key_width].trim().to_string(), location);
+                    current = Some(Region {
+                        acc: result.id.clone(),
+                        key,
+                        location,
+                        reported_seq: String::new(),
+                        found_seq: Err("Not loaded".to_string()),
+                        allele: String::new(),
+                        functional: false,
+                        partial: false,
+                        shift: 0,
+                        splice_aa: None,
+                    });
+                }
                 continue;
             }
             if let Some(current) = &mut current {
                 DataItem::parse_ft_line(&line, current, &mut is_sequence)?;
             }
         }
-        if let Some(region) = current {
+        if let Some(region) = current.take() {
             result.add_region(region);
         }
 
