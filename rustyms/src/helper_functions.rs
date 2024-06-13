@@ -1,7 +1,11 @@
 use std::{
-    num::{IntErrorKind, ParseIntError},
+    num::{IntErrorKind, ParseFloatError, ParseIntError},
+    ops::{Bound, RangeBounds},
     path::Path,
+    str::FromStr,
 };
+
+use itertools::Itertools;
 
 pub trait ResultExtensions<T, E> {
     /// # Errors
@@ -215,6 +219,70 @@ pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option
             .ok()?;
         Some((usize::from(sign_set) + len, sign * num))
     }
+}
+
+/// A number of characters, used as length or index
+type Characters = usize;
+
+#[allow(dead_code)]
+/// Get the next number starting at the character range given, returns length in characters and the number.
+/// # Errors
+/// Returns none if the number is too big to fit in a `isize`.
+pub fn next_number<const ALLOW_SIGN: bool, Number: FromStr>(
+    line: &str,
+    range: impl RangeBounds<Characters>,
+) -> Option<(Characters, bool, Result<Number, Number::Err>)> {
+    let start = match range.start_bound() {
+        Bound::Unbounded => 0,
+        Bound::Excluded(n) => n + 1,
+        Bound::Included(n) => *n,
+    };
+    let end = match range.end_bound() {
+        Bound::Unbounded => line.chars().count(),
+        Bound::Excluded(n) => n - 1,
+        Bound::Included(n) => *n,
+    };
+    let mut positive = true;
+    let mut sign_set = false;
+    let mut start_index = 0;
+    let mut chars = line.char_indices().skip(start).peekable();
+    if ALLOW_SIGN {
+        match chars.peek() {
+            Some((_, '-')) => {
+                positive = false;
+                sign_set = true;
+            }
+            Some((_, '+')) => {
+                sign_set = true;
+            }
+            _ => (),
+        }
+        if sign_set {
+            let _ = chars.next();
+        }
+    }
+    if let Some(index) = chars.peek().map(|(index, _)| index) {
+        start_index = *index;
+    }
+
+    let mut consumed = usize::from(sign_set);
+    chars
+        .take_while(|(_, c)| {
+            if c.is_ascii_digit() {
+                consumed += 1;
+                consumed < end - start
+            } else {
+                false
+            }
+        })
+        .last()
+        .map(|(end_index, c)| {
+            (
+                consumed,
+                positive,
+                line[start_index..end_index + c.len_utf8()].parse::<Number>(),
+            )
+        })
 }
 
 /// Get a canonicalised u64 for f64 to be able to hash f64, based on the `ordered_float` crate (MIT license)

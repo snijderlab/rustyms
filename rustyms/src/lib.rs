@@ -53,6 +53,7 @@ pub mod modification;
 mod molecular_charge;
 mod multi;
 mod multi_formula;
+mod mzpaf;
 mod neutral_loss;
 pub mod ontologies;
 mod peptide;

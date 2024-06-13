@@ -1,5 +1,8 @@
 use serde::*;
-use std::fmt;
+use std::{
+    fmt,
+    ops::{Bound, RangeBounds},
+};
 
 /// A struct to define the context of an error message
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -98,6 +101,31 @@ impl Context {
             line: line.to_string().replace('\t', " "),
             offset,
             length,
+        }
+    }
+
+    /// Create a context highlighting a certain range on a single line
+    pub fn line_range(
+        linenumber: usize,
+        line: impl std::string::ToString,
+        range: impl RangeBounds<usize>,
+    ) -> Self {
+        match (range.start_bound(), range.end_bound()) {
+            (Bound::Unbounded, Bound::Unbounded) => Self::full_line(linenumber, line),
+            (start, end) => Self::line(
+                linenumber,
+                line.to_string(),
+                match start {
+                    Bound::Excluded(n) => n + 1,
+                    Bound::Included(n) => *n,
+                    Bound::Unbounded => 0,
+                },
+                match end {
+                    Bound::Excluded(n) => n - 1,
+                    Bound::Included(n) => *n,
+                    Bound::Unbounded => line.to_string().chars().count(),
+                },
+            ),
         }
     }
 
