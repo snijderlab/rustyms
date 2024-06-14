@@ -6,7 +6,7 @@ use crate::{
     helper_functions::{explain_number_error, next_number},
     modification::{Ontology, SimpleModification},
     system::{mz, MassOverCharge},
-    AminoAcid, Fragment, MolecularFormula, Tolerance,
+    AminoAcid, Fragment, MolecularFormula, NeutralLoss, Tolerance,
 };
 
 pub fn parse_mzpaf(line: &str) -> Result<Vec<Fragment>, CustomError> {
@@ -15,6 +15,7 @@ pub fn parse_mzpaf(line: &str) -> Result<Vec<Fragment>, CustomError> {
 
 fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomError> {
     if let Some(index) = line[range.clone()].chars().position(|c| c == '/') {
+        // Parse analyte index
         let ion = parse_ion(line, range.start..range.start + index)?;
         // Parse neutral losses
         // Parse isotopes
@@ -23,6 +24,7 @@ fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomE
         let deviation = parse_deviation(line, range.end - index..range.end)?;
         Ok(Fragment::default())
     } else {
+        // TODO: not required the deviation
         Err(CustomError::error(
             "Invalid annotation",
             "A deviation, in m/z or ppm, needs to be present",
@@ -255,6 +257,14 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
             Context::line_range(0, line, range),
         )),
     }
+}
+
+fn parse_neutral_loss(line: &str, range: Range<usize>) -> Result<Vec<NeutralLoss>, CustomError> {
+    let mut neutral_losses = Vec::new();
+    while let Some('-' | '+') = line[range.clone()].chars().next() {
+        //
+    }
+    Ok(neutral_losses)
 }
 
 /// Parse a mzPAF deviation, either a ppm or mz deviation.
