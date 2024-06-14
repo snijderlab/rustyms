@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroU16};
+use std::{collections::HashMap, num::NonZeroU16, ops::Range};
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -81,8 +81,7 @@ impl CompoundPeptidoform {
     ) -> Result<Self, CustomError> {
         let mut peptidoforms = Vec::new();
         // Global modification(s)
-        let (mut start, global_modifications) =
-            global_modifications(value.as_bytes(), 0, value, custom_database)?;
+        let (mut start, global_modifications) = global_modifications(value, 0, custom_database)?;
         let (peptidoform, tail) =
             Self::parse_peptidoform(value, start, &global_modifications, custom_database)?;
         start = tail;
@@ -207,12 +206,12 @@ impl CompoundPeptidoform {
         }
 
         // Labile modification(s)
-        let (mut index, labile) = labile_modifications(chars, index, line, custom_database)?;
+        let (mut index, labile) = labile_modifications(line, index, custom_database)?;
         peptide.labile = labile;
 
         // N term modification
         if chars.get(index) == Some(&b'[') {
-            let end_index = end_of_enclosure(chars, index+1, b'[', b']').and_then(|i| (chars.get(i+1) == Some(&b'-')).then_some(i+1)).ok_or_else(|| CustomError::error(
+            let end_index = end_of_enclosure(line, index+1, b'[', b']').and_then(|i| (chars.get(i+1) == Some(&b'-')).then_some(i+1)).ok_or_else(|| CustomError::error(
                     "Invalid N terminal modification",
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(0, line, index, 1),
@@ -287,7 +286,7 @@ impl CompoundPeptidoform {
                     braces_start = Some(peptide.sequence.len());
                     index += 1;
                     while chars.get(index) == Some(&b'[') {
-                        let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
+                        let end_index = end_of_enclosure(line, index+1, b'[', b']').ok_or_else(||CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "No valid closing delimiter",
                             Context::line(0, line, index, 1),
@@ -314,7 +313,7 @@ impl CompoundPeptidoform {
                         index += 2; // Potentially this can be followed by another peptide
                         ending = End::CrossLink;
                     } else {
-                        let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
+                        let (buf, charge_carriers) = parse_charge_state(line, index)?;
                         index = buf;
                         peptide.charge_carriers = Some(charge_carriers);
                         if index < chars.len() && chars[index] == b'+' {
@@ -325,7 +324,7 @@ impl CompoundPeptidoform {
                     break;
                 }
                 (is_c_term, b'[') => {
-                    let end_index = end_of_enclosure(chars, index+1, b'[', b']').ok_or_else(||CustomError::error(
+                    let end_index = end_of_enclosure(line, index+1, b'[', b']').ok_or_else(||CustomError::error(
                         "Invalid modification",
                         "No valid closing delimiter",
                         Context::line(0, line, index, 1),
@@ -345,7 +344,7 @@ impl CompoundPeptidoform {
                             ))?);
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
-                            let (buf, charge_carriers) = parse_charge_state(chars, index, line)?;
+                            let (buf, charge_carriers) = parse_charge_state(line, index)?;
                             index = buf;
                             peptide.charge_carriers = Some(charge_carriers);
                         }
@@ -479,15 +478,15 @@ impl CompoundPeptidoform {
 /// # Errors
 /// If the global modifications are not defined to the specification
 pub(super) fn global_modifications(
-    chars: &[u8],
-    mut index: usize,
     line: &str,
+    mut index: usize,
     custom_database: Option<&CustomDatabase>,
 ) -> Result<(usize, Vec<GlobalModification>), CustomError> {
+    let chars = line.as_bytes();
     let mut global_modifications = Vec::new();
     while index < chars.len() && chars[index] == b'<' {
         let end_index =
-            end_of_enclosure_with_brackets(chars, index + 1, b'<', b'>').ok_or_else(|| {
+            end_of_enclosure_with_brackets(line, index + 1, b'<', b'>').ok_or_else(|| {
                 CustomError::error(
                     "Global modification not closed",
                     "A global modification should be closed with a closing angle bracket '>'",
@@ -713,14 +712,14 @@ pub(super) fn unknown_position_mods(
 /// # Errors
 /// If the mods are not followed by a closing brace. Or if the mods are ambiguous.
 fn labile_modifications(
-    chars: &[u8],
-    mut index: usize,
     line: &str,
+    mut index: usize,
     custom_database: Option<&CustomDatabase>,
 ) -> Result<(usize, Vec<SimpleModification>), CustomError> {
+    let chars = line.as_bytes();
     let mut labile = Vec::new();
     while chars.get(index) == Some(&b'{') {
-        let end_index = end_of_enclosure(chars, index + 1, b'{', b'}').ok_or_else(|| {
+        let end_index = end_of_enclosure(line, index + 1, b'{', b'}').ok_or_else(|| {
             CustomError::error(
                 "Invalid labile modification",
                 "No valid closing delimiter, a labile modification should be closed by '}'",
@@ -758,10 +757,10 @@ fn labile_modifications(
 /// # Panics
 /// Panics if the text is not UTF-8.
 pub(super) fn parse_charge_state(
-    chars: &[u8],
-    index: usize,
     line: &str,
+    index: usize,
 ) -> Result<(usize, MolecularCharge), CustomError> {
+    let chars = line.as_bytes();
     let (charge_len, total_charge) = next_num(chars, index + 1, false).ok_or_else(|| {
         CustomError::error(
             "Invalid peptide charge state",
@@ -771,7 +770,7 @@ pub(super) fn parse_charge_state(
     })?;
     if chars.get(index + 1 + charge_len) == Some(&b'[') {
         let end_index =
-            end_of_enclosure(chars, index + 2 + charge_len, b'[', b']').ok_or_else(|| {
+            end_of_enclosure(line, index + 2 + charge_len, b'[', b']').ok_or_else(|| {
                 CustomError::error(
                     "Invalid adduct ion",
                     "No valid closing delimiter",

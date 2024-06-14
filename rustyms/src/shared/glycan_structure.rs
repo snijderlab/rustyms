@@ -36,7 +36,7 @@ impl GlycanStructure {
 
         while offset < range.end {
             while bytes[offset] == b'[' {
-                let end = end_of_enclosure(bytes, offset + 1, b'[', b']').ok_or_else(|| {
+                let end = end_of_enclosure(line, offset + 1, b'[', b']').ok_or_else(|| {
                     CustomError::error(
                         "Invalid iupac short glycan",
                         "No closing brace for branch",

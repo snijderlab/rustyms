@@ -51,14 +51,13 @@ impl GlycanStructure {
             let index = range.start + name.0.len();
             if line.as_bytes()[index] == b'(' {
                 // Find the end of this list
-                let end =
-                    end_of_enclosure(line.as_bytes(), index + 1, b'(', b')').ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid glycan branch",
-                            "No valid closing delimiter",
-                            Context::line(0, line, index, 1),
-                        )
-                    })?;
+                let end = end_of_enclosure(line, index + 1, b'(', b')').ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid glycan branch",
+                        "No valid closing delimiter",
+                        Context::line(0, line, index, 1),
+                    )
+                })?;
                 // Parse the first branch
                 let mut index = index + 1;
                 let mut branches = Vec::new();

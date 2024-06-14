@@ -195,11 +195,13 @@ impl MolecularFormula {
                             ));
                         }
                     }
+                    let element_text: String = value[index..]
+                        .chars()
+                        .take(2)
+                        .collect::<String>()
+                        .to_ascii_lowercase();
                     for possible in ELEMENT_PARSE_LIST {
-                        if value[index..(index + 2).min(value.len())]
-                            .to_ascii_lowercase()
-                            .starts_with(possible.0)
-                        {
+                        if element_text.starts_with(possible.0) {
                             element = Some(possible.1);
                             index += possible.0.len();
                             continue 'main_parse_loop;
@@ -213,7 +215,16 @@ impl MolecularFormula {
                     return Err(CustomError::error(
                         "Invalid Pro Forma molecular formula",
                         "Not a valid character in formula",
-                        Context::line(0, value, index, 1),
+                        Context::line(
+                            0,
+                            value,
+                            index,
+                            value[index..]
+                                .chars()
+                                .next()
+                                .map(char::len_utf8)
+                                .unwrap_or_default(),
+                        ),
                     ));
                 }
             }

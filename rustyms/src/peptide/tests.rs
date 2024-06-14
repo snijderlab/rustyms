@@ -9,7 +9,7 @@ use super::*;
 
 #[test]
 fn parse_global_modifications() {
-    let parse = |str: &str| global_modifications(str.as_bytes(), 0, str, None);
+    let parse = |str: &str| global_modifications(str, 0, None);
     assert_eq!(
         parse("<[+5]@D>"),
         Ok((
@@ -98,7 +98,7 @@ fn parse_global_modifications() {
 #[test]
 fn charge_state_positive() {
     let parse = |str: &str| {
-        parse_charge_state(str.as_bytes(), 0, str).map(|(len, res)| {
+        parse_charge_state(str, 0).map(|(len, res)| {
             assert_eq!(
                 len,
                 str.len(),
@@ -200,7 +200,7 @@ fn charge_state_positive() {
 
 #[test]
 fn charge_state_negative() {
-    let parse = |str: &str| parse_charge_state(str.as_bytes(), 0, str);
+    let parse = |str: &str| parse_charge_state(str, 0);
     assert!(parse("/3[+Fe+]").is_err());
     assert!(parse("/3[+Fe]").is_err());
     assert!(parse("/3[+Fe 1]").is_err());

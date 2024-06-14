@@ -141,9 +141,15 @@ pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
 
 #[allow(dead_code)]
 /// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
-pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
+pub fn end_of_enclosure(text: &str, start: usize, open: u8, close: u8) -> Option<usize> {
     let mut state = 1;
-    for (i, ch) in chars[start..].iter().enumerate() {
+    for (i, ch) in text[start..].as_bytes().iter().enumerate() {
+        if !text.is_char_boundary(i) {
+            continue;
+        }
+        if i + 1 < text.len() && !text.is_char_boundary(i + 1) {
+            continue;
+        }
         if *ch == open {
             state += 1;
         } else if *ch == close {
@@ -160,17 +166,23 @@ pub fn end_of_enclosure(chars: &[u8], start: usize, open: u8, close: u8) -> Opti
 /// Find the enclosed text by the given symbols, assumes a single open is already read just before the start.
 /// This also takes brackets '[]' into account and these take precedence over the enclosure searched for.
 pub fn end_of_enclosure_with_brackets(
-    chars: &[u8],
+    text: &str,
     start: usize,
     open: u8,
     close: u8,
 ) -> Option<usize> {
     let mut state = 1;
     let mut index = start;
-    while index < chars.len() {
-        let ch = chars[index];
+    while index < text.len() {
+        if !text.is_char_boundary(index) {
+            continue;
+        }
+        if index + 1 < text.len() && !text.is_char_boundary(index + 1) {
+            continue;
+        }
+        let ch = text.as_bytes()[index];
         if ch == b'[' {
-            index = end_of_enclosure(chars, index + 1, b'[', b']')?;
+            index = end_of_enclosure(text, index + 1, b'[', b']')?;
         }
         if ch == open {
             state += 1;

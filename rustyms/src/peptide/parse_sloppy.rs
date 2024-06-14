@@ -51,13 +51,14 @@ impl LinearPeptide<VerySimple> {
                         (b'(', b')')
                     };
                     let end_index =
-                        end_of_enclosure(chars, index + 1, open, close).ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid modification",
-                                "No valid closing delimiter",
-                                Context::line(0, line, location.start + index, 1),
-                            )
-                        })?;
+                        end_of_enclosure(&line[location.clone()], index + 1, open, close)
+                            .ok_or_else(|| {
+                                CustomError::error(
+                                    "Invalid modification",
+                                    "No valid closing delimiter",
+                                    Context::line(0, line, location.start + index, 1),
+                                )
+                            })?;
                     let modification = SimpleModification::try_from(
                         line,
                         location.start + index + 1..location.start + end_index,
