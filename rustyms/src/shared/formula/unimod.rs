@@ -53,7 +53,6 @@ impl MolecularFormula {
         let mut isotope = None;
         let mut last_name_index = 0;
         let mut last_name = String::new();
-        let mut sign = 1;
         let mut index = 0;
         while index < value.len() {
             match value.as_bytes()[index] {
@@ -64,7 +63,7 @@ impl MolecularFormula {
                         CustomError::error(
                             "Invalid Unimod chemical formula", 
                             format!("The element amount {}", explain_number_error(&err)),
-                            Context::line(0, value, index+1, length)))? * sign;
+                            Context::line(0, value, index+1, length)))?;
                 match parse_unimod_composition_brick(value, last_name_index..last_name_index+last_name.len())? {
                     Brick::Element(el) => {if !formula.add((el, isotope.take(), num)) {
                         return Err(CustomError::error("Invalid Unimod chemical formula", "An element or isotope without a defined mass was found", Context::line_range(0, value,last_name_index..last_name_index+last_name.len())));
@@ -73,7 +72,6 @@ impl MolecularFormula {
                 }
                 last_name.clear();
                 last_name_index = 0;
-                sign = 1;
                 index += length + 2;
                 if value.as_bytes()[index-1] != b')' {
                     return Err(CustomError::error("Invalid Unimod chemical formula", "The amount of an element should be closed by ')'", Context::line(0, value, index-1, 1)));
