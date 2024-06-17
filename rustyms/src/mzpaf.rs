@@ -1,9 +1,13 @@
 //! WIP: mzPAF parser
-use std::ops::{Range, RangeBounds};
+use std::{
+    cell::OnceCell,
+    ops::{Range, RangeBounds},
+    sync::OnceLock,
+};
 
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{explain_number_error, next_number},
+    helper_functions::{explain_number_error, next_number, Characters, RangeExtension},
     modification::{Ontology, SimpleModification},
     system::{mz, MassOverCharge},
     AminoAcid, Fragment, MolecularFormula, NeutralLoss, Tolerance,
@@ -47,32 +51,38 @@ enum mzPAFIonType {
 /// Parse a mzPAF ion.
 /// # Errors
 /// When the ion is not formatted correctly.
-fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomError> {
+fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonType), CustomError> {
     match line[range.clone()].chars().next() {
         Some('?') => {
             if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1).unwrap()) {
-                Ok(mzPAFIonType::Unknown(Some(ordinal.2.map_err(|err| {
-                    CustomError::error(
-                        "Invalid mzPAF unknown ion ordinal",
-                        format!("The ordinal number {}", explain_number_error(&err)),
-                        Context::line(0, line, range.start_index() + 1, ordinal.0),
-                    )
-                })?)))
-            } else {
-                Ok(mzPAFIonType::Unknown(None))
-            }
-        }
-        Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
-            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1).unwrap()) {
-                Ok(mzPAFIonType::MainSeries(
-                    c,
-                    ordinal.2.map_err(|err| {
+                Ok((
+                    1 + ordinal.0,
+                    mzPAFIonType::Unknown(Some(ordinal.2.map_err(|err| {
                         CustomError::error(
                             "Invalid mzPAF unknown ion ordinal",
                             format!("The ordinal number {}", explain_number_error(&err)),
                             Context::line(0, line, range.start_index() + 1, ordinal.0),
                         )
-                    })?,
+                    })?)),
+                ))
+            } else {
+                Ok((1, mzPAFIonType::Unknown(None)))
+            }
+        }
+        Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
+            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1).unwrap()) {
+                Ok((
+                    1 + ordinal.0,
+                    mzPAFIonType::MainSeries(
+                        c,
+                        ordinal.2.map_err(|err| {
+                            CustomError::error(
+                                "Invalid mzPAF unknown ion ordinal",
+                                format!("The ordinal number {}", explain_number_error(&err)),
+                                Context::line(0, line, range.start_index() + 1, ordinal.0),
+                            )
+                        })?,
+                    ),
                 ))
             } else {
                 Err(CustomError::error(
@@ -98,7 +108,8 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     .take_while(|(_, c)| *c != ']')
                     .last()
                     .unwrap();
-                Some(
+                Some((
+                    last.0 + last.1.len_utf8() - first,
                     Ontology::Unimod
                         .find_name(
                             &line[range.clone()][first..last.0 + last.1.len_utf8()],
@@ -110,19 +121,22 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                                 None,
                             )
                         })?,
-                )
+                ))
             } else {
                 None
             };
-            Ok(mzPAFIonType::Immonium(
-                AminoAcid::try_from(amino_acid).map_err(|()| {
-                    CustomError::error(
-                        "Invalid mzPAF immonium ion",
-                        "The provided amino acid is not a known amino acid",
-                        Context::line(0, line, range.start_index() + 1, 1),
-                    )
-                })?,
-                modification,
+            Ok((
+                2 + modification.as_ref().map_or(0, |m| m.0),
+                mzPAFIonType::Immonium(
+                    AminoAcid::try_from(amino_acid).map_err(|()| {
+                        CustomError::error(
+                            "Invalid mzPAF immonium ion",
+                            "The provided amino acid is not a known amino acid",
+                            Context::line(0, line, range.start_index() + 1, 1),
+                        )
+                    })?,
+                    modification.map(|m| m.1),
+                ),
             ))
         }
         Some('m') => {
@@ -175,7 +189,10 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     ),
                 )
             })?;
-            Ok(mzPAFIonType::Internal(first_location, second_location))
+            Ok((
+                2 + first_ordinal.0 + second_ordinal.0,
+                mzPAFIonType::Internal(first_location, second_location),
+            ))
         }
         Some('_') => {
             // Format less strings
@@ -184,7 +201,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
             // 0@_{a2(LP)}
             // 0@_{b2(LP)}
 
-            let name = if line[range.clone()].chars().nth(1) == Some('{') {
+            let (len, name) = if line[range.clone()].chars().nth(1) == Some('{') {
                 let first = line[range.clone()].char_indices().nth(2).unwrap().0;
                 let last = line[range.clone()]
                     .char_indices()
@@ -192,7 +209,10 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     .take_while(|(_, c)| *c != '}')
                     .last()
                     .unwrap();
-                Ok(&line[range][first..last.0 + last.1.len_utf8()])
+                Ok((
+                    last.0 + last.1.len_utf8() - first,
+                    &line[range][first..last.0 + last.1.len_utf8()],
+                ))
             } else {
                 Err(CustomError::error(
                     "Invalid mzPAF named compound",
@@ -200,12 +220,12 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            Ok(mzPAFIonType::Named(name.to_string()))
+            Ok((3 + len, mzPAFIonType::Named(name.to_string())))
         }
-        Some('p') => Ok(mzPAFIonType::Precursor),
+        Some('p') => Ok((1, mzPAFIonType::Precursor)),
         Some('r') => {
             // Same name as neutral losses
-            let name = if line[range.clone()].chars().nth(1) == Some('[') {
+            let (len, name) = if line[range.clone()].chars().nth(1) == Some('[') {
                 let first = line[range.clone()].char_indices().nth(2).unwrap().0;
                 let last = line[range.clone()]
                     .char_indices()
@@ -213,7 +233,10 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     .take_while(|(_, c)| *c != ']')
                     .last()
                     .unwrap();
-                Ok(&line[range][first..last.0 + last.1.len_utf8()])
+                Ok((
+                    last.0 + last.1.len_utf8() - first,
+                    &line[range][first..last.0 + last.1.len_utf8()],
+                ))
             } else {
                 Err(CustomError::error(
                     "Invalid mzPAF reporter ion",
@@ -221,7 +244,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            Ok(mzPAFIonType::Reporter(name.to_string()))
+            Ok((3 + len, mzPAFIonType::Reporter(name.to_string())))
         }
         Some('f') => {
             // Simple formula
@@ -241,9 +264,9 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            let formula = MolecularFormula::from_mz_paf_inner(line, formula_range)?;
+            let formula = MolecularFormula::from_mz_paf_inner(line, formula_range.clone())?;
 
-            Ok(mzPAFIonType::Formula(formula))
+            Ok((3 + formula_range.len(), mzPAFIonType::Formula(formula)))
         }
         Some('s') => todo!(), // TODO: return as Formula
         Some(_) => Err(CustomError::error(
@@ -259,12 +282,43 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<mzPAFIonType, CustomErro
     }
 }
 
-fn parse_neutral_loss(line: &str, range: Range<usize>) -> Result<Vec<NeutralLoss>, CustomError> {
+fn parse_neutral_loss(
+    line: &str,
+    range: Range<usize>,
+) -> Result<(Characters, Vec<NeutralLoss>), CustomError> {
+    let mut offset = 0;
     let mut neutral_losses = Vec::new();
-    while let Some('-' | '+') = line[range.clone()].chars().next() {
-        //
+    while let Some(c @ ('-' | '+')) = line[range.clone()].chars().skip(offset).next() {
+        if line[range.clone()].chars().nth(1) == Some('[') {
+            let first = line[range.clone()].char_indices().nth(2).unwrap().0;
+            let last = line[range.clone()]
+                .char_indices()
+                .skip(2)
+                .take_while(|(_, c)| *c != ']')
+                .last()
+                .unwrap();
+            //Ok(first..last.0 + last.1.len_utf8());
+            todo!(); //TODO: get neutral loss names
+            offset += 1 + last.0 + last.1.len_utf8() - first;
+        } else {
+            let first = line[range.clone()].char_indices().nth(1).unwrap().0;
+            let last = line[range.clone()]
+                .char_indices()
+                .skip(2)
+                .take_while(|(_, c)| c.is_ascii_alphanumeric())
+                .last()
+                .unwrap();
+            let formula =
+                MolecularFormula::from_mz_paf_inner(line, first..last.0 + last.1.len_utf8())?;
+            neutral_losses.push(match c {
+                '+' => NeutralLoss::Gain(formula),
+                '-' => NeutralLoss::Loss(formula),
+                _ => unreachable!(),
+            });
+            offset += 1 + last.0 + last.1.len_utf8() - first;
+        }
     }
-    Ok(neutral_losses)
+    Ok((offset, neutral_losses))
 }
 
 /// Parse a mzPAF deviation, either a ppm or mz deviation.
@@ -295,43 +349,93 @@ fn parse_deviation(
     }
 }
 
-trait RangeExtension
-where
-    Self: Sized,
-{
-    fn add_start(&self, amount: isize) -> Option<Self>;
-    fn add_end(&self, amount: isize) -> Option<Self>;
-    fn start_index(&self) -> usize;
-    fn end_index(&self) -> usize;
+fn mz_paf_named_molecules() -> &'static Vec<(&'static str, MolecularFormula)> {
+    MZPAF_NAMED_MOLECULES_CELL.get_or_init(|| {
+        vec![
+            ("Hex", molecular_formula!(C 6 H 10 O 5)),
+            ("HexNAc", molecular_formula!(C 8 H 13 N 1 O 5)),
+            ("dHex", molecular_formula!(C 6 H 10 O 4)),
+            ("NeuAc", molecular_formula!(C 11 H 17 N 1 O 8)),
+            ("NeuGc", molecular_formula!(C 11 H 17 N 1 O 9)),
+            ("TMT126", molecular_formula!(C 8 N 1 H 16)),
+            ("TMT127N", molecular_formula!(C 8 [15 N 1] H 16)),
+            ("TMT127C", molecular_formula!(C 7 [13 C 1] N 1 H 16)),
+            ("TMT128N", molecular_formula!(C 7 [13 C 1] [15 N 1] H 16)),
+            ("TMT128C", molecular_formula!(C 6 [13 C 2] N 1 H 16)),
+            ("TMT129N", molecular_formula!(C 6 [13 C 2] [15 N 1] H 16)),
+            ("TMT129C", molecular_formula!(C 5 [13 C 3] N 1 H 16)),
+            ("TMT130N", molecular_formula!(C 5 [13 C 3] [15 N 1] H 16)),
+            ("TMT130C", molecular_formula!(C 4 [13 C 4] N 1 H 16)),
+            ("TMT131N", molecular_formula!(C 4 [13 C 4] [15 N 1] H 16)),
+            ("TMT131C", molecular_formula!(C 3 [13 C 5] N 1 H 16)),
+            ("TMT132N", molecular_formula!(C 3 [13 C 5] [15 N 1] H 16)),
+            ("TMT132C", molecular_formula!(C 2 [13 C 6] N 1 H 16)),
+            ("TMT133N", molecular_formula!(C 2 [13 C 6] [15 N 1] H 16)),
+            ("TMT133C", molecular_formula!(C 1 [13 C 7] N 1 H 16)),
+            ("TMT134N", molecular_formula!(C 1 [13 C 7] [15 N 1] H 16)),
+            ("TMT134C", molecular_formula!(C 0 [13 C 8] N 1 H 16)),
+            ("TMT135N", molecular_formula!(C 0 [13 C 8] [15 N 1] H 16)),
+            ("TMTzero", molecular_formula!(C 12 H 20 N 2 O 2)),
+            ("TMTpro_zero", molecular_formula!(C 15 H 25 N 3 O 3)),
+            ("TMT2plex", molecular_formula!(C 11 [ 13 C 1] H 20 N 2 O 2)),
+            (
+                "TMT6plex",
+                molecular_formula!(C 8 [13 C 5] H 20 N 1 [ 15 N 1] O 2),
+            ),
+            (
+                "TMTpro",
+                molecular_formula!(C 8 [13 C 7] H 25 [15 N 2] N 1 O 3),
+            ),
+            ("iTRAQ113", molecular_formula!(C 6 N 2 H 13)),
+            ("iTRAQ114", molecular_formula!(C 5 [13 C 1] N 2 H 13)),
+            (
+                "iTRAQ115",
+                molecular_formula!(C 5 [13 C 1] N 1 [15 N 1] H 13),
+            ),
+            (
+                "iTRAQ116",
+                molecular_formula!(C 4 [13 C 2] N 1 [15 N 1] H 13),
+            ),
+            (
+                "iTRAQ117",
+                molecular_formula!(C 3 [13 C 3] N 1 [15 N 1] H 13),
+            ),
+            ("iTRAQ118", molecular_formula!(C 3 [13 C 3] [15 N 2] H 13)),
+            ("iTRAQ119", molecular_formula!(C 4 [13 C 2] [15 N 2] H 13)),
+            ("iTRAQ121", molecular_formula!([13 C 6] [15 N 2] H 13)),
+            (
+                "iTRAQ4plex",
+                molecular_formula!(C 4 [13 C 3] H 12 N 1 [15 N 1] O 1),
+            ),
+            (
+                "iTRAQ8plex",
+                molecular_formula!(C 7 [13 C 7] H 24 N 3 [15 N 1] O 3),
+            ),
+            ("TMT126-ETD", molecular_formula!(C 7 N 1 H 16)),
+            ("TMT127N-ETD", molecular_formula!(C 7 [15 N 1] H 16)),
+            ("TMT127C-ETD", molecular_formula!(C 6 [13 C 1] N 1 H 16)),
+            (
+                "TMT128N-ETD",
+                molecular_formula!(C 6 [13 C 1] [15 N 1] H 16),
+            ),
+            ("TMT128C-ETD", molecular_formula!(C 5 [13 C 2] N 1 H 16)),
+            (
+                "TMT129N-ETD",
+                molecular_formula!(C 5 [13 C 2] [15 N 1] H 16),
+            ),
+            ("TMT129C-ETD", molecular_formula!(C 4 [13 C 3] N 1 H 16)),
+            (
+                "TMT130N-ETD",
+                molecular_formula!(C 4 [13 C 3] [15 N 1] H 16),
+            ),
+            ("TMT130C-ETD", molecular_formula!(C 3 [13 C 4] N 1 H 16)),
+            (
+                "TMT131N-ETD",
+                molecular_formula!(C 3 [13 C 4] [15 N 1] H 16),
+            ),
+            ("TMT131C-ETD", molecular_formula!(C 2 [13 C 5] N 1 H 16)),
+        ]
+    })
 }
 
-impl RangeExtension for Range<usize> {
-    fn add_start(&self, amount: isize) -> Option<Self> {
-        let new_start = usize::try_from(isize::try_from(self.start).ok()? + amount).ok()?;
-        (new_start <= self.end).then_some(Self {
-            start: new_start,
-            end: self.end,
-        })
-    }
-    fn add_end(&self, amount: isize) -> Option<Self> {
-        let new_end = usize::try_from(isize::try_from(self.end).ok()? + amount).ok()?;
-        (self.start <= new_end).then_some(Self {
-            start: self.start,
-            end: new_end,
-        })
-    }
-    fn start_index(&self) -> usize {
-        match self.start_bound() {
-            std::ops::Bound::Unbounded => 0,
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s + 1,
-        }
-    }
-    fn end_index(&self) -> usize {
-        match self.end_bound() {
-            std::ops::Bound::Unbounded => 0,
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s - 1,
-        }
-    }
-}
+static MZPAF_NAMED_MOLECULES_CELL: OnceLock<Vec<(&str, MolecularFormula)>> = OnceLock::new();

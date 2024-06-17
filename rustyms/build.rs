@@ -16,6 +16,7 @@ mod formula;
 #[path = "./src/build/mod.rs"]
 mod build;
 
+use crate::build::glycan;
 use crate::build::*;
 pub use crate::element::*;
 pub use crate::formula::MolecularFormula;

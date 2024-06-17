@@ -1,6 +1,6 @@
 use std::{
     num::{IntErrorKind, ParseFloatError, ParseIntError},
-    ops::{Bound, RangeBounds},
+    ops::{Bound, Range, RangeBounds},
     path::Path,
     str::FromStr,
 };
@@ -47,6 +47,47 @@ impl<T, E> InvertResult<T, E> for Option<Result<T, E>> {
 impl<T, E> InvertResult<T, E> for Option<Result<Option<T>, E>> {
     fn invert(self) -> Result<Option<T>, E> {
         self.map_or_else(|| Ok(None), |o| o)
+    }
+}
+
+pub trait RangeExtension
+where
+    Self: Sized,
+{
+    fn add_start(&self, amount: isize) -> Option<Self>;
+    fn add_end(&self, amount: isize) -> Option<Self>;
+    fn start_index(&self) -> usize;
+    fn end_index(&self) -> usize;
+}
+
+impl RangeExtension for Range<usize> {
+    fn add_start(&self, amount: isize) -> Option<Self> {
+        let new_start = usize::try_from(isize::try_from(self.start).ok()? + amount).ok()?;
+        (new_start <= self.end).then_some(Self {
+            start: new_start,
+            end: self.end,
+        })
+    }
+    fn add_end(&self, amount: isize) -> Option<Self> {
+        let new_end = usize::try_from(isize::try_from(self.end).ok()? + amount).ok()?;
+        (self.start <= new_end).then_some(Self {
+            start: self.start,
+            end: new_end,
+        })
+    }
+    fn start_index(&self) -> usize {
+        match self.start_bound() {
+            std::ops::Bound::Unbounded => 0,
+            std::ops::Bound::Included(s) => *s,
+            std::ops::Bound::Excluded(s) => s + 1,
+        }
+    }
+    fn end_index(&self) -> usize {
+        match self.end_bound() {
+            std::ops::Bound::Unbounded => 0,
+            std::ops::Bound::Included(s) => *s,
+            std::ops::Bound::Excluded(s) => s - 1,
+        }
     }
 }
 
@@ -234,7 +275,7 @@ pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option
 }
 
 /// A number of characters, used as length or index
-type Characters = usize;
+pub type Characters = usize;
 
 #[allow(dead_code)]
 /// Get the next number starting at the character range given, returns length in characters and the number.

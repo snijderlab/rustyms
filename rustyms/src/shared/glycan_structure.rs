@@ -12,7 +12,7 @@ pub struct GlycanStructure {
 impl GlycanStructure {
     /// Create a new glycan structure
     #[allow(dead_code)]
-    pub fn new(sugar: MonoSaccharide, branches: Vec<GlycanStructure>) -> Self {
+    pub fn new(sugar: MonoSaccharide, branches: Vec<Self>) -> Self {
         Self { sugar, branches }
     }
 

@@ -2,11 +2,7 @@ use std::{ffi::OsString, io::Write, iter, path::Path};
 
 use regex::Regex;
 
-use crate::{
-    build::glycan::MonoSaccharide,
-    formula::{Chemical, MolecularFormula},
-    print, Element, NeutralLoss,
-};
+use crate::{formula::MolecularFormula, NeutralLoss};
 
 use super::{
     obo::OboOntology,
@@ -70,9 +66,8 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
             let mut mod_rules = Vec::new();
             for line in xref {
                 if line.starts_with("delta_composition") {
-                    modification
-                        .with_unimod_composition(&line[19..line.len() - 1])
-                        .expect("Invalid Unimod composition");
+                    modification.formula =
+                        MolecularFormula::from_unimod(&line[19..line.len() - 1]).unwrap();
                     take = true;
                 } else if let Some(groups) = re_position.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
@@ -100,15 +95,8 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                         .get(2)
                         .is_some_and(|g| g.is_empty() || g.as_str() == "0")
                     {
-                        let formula =
-                            parse_unimod_composition(groups.get(2).unwrap().as_str()).unwrap();
                         let loss = NeutralLoss::Loss(
-                            formula.0
-                                + formula
-                                    .1
-                                    .iter()
-                                    .map(|(m, n)| m.formula() * *n)
-                                    .sum::<MolecularFormula>(),
+                            MolecularFormula::from_unimod(groups.get(2).unwrap().as_str()).unwrap(),
                         );
                         if mod_rules.len() <= index {
                             mod_rules.extend(
@@ -162,100 +150,4 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
     }
 
     mods
-}
-
-enum Brick {
-    Element(Element),
-    Formula(MolecularFormula),
-    MonoSaccharide(MonoSaccharide),
-}
-
-fn parse_unimod_composition_brick(name: &str) -> Result<Brick, ()> {
-    match name.to_lowercase().as_str() {
-        "ac" => Ok(Brick::Formula(molecular_formula!(C 2 H 2 O 1))),
-        "me" => Ok(Brick::Formula(molecular_formula!(C 1 H 2))),
-        "kdn" => Ok(Brick::Formula(molecular_formula!(C 9 H 14 O 8))),
-        "kdo" => Ok(Brick::Formula(molecular_formula!(C 8 H 12 O 7))),
-        "sulf" => Ok(Brick::Formula(molecular_formula!(S 1))),
-        "water" => Ok(Brick::Formula(molecular_formula!(H 2 O 1))),
-        _ => {
-            if let Ok(el) = Element::try_from(name) {
-                Ok(Brick::Element(el))
-            } else if let Ok((ms, _)) = MonoSaccharide::from_short_iupac(name, 0, 0) {
-                Ok(Brick::MonoSaccharide(ms))
-            } else {
-                print(format!("Could not parse unimod brick: `{name}`"), true);
-                Err(())
-            }
-        }
-    }
-}
-
-fn parse_unimod_composition(
-    composition: &str,
-) -> Result<(MolecularFormula, Vec<(MonoSaccharide, i32)>), ()> {
-    assert!(composition.is_ascii());
-
-    let mut formula = MolecularFormula::default();
-    let mut monosaccharides = Vec::new();
-
-    let mut last_name = String::new();
-    let mut last_number = String::new();
-    let mut sign = 1;
-    for (index, c) in composition.bytes().enumerate() {
-        match c {
-            b'-' => sign = -1,
-            b'(' => (),
-            b')' => {
-                let num = last_number.parse::<i32>().map_err(|_| ())? * sign;
-                match parse_unimod_composition_brick(last_name.as_str()) {
-                    Ok(Brick::Formula(f)) => formula += &(f * num),
-                    Ok(Brick::Element(e)) => assert!(formula.add((e, None, num))),
-                    Ok(Brick::MonoSaccharide(m)) => monosaccharides.push((m, num)),
-                    Err(()) => return Err(()),
-                }
-                last_name.clear();
-                last_number.clear();
-                sign = 1;
-            }
-            b' ' => {
-                if !last_name.is_empty() {
-                    match parse_unimod_composition_brick(last_name.as_str()) {
-                        Ok(Brick::Formula(f)) => formula += &f,
-                        Ok(Brick::Element(e)) => assert!(formula.add((e, None, 1))),
-                        Ok(Brick::MonoSaccharide(m)) => monosaccharides.push((m, 1)),
-                        Err(()) => return Err(()),
-                    }
-                    last_name.clear();
-                }
-            }
-            n if n.is_ascii_digit() => last_number.push(n as char),
-            n if n.is_ascii_alphabetic() => last_name.push(n as char),
-            _ => panic!("Unimod composition parsing broke at: '{composition}' (specifically at '{c}' index {index})"),
-        }
-    }
-    if !last_name.is_empty() {
-        match parse_unimod_composition_brick(last_name.as_str()) {
-            Ok(Brick::Formula(f)) => formula += &f,
-            Ok(Brick::Element(e)) => assert!(formula.add((e, None, 1))),
-            Ok(Brick::MonoSaccharide(m)) => monosaccharides.push((m, 1)),
-            Err(()) => return Err(()),
-        }
-    }
-    Ok((formula, monosaccharides))
-}
-
-impl OntologyModification {
-    #[deny(clippy::unwrap_used)]
-    fn with_unimod_composition(&mut self, composition: &str) -> Result<(), ()> {
-        let (diff_formula, sugars) = parse_unimod_composition(composition)?;
-        self.formula = diff_formula;
-        if let ModData::Mod {
-            monosaccharides, ..
-        } = &mut self.data
-        {
-            monosaccharides.extend(sugars);
-        }
-        Ok(())
-    }
 }

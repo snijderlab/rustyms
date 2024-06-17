@@ -3,7 +3,7 @@ mod atomic_masses;
 mod csv;
 #[path = "../error/mod.rs"]
 pub mod error;
-mod glycan;
+pub mod glycan;
 mod gnome;
 mod obo;
 mod ontology_modification;

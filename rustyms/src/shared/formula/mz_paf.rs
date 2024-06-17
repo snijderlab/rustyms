@@ -1,9 +1,9 @@
 use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, next_number},
-    Element, MolecularFormula, ELEMENT_PARSE_LIST,
+    MolecularFormula, ELEMENT_PARSE_LIST,
 };
-use std::{num::NonZeroU16, ops::RangeBounds};
+use std::ops::RangeBounds;
 
 impl MolecularFormula {
     /// Parse mzPAF formulas: `C13H9N1O`.
