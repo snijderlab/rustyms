@@ -62,7 +62,11 @@ impl MolecularFormula {
         'main_parse_loop: while index <= end {
             match bytes[index] {
                 b'[' => {
-                    index += 1; // Skip the open square bracket
+                    // Skip the open square bracket and leading spaces
+                    index += 1 + bytes[index + 1..]
+                        .iter()
+                        .take_while(|b| **b == b' ')
+                        .count();
                     let len = bytes
                         .iter()
                         .skip(index)
@@ -79,20 +83,25 @@ impl MolecularFormula {
                         .skip(index)
                         .take_while(|c| c.is_ascii_digit())
                         .count();
+                    let ws1 = bytes[index + isotope..]
+                        .iter()
+                        .take_while(|b| **b == b' ')
+                        .count();
                     let ele = bytes
                         .iter()
-                        .skip(index + isotope)
+                        .skip(index + isotope + ws1)
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
                     if allow_electrons
-                        && (&bytes[index + isotope..index + isotope + ele] == b"e"
-                            || &bytes[index + isotope..index + isotope + ele] == b"E")
+                        && (&bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"e"
+                            || &bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"E")
                     {
                         element = Some(Element::Electron);
                     } else {
                         for possible in ELEMENT_PARSE_LIST {
-                            if value[index + isotope..index + isotope + ele].to_ascii_lowercase()
+                            if value[index + isotope + ws1..index + isotope + ws1 + ele]
+                                .to_ascii_lowercase()
                                 == possible.0
                             {
                                 element = Some(possible.1);
@@ -101,7 +110,16 @@ impl MolecularFormula {
                         }
                     };
                     if let Some(parsed_element) = element {
-                        let num = value[index + isotope + ele..index + len]
+                        let ws2 = bytes[index + isotope + ws1 + ele..]
+                            .iter()
+                            .take_while(|c| **c == b' ')
+                            .count();
+                        let num_len = bytes[index + isotope + ws1 + ele + ws2..]
+                            .iter()
+                            .take_while(|c| **c == b'-' || **c == b'+' || c.is_ascii_digit())
+                            .count();
+                        let num = value[index + isotope + ws1 + ele + ws2
+                            ..index + isotope + ws1 + ele + ws2 + num_len]
                             .parse::<i32>()
                             .map_err(|err| {
                                 CustomError::error(
@@ -110,8 +128,8 @@ impl MolecularFormula {
                                     Context::line(
                                         0,
                                         value,
-                                        index + isotope + ele,
-                                        len - isotope - ele,
+                                        index + isotope + ws1 + ele + ws2,
+                                        num_len,
                                     ),
                                 )
                             })?;

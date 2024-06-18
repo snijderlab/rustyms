@@ -51,7 +51,7 @@ impl MolecularFormula {
         let mut formula = Self::default();
 
         let mut isotope = None;
-        let mut last_name_index = 0;
+        let mut last_name_index = -1_isize;
         let mut last_name = String::new();
         let mut index = 0;
         while index < value.len() {
@@ -64,14 +64,14 @@ impl MolecularFormula {
                             "Invalid Unimod chemical formula", 
                             format!("The element amount {}", explain_number_error(&err)),
                             Context::line(0, value, index+1, length)))?;
-                match parse_unimod_composition_brick(value, last_name_index..last_name_index+last_name.len())? {
+                match parse_unimod_composition_brick(value, last_name_index as usize..last_name_index as usize+last_name.len())? {
                     Brick::Element(el) => {if !formula.add((el, isotope.take(), num)) {
-                        return Err(CustomError::error("Invalid Unimod chemical formula", "An element or isotope without a defined mass was found", Context::line_range(0, value,last_name_index..last_name_index+last_name.len())));
+                        return Err(CustomError::error("Invalid Unimod chemical formula", "An element or isotope without a defined mass was found", Context::line_range(0, value,last_name_index as usize..last_name_index as usize+last_name.len())));
                     }},
                     Brick::Formula(f) => formula += f*num,
                 }
                 last_name.clear();
-                last_name_index = 0;
+                last_name_index = -1;
                 index += length + 2;
                 if value.as_bytes()[index-1] != b')' {
                     return Err(CustomError::error("Invalid Unimod chemical formula", "The amount of an element should be closed by ')'", Context::line(0, value, index-1, 1)));
@@ -79,14 +79,14 @@ impl MolecularFormula {
             }
             b' ' => {
                 if !last_name.is_empty() {
-                    match parse_unimod_composition_brick(value, last_name_index..last_name_index+last_name.len())? {
+                    match parse_unimod_composition_brick(value, last_name_index as usize..last_name_index as usize+last_name.len())? {
                         Brick::Element(el) => {if !formula.add((el, isotope.take(), 1)) {
-                            return Err(CustomError::error("Invalid Unimod chemical formula", "An element or isotope without a defined mass was found", Context::line_range(0, value,last_name_index..last_name_index+last_name.len())));
+                            return Err(CustomError::error("Invalid Unimod chemical formula", "An element or isotope without a defined mass was found", Context::line_range(0, value,last_name_index as usize..last_name_index as usize+last_name.len())));
                         }},
                         Brick::Formula(f) => formula += f,
                         }
                     last_name.clear();
-                    last_name_index = 0;
+                    last_name_index = -1;
                 }
                 index += 1;
             }
@@ -102,8 +102,8 @@ impl MolecularFormula {
             },
             n if n.is_ascii_alphabetic() => {
                 last_name.push(n as char);
-                if last_name_index == 0 {
-                    last_name_index = index;
+                if last_name_index == -1 {
+                    last_name_index = index as isize;
                 }
                 index += 1;
             }
@@ -116,7 +116,7 @@ impl MolecularFormula {
         if !last_name.is_empty() {
             match parse_unimod_composition_brick(
                 value,
-                last_name_index..last_name_index + last_name.len(),
+                last_name_index as usize..last_name_index as usize + last_name.len(),
             )? {
                 Brick::Element(el) => {
                     if !formula.add((el, isotope.take(), 1)) {
@@ -126,7 +126,8 @@ impl MolecularFormula {
                             Context::line_range(
                                 0,
                                 value,
-                                last_name_index..last_name_index + last_name.len(),
+                                last_name_index as usize
+                                    ..last_name_index as usize + last_name.len(),
                             ),
                         ));
                     }
