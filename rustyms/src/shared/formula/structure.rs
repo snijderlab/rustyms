@@ -137,7 +137,7 @@ impl MolecularFormula {
     }
 
     /// Get the additional mass of this formula
-    pub fn additional_mass(&self) -> OrderedFloat<f64> {
+    pub const fn additional_mass(&self) -> OrderedFloat<f64> {
         self.additional_mass
     }
 

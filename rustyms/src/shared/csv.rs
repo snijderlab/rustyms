@@ -351,8 +351,11 @@ impl std::fmt::Display for CsvLine {
     }
 }
 
-/// Write a CSV file from a vector of HashMaps. It fill empty columns with empty space, ensures the correct amount
+/// Write a CSV file from a vector of `HashMap`s. It fill empty columns with empty space, ensures the correct amount
 /// of columns on each line, and auto wraps any comma (,) containing values and headers in apostrophes (").
+/// # Errors
+/// If the `Write` implementation errors.
+#[allow(dead_code)]
 pub fn write_csv(
     mut f: impl Write,
     data: impl IntoIterator<Item = HashMap<String, String>>,

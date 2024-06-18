@@ -1,11 +1,11 @@
+#![allow(dead_code)]
+
 use std::{
-    num::{IntErrorKind, ParseFloatError, ParseIntError},
+    num::{IntErrorKind, ParseIntError},
     ops::{Bound, Range, RangeBounds},
     path::Path,
     str::FromStr,
 };
-
-use itertools::Itertools;
 
 pub trait ResultExtensions<T, E> {
     /// # Errors
@@ -54,26 +54,32 @@ pub trait RangeExtension
 where
     Self: Sized,
 {
-    fn add_start(&self, amount: isize) -> Option<Self>;
-    fn add_end(&self, amount: isize) -> Option<Self>;
+    fn add_start(&self, amount: isize) -> Self;
+    fn add_end(&self, amount: isize) -> Self;
     fn start_index(&self) -> usize;
     fn end_index(&self) -> usize;
 }
 
 impl RangeExtension for Range<usize> {
-    fn add_start(&self, amount: isize) -> Option<Self> {
-        let new_start = usize::try_from(isize::try_from(self.start).ok()? + amount).ok()?;
-        (new_start <= self.end).then_some(Self {
+    fn add_start(&self, amount: isize) -> Self {
+        let new_start = usize::try_from(
+            isize::try_from(self.start).expect("Could not fit range start bound in isize") + amount,
+        )
+        .expect("Could not fit range start bound with amount in usize");
+        Self {
             start: new_start,
-            end: self.end,
-        })
+            end: self.end.max(new_start),
+        }
     }
-    fn add_end(&self, amount: isize) -> Option<Self> {
-        let new_end = usize::try_from(isize::try_from(self.end).ok()? + amount).ok()?;
-        (self.start <= new_end).then_some(Self {
-            start: self.start,
+    fn add_end(&self, amount: isize) -> Self {
+        let new_end = usize::try_from(
+            isize::try_from(self.end).expect("Could not fit range end bound in isize") + amount,
+        )
+        .expect("Could not fit range end bound with amount in usize");
+        Self {
+            start: self.start.min(new_end),
             end: new_end,
-        })
+        }
     }
     fn start_index(&self) -> usize {
         match self.start_bound() {

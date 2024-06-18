@@ -1,9 +1,5 @@
 //! WIP: mzPAF parser
-use std::{
-    cell::OnceCell,
-    ops::{Range, RangeBounds},
-    sync::OnceLock,
-};
+use std::{ops::Range, sync::OnceLock};
 
 use crate::{
     error::{Context, CustomError},
@@ -18,23 +14,14 @@ pub fn parse_mzpaf(line: &str) -> Result<Vec<Fragment>, CustomError> {
 }
 
 fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomError> {
-    if let Some(index) = line[range.clone()].chars().position(|c| c == '/') {
-        // Parse analyte index
-        let ion = parse_ion(line, range.start..range.start + index)?;
-        // Parse neutral losses
-        // Parse isotopes
-        // Parse charge
-        // Parse adduct type
-        let deviation = parse_deviation(line, range.end - index..range.end)?;
-        Ok(Fragment::default())
-    } else {
-        // TODO: not required the deviation
-        Err(CustomError::error(
-            "Invalid annotation",
-            "A deviation, in m/z or ppm, needs to be present",
-            Context::line_range(0, line, range),
-        ))
-    }
+    let (offset, analyte_number) = parse_analyte_number(line, range.clone())?;
+    let (offset, ion) = parse_ion(line, range.add_start(offset as isize))?;
+    let (offset, neutral_losses) = parse_neutral_loss(line, range.add_start(offset as isize))?;
+    // Parse isotopes
+    // Parse charge
+    // Parse adduct type
+    let deviation = parse_deviation(line, range.add_start(offset as isize))?;
+    Ok(Fragment::default())
 }
 
 enum mzPAFIonType {
@@ -48,13 +35,44 @@ enum mzPAFIonType {
     Formula(MolecularFormula),
 }
 
+/// Parse a mzPAF analyte number. '1@...'
+/// # Errors
+/// When the ion is not formatted correctly.
+fn parse_analyte_number(
+    line: &str,
+    range: Range<usize>,
+) -> Result<(Characters, Option<usize>), CustomError> {
+    next_number::<false, usize>(line, range).map_or_else(
+        || Ok((0, None)),
+        |num| {
+            if line.chars().nth(num.0) != Some('@') {
+                return Err(CustomError::error(
+                    "Invalid mzPAF analyte number",
+                    "The analyte number should be followed by an at sign '@'",
+                    Context::line(0, line, num.0, 1),
+                ));
+            }
+            Ok((
+                num.0 + 1,
+                Some(num.2.map_err(|err| {
+                    CustomError::error(
+                        "Invalid mzPAF analyte number",
+                        format!("The analyte number number {}", explain_number_error(&err)),
+                        Context::line(0, line, 0, num.0),
+                    )
+                })?),
+            ))
+        },
+    )
+}
+
 /// Parse a mzPAF ion.
 /// # Errors
 /// When the ion is not formatted correctly.
 fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonType), CustomError> {
     match line[range.clone()].chars().next() {
         Some('?') => {
-            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1).unwrap()) {
+            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1)) {
                 Ok((
                     1 + ordinal.0,
                     mzPAFIonType::Unknown(Some(ordinal.2.map_err(|err| {
@@ -70,7 +88,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             }
         }
         Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
-            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1).unwrap()) {
+            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1)) {
                 Ok((
                     1 + ordinal.0,
                     mzPAFIonType::MainSeries(
@@ -140,8 +158,8 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             ))
         }
         Some('m') => {
-            let first_ordinal = next_number::<false, usize>(line, range.add_start(1).unwrap())
-                .ok_or_else(|| {
+            let first_ordinal =
+                next_number::<false, usize>(line, range.add_start(1)).ok_or_else(|| {
                     CustomError::error(
                         "Invalid mzPAF internal ion first ordinal",
                         "The first ordinal for an internal ion should be present",
@@ -159,17 +177,15 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                 line[range.clone()].chars().nth(first_ordinal.0) == Some(':'),
                 "Needs to be separated by colon"
             );
-            let second_ordinal = next_number::<false, usize>(
-                line,
-                range.add_start(2 + first_ordinal.0 as isize).unwrap(),
-            )
-            .ok_or_else(|| {
-                CustomError::error(
-                    "Invalid mzPAF internal ion second ordinal",
-                    "The second ordinal for an internal ion should be present",
-                    Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
-                )
-            })?;
+            let second_ordinal =
+                next_number::<false, usize>(line, range.add_start(2 + first_ordinal.0 as isize))
+                    .ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid mzPAF internal ion second ordinal",
+                            "The second ordinal for an internal ion should be present",
+                            Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
+                        )
+                    })?;
             let first_location = first_ordinal.2.map_err(|err| {
                 CustomError::error(
                     "Invalid mzPAF internal ion first ordinal",
@@ -288,7 +304,7 @@ fn parse_neutral_loss(
 ) -> Result<(Characters, Vec<NeutralLoss>), CustomError> {
     let mut offset = 0;
     let mut neutral_losses = Vec::new();
-    while let Some(c @ ('-' | '+')) = line[range.clone()].chars().skip(offset).next() {
+    while let Some(c @ ('-' | '+')) = line[range.clone()].chars().nth(offset) {
         if line[range.clone()].chars().nth(1) == Some('[') {
             let first = line[range.clone()].char_indices().nth(2).unwrap().0;
             let last = line[range.clone()]
@@ -298,8 +314,26 @@ fn parse_neutral_loss(
                 .last()
                 .unwrap();
             //Ok(first..last.0 + last.1.len_utf8());
-            todo!(); //TODO: get neutral loss names
+            let name = line[first..last.0 + last.1.len_utf8()].to_ascii_lowercase();
+
             offset += 1 + last.0 + last.1.len_utf8() - first;
+
+            if let Some(formula) = mz_paf_named_molecules()
+                .iter()
+                .find_map(|n| (n.0 == name).then_some(n.1.clone()))
+            {
+                neutral_losses.push(match c {
+                    '+' => NeutralLoss::Gain(formula),
+                    '-' => NeutralLoss::Loss(formula),
+                    _ => unreachable!(),
+                });
+            } else {
+                return Err(CustomError::error(
+                    "Unknown mzPAF named neutral loss",
+                    "Unknown name",
+                    Context::line(0, line, offset - name.len() - 1, name.len()),
+                ));
+            }
         } else {
             let first = line[range.clone()].char_indices().nth(1).unwrap().0;
             let last = line[range.clone()]
@@ -352,88 +386,88 @@ fn parse_deviation(
 fn mz_paf_named_molecules() -> &'static Vec<(&'static str, MolecularFormula)> {
     MZPAF_NAMED_MOLECULES_CELL.get_or_init(|| {
         vec![
-            ("Hex", molecular_formula!(C 6 H 10 O 5)),
-            ("HexNAc", molecular_formula!(C 8 H 13 N 1 O 5)),
-            ("dHex", molecular_formula!(C 6 H 10 O 4)),
-            ("NeuAc", molecular_formula!(C 11 H 17 N 1 O 8)),
-            ("NeuGc", molecular_formula!(C 11 H 17 N 1 O 9)),
-            ("TMT126", molecular_formula!(C 8 N 1 H 16)),
-            ("TMT127N", molecular_formula!(C 8 [15 N 1] H 16)),
-            ("TMT127C", molecular_formula!(C 7 [13 C 1] N 1 H 16)),
-            ("TMT128N", molecular_formula!(C 7 [13 C 1] [15 N 1] H 16)),
-            ("TMT128C", molecular_formula!(C 6 [13 C 2] N 1 H 16)),
-            ("TMT129N", molecular_formula!(C 6 [13 C 2] [15 N 1] H 16)),
-            ("TMT129C", molecular_formula!(C 5 [13 C 3] N 1 H 16)),
-            ("TMT130N", molecular_formula!(C 5 [13 C 3] [15 N 1] H 16)),
-            ("TMT130C", molecular_formula!(C 4 [13 C 4] N 1 H 16)),
-            ("TMT131N", molecular_formula!(C 4 [13 C 4] [15 N 1] H 16)),
-            ("TMT131C", molecular_formula!(C 3 [13 C 5] N 1 H 16)),
-            ("TMT132N", molecular_formula!(C 3 [13 C 5] [15 N 1] H 16)),
-            ("TMT132C", molecular_formula!(C 2 [13 C 6] N 1 H 16)),
-            ("TMT133N", molecular_formula!(C 2 [13 C 6] [15 N 1] H 16)),
-            ("TMT133C", molecular_formula!(C 1 [13 C 7] N 1 H 16)),
-            ("TMT134N", molecular_formula!(C 1 [13 C 7] [15 N 1] H 16)),
-            ("TMT134C", molecular_formula!(C 0 [13 C 8] N 1 H 16)),
-            ("TMT135N", molecular_formula!(C 0 [13 C 8] [15 N 1] H 16)),
-            ("TMTzero", molecular_formula!(C 12 H 20 N 2 O 2)),
-            ("TMTpro_zero", molecular_formula!(C 15 H 25 N 3 O 3)),
-            ("TMT2plex", molecular_formula!(C 11 [ 13 C 1] H 20 N 2 O 2)),
+            ("hex", molecular_formula!(C 6 H 10 O 5)),
+            ("hexnac", molecular_formula!(C 8 H 13 N 1 O 5)),
+            ("dhex", molecular_formula!(C 6 H 10 O 4)),
+            ("neuac", molecular_formula!(C 11 H 17 N 1 O 8)),
+            ("neugc", molecular_formula!(C 11 H 17 N 1 O 9)),
+            ("tmt126", molecular_formula!(C 8 N 1 H 16)),
+            ("tmt127n", molecular_formula!(C 8 [15 N 1] H 16)),
+            ("tmt127c", molecular_formula!(C 7 [13 C 1] N 1 H 16)),
+            ("tmt128n", molecular_formula!(C 7 [13 C 1] [15 N 1] H 16)),
+            ("tmt128c", molecular_formula!(C 6 [13 C 2] N 1 H 16)),
+            ("tmt129n", molecular_formula!(C 6 [13 C 2] [15 N 1] H 16)),
+            ("tmt129c", molecular_formula!(C 5 [13 C 3] N 1 H 16)),
+            ("tmt130n", molecular_formula!(C 5 [13 C 3] [15 N 1] H 16)),
+            ("tmt130c", molecular_formula!(C 4 [13 C 4] N 1 H 16)),
+            ("tmt131n", molecular_formula!(C 4 [13 C 4] [15 N 1] H 16)),
+            ("tmt131c", molecular_formula!(C 3 [13 C 5] N 1 H 16)),
+            ("tmt132n", molecular_formula!(C 3 [13 C 5] [15 N 1] H 16)),
+            ("tmt132c", molecular_formula!(C 2 [13 C 6] N 1 H 16)),
+            ("tmt133n", molecular_formula!(C 2 [13 C 6] [15 N 1] H 16)),
+            ("tmt133c", molecular_formula!(C 1 [13 C 7] N 1 H 16)),
+            ("tmt134n", molecular_formula!(C 1 [13 C 7] [15 N 1] H 16)),
+            ("tmt134c", molecular_formula!(C 0 [13 C 8] N 1 H 16)),
+            ("tmt135n", molecular_formula!(C 0 [13 C 8] [15 N 1] H 16)),
+            ("tmtzero", molecular_formula!(C 12 H 20 N 2 O 2)),
+            ("tmtpro_zero", molecular_formula!(C 15 H 25 N 3 O 3)),
+            ("tmt2plex", molecular_formula!(C 11 [ 13 C 1] H 20 N 2 O 2)),
             (
-                "TMT6plex",
+                "tmt6plex",
                 molecular_formula!(C 8 [13 C 5] H 20 N 1 [ 15 N 1] O 2),
             ),
             (
-                "TMTpro",
+                "tmtpro",
                 molecular_formula!(C 8 [13 C 7] H 25 [15 N 2] N 1 O 3),
             ),
-            ("iTRAQ113", molecular_formula!(C 6 N 2 H 13)),
-            ("iTRAQ114", molecular_formula!(C 5 [13 C 1] N 2 H 13)),
+            ("itraq113", molecular_formula!(C 6 N 2 H 13)),
+            ("itraq114", molecular_formula!(C 5 [13 C 1] N 2 H 13)),
             (
-                "iTRAQ115",
+                "itraq115",
                 molecular_formula!(C 5 [13 C 1] N 1 [15 N 1] H 13),
             ),
             (
-                "iTRAQ116",
+                "itraq116",
                 molecular_formula!(C 4 [13 C 2] N 1 [15 N 1] H 13),
             ),
             (
-                "iTRAQ117",
+                "itraq117",
                 molecular_formula!(C 3 [13 C 3] N 1 [15 N 1] H 13),
             ),
-            ("iTRAQ118", molecular_formula!(C 3 [13 C 3] [15 N 2] H 13)),
-            ("iTRAQ119", molecular_formula!(C 4 [13 C 2] [15 N 2] H 13)),
-            ("iTRAQ121", molecular_formula!([13 C 6] [15 N 2] H 13)),
+            ("itraq118", molecular_formula!(C 3 [13 C 3] [15 N 2] H 13)),
+            ("itraq119", molecular_formula!(C 4 [13 C 2] [15 N 2] H 13)),
+            ("itraq121", molecular_formula!([13 C 6] [15 N 2] H 13)),
             (
-                "iTRAQ4plex",
+                "itraq4plex",
                 molecular_formula!(C 4 [13 C 3] H 12 N 1 [15 N 1] O 1),
             ),
             (
-                "iTRAQ8plex",
+                "itraq8plex",
                 molecular_formula!(C 7 [13 C 7] H 24 N 3 [15 N 1] O 3),
             ),
-            ("TMT126-ETD", molecular_formula!(C 7 N 1 H 16)),
-            ("TMT127N-ETD", molecular_formula!(C 7 [15 N 1] H 16)),
-            ("TMT127C-ETD", molecular_formula!(C 6 [13 C 1] N 1 H 16)),
+            ("tmt126-etd", molecular_formula!(C 7 N 1 H 16)),
+            ("tmt127n-etd", molecular_formula!(C 7 [15 N 1] H 16)),
+            ("tmt127c-etd", molecular_formula!(C 6 [13 C 1] N 1 H 16)),
             (
-                "TMT128N-ETD",
+                "tmt128n-etd",
                 molecular_formula!(C 6 [13 C 1] [15 N 1] H 16),
             ),
-            ("TMT128C-ETD", molecular_formula!(C 5 [13 C 2] N 1 H 16)),
+            ("tmt128c-etd", molecular_formula!(C 5 [13 C 2] N 1 H 16)),
             (
-                "TMT129N-ETD",
+                "tmt129n-etd",
                 molecular_formula!(C 5 [13 C 2] [15 N 1] H 16),
             ),
-            ("TMT129C-ETD", molecular_formula!(C 4 [13 C 3] N 1 H 16)),
+            ("tmt129c-etd", molecular_formula!(C 4 [13 C 3] N 1 H 16)),
             (
-                "TMT130N-ETD",
+                "tmt130n-etd",
                 molecular_formula!(C 4 [13 C 3] [15 N 1] H 16),
             ),
-            ("TMT130C-ETD", molecular_formula!(C 3 [13 C 4] N 1 H 16)),
+            ("tmt130c-etd", molecular_formula!(C 3 [13 C 4] N 1 H 16)),
             (
-                "TMT131N-ETD",
+                "tmt131n-etd",
                 molecular_formula!(C 3 [13 C 4] [15 N 1] H 16),
             ),
-            ("TMT131C-ETD", molecular_formula!(C 2 [13 C 5] N 1 H 16)),
+            ("tmt131c-etd", molecular_formula!(C 2 [13 C 5] N 1 H 16)),
         ]
     })
 }

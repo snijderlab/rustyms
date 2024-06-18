@@ -64,7 +64,7 @@ impl MolecularFormula {
                         )
                     })?;
                 }
-                if !result.add((element, None, amount as i32)) {
+                if !result.add((element, None, i32::from(amount))) {
                     return Err(CustomError::error(
                         "Invalid mzPAF molecular formula",
                         "An element with undefined mass was used",
