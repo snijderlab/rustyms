@@ -54,7 +54,7 @@ impl MolecularFormula {
             let end_index = index;
             if let Some(element) = element.take() {
                 let mut amount = 1;
-                if let Some(number) = next_number::<false, u16>(value, index..) {
+                if let Some(number) = next_number::<false, false, u16>(value, index..) {
                     index += number.0;
                     amount = number.2.map_err(|err| {
                         CustomError::error(

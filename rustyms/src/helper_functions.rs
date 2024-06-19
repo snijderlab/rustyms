@@ -54,33 +54,11 @@ pub trait RangeExtension
 where
     Self: Sized,
 {
-    fn add_start(&self, amount: isize) -> Self;
-    fn add_end(&self, amount: isize) -> Self;
     fn start_index(&self) -> usize;
     fn end_index(&self) -> usize;
 }
 
 impl RangeExtension for Range<usize> {
-    fn add_start(&self, amount: isize) -> Self {
-        let new_start = usize::try_from(
-            isize::try_from(self.start).expect("Could not fit range start bound in isize") + amount,
-        )
-        .expect("Could not fit range start bound with amount in usize");
-        Self {
-            start: new_start,
-            end: self.end.max(new_start),
-        }
-    }
-    fn add_end(&self, amount: isize) -> Self {
-        let new_end = usize::try_from(
-            isize::try_from(self.end).expect("Could not fit range end bound in isize") + amount,
-        )
-        .expect("Could not fit range end bound with amount in usize");
-        Self {
-            start: self.start.min(new_end),
-            end: new_end,
-        }
-    }
     fn start_index(&self) -> usize {
         match self.start_bound() {
             std::ops::Bound::Unbounded => 0,
@@ -93,6 +71,78 @@ impl RangeExtension for Range<usize> {
             std::ops::Bound::Unbounded => 0,
             std::ops::Bound::Included(s) => *s,
             std::ops::Bound::Excluded(s) => s - 1,
+        }
+    }
+}
+
+pub trait RangeMaths<Other>
+where
+    Self: Sized,
+{
+    fn add_start(&self, amount: Other) -> Self;
+    fn add_end(&self, amount: Other) -> Self;
+    fn sub_start(&self, amount: Other) -> Self;
+    fn sub_end(&self, amount: Other) -> Self;
+}
+
+impl RangeMaths<isize> for Range<usize> {
+    fn add_start(&self, amount: isize) -> Self {
+        let new_start = self.start.saturating_add_signed(amount);
+        Self {
+            start: new_start,
+            end: self.end.max(new_start),
+        }
+    }
+    fn add_end(&self, amount: isize) -> Self {
+        let new_end = self.end.saturating_add_signed(amount);
+        Self {
+            start: self.start.min(new_end),
+            end: new_end,
+        }
+    }
+    fn sub_start(&self, amount: isize) -> Self {
+        let new_start = self.start.saturating_add_signed(-amount);
+        Self {
+            start: new_start,
+            end: self.end.max(new_start),
+        }
+    }
+    fn sub_end(&self, amount: isize) -> Self {
+        let new_end = self.end.saturating_add_signed(-amount);
+        Self {
+            start: self.start.min(new_end),
+            end: new_end,
+        }
+    }
+}
+
+impl RangeMaths<usize> for Range<usize> {
+    fn add_start(&self, amount: usize) -> Self {
+        let new_start = self.start.saturating_add(amount);
+        Self {
+            start: new_start,
+            end: self.end.max(new_start),
+        }
+    }
+    fn add_end(&self, amount: usize) -> Self {
+        let new_end = self.end.saturating_add(amount);
+        Self {
+            start: self.start.min(new_end),
+            end: new_end,
+        }
+    }
+    fn sub_start(&self, amount: usize) -> Self {
+        let new_start = self.start.saturating_add(amount);
+        Self {
+            start: new_start,
+            end: self.end.max(new_start),
+        }
+    }
+    fn sub_end(&self, amount: usize) -> Self {
+        let new_end = self.end.saturating_sub(amount);
+        Self {
+            start: self.start.min(new_end),
+            end: new_end,
         }
     }
 }
@@ -287,7 +337,7 @@ pub type Characters = usize;
 /// Get the next number starting at the character range given, returns length in characters and the number.
 /// # Errors
 /// Returns none if the number is too big to fit in a `isize`.
-pub fn next_number<const ALLOW_SIGN: bool, Number: FromStr>(
+pub fn next_number<const ALLOW_SIGN: bool, const FLOATING_POINT: bool, Number: FromStr>(
     line: &str,
     range: impl RangeBounds<Characters>,
 ) -> Option<(Characters, bool, Result<Number, Number::Err>)> {
@@ -328,6 +378,9 @@ pub fn next_number<const ALLOW_SIGN: bool, Number: FromStr>(
     chars
         .take_while(|(_, c)| {
             if c.is_ascii_digit() {
+                consumed += 1;
+                consumed < end - start
+            } else if FLOATING_POINT && ".eE+-".contains(*c) {
                 consumed += 1;
                 consumed < end - start
             } else {

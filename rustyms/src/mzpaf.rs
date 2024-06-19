@@ -3,9 +3,9 @@ use std::{ops::Range, sync::OnceLock};
 
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{explain_number_error, next_number, Characters, RangeExtension},
+    helper_functions::{explain_number_error, next_number, Characters, RangeExtension, RangeMaths},
     modification::{Ontology, SimpleModification},
-    system::{mz, MassOverCharge},
+    system::{e, isize::Charge, mz, MassOverCharge},
     AminoAcid, Fragment, MolecularFormula, NeutralLoss, Tolerance,
 };
 
@@ -14,13 +14,19 @@ pub fn parse_mzpaf(line: &str) -> Result<Vec<Fragment>, CustomError> {
 }
 
 fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomError> {
-    let (offset, analyte_number) = parse_analyte_number(line, range.clone())?;
-    let (offset, ion) = parse_ion(line, range.add_start(offset as isize))?;
-    let (offset, neutral_losses) = parse_neutral_loss(line, range.add_start(offset as isize))?;
+    // Parse &
+    let (left_range, auxiliary) = line[range.clone()]
+        .starts_with('&')
+        .then_some((range.add_start(1_usize), true))
+        .unwrap_or((range.clone(), false));
+    let (left_range, analyte_number) = parse_analyte_number(line, left_range)?;
+    let (offset, ion) = parse_ion(line, left_range)?;
+    let (offset, neutral_losses) = parse_neutral_loss(line, range.add_start(offset))?;
     // Parse isotopes
-    // Parse charge
+    let (offset, charge) = parse_charge(line, range.add_start(offset))?;
     // Parse adduct type
-    let deviation = parse_deviation(line, range.add_start(offset as isize))?;
+    let (offset, deviation) = parse_deviation(line, range.add_start(offset))?;
+    // Parse confidence
     Ok(Fragment::default())
 }
 
@@ -31,7 +37,7 @@ enum mzPAFIonType {
     Internal(usize, usize),
     Named(String),
     Precursor,
-    Reporter(String), //TODO: store as preloaded name
+    Reporter(MolecularFormula),
     Formula(MolecularFormula),
 }
 
@@ -41,9 +47,9 @@ enum mzPAFIonType {
 fn parse_analyte_number(
     line: &str,
     range: Range<usize>,
-) -> Result<(Characters, Option<usize>), CustomError> {
-    next_number::<false, usize>(line, range).map_or_else(
-        || Ok((0, None)),
+) -> Result<(Range<usize>, Option<usize>), CustomError> {
+    next_number::<false, false, usize>(line, range.clone()).map_or_else(
+        || Ok((range.clone(), None)),
         |num| {
             if line.chars().nth(num.0) != Some('@') {
                 return Err(CustomError::error(
@@ -53,7 +59,7 @@ fn parse_analyte_number(
                 ));
             }
             Ok((
-                num.0 + 1,
+                range.add_start(num.0 + 1),
                 Some(num.2.map_err(|err| {
                     CustomError::error(
                         "Invalid mzPAF analyte number",
@@ -72,7 +78,9 @@ fn parse_analyte_number(
 fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonType), CustomError> {
     match line[range.clone()].chars().next() {
         Some('?') => {
-            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1)) {
+            if let Some(ordinal) =
+                next_number::<false, false, usize>(line, range.add_start(1_usize))
+            {
                 Ok((
                     1 + ordinal.0,
                     mzPAFIonType::Unknown(Some(ordinal.2.map_err(|err| {
@@ -88,7 +96,9 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             }
         }
         Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
-            if let Some(ordinal) = next_number::<false, usize>(line, range.add_start(1)) {
+            if let Some(ordinal) =
+                next_number::<false, false, usize>(line, range.add_start(1_usize))
+            {
                 Ok((
                     1 + ordinal.0,
                     mzPAFIonType::MainSeries(
@@ -102,6 +112,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                         })?,
                     ),
                 ))
+                // TODO: potentially followed by a pro forma sequence in {}
             } else {
                 Err(CustomError::error(
                     "Invalid mzPAF main series ion ordinal",
@@ -158,8 +169,8 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             ))
         }
         Some('m') => {
-            let first_ordinal =
-                next_number::<false, usize>(line, range.add_start(1)).ok_or_else(|| {
+            let first_ordinal = next_number::<false, false, usize>(line, range.add_start(1_usize))
+                .ok_or_else(|| {
                     CustomError::error(
                         "Invalid mzPAF internal ion first ordinal",
                         "The first ordinal for an internal ion should be present",
@@ -177,15 +188,17 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                 line[range.clone()].chars().nth(first_ordinal.0) == Some(':'),
                 "Needs to be separated by colon"
             );
-            let second_ordinal =
-                next_number::<false, usize>(line, range.add_start(2 + first_ordinal.0 as isize))
-                    .ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid mzPAF internal ion second ordinal",
-                            "The second ordinal for an internal ion should be present",
-                            Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
-                        )
-                    })?;
+            let second_ordinal = next_number::<false, false, usize>(
+                line,
+                range.add_start(2 + first_ordinal.0 as isize),
+            )
+            .ok_or_else(|| {
+                CustomError::error(
+                    "Invalid mzPAF internal ion second ordinal",
+                    "The second ordinal for an internal ion should be present",
+                    Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
+                )
+            })?;
             let first_location = first_ordinal.2.map_err(|err| {
                 CustomError::error(
                     "Invalid mzPAF internal ion first ordinal",
@@ -251,7 +264,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                     .unwrap();
                 Ok((
                     last.0 + last.1.len_utf8() - first,
-                    &line[range][first..last.0 + last.1.len_utf8()],
+                    &line[range.clone()][first..last.0 + last.1.len_utf8()],
                 ))
             } else {
                 Err(CustomError::error(
@@ -260,7 +273,19 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            Ok((3 + len, mzPAFIonType::Reporter(name.to_string())))
+            mz_paf_named_molecules()
+                .iter()
+                .find_map(|n| (n.0 == name).then_some(n.1.clone()))
+                .map_or_else(
+                    || {
+                        Err(CustomError::error(
+                            "Unknown mzPAF named reporter ion",
+                            "Unknown name",
+                            Context::line(0, line, range.start_index() + 1, len),
+                        ))
+                    },
+                    |formula| Ok((3 + len, mzPAFIonType::Reporter(formula))),
+                )
         }
         Some('f') => {
             // Simple formula
@@ -355,31 +380,96 @@ fn parse_neutral_loss(
     Ok((offset, neutral_losses))
 }
 
+fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge), CustomError> {
+    if line[range.clone()].starts_with('^') {
+        let charge =
+            next_number::<false, false, u32>(line, range.add_start(1_usize)).ok_or_else(|| {
+                CustomError::error(
+                    "Invalid mzPAF charge",
+                    "The number after the charge symbol should be present, eg '^2'.",
+                    Context::line(0, line, range.start_index(), 1),
+                )
+            })?;
+        Ok((
+            charge.0 + 1,
+            Charge::new::<e>(charge.2.map_err(|err| {
+                CustomError::error(
+                    "Invalid mzPAF charge",
+                    format!("The charge number {}", explain_number_error(&err)),
+                    Context::line(0, line, range.start_index() + 1, charge.0),
+                )
+            })? as isize),
+        ))
+    } else {
+        Ok((0, Charge::new::<e>(1)))
+    }
+}
+
+// fn parse_adduct(
+//     line: &str,
+//     range: Range<usize>,
+// ) -> Result<(Characters, MolecularFormula), CustomError> {
+//     if line[range.clone()].chars().next() == Some('^') {
+//         let charge =
+//             next_number::<false, false, u32>(line, range.add_start(1)).ok_or_else(|| {
+//                 CustomError::error(
+//                     "Invalid mzPAF charge",
+//                     "The number after the charge symbol should be present, eg '^2'.",
+//                     Context::line(0, line, range.start_index(), 1),
+//                 )
+//             })?;
+//         Ok((
+//             charge.0 + 1,
+//             Charge::new::<e>(charge.2.map_err(|err| {
+//                 CustomError::error(
+//                     "Invalid mzPAF charge",
+//                     format!("The charge number {}", explain_number_error(&err)),
+//                     Context::line(0, line, range.start_index() + 1, charge.0),
+//                 )
+//             })? as isize),
+//         ))
+//     } else {
+//         Ok((0, Charge::new::<e>(1)))
+//     }
+// }
+
 /// Parse a mzPAF deviation, either a ppm or mz deviation.
 /// # Errors
 /// When the deviation is not '<number>' or '<number>ppm'.
 fn parse_deviation(
     line: &str,
     range: Range<usize>,
-) -> Result<Tolerance<MassOverCharge>, CustomError> {
-    if let Some(ppm) = line[range.clone()].strip_suffix("ppm") {
-        Ok(Tolerance::new_ppm(ppm.parse::<f64>().map_err(|err| {
+) -> Result<(Characters, Option<Tolerance<MassOverCharge>>), CustomError> {
+    if line[range.clone()].starts_with('/') {
+        let number = next_number::<true, true, f64>(line, range.add_start(1_usize)).ok_or(
             CustomError::error(
-                "Invalid deviation",
-                format!("ppm deviation should be a valid number {err}",),
-                Context::line_range(0, line, range.start..range.end - 3),
+                "Invalid mzPAF deviation",
+                "A deviation should be a number",
+                Context::line_range(0, line, range.start..range.start + 1),
+            ),
+        )?;
+        let deviation = number.2.map_err(|err| {
+            CustomError::error(
+                "Invalid mzPAF deviation",
+                format!("The deviation number {err}",),
+                Context::line_range(0, line, range.start + 1..range.start + 1 + number.0),
             )
-        })?))
+        })?;
+        if line[range.add_start(1 + number.0 as isize)]
+            .to_ascii_lowercase()
+            .starts_with("ppm")
+        {
+            Ok((1 + number.0 + 3, Some(Tolerance::new_ppm(deviation))))
+        } else {
+            Ok((
+                1 + number.0,
+                Some(Tolerance::new_absolute(MassOverCharge::new::<mz>(
+                    deviation,
+                ))),
+            ))
+        }
     } else {
-        Ok(Tolerance::new_absolute(MassOverCharge::new::<mz>(
-            line[range.clone()].parse::<f64>().map_err(|err| {
-                CustomError::error(
-                    "Invalid deviation",
-                    format!("m/z deviation should be a valid number {err}",),
-                    Context::line_range(0, line, range),
-                )
-            })?,
-        )))
+        Ok((0, None))
     }
 }
 
