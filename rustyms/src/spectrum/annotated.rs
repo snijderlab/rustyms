@@ -107,7 +107,7 @@ impl PeakSpectrum for AnnotatedSpectrum {
     }
 
     fn add_peak(&mut self, item: Self::PeakType) {
-        let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
+        let index = self.spectrum.binary_search(&item).unwrap_or_else(|i| i);
         self.spectrum.insert(index, item);
     }
 }

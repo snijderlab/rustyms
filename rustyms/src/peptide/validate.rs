@@ -47,7 +47,7 @@ pub fn cross_links(
                 ))}
             }
         } else {
-            let (c, name, description) = if let CrossLinkName::Branch = definition.0 {
+            let (c, name, description) = if definition.0 == CrossLinkName::Branch {
                 ("MOD", "00134", " N6-glycyl-L-lysine")
             } else {
                 ("X", "DSS", "")
@@ -93,7 +93,7 @@ impl LinearPeptide<Linked> {
                     }) {
                         match pos {
                             Position::Anywhere => {
-                                seq.modifications.push(modification.clone().into())
+                                seq.modifications.push(modification.clone().into());
                             }
                             Position::AnyNTerm | Position::ProteinNTerm => {
                                 self.n_term = Some(modification.clone());

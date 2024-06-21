@@ -1,9 +1,9 @@
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{self, explain_number_error},
+    helper_functions::{self, explain_number_error, RangeExtension},
     Element, MolecularFormula, ELEMENT_PARSE_LIST,
 };
-use std::num::NonZeroU16;
+use std::{num::NonZeroU16, ops::RangeBounds};
 
 impl MolecularFormula {
     /// XLMOD: `C7 D10 H2 N4`
@@ -12,9 +12,10 @@ impl MolecularFormula {
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It can panic if the string contains not UTF8 symbols.
-    pub fn from_xlmod(value: &str) -> Result<Self, CustomError> {
+    pub fn from_xlmod(value: &str, range: impl RangeBounds<usize>) -> Result<Self, CustomError> {
+        let (start, end) = range.bounds(value.len());
         let mut formula = Self::default();
-        for (offset, block) in helper_functions::split_ascii_whitespace(value) {
+        for (offset, block) in helper_functions::split_ascii_whitespace(&value[start..end]) {
             let negative = block.starts_with('-');
             let isotope_len = block
                 .chars()

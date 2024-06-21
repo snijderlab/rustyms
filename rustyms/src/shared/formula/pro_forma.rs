@@ -1,6 +1,6 @@
 use crate::{
     error::{Context, CustomError},
-    helper_functions::explain_number_error,
+    helper_functions::{explain_number_error, RangeExtension},
     Element, MolecularFormula, ELEMENT_PARSE_LIST,
 };
 use std::{num::NonZeroU16, ops::RangeBounds};
@@ -32,30 +32,12 @@ impl MolecularFormula {
     /// # Panics
     /// It can panic if the string contains not UTF8 symbols.
     #[allow(dead_code)]
-    pub fn from_pro_forma(value: &str) -> Result<Self, CustomError> {
-        Self::from_pro_forma_inner(value, .., false)
-    }
-
-    /// See [`Self::from_pro_forma`]. This is a variant to help in parsing a part of a larger line.
-    /// # Errors
-    /// If the formula is not valid according to the above specification, with some help on what is going wrong.
-    /// # Panics
-    /// It can panic if the string contains not UTF8 symbols.
-    pub fn from_pro_forma_inner(
+    pub fn from_pro_forma(
         value: &str,
         range: impl RangeBounds<usize>,
-        allow_electrons: bool,
+        allow_charge: bool,
     ) -> Result<Self, CustomError> {
-        let mut index = match range.start_bound() {
-            std::ops::Bound::Unbounded => 0,
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s + 1,
-        };
-        let end = match range.end_bound() {
-            std::ops::Bound::Unbounded => value.len().saturating_sub(1),
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s.saturating_sub(1),
-        };
+        let (mut index, end) = range.bounds(value.len().saturating_sub(1));
         let mut element = None;
         let bytes = value.as_bytes();
         let mut result = Self::default();
@@ -93,7 +75,7 @@ impl MolecularFormula {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    if allow_electrons
+                    if allow_charge
                         && (&bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"e"
                             || &bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"E")
                     {
@@ -225,7 +207,7 @@ impl MolecularFormula {
                             continue 'main_parse_loop;
                         }
                     }
-                    if allow_electrons && (bytes[index] == b'e' || bytes[index] == b'E') {
+                    if allow_charge && (bytes[index] == b'e' || bytes[index] == b'E') {
                         element = Some(Element::Electron);
                         index += 1;
                         continue 'main_parse_loop;

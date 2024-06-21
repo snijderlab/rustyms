@@ -1,9 +1,8 @@
-use std::{collections::HashSet, ops::Index};
+use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    fragment::PeptidePosition,
     modification::{CrossLikeSide, CrossLinkName, RulePossible, SimpleModification},
     peptide::Linked,
     system::usize::Charge,

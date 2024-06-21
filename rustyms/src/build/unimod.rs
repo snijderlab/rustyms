@@ -67,7 +67,7 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
             for line in xref {
                 if line.starts_with("delta_composition") {
                     modification.formula =
-                        MolecularFormula::from_unimod(&line[19..line.len() - 1]).unwrap();
+                        MolecularFormula::from_unimod(line, 19..line.len()).unwrap();
                     take = true;
                 } else if let Some(groups) = re_position.captures(line) {
                     let index = groups.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
@@ -96,7 +96,8 @@ fn parse_unimod(_debug: bool) -> Vec<OntologyModification> {
                         .is_some_and(|g| g.is_empty() || g.as_str() == "0")
                     {
                         let loss = NeutralLoss::Loss(
-                            MolecularFormula::from_unimod(groups.get(2).unwrap().as_str()).unwrap(),
+                            MolecularFormula::from_unimod(groups.get(2).unwrap().as_str(), ..)
+                                .unwrap(),
                         );
                         if mod_rules.len() <= index {
                             mod_rules.extend(

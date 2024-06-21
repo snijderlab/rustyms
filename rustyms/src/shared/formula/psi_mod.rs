@@ -1,9 +1,9 @@
 use crate::{
     error::{Context, CustomError},
-    helper_functions::explain_number_error,
+    helper_functions::{explain_number_error, RangeExtension},
     MolecularFormula, ELEMENT_PARSE_LIST,
 };
-use std::num::NonZeroU16;
+use std::{num::NonZeroU16, ops::RangeBounds};
 
 impl MolecularFormula {
     /// PSI-MOD: `(12)C -5 (13)C 5 H 1 N 3 O -1 S 9`
@@ -11,13 +11,13 @@ impl MolecularFormula {
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It can panic if the string contains not UTF8 symbols.
-    pub fn from_psi_mod(value: &str) -> Result<Self, CustomError> {
-        let mut index = 0;
+    pub fn from_psi_mod(value: &str, range: impl RangeBounds<usize>) -> Result<Self, CustomError> {
+        let (mut index, end) = range.bounds(value.len());
         let mut isotope = None;
         let mut element = None;
         let bytes = value.as_bytes();
         let mut result = Self::default();
-        while index < value.len() {
+        while index < end {
             match bytes[index] {
                 b'(' if isotope.is_none() => {
                     let len = bytes

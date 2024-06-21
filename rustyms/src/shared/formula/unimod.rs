@@ -5,20 +5,26 @@ use crate::{
     helper_functions::{explain_number_error, RangeExtension},
     Element, MolecularFormula,
 };
-use std::{num::NonZeroU16, ops::Range};
+use std::{
+    num::NonZeroU16,
+    ops::{Range, RangeBounds},
+};
 
 enum Brick {
     Element(Element),
     Formula(MolecularFormula),
 }
 
+/// # Errors
+/// Errors if the provided text is not a Unimod composition brick.
 fn parse_unimod_composition_brick(text: &str, range: Range<usize>) -> Result<Brick, CustomError> {
     match text[range.clone()].to_lowercase().as_str() {
         "ac" => Ok(Brick::Formula(molecular_formula!(C 2 H 2 O 1))),
         "me" => Ok(Brick::Formula(molecular_formula!(C 1 H 2))),
         "kdn" => Ok(Brick::Formula(molecular_formula!(C 9 H 14 O 8))),
         "kdo" => Ok(Brick::Formula(molecular_formula!(C 8 H 12 O 7))),
-        "sulf" => Ok(Brick::Formula(molecular_formula!(S 1))),
+        "sulf" => Ok(Brick::Formula(molecular_formula!(S 1 O 3))),
+        "phos" => Ok(Brick::Formula(molecular_formula!(P 1 O 3))),
         "water" => Ok(Brick::Formula(molecular_formula!(H 2 O 1))),
         _ => {
             Element::try_from(text[range.clone()].to_lowercase().as_str()).map_or_else(|()| if let Ok((ms, _)) =
@@ -45,7 +51,8 @@ impl MolecularFormula {
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It panics if the string contains not UTF8 symbols.
-    pub fn from_unimod(value: &str) -> Result<Self, CustomError> {
+    pub fn from_unimod(value: &str, range: impl RangeBounds<usize>) -> Result<Self, CustomError> {
+        let (mut index, end) = range.bounds(value.len());
         assert!(value.is_ascii());
 
         let mut formula = Self::default();
@@ -53,8 +60,7 @@ impl MolecularFormula {
         let mut isotope = None;
         let mut last_name_index = -1_isize;
         let mut last_name = String::new();
-        let mut index = 0;
-        while index < value.len() {
+        while index < end {
             match value.as_bytes()[index] {
             b'(' => {
                 let length = value.chars().skip(index+1).take_while(|c| *c == '-' || *c == '+' || c.is_ascii_digit()).count();

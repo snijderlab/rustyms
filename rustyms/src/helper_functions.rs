@@ -55,10 +55,13 @@ where
     Self: Sized,
 {
     fn start_index(&self) -> usize;
-    fn end_index(&self) -> usize;
+    fn end_index(&self, upper_bound: usize) -> usize;
+    fn bounds(&self, upper_bound: usize) -> (usize, usize) {
+        (self.start_index(), self.end_index(upper_bound))
+    }
 }
 
-impl RangeExtension for Range<usize> {
+impl<Ra: RangeBounds<usize>> RangeExtension for Ra {
     fn start_index(&self) -> usize {
         match self.start_bound() {
             std::ops::Bound::Unbounded => 0,
@@ -66,11 +69,12 @@ impl RangeExtension for Range<usize> {
             std::ops::Bound::Excluded(s) => s + 1,
         }
     }
-    fn end_index(&self) -> usize {
+
+    fn end_index(&self, upper_bound: usize) -> usize {
         match self.end_bound() {
-            std::ops::Bound::Unbounded => 0,
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s - 1,
+            std::ops::Bound::Unbounded => upper_bound,
+            std::ops::Bound::Included(s) => *s.min(&upper_bound),
+            std::ops::Bound::Excluded(s) => (s - 1).min(upper_bound),
         }
     }
 }
@@ -377,10 +381,7 @@ pub fn next_number<const ALLOW_SIGN: bool, const FLOATING_POINT: bool, Number: F
     let mut consumed = usize::from(sign_set);
     chars
         .take_while(|(_, c)| {
-            if c.is_ascii_digit() {
-                consumed += 1;
-                consumed < end - start
-            } else if FLOATING_POINT && ".eE+-".contains(*c) {
+            if c.is_ascii_digit() || (FLOATING_POINT && ".eE+-".contains(*c)) {
                 consumed += 1;
                 consumed < end - start
             } else {

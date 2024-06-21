@@ -1,40 +1,18 @@
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{explain_number_error, next_number},
+    helper_functions::{explain_number_error, next_number, RangeExtension},
     MolecularFormula, ELEMENT_PARSE_LIST,
 };
 use std::ops::RangeBounds;
 
 impl MolecularFormula {
-    /// Parse mzPAF formulas: `C13H9N1O`.
+    /// Parse mzPAF formulas: `C13H9N1O`. If the `range` (byte range in the given line) is not specified it defaults to the full line.
     /// # Errors
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It can panic if the string contains non UTF8 symbols.
-    #[allow(dead_code)]
-    pub fn from_mz_paf(value: &str) -> Result<Self, CustomError> {
-        Self::from_mz_paf_inner(value, ..)
-    }
-
-    /// See [`Self::from_mz_paf`]. This is a variant to help in parsing a part of a larger line.
-    /// # Errors
-    /// If the formula is not valid according to the above specification, with some help on what is going wrong.
-    /// # Panics
-    /// It can panic if the string contains non UTF8 symbols.
-    pub fn from_mz_paf_inner(
-        value: &str,
-        range: impl RangeBounds<usize>,
-    ) -> Result<Self, CustomError> {
-        let mut index = match range.start_bound() {
-            std::ops::Bound::Unbounded => 0,
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s + 1,
-        };
-        let end = match range.end_bound() {
-            std::ops::Bound::Unbounded => value.len().saturating_sub(1),
-            std::ops::Bound::Included(s) => *s,
-            std::ops::Bound::Excluded(s) => s.saturating_sub(1),
-        };
+    pub fn from_mz_paf(value: &str, range: impl RangeBounds<usize>) -> Result<Self, CustomError> {
+        let (mut index, end) = range.bounds(value.len().saturating_sub(1));
         let mut result = Self::default();
         while index <= end {
             let start_index = index;

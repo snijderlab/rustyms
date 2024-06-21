@@ -9,28 +9,43 @@ use crate::{
     AminoAcid, Fragment, MolecularFormula, NeutralLoss, Tolerance,
 };
 
-pub fn parse_mzpaf(line: &str) -> Result<Vec<Fragment>, CustomError> {
+/// Parse a mzPAF peak annotation line (can contain multiple annotations).
+/// # Errors
+/// When the annotation does not follow the format.
+pub fn parse_mzpaf(_line: &str) -> Result<Vec<Fragment>, CustomError> {
     Ok(Vec::new())
 }
 
+/// Parse a single mzPAF peak annotation.
+/// # Errors
+/// When the annotation does not follow the format.
 fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomError> {
     // Parse &
-    let (left_range, auxiliary) = line[range.clone()]
-        .starts_with('&')
-        .then_some((range.add_start(1_usize), true))
-        .unwrap_or((range.clone(), false));
-    let (left_range, analyte_number) = parse_analyte_number(line, left_range)?;
-    let (offset, ion) = parse_ion(line, left_range)?;
-    let (offset, neutral_losses) = parse_neutral_loss(line, range.add_start(offset))?;
+    let (left_range, _auxiliary) = if line[range.clone()].starts_with('&') {
+        (range.add_start(1_usize), true)
+    } else {
+        (range.clone(), false)
+    };
+    let (left_range, _analyte_number) = parse_analyte_number(line, left_range)?;
+    let (offset, _ion) = parse_ion(line, left_range)?;
+    let (offset, _neutral_losses) = parse_neutral_loss(line, range.add_start(offset))?;
     // Parse isotopes
-    let (offset, charge) = parse_charge(line, range.add_start(offset))?;
+    let (offset, _charge) = parse_charge(line, range.add_start(offset))?;
     // Parse adduct type
-    let (offset, deviation) = parse_deviation(line, range.add_start(offset))?;
+    let (offset, _deviation) = parse_deviation(line, range.add_start(offset))?;
     // Parse confidence
-    Ok(Fragment::default())
+    if offset == range.len() {
+        Ok(Fragment::default())
+    } else {
+        Err(CustomError::error(
+            "Invalid mzPAF annotation",
+            "These characters could not be parsed",
+            Context::line_range(0, line, range.add_start(offset)),
+        ))
+    }
 }
 
-enum mzPAFIonType {
+enum IonType {
     Unknown(Option<usize>),
     MainSeries(char, usize),
     Immonium(AminoAcid, Option<SimpleModification>),
@@ -75,7 +90,7 @@ fn parse_analyte_number(
 /// Parse a mzPAF ion.
 /// # Errors
 /// When the ion is not formatted correctly.
-fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonType), CustomError> {
+fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), CustomError> {
     match line[range.clone()].chars().next() {
         Some('?') => {
             if let Some(ordinal) =
@@ -83,7 +98,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             {
                 Ok((
                     1 + ordinal.0,
-                    mzPAFIonType::Unknown(Some(ordinal.2.map_err(|err| {
+                    IonType::Unknown(Some(ordinal.2.map_err(|err| {
                         CustomError::error(
                             "Invalid mzPAF unknown ion ordinal",
                             format!("The ordinal number {}", explain_number_error(&err)),
@@ -92,7 +107,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                     })?)),
                 ))
             } else {
-                Ok((1, mzPAFIonType::Unknown(None)))
+                Ok((1, IonType::Unknown(None)))
             }
         }
         Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
@@ -101,7 +116,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             {
                 Ok((
                     1 + ordinal.0,
-                    mzPAFIonType::MainSeries(
+                    IonType::MainSeries(
                         c,
                         ordinal.2.map_err(|err| {
                             CustomError::error(
@@ -156,7 +171,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             };
             Ok((
                 2 + modification.as_ref().map_or(0, |m| m.0),
-                mzPAFIonType::Immonium(
+                IonType::Immonium(
                     AminoAcid::try_from(amino_acid).map_err(|()| {
                         CustomError::error(
                             "Invalid mzPAF immonium ion",
@@ -220,7 +235,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
             })?;
             Ok((
                 2 + first_ordinal.0 + second_ordinal.0,
-                mzPAFIonType::Internal(first_location, second_location),
+                IonType::Internal(first_location, second_location),
             ))
         }
         Some('_') => {
@@ -249,9 +264,9 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            Ok((3 + len, mzPAFIonType::Named(name.to_string())))
+            Ok((3 + len, IonType::Named(name.to_string())))
         }
-        Some('p') => Ok((1, mzPAFIonType::Precursor)),
+        Some('p') => Ok((1, IonType::Precursor)),
         Some('r') => {
             // Same name as neutral losses
             let (len, name) = if line[range.clone()].chars().nth(1) == Some('[') {
@@ -284,7 +299,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                             Context::line(0, line, range.start_index() + 1, len),
                         ))
                     },
-                    |formula| Ok((3 + len, mzPAFIonType::Reporter(formula))),
+                    |formula| Ok((3 + len, IonType::Reporter(formula))),
                 )
         }
         Some('f') => {
@@ -305,9 +320,9 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, mzPAFIonTyp
                     Context::line(0, line, range.start_index(), 1),
                 ))
             }?;
-            let formula = MolecularFormula::from_mz_paf_inner(line, formula_range.clone())?;
+            let formula = MolecularFormula::from_mz_paf(line, formula_range.clone())?;
 
-            Ok((3 + formula_range.len(), mzPAFIonType::Formula(formula)))
+            Ok((3 + formula_range.len(), IonType::Formula(formula)))
         }
         Some('s') => todo!(), // TODO: return as Formula
         Some(_) => Err(CustomError::error(
@@ -367,8 +382,7 @@ fn parse_neutral_loss(
                 .take_while(|(_, c)| c.is_ascii_alphanumeric())
                 .last()
                 .unwrap();
-            let formula =
-                MolecularFormula::from_mz_paf_inner(line, first..last.0 + last.1.len_utf8())?;
+            let formula = MolecularFormula::from_mz_paf(line, first..last.0 + last.1.len_utf8())?;
             neutral_losses.push(match c {
                 '+' => NeutralLoss::Gain(formula),
                 '-' => NeutralLoss::Loss(formula),
@@ -481,24 +495,24 @@ fn mz_paf_named_molecules() -> &'static Vec<(&'static str, MolecularFormula)> {
             ("dhex", molecular_formula!(C 6 H 10 O 4)),
             ("neuac", molecular_formula!(C 11 H 17 N 1 O 8)),
             ("neugc", molecular_formula!(C 11 H 17 N 1 O 9)),
-            ("tmt126", molecular_formula!(C 8 N 1 H 16)),
-            ("tmt127n", molecular_formula!(C 8 [15 N 1] H 16)),
-            ("tmt127c", molecular_formula!(C 7 [13 C 1] N 1 H 16)),
-            ("tmt128n", molecular_formula!(C 7 [13 C 1] [15 N 1] H 16)),
-            ("tmt128c", molecular_formula!(C 6 [13 C 2] N 1 H 16)),
-            ("tmt129n", molecular_formula!(C 6 [13 C 2] [15 N 1] H 16)),
-            ("tmt129c", molecular_formula!(C 5 [13 C 3] N 1 H 16)),
-            ("tmt130n", molecular_formula!(C 5 [13 C 3] [15 N 1] H 16)),
-            ("tmt130c", molecular_formula!(C 4 [13 C 4] N 1 H 16)),
-            ("tmt131n", molecular_formula!(C 4 [13 C 4] [15 N 1] H 16)),
-            ("tmt131c", molecular_formula!(C 3 [13 C 5] N 1 H 16)),
-            ("tmt132n", molecular_formula!(C 3 [13 C 5] [15 N 1] H 16)),
-            ("tmt132c", molecular_formula!(C 2 [13 C 6] N 1 H 16)),
-            ("tmt133n", molecular_formula!(C 2 [13 C 6] [15 N 1] H 16)),
-            ("tmt133c", molecular_formula!(C 1 [13 C 7] N 1 H 16)),
-            ("tmt134n", molecular_formula!(C 1 [13 C 7] [15 N 1] H 16)),
-            ("tmt134c", molecular_formula!(C 0 [13 C 8] N 1 H 16)),
-            ("tmt135n", molecular_formula!(C 0 [13 C 8] [15 N 1] H 16)),
+            ("tmt126", molecular_formula!(C 8 N 1 H 15)),
+            ("tmt127n", molecular_formula!(C 8 [15 N 1] H 15)),
+            ("tmt127c", molecular_formula!(C 7 [13 C 1] N 1 H 15)),
+            ("tmt128n", molecular_formula!(C 7 [13 C 1] [15 N 1] H 15)),
+            ("tmt128c", molecular_formula!(C 6 [13 C 2] N 1 H 15)),
+            ("tmt129n", molecular_formula!(C 6 [13 C 2] [15 N 1] H 15)),
+            ("tmt129c", molecular_formula!(C 5 [13 C 3] N 1 H 15)),
+            ("tmt130n", molecular_formula!(C 5 [13 C 3] [15 N 1] H 15)),
+            ("tmt130c", molecular_formula!(C 4 [13 C 4] N 1 H 15)),
+            ("tmt131n", molecular_formula!(C 4 [13 C 4] [15 N 1] H 15)),
+            ("tmt131c", molecular_formula!(C 3 [13 C 5] N 1 H 15)),
+            ("tmt132n", molecular_formula!(C 3 [13 C 5] [15 N 1] H 15)),
+            ("tmt132c", molecular_formula!(C 2 [13 C 6] N 1 H 15)),
+            ("tmt133n", molecular_formula!(C 2 [13 C 6] [15 N 1] H 15)),
+            ("tmt133c", molecular_formula!(C 1 [13 C 7] N 1 H 15)),
+            ("tmt134n", molecular_formula!(C 1 [13 C 7] [15 N 1] H 15)),
+            ("tmt134c", molecular_formula!(C 0 [13 C 8] N 1 H 15)),
+            ("tmt135n", molecular_formula!(C 0 [13 C 8] [15 N 1] H 15)),
             ("tmtzero", molecular_formula!(C 12 H 20 N 2 O 2)),
             ("tmtpro_zero", molecular_formula!(C 15 H 25 N 3 O 3)),
             ("tmt2plex", molecular_formula!(C 11 [ 13 C 1] H 20 N 2 O 2)),
@@ -510,23 +524,23 @@ fn mz_paf_named_molecules() -> &'static Vec<(&'static str, MolecularFormula)> {
                 "tmtpro",
                 molecular_formula!(C 8 [13 C 7] H 25 [15 N 2] N 1 O 3),
             ),
-            ("itraq113", molecular_formula!(C 6 N 2 H 13)),
-            ("itraq114", molecular_formula!(C 5 [13 C 1] N 2 H 13)),
+            ("itraq113", molecular_formula!(C 6 N 2 H 12)),
+            ("itraq114", molecular_formula!(C 5 [13 C 1] N 2 H 12)),
             (
                 "itraq115",
-                molecular_formula!(C 5 [13 C 1] N 1 [15 N 1] H 13),
+                molecular_formula!(C 5 [13 C 1] N 1 [15 N 1] H 12),
             ),
             (
                 "itraq116",
-                molecular_formula!(C 4 [13 C 2] N 1 [15 N 1] H 13),
+                molecular_formula!(C 4 [13 C 2] N 1 [15 N 1] H 12),
             ),
             (
                 "itraq117",
-                molecular_formula!(C 3 [13 C 3] N 1 [15 N 1] H 13),
+                molecular_formula!(C 3 [13 C 3] N 1 [15 N 1] H 12),
             ),
-            ("itraq118", molecular_formula!(C 3 [13 C 3] [15 N 2] H 13)),
-            ("itraq119", molecular_formula!(C 4 [13 C 2] [15 N 2] H 13)),
-            ("itraq121", molecular_formula!([13 C 6] [15 N 2] H 13)),
+            ("itraq118", molecular_formula!(C 3 [13 C 3] [15 N 2] H 12)),
+            ("itraq119", molecular_formula!(C 4 [13 C 2] [15 N 2] H 12)),
+            ("itraq121", molecular_formula!([13 C 6] [15 N 2] H 12)),
             (
                 "itraq4plex",
                 molecular_formula!(C 4 [13 C 3] H 12 N 1 [15 N 1] O 1),
@@ -535,29 +549,29 @@ fn mz_paf_named_molecules() -> &'static Vec<(&'static str, MolecularFormula)> {
                 "itraq8plex",
                 molecular_formula!(C 7 [13 C 7] H 24 N 3 [15 N 1] O 3),
             ),
-            ("tmt126-etd", molecular_formula!(C 7 N 1 H 16)),
-            ("tmt127n-etd", molecular_formula!(C 7 [15 N 1] H 16)),
-            ("tmt127c-etd", molecular_formula!(C 6 [13 C 1] N 1 H 16)),
+            ("tmt126-etd", molecular_formula!(C 7 N 1 H 15)),
+            ("tmt127n-etd", molecular_formula!(C 7 [15 N 1] H 15)),
+            ("tmt127c-etd", molecular_formula!(C 6 [13 C 1] N 1 H 15)),
             (
                 "tmt128n-etd",
-                molecular_formula!(C 6 [13 C 1] [15 N 1] H 16),
+                molecular_formula!(C 6 [13 C 1] [15 N 1] H 15),
             ),
-            ("tmt128c-etd", molecular_formula!(C 5 [13 C 2] N 1 H 16)),
+            ("tmt128c-etd", molecular_formula!(C 5 [13 C 2] N 1 H 15)),
             (
                 "tmt129n-etd",
-                molecular_formula!(C 5 [13 C 2] [15 N 1] H 16),
+                molecular_formula!(C 5 [13 C 2] [15 N 1] H 15),
             ),
-            ("tmt129c-etd", molecular_formula!(C 4 [13 C 3] N 1 H 16)),
+            ("tmt129c-etd", molecular_formula!(C 4 [13 C 3] N 1 H 15)),
             (
                 "tmt130n-etd",
-                molecular_formula!(C 4 [13 C 3] [15 N 1] H 16),
+                molecular_formula!(C 4 [13 C 3] [15 N 1] H 15),
             ),
-            ("tmt130c-etd", molecular_formula!(C 3 [13 C 4] N 1 H 16)),
+            ("tmt130c-etd", molecular_formula!(C 3 [13 C 4] N 1 H 15)),
             (
                 "tmt131n-etd",
-                molecular_formula!(C 3 [13 C 4] [15 N 1] H 16),
+                molecular_formula!(C 3 [13 C 4] [15 N 1] H 15),
             ),
-            ("tmt131c-etd", molecular_formula!(C 2 [13 C 5] N 1 H 16)),
+            ("tmt131c-etd", molecular_formula!(C 2 [13 C 5] N 1 H 15)),
         ]
     })
 }

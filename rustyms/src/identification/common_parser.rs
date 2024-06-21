@@ -1,10 +1,7 @@
 use regex::{Captures, Regex};
 
-use crate::error::CustomError;
+use crate::{csv::CsvLine, error::CustomError};
 use std::{ops::Range, str::FromStr};
-
-use crate::csv::CsvLine;
-use crate::helper_functions::InvertResult;
 
 // Create:
 // * XXFormat

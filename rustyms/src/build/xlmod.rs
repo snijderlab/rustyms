@@ -89,12 +89,12 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
                     // deadEndFormula: "C8 H12 O3" xsd:string
                     sites = Some(1);
                     formula =
-                        Some(MolecularFormula::from_xlmod(&line[17..line.len() - 12]).unwrap());
+                        Some(MolecularFormula::from_xlmod(line, 17..line.len() - 12).unwrap());
                 } else if line.starts_with("bridgeFormula") {
                     // bridgeFormula: "C7 D10 H2 N4" xsd:string
                     sites = Some(2);
                     formula =
-                        Some(MolecularFormula::from_xlmod(&line[16..line.len() - 12]).unwrap());
+                        Some(MolecularFormula::from_xlmod(line, 16..line.len() - 12).unwrap());
                 } else if line.starts_with("specificities") {
                     // specificities: "(C,U)" xsd:string
                     // specificities: "(K,N,Q,R,Protein N-term)&(E,D,Protein C-term)" xsd:string
@@ -224,11 +224,11 @@ mod tests {
     fn parse_molecular_formula() {
         assert_eq!(
             parse_molecular_formula_psi_mod("(12)C -5 (13)C 5 H 0 N 0 O 0 S 0").unwrap(),
-            molecular_formula!((12)C -5 (13)C 5 H 0 N 0 O 0 S 0)
+            molecular_formula!([12 C -5] [13 C 5] H 0 N 0 O 0 S 0)
         );
         assert_eq!(
             parse_molecular_formula_psi_mod("(12)C -9 (13)C 9").unwrap(),
-            molecular_formula!((12)C -9 (13)C 9)
+            molecular_formula!([12 C -9] [13 C 9])
         );
     }
 }

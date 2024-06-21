@@ -1,6 +1,5 @@
-use crate::{
-    modification::{AmbiguousLookup, CrossLinkLookup, CrossLinkName, Ontology, SimpleModification},
-    Modification,
+use crate::modification::{
+    AmbiguousLookup, CrossLinkLookup, CrossLinkName, Ontology, SimpleModification,
 };
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -61,7 +60,7 @@ impl SimpleModification {
             || {
                 last_result.map(|m| {
                     m.unwrap_or_else(|| {
-                        ReturnModification::Defined(SimpleModification::Mass(OrderedMass::zero()))
+                        ReturnModification::Defined(Self::Mass(OrderedMass::zero()))
                     })
                 })
             },
@@ -209,7 +208,7 @@ fn parse_single_modification(
                         .with_long_description("This modification cannot be read as a GNO name")
                 }),
                 ("formula", tail) => Ok(Some(SimpleModification::Formula(
-                    MolecularFormula::from_pro_forma(tail).map_err(|e| {
+                    MolecularFormula::from_pro_forma(tail, .., false).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid formula: {e}"
                         ))
@@ -322,7 +321,7 @@ fn parse_single_modification(
                 )
             }
         } else {
-            modification.map(|m| m.map(|m| ReturnModification::Defined(m.into())))
+            modification.map(|m| m.map(ReturnModification::Defined))
         }
     } else {
         Err(CustomError::error(

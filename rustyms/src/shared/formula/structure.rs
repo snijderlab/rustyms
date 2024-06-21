@@ -10,6 +10,7 @@ use std::{
 };
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
+#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or None for natural distribution), and the number of this part

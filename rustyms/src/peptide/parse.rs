@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroU16, ops::Range};
+use std::{collections::HashMap, num::NonZeroU16};
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -831,7 +831,7 @@ pub(super) fn parse_charge_state(
             }
 
             // formula
-            let mut formula = MolecularFormula::from_pro_forma_inner(
+            let mut formula = MolecularFormula::from_pro_forma(
                 line,
                 offset + count_len..offset + set.len() - charge_len,
                 true,

@@ -66,7 +66,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             for line in values {
                 if line.starts_with("DiffFormula") {
                     modification.formula =
-                        MolecularFormula::from_psi_mod(&line[13..line.len() - 12]).unwrap();
+                        MolecularFormula::from_psi_mod(line, 13..line.len() - 11).unwrap();
                 } else if line.starts_with("Origin") {
                     origins = line[8..line.len() - 12]
                         .split(',')
@@ -135,11 +135,11 @@ mod tests {
     fn parse_molecular_formula() {
         assert_eq!(
             parse_molecular_formula_psi_mod("(12)C -5 (13)C 5 H 0 N 0 O 0 S 0").unwrap(),
-            molecular_formula!((12)C -5 (13)C 5 H 0 N 0 O 0 S 0)
+            molecular_formula!([12 C -5] [13 C 5] H 0 N 0 O 0 S 0)
         );
         assert_eq!(
             parse_molecular_formula_psi_mod("(12)C -9 (13)C 9").unwrap(),
-            molecular_formula!((12)C -9 (13)C 9)
+            molecular_formula!([12 C -9] [13 C 9])
         );
     }
 }

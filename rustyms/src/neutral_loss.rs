@@ -58,16 +58,8 @@ impl FromStr for NeutralLoss {
         } else if let Some(c) = s.chars().next() {
             // Or match a molecular formula
             match c {
-                '+' => Ok(Self::Gain(MolecularFormula::from_pro_forma_inner(
-                    s,
-                    1..,
-                    false,
-                )?)),
-                '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma_inner(
-                    s,
-                    1..,
-                    false,
-                )?)),
+                '+' => Ok(Self::Gain(MolecularFormula::from_pro_forma(s, 1.., false)?)),
+                '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma(s, 1.., false)?)),
                 _ => Err(CustomError::error(
                     "Invalid neutral loss",
                     "A neutral loss can only start with '+' or '-'",
