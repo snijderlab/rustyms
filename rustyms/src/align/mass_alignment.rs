@@ -5,10 +5,9 @@ use crate::{
     SequenceElement, Tolerance, WithinTolerance,
 };
 
-use super::alignment::Score;
-
-use super::Alignment;
-use super::{align_type::*, diagonal_array::DiagonalArray, piece::*, scoring::*};
+use super::{
+    align_type::*, alignment::Score, diagonal_array::DiagonalArray, piece::*, scoring::*, Alignment,
+};
 
 // TODO: no way of handling terminal modifications yet
 /// Create an alignment of two peptides based on mass and homology.

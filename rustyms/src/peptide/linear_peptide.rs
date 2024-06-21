@@ -155,16 +155,20 @@ impl<T> LinearPeptide<T> {
 
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
     pub fn get_n_term(&self) -> MolecularFormula {
-        self.n_term
-            .as_ref()
-            .map_or_else(|| molecular_formula!(H 1), Chemical::formula)
+        molecular_formula!(H 1)
+            + self
+                .n_term
+                .as_ref()
+                .map_or_else(MolecularFormula::default, Chemical::formula)
     }
 
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
     pub fn get_c_term(&self) -> MolecularFormula {
-        self.c_term
-            .as_ref()
-            .map_or_else(|| molecular_formula!(H 1 O 1), Chemical::formula)
+        molecular_formula!(H 1 O 1)
+            + self
+                .c_term
+                .as_ref()
+                .map_or_else(MolecularFormula::default, Chemical::formula)
     }
 
     /// Get the global isotope modifications
@@ -837,6 +841,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
 
 impl<T> Display for LinearPeptide<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: global mods should be placed before anything else when a Peptidoform or higher is displayed
         for (element, isotope) in &self.global {
             write!(
                 f,

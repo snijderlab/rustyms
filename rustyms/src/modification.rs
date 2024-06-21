@@ -201,10 +201,10 @@ impl Display for SimpleModification {
                 write!(f, "Formula:{formula}|INFO:Custom:{name}")?;
             }
             Self::Database { id, .. } => {
-                write!(f, "{}:{}", id.name, id.ontology.char())?;
+                write!(f, "{}:{}", id.ontology.char(), id.name)?;
             }
             Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
-            Self::Linker { id, .. } => write!(f, "{}:{}", id.name, id.ontology.char())?,
+            Self::Linker { id, .. } => write!(f, "{}:{}", id.ontology.char(), id.name)?,
         }
         Ok(())
     }

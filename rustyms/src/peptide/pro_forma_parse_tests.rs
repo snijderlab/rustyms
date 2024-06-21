@@ -1,11 +1,14 @@
-//! Tests all examples provided in the Pro Forma specification chapter 8 Appendix III
+//! Tests all examples provided in the ProForma specification chapter 8 Appendix III,
+//! some manual examples, some (past) fuzzer crashes, and some manual tests.
 #![allow(clippy::missing_panics_doc)]
 
-use crate::modification::{ModificationId, SimpleModification};
-use crate::placement_rule::PlacementRule;
-use crate::system::usize::Charge;
-use crate::*;
-use crate::{model::Location, CompoundPeptidoform};
+use crate::{
+    model::Location,
+    modification::{ModificationId, SimpleModification},
+    placement_rule::PlacementRule,
+    system::usize::Charge,
+    CompoundPeptidoform, *,
+};
 
 macro_rules! parse_test {
     ($case:literal, $name:ident) => {

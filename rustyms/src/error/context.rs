@@ -67,8 +67,6 @@ pub enum Context {
 
 #[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl Context {
-    // TODO: create a constructor based on a RangeBounds instance, automatically adjusting to all possible cases of the range
-
     /// Creates a new context when no context can be given
     pub const fn none() -> Self {
         Self::None

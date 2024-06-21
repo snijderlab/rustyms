@@ -230,7 +230,7 @@ pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) 
 }
 
 #[allow(dead_code)]
-/// Get the index of the next copy of the given char
+/// Get the index of the next copy of the given char (looking at the byte value, does not guarantee full character)
 pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     for (i, ch) in chars[start..].iter().enumerate() {
         if *ch == char {
@@ -241,22 +241,19 @@ pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
 }
 
 #[allow(dead_code)]
-/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start
+/// Find the enclosed text by the given symbols, assumes a single open is already read just before the start, guarantees to only pick full characters
 pub fn end_of_enclosure(text: &str, start: usize, open: u8, close: u8) -> Option<usize> {
     let mut state = 1;
     for (i, ch) in text[start..].as_bytes().iter().enumerate() {
-        if !text.is_char_boundary(i) {
-            continue;
-        }
-        if i + 1 < text.len() && !text.is_char_boundary(i + 1) {
-            continue;
-        }
-        if *ch == open {
-            state += 1;
-        } else if *ch == close {
-            state -= 1;
-            if state == 0 {
-                return Some(start + i);
+        // Check if this byte is a full character (is_char_boundary also works on index==len)
+        if text.is_char_boundary(start + i) && text.is_char_boundary(start + i + 1) {
+            if *ch == open {
+                state += 1;
+            } else if *ch == close {
+                state -= 1;
+                if state == 0 {
+                    return Some(start + i);
+                }
             }
         }
     }
