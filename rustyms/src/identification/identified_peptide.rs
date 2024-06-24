@@ -4,7 +4,7 @@ use super::fasta::FastaData;
 use super::novor::NovorData;
 use super::opair::OpairData;
 use super::peaks::PeaksData;
-use super::{MaxQuantData, SageData};
+use super::{MSFraggerData, MaxQuantData, SageData};
 use crate::error::CustomError;
 use crate::peptide::VerySimple;
 use crate::system::usize::Charge;
@@ -41,7 +41,8 @@ pub enum MetaData {
     MaxQuant(MaxQuantData),
     /// Sage metadata
     Sage(SageData),
-    // TODO: build Casanovo support at some point
+    /// Sage metadata
+    MSFragger(MSFraggerData),
 }
 
 impl MetaData {
@@ -52,6 +53,7 @@ impl MetaData {
             | Self::Novor(NovorData { z, .. })
             | Self::Opair(OpairData { z, .. })
             | Self::Sage(SageData { z, .. })
+            | Self::MSFragger(MSFraggerData { z, .. })
             | Self::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
             Self::Fasta(_) | Self::None => None,
         }
@@ -77,6 +79,7 @@ impl MetaData {
             }
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
             Self::Sage(SageData { scan_nr, .. }) => Some(scan_nr.2),
+            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(spectrum.scan.0),
             Self::Fasta(_) | Self::None => None,
         }
     }
@@ -88,6 +91,7 @@ impl MetaData {
             Self::Opair(OpairData { file_name, .. }) => Some(file_name),
             Self::MaxQuant(MaxQuantData { raw_file, .. }) => Some(raw_file),
             Self::Sage(SageData { filename, .. }) => Some(filename),
+            Self::MSFragger(MSFraggerData { spectrum_file, .. }) => Some(spectrum_file),
             Self::Novor(_) | Self::Fasta(_) | Self::None => None,
         }
     }

@@ -1,6 +1,9 @@
 use regex::{Captures, Regex};
 
-use crate::{csv::CsvLine, error::CustomError};
+use crate::{
+    csv::CsvLine,
+    error::{Context, CustomError},
+};
 use std::{ops::Range, str::FromStr};
 
 // Create:
@@ -112,7 +115,7 @@ impl<'a> Location<'a> {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn array(self, sep: char) -> std::vec::IntoIter<Location<'a>> {
+    pub fn array(self, sep: char) -> std::vec::IntoIter<Self> {
         let mut offset = 0;
         let mut output = Vec::new();
         for part in self.as_str().split(sep) {
@@ -214,6 +217,14 @@ impl<'a> Location<'a> {
 
     pub fn full_line(&self) -> &str {
         self.line.line()
+    }
+
+    pub fn context(&self) -> Context {
+        Context::line_range(
+            self.line.line_index(),
+            self.full_line(),
+            self.location.clone(),
+        )
     }
 
     pub fn apply(self, f: impl FnOnce(Self) -> Self) -> Self {

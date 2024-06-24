@@ -30,7 +30,7 @@ format_family!(
         scan_index: usize, |location: Location| location.parse(NUMBER_ERROR);
         modifications: String, |location: Location| Ok(location.get_string());
         proteins: String, |location: Location| Ok(location.get_string());
-        sequence: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        peptide: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             None
@@ -85,7 +85,7 @@ format_family!(
 impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
-            peptide: value.sequence.clone().unwrap_or_default(), // TODO: what to do with empty sequences
+            peptide: value.peptide.clone().unwrap_or_default(), // TODO: what to do with empty sequences
             local_confidence: None,
             score: Some(value.score),
             metadata: MetaData::MaxQuant(value),
@@ -128,7 +128,7 @@ pub const MSMS: MaxQuantFormat = MaxQuantFormat {
     scan_index: "scan index",
     modifications: "modifications",
     proteins: "proteins",
-    sequence: "modified sequence",
+    peptide: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
     mass_analyser: "mass analyzer",
@@ -179,7 +179,7 @@ pub const MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     scan_index: "scan index",
     modifications: "modifications",
     proteins: "proteins",
-    sequence: "modified sequence",
+    peptide: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
     mass_analyser: "mass analyzer",
@@ -230,7 +230,7 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     scan_index: "scan index",
     modifications: "modifications",
     proteins: "proteins",
-    sequence: "modified sequence",
+    peptide: "modified sequence",
     z: "charge",
     fragmentation: "fragmentation",
     mass_analyser: "mass analyzer",

@@ -38,7 +38,6 @@ format_family!(
                             None,
                         );
         tag_length: usize, |location: Location| location.parse(NUMBER_ERROR);
-        /// Range [0-1]
         alc: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         length: usize, |location: Location| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
