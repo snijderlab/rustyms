@@ -19,12 +19,6 @@ impl MultiChemical for CompoundPeptidoform {
     }
 }
 
-impl Display for CompoundPeptidoform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.peptidoforms().iter().join("+"))
-    }
-}
-
 impl CompoundPeptidoform {
     /// Assume there is exactly one peptidoform in this collection.
     #[doc(alias = "assume_linear")]
@@ -57,6 +51,44 @@ impl CompoundPeptidoform {
             base.extend(peptidoform.generate_theoretical_fragments(max_charge, model, index));
         }
         base
+    }
+}
+
+impl Display for CompoundPeptidoform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let global_equal = self
+            .peptidoforms()
+            .iter()
+            .flat_map(Peptidoform::peptides)
+            .map(|p| &p.global)
+            .tuple_windows()
+            .all(|(a, b)| a == b);
+        assert!(global_equal, "Not all global isotope modifications on all peptides on this compound peptidoform are identical");
+        let empty = Vec::new();
+        let global = self
+            .peptidoforms()
+            .iter()
+            .flat_map(Peptidoform::peptides)
+            .next()
+            .map_or(&empty, |p| &p.global);
+        for (element, isotope) in global {
+            write!(
+                f,
+                "<{}{}>",
+                isotope.map(|i| i.to_string()).unwrap_or_default(),
+                element
+            )?;
+        }
+
+        let mut first = true;
+        for p in self.peptidoforms() {
+            if !first {
+                write!(f, "+")?;
+            }
+            p.display(f, false)?;
+            first = false;
+        }
+        Ok(())
     }
 }
 

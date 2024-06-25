@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -130,16 +131,51 @@ impl Peptidoform {
             false
         }
     }
+
+    /// Display this peptidoform
+    /// # Panics
+    /// When some peptides do not have the same global isotope modifications.
+    /// # Errors
+    /// If the underlying formatter errors.
+    pub(crate) fn display(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        show_global_mods: bool,
+    ) -> std::fmt::Result {
+        if show_global_mods {
+            let global_equal = self
+                .peptides()
+                .iter()
+                .map(|p| &p.global)
+                .tuple_windows()
+                .all(|(a, b)| a == b);
+            assert!(global_equal, "Not all global isotope modifications on all peptides on this peptidoform are identical");
+            let empty = Vec::new();
+            let global = self.peptides().first().map_or(&empty, |p| &p.global);
+            for (element, isotope) in global {
+                write!(
+                    f,
+                    "<{}{}>",
+                    isotope.map(|i| i.to_string()).unwrap_or_default(),
+                    element
+                )?;
+            }
+        }
+
+        let mut first = true;
+        for p in self.peptides() {
+            if !first {
+                write!(f, "//")?;
+            }
+            p.display(f, false)?;
+            first = false;
+        }
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for Peptidoform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(p) = self.0.first() {
-            write!(f, "{p}")?;
-        }
-        for p in self.peptides().iter().skip(1) {
-            write!(f, "//{p}")?;
-        }
-        Ok(())
+        self.display(f, true)
     }
 }

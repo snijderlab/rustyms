@@ -685,6 +685,47 @@ impl<T> LinearPeptide<T> {
             .map(|f| f.with_global_isotope_modifications(&self.global).expect("Global isotope modification invalid in determination of all formulas for a peptide"))
             .collect(), seen)
     }
+
+    /// Display this peptide
+    pub(crate) fn display(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        show_global_mods: bool,
+    ) -> std::fmt::Result {
+        if show_global_mods {
+            for (element, isotope) in &self.global {
+                write!(
+                    f,
+                    "<{}{}>",
+                    isotope.map(|i| i.to_string()).unwrap_or_default(),
+                    element
+                )?;
+            }
+        }
+        for labile in &self.labile {
+            write!(f, "{{{labile}}}")?;
+        }
+        if let Some(m) = &self.n_term {
+            write!(f, "[{m}]-")?;
+        }
+        let mut placed = Vec::new();
+        let mut last_ambiguous = None;
+        for position in &self.sequence {
+            placed.extend(position.display(f, &placed, last_ambiguous)?);
+            last_ambiguous = position.ambiguous;
+        }
+        if last_ambiguous.is_some() {
+            // TODO: Does not display ambiguous correctly
+            write!(f, ")")?;
+        }
+        if let Some(m) = &self.c_term {
+            write!(f, "-[{m}]")?;
+        }
+        if let Some(c) = &self.charge_carriers {
+            write!(f, "/{c}")?;
+        }
+        Ok(())
+    }
 }
 
 impl<T: Clone> LinearPeptide<T> {
@@ -841,38 +882,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
 
 impl<T> Display for LinearPeptide<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: global mods should be placed before anything else when a Peptidoform or higher is displayed
-        for (element, isotope) in &self.global {
-            write!(
-                f,
-                "<{}{}>",
-                isotope.map(|i| i.to_string()).unwrap_or_default(),
-                element
-            )?;
-        }
-        for labile in &self.labile {
-            write!(f, "{{{labile}}}")?;
-        }
-        if let Some(m) = &self.n_term {
-            write!(f, "[{m}]-")?;
-        }
-        let mut placed = Vec::new();
-        let mut last_ambiguous = None;
-        for position in &self.sequence {
-            placed.extend(position.display(f, &placed, last_ambiguous)?);
-            last_ambiguous = position.ambiguous;
-        }
-        if last_ambiguous.is_some() {
-            // TODO: Does not display ambiguous correctly
-            write!(f, ")")?;
-        }
-        if let Some(m) = &self.c_term {
-            write!(f, "-[{m}]")?;
-        }
-        if let Some(c) = &self.charge_carriers {
-            write!(f, "/{c}")?;
-        }
-        Ok(())
+        self.display(f, true)
     }
 }
 
