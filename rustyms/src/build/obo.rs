@@ -1,11 +1,6 @@
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{BufRead, BufReader},
-    path::Path,
-};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
-use flate2::read::GzDecoder;
+use flate2::bufread::GzDecoder;
 
 use crate::helper_functions::check_extension;
 
@@ -25,13 +20,13 @@ impl OboOntology {
     pub fn from_file(path: impl AsRef<Path>) -> Result<OboOntology, String> {
         let file = File::open(path.as_ref()).map_err(|e| e.to_string())?;
         if check_extension(path, "gz") {
-            Self::from_raw(BufReader::new(GzDecoder::new(file)))
+            Self::from_raw(BufReader::new(GzDecoder::new(BufReader::new(file))))
         } else {
             Self::from_raw(BufReader::new(file))
         }
     }
 
-    fn from_raw<T: std::io::Read>(reader: BufReader<T>) -> Result<Self, String> {
+    fn from_raw<T: std::io::BufRead>(reader: T) -> Result<Self, String> {
         let mut obo = OboOntology::default();
         let mut recent_obj = None;
 

@@ -91,7 +91,7 @@ impl MetaData {
             Self::Opair(OpairData { file_name, .. }) => Some(file_name),
             Self::MaxQuant(MaxQuantData { raw_file, .. }) => Some(raw_file),
             Self::Sage(SageData { filename, .. }) => Some(filename),
-            Self::MSFragger(MSFraggerData { spectrum_file, .. }) => Some(spectrum_file),
+            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
             Self::Novor(_) | Self::Fasta(_) | Self::None => None,
         }
     }

@@ -4,7 +4,7 @@ use crate::modification::{
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{num::NonZeroU16, ops::Range};
+use std::{num::NonZeroU16, ops::Range, sync::OnceLock};
 
 use regex::Regex;
 
@@ -69,6 +69,8 @@ impl SimpleModification {
     }
 }
 
+static SLOPPY_MOD_REGEX: OnceLock<Regex> = OnceLock::new();
+
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
 #[allow(clippy::missing_panics_doc)]
@@ -81,8 +83,9 @@ fn parse_single_modification(
     custom_database: Option<&CustomDatabase>,
 ) -> Result<Option<ReturnModification>, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
-    let regex =
-        Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap();
+    let regex = SLOPPY_MOD_REGEX.get_or_init(|| {
+        Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap()
+    });
     if let Some(groups) = regex.captures(full_modification) {
         // Capture the full mod name (head:tail), head, tail, ambiguous group, and localisation score
         let (full, head, tail, label_group, localisation_score) = (

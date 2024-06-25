@@ -9,7 +9,7 @@ use std::{
     str::FromStr,
 };
 
-use flate2::read::GzDecoder;
+use flate2::bufread::GzDecoder;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -157,7 +157,7 @@ pub fn parse_csv(
     })?;
     if check_extension(path, "gz") {
         Ok(Box::new(parse_csv_raw(
-            GzDecoder::new(file),
+            GzDecoder::new(BufReader::new(file)),
             separator,
             provided_header,
         )?))

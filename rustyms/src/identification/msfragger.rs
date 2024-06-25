@@ -46,8 +46,8 @@ format_family!(
         experimental_mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         calibrated_experimental_mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         expectation: f64, |location: Location| location.parse(NUMBER_ERROR);
-        hyperscore: f64, |location: Location| location.parse(NUMBER_ERROR);
-        next_score: f64, |location: Location| location.parse(NUMBER_ERROR);
+        hyperscore: f64, |location: Location| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
+        next_score: f64, |location: Location| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
         peptide_prophet_probability: f64, |location: Location| location.parse(NUMBER_ERROR);
         enzymatic_termini: usize, |location: Location| location.parse(NUMBER_ERROR);
         missed_cleavages: usize, |location: Location| location.parse(NUMBER_ERROR);

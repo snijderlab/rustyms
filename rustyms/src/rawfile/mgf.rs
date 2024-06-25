@@ -22,7 +22,7 @@ use crate::{
         usize::Charge,
     },
 };
-use flate2::read::GzDecoder;
+use flate2::bufread::GzDecoder;
 
 /// Open a MGF file and return the contained spectra.
 ///
@@ -42,7 +42,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, CustomError> {
         )
     })?;
     if check_extension(path, "gz") {
-        open_raw(GzDecoder::new(file))
+        open_raw(GzDecoder::new(BufReader::new(file)))
     } else {
         open_raw(file)
     }
