@@ -50,7 +50,7 @@ macro_rules! parse_test {
 parse_test!("AA", positive_example_1);
 parse_test!("A[+1]", positive_example_2);
 parse_test!("AA[+1]", positive_example_3);
-// parse_test!("A(AAAA)[+1][+1]", positive_example_4); TODO: multiple mods on a single ambiguous range
+parse_test!("A(AAAA)[+1][+1]", positive_example_4);
 parse_test!("UWAKJDNLASNOIJPojkjjdakjn[U:Oxidation]", positive_example_5);
 parse_test!("[+1]-A[+1]-[+1]", positive_example_6);
 parse_test!("AA+AA", positive_example_7);
@@ -90,11 +90,11 @@ parse_test!(
     positive_example_21
 );
 parse_test!("<[MOD:01090]@C>ATPEILTCNSIGCLK", positive_example_22);
-// parse_test!("[Phospho]?EM[Oxidation]EVTSESPEK", positive_example_23); TODO: incorrect saving
-// parse_test!(
-//     "[Phospho][Phospho]?[Acetyl]-EM[Oxidation]EVTSESPEK",
-//     positive_example_24
-// ); TODO: incorrect saving
+parse_test!("[Phospho]?EM[Oxidation]EVTSESPEK", positive_example_23);
+parse_test!(
+    "[Phospho][Phospho]?[Acetyl]-EM[Oxidation]EVTSESPEK",
+    positive_example_24
+);
 parse_test!(
     "EM[Oxidation]EVT[#g1]S[#g1]ES[Phospho#g1]PEK",
     positive_example_25
@@ -103,15 +103,15 @@ parse_test!(
     "EM[Oxidation]EVT[#g1(0.01)]S[#g1(0.09)]ES[Phospho#g1(0.90)]PEK",
     positive_example_26
 );
-// parse_test!(
-//     "[Phospho#s1]?EM[Oxidation]EVT[#s1(0.01)]S[#s1(0.90)]ES[#s1(0.90)]PEK",
-//     positive_example_27
-// ); TODO: ambiguous location mod with prefix definition but locations listed
-// parse_test!("PROT(EOSFORMS)[+19.0523]ISK", positive_example_28); TODO: incorrect saving
-// parse_test!(
-//     "PROT(EOC[Carbamidomethyl]FORMS)[+19.0523]ISK",
-//     positive_example_29
-// ); TODO: incorrect saving
+parse_test!(
+    "[Phospho#s1]?EM[Oxidation]EVT[#s1(0.01)]S[#s1(0.90)]ES[#s1(0.90)]PEK",
+    positive_example_27
+);
+parse_test!("PROT(EOSFORMS)[+19.0523]ISK", positive_example_28);
+parse_test!(
+    "PROT(EOC[Carbamidomethyl]FORMS)[+19.0523]ISK",
+    positive_example_29
+);
 parse_test!("SEQUEN[Formula:C12H20O2]CE", positive_example_30);
 parse_test!("SEQUEN[Formula:HN-1O2]CE", positive_example_31);
 parse_test!("SEQUEN[Formula:[13C2][12C-2]H2N]CE", positive_example_32);
@@ -245,10 +245,10 @@ parse_test!(
     "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
     positive_example_85
 );
-// parse_test!(
-//     "AVTKYTSSK[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
-//     positive_example_86
-// ); TODO: cross link on terminal position
+parse_test!(
+    "AVTKYTSSK[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
+    positive_example_86
+);
 parse_test!("NEEYN[GNO:G59626AS]K", positive_example_87);
 parse_test!(
     "YPVLN[GNO:G62765YT]VTMPN[GNO:G02815KT]NSNGKFDK",
@@ -286,37 +286,37 @@ parse_test!(
     positive_example_104
 );
 parse_test!("{Glycan:Hex}{Glycan:NeuAc}EMEVNESPEK", positive_example_105);
-// parse_test!("[Phospho]?EM[Oxidation]EVTSESPEK", positive_example_106);  TODO: incorrect saving
-// parse_test!(
-//     "[Phospho][Phospho]?[Acetyl]-EM[Oxidation]EVTSESPEK",
-//     positive_example_107
-// );  TODO: incorrect saving
-// parse_test!(
-//     "[Phospho]^2?[Acetyl]-EM[Oxidation]EVTSESPEK",
-//     positive_example_108
-// );  TODO: incorrect saving
-// parse_test!(
-//     "[Phospho]^2?[Acetyl]-EM[Oxidation]EVTSESPEK",
-//     positive_example_109
-// ); TODO: incorrect saving
+parse_test!("[Phospho]?EM[Oxidation]EVTSESPEK", positive_example_106);
+parse_test!(
+    "[Phospho][Phospho]?[Acetyl]-EM[Oxidation]EVTSESPEK",
+    positive_example_107
+);
+parse_test!(
+    "[Phospho]^2?[Acetyl]-EM[Oxidation]EVTSESPEK",
+    positive_example_108
+);
+parse_test!(
+    "[Phospho]^2?[Acetyl]-EM[Oxidation]EVTSESPEK",
+    positive_example_109
+);
 parse_test!(
     "EM[Oxidation]EVT[#g1]S[#g1]ES[Phospho#g1]PEK",
     positive_example_110
 );
-// parse_test!("PRT(ESFRMS)[+19.0523]ISK", positive_example_111);  TODO: incorrect saving
-// parse_test!(
-//     "PRT(EC[Carbamidomethyl]FRMS)[+19.0523]ISK",
-//     positive_example_112
-// );  TODO: incorrect saving
+parse_test!("PRT(ESFRMS)[+19.0523]ISK", positive_example_111);
+parse_test!(
+    "PRT(EC[Carbamidomethyl]FRMS)[+19.0523]ISK",
+    positive_example_112
+);
 parse_test!(
     "EM[Oxidation]EVT[#g1(0.01)]S[#g1(0.09)]ES[Phospho#g1(0.90)]PEK",
     positive_example_113
 );
-// parse_test!(
-//     "[Phospho#s1]?EM[Oxidation]EVT[#s1(0.01)]S[#s1(0.09)]ES[#s1(0.90)]PEK",
-//     positive_example_114
-// ); TODO: unknown position prefix definition but locations specified
-// parse_test!("MPGLVDSNPAPPESQEKKPLK(PCCACPETKKARDACIIEKGEEHCGHLIEAHKECMRALGFKI)[Oxidation][Oxidation][half cystine][half cystine]", positive_example_115); TODO: multiple mods on ambiguous range
+parse_test!(
+    "[Phospho#s1]?EM[Oxidation]EVT[#s1(0.01)]S[#s1(0.09)]ES[#s1(0.90)]PEK",
+    positive_example_114
+);
+parse_test!("MPGLVDSNPAPPESQEKKPLK(PCCACPETKKARDACIIEKGEEHCGHLIEAHKECMRALGFKI)[Oxidation][Oxidation][half cystine][half cystine]", positive_example_115);
 parse_test!("<13C>ATPEILTVNSIGQLK", positive_example_116);
 parse_test!("<15N>ATPEILTVNSIGQLK", positive_example_117);
 parse_test!("<D>ATPEILTVNSIGQLK", positive_example_118);
@@ -327,10 +327,10 @@ parse_test!(
 );
 parse_test!("<[MOD:01090]@C>ATPEILTCNSIGCLK", positive_example_121);
 parse_test!("<[Oxidation]@C,M>MTPEILTCNSIGCLK", positive_example_122);
-// parse_test!(
-//     "<[MOD:01090]@C>[Phospho]?EM[Oxidation]EVTSECSPEK",
-//     positive_example_123
-// ); TODO: incorrect saving
+parse_test!(
+    "<[MOD:01090]@C>[Phospho]?EM[Oxidation]EVTSECSPEK",
+    positive_example_123
+);
 parse_test!(
     "<[MOD:01090]@C>[Acetyl]-EM[Oxidation]EVTSECSPEK",
     positive_example_124
@@ -382,6 +382,8 @@ parse_test!("EMEVEESPEK/1[+2Na+,-H+]", positive_example_144);
 parse_test!("EMEVEESPEK/-2[2I-]", positive_example_145);
 parse_test!("EMEVEESPEK/-1[+e-]", positive_example_146);
 parse_test!("EMEVEESPEK/2+ELVISLIVER/3", positive_example_147);
+parse_test!("AA(?AA)", positive_example_148);
+parse_test!("AA(?AA)AA", positive_example_149);
 
 // NEGATIVE EXAMPLES
 
@@ -400,6 +402,8 @@ parse_test!(ne "{TMT6plex#g1}AA", negative_example_12);
 parse_test!(ne "{TMT6plex#XL1}AA", negative_example_13);
 parse_test!(ne "{TMT6plex#BRANCH}AA", negative_example_14);
 parse_test!(ne "AA//AA", negative_example_15);
+parse_test!("AA(?A(A)[+1])AA", negative_example_16);
+parse_test!("AA(A(?A))[+1]AA", negative_example_17);
 
 // FUZZED CRASHES
 

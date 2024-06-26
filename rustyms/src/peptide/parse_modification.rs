@@ -350,35 +350,35 @@ fn handle_ambiguous_modification(
     let found_definition = lookup
         .iter()
         .enumerate()
-        .find(|(_, (name, _))| name.as_ref().map_or(false, |n| n == &group_name))
+        .find(|(_, (name, _))| name == &group_name)
         .map(|(index, (_, modification))| (index, modification.is_some()));
     // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
     match (modification, found_definition) {
-    // Have a mod defined here and already in the lookup (error)
-    (Ok(Some(_)), Some((_, true))) => Err(
-        CustomError::error(
-            "Invalid ambiguous modification",
-            "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
-            context,
-        )),
-    // Have a mod defined here, the name present in the lookup but not yet the mod
-    (Ok(Some(m)), Some((index, false))) => {
-        lookup[index].1 = Some(m);
-        Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
-    },
-    // Have a mod defined here which is not present in the lookup
-    (Ok(Some(m)), None) => {
-        let index = lookup.len();
-        lookup.push((Some(group_name), Some(m)));
-        Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
-    },
-    // No mod defined, but the name is present in the lookup
-    (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score))),
-    // No mod defined, and no name present in the lookup
-    (Ok(None), None) => {
-        let index = lookup.len();
-        lookup.push((Some(group_name), None));
-        Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score)))},
+        // Have a mod defined here and already in the lookup (error)
+        (Ok(Some(_)), Some((_, true))) => Err(
+            CustomError::error(
+                "Invalid ambiguous modification",
+                "An ambiguous modification cannot be placed twice (for one of the modifications leave out the modification and only provide the group name)",
+                context,
+            )),
+        // Have a mod defined here, the name present in the lookup but not yet the mod
+        (Ok(Some(m)), Some((index, false))) => {
+            lookup[index].1 = Some(m);
+            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
+        },
+        // Have a mod defined here which is not present in the lookup
+        (Ok(Some(m)), None) => {
+            let index = lookup.len();
+            lookup.push((group_name, Some(m)));
+            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
+        },
+        // No mod defined, but the name is present in the lookup
+        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score))),
+        // No mod defined, and no name present in the lookup
+        (Ok(None), None) => {
+            let index = lookup.len();
+            lookup.push((group_name, None));
+            Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score)))},
         // Earlier error
         (Err(e), _) => Err(e),
     }

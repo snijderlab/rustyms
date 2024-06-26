@@ -705,6 +705,29 @@ impl<T> LinearPeptide<T> {
         for labile in &self.labile {
             write!(f, "{{{labile}}}")?;
         }
+        // Write any modification of unknown position that has no preferred location at the start of the peptide
+        let mut any_ambiguous = false;
+        for (id, ambiguous) in self.ambiguous_modifications.iter().enumerate() {
+            if ambiguous.iter().all(|i| {
+                let m = self.sequence[*i]
+                    .possible_modifications
+                    .iter()
+                    .find(|m| m.id == id)
+                    .unwrap();
+                !m.preferred
+            }) {
+                let m = self.sequence[ambiguous[0]]
+                    .possible_modifications
+                    .iter()
+                    .find(|m| m.id == id)
+                    .unwrap();
+                write!(f, "[{}#{}]", m.modification, m.group)?;
+                any_ambiguous = true;
+            }
+        }
+        if any_ambiguous {
+            write!(f, "?")?;
+        }
         if let Some(m) = &self.n_term {
             write!(f, "[{m}]-")?;
         }

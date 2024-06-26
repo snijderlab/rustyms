@@ -29,7 +29,6 @@
 mod align_type;
 mod alignment;
 mod diagonal_array;
-mod itertools_extension;
 mod mass_alignment;
 mod piece;
 mod scoring;

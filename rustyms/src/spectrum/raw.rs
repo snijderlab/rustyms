@@ -2,13 +2,13 @@
 
 use std::cmp::Ordering;
 
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
-    itertools_extension::ItertoolsExt,
     system::{
         f64::{Mass, MassOverCharge, Ratio, Time},
         usize::Charge,
@@ -235,7 +235,7 @@ impl PeakSpectrum for RawSpectrum {
     }
 
     fn add_peak(&mut self, item: Self::PeakType) {
-        let index = self.spectrum.binary_search(&item).map_or_else(|i| i, |i| i);
+        let index = self.spectrum.binary_search(&item).unwrap_or_else(|i| i);
         self.spectrum.insert(index, item);
     }
 }

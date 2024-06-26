@@ -1,7 +1,6 @@
 use crate::{
     align::*,
     imgt::*,
-    itertools_extension::ItertoolsExt,
     peptide::{ExtremelySimple, Simple},
     system::Mass,
     *,

@@ -400,7 +400,7 @@ pub enum ModificationSearchResult {
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
-pub type AmbiguousLookup = Vec<(Option<String>, Option<SimpleModification>)>;
+pub type AmbiguousLookup = Vec<(String, Option<SimpleModification>)>;
 /// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name or None if it is a branch and the actual linker itself (if already defined)
 pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 
@@ -413,8 +413,10 @@ pub struct AmbiguousModification {
     pub modification: SimpleModification,
     /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
     pub localisation_score: Option<OrderedFloat<f64>>,
-    /// If this is a named group contain the name and track if this is the preferred location or not
-    pub group: Option<(String, bool)>,
+    /// The name of the group
+    pub group: String,
+    /// If this is the preferred location or not
+    pub preferred: bool,
 }
 
 impl Chemical for AmbiguousModification {

@@ -12,7 +12,6 @@ use crate::{
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
     peptide::Linked,
-    system::OrderedMass,
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform,
     SequenceElement,
 };
@@ -196,13 +195,14 @@ impl CompoundPeptidoform {
         let mut ending = End::Empty;
 
         // Unknown position mods
-        if let Some(result) = unknown_position_mods(chars, index, line, custom_database) {
-            let (buf, mods, ambiguous_mods) =
+        if let Some(result) =
+            unknown_position_mods(chars, index, line, custom_database, &mut ambiguous_lookup)
+        {
+            let (buf, mods) =
                 result.map_err(|mut e| e.pop().unwrap_or_else(|| CustomError::error("Missing error in ambiguous mods", "Ambiguous modifications could not be parsed, but no error was returned, please report this error.", Context::Show { line: line.to_string() })))?; // TODO: at some point be able to return all errors
             index = buf;
 
             unknown_position_modifications = mods;
-            ambiguous_lookup.extend(ambiguous_mods);
         }
 
         // Labile modification(s)
@@ -283,7 +283,8 @@ impl CompoundPeptidoform {
                     index += 1;
                 }
                 (false, b')') if braces_start.is_some() => {
-                    braces_start = Some(peptide.sequence.len());
+                    let start = braces_start.unwrap();
+                    braces_start = None;
                     index += 1;
                     while chars.get(index) == Some(&b'[') {
                         let end_index = end_of_enclosure(line, index+1, b'[', b']').ok_or_else(||CustomError::error(
@@ -301,11 +302,12 @@ impl CompoundPeptidoform {
                         ))?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
-                            braces_start.unwrap(),
-                            peptide.sequence.len(),
+                            start,
+                            peptide.sequence.len() - 1,
                             modification,
                         ));
                     }
+                    dbg!(&ranged_unknown_position_modifications, &ambiguous_lookup);
                 }
                 (false, b'/') => {
                     // Chimeric peptide
@@ -421,8 +423,8 @@ impl CompoundPeptidoform {
         if let Some(pos) = braces_start {
             return Err(CustomError::error(
                 "Invalid peptide",
-                "Unclosed brace",
-                Context::line(0, line, pos, 1),
+                format!("Unclosed brace at amino acid position {pos}"),
+                Context::full_line(0, line),
             ));
         }
         if ambiguous_aa.is_some() {
@@ -442,26 +444,28 @@ impl CompoundPeptidoform {
                     modification: ambiguous_lookup[id].1.clone().ok_or_else(||
                         CustomError::error(
                             "Invalid ambiguous modification",
-                            format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0.as_ref().map_or(id.to_string(), ToString::to_string)),
+                            format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0),
                             Context::full_line(0, line),
                         )
                         )?,
                     localisation_score,
-                    group: ambiguous_lookup[id].0.as_ref().map(|n| (n.to_string(), preferred)) });
+                    group: ambiguous_lookup[id].0.clone(), 
+                    preferred });
         }
         peptide.ambiguous_modifications = ambiguous_found_positions
             .iter()
-            .copied()
-            .group_by(|p| p.2)
+            .sorted_by(|p1, p2| p1.2.cmp(&p2.2))
+            .chunk_by(|p| p.2) // Ambiguous mod id
             .into_iter()
             .sorted_by(|(key1, _), (key2, _)| key1.cmp(key2))
-            .map(|(_, group)| group.into_iter().map(|p| p.0).collect())
+            .map(|(_, group)| group.into_iter().map(|p| p.0).collect()) // Retrieve locations
             .collect();
 
         peptide.apply_unknown_position_modification(&unknown_position_modifications);
         peptide.apply_ranged_unknown_position_modification(
             &ranged_unknown_position_modifications,
-            &ambiguous_lookup,
+            ambiguous_lookup.len(),
+            unknown_position_modifications.len(),
         );
         peptide.enforce_modification_rules()?;
 
@@ -626,8 +630,8 @@ pub(super) fn global_modifications(
     Ok((index, global_modifications))
 }
 
-/// A list of found modifications, with the newly generated ambiguous lookup alongside the index into the chars index from where parsing can be continued
-type UnknownPositionMods = (usize, Vec<SimpleModification>, AmbiguousLookup);
+/// A list of found modifications
+type UnknownPositionMods = (usize, Vec<SimpleModification>);
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
 /// # Errors
@@ -639,42 +643,42 @@ pub(super) fn unknown_position_mods(
     start: usize,
     line: &str,
     custom_database: Option<&CustomDatabase>,
+    ambiguous_lookup: &mut AmbiguousLookup,
 ) -> Option<Result<UnknownPositionMods, Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
     let mut errs = Vec::new();
-    let mut ambiguous_lookup = Vec::new();
     let mut cross_link_lookup = Vec::new();
 
     // Parse until no new modifications are found
     while chars.get(index) == Some(&b'[') {
-        let end_index = next_char(chars, index + 1, b']')?;
-        #[allow(clippy::map_unwrap_or)]
-        // using unwrap_or can not be done because that would have a double mut ref to errs (in the eyes of the compiler)
-        let modification = SimpleModification::try_from(
+        let start_index = index;
+        index = next_char(chars, index + 1, b']')? + 1;
+        let modification = match SimpleModification::try_from(
             std::str::from_utf8(chars).unwrap(),
-            index + 1..end_index,
-            &mut ambiguous_lookup,
+            start_index + 1..index - 1,
+            ambiguous_lookup,
             &mut cross_link_lookup,
             custom_database,
-        )
-        .unwrap_or_else(|e| {
-            errs.push(e);
-            ReturnModification::Defined(SimpleModification::Mass(OrderedMass::default()))
-        })
-        .defined()
-        .map_or_else(
-            || {
+        ) {
+            Ok(ReturnModification::Defined(m)) => m,
+            Ok(
+                ReturnModification::AmbiguousPreferred(_, _)
+                | ReturnModification::AmbiguousReferenced(_, _),
+            ) => continue, // Added to list and that is the only thing to do
+            Ok(ReturnModification::CrossLinkReferenced(_)) => {
                 errs.push(CustomError::error(
                     "Invalid unknown position modification",
-                    "A modification of unknown position cannot be ambiguous",
-                    Context::line(0, line, index + 1, end_index - 1 - index),
+                    "A modification of unknown position cannot be a cross-link",
+                    Context::line_range(0, line, start_index + 1..index),
                 ));
-                SimpleModification::Mass(OrderedMass::default())
-            },
-            |m| m,
-        );
-        index = end_index + 1;
+                continue;
+            }
+            Err(e) => {
+                errs.push(e);
+                continue;
+            }
+        };
         let number = if chars.get(index) == Some(&b'^') {
             if let Some((len, num)) = next_num(chars, index + 1, false) {
                 index += len + 1;
@@ -701,7 +705,7 @@ pub(super) fn unknown_position_mods(
     }
     (chars.get(index) == Some(&b'?')).then_some({
         if errs.is_empty() {
-            Ok((index + 1, modifications, ambiguous_lookup))
+            Ok((index + 1, modifications))
         } else {
             Err(errs)
         }

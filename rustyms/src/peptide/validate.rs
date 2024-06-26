@@ -118,7 +118,7 @@ impl LinearPeptide<Linked> {
         &mut self,
         unknown_position_modifications: &[SimpleModification],
     ) {
-        for modification in unknown_position_modifications {
+        for (unknown_mod_index, modification) in unknown_position_modifications.iter().enumerate() {
             let id = self.ambiguous_modifications.len();
             let length = self.len();
             #[allow(clippy::unnecessary_filter_map)]
@@ -136,7 +136,8 @@ impl LinearPeptide<Linked> {
                                     id,
                                     modification: modification.clone(),
                                     localisation_score: None,
-                                    group: None,
+                                    group: format!("u{unknown_mod_index}"),
+                                    preferred: false,
                                 });
                             Some(i)
                         } else {
@@ -154,9 +155,9 @@ impl LinearPeptide<Linked> {
     pub(super) fn apply_ranged_unknown_position_modification(
         &mut self,
         ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
-        ambiguous_lookup: &[(Option<String>, Option<SimpleModification>)],
+        mut start_ambiguous_index: usize,
+        mut start_ambiguous_group_id: usize,
     ) {
-        let mut id = ambiguous_lookup.len();
         for (start, end, modification) in ranged_unknown_position_modifications {
             let length = self.len();
             #[allow(clippy::unnecessary_filter_map)]
@@ -170,10 +171,11 @@ impl LinearPeptide<Linked> {
                         self.sequence[i]
                             .possible_modifications
                             .push(AmbiguousModification {
-                                id,
+                                id: start_ambiguous_index,
                                 modification: modification.clone(),
                                 localisation_score: None,
-                                group: None,
+                                group: format!("u{start_ambiguous_group_id}"),
+                                preferred: false,
                             });
                         Some(i)
                     } else {
@@ -181,8 +183,9 @@ impl LinearPeptide<Linked> {
                     }
                 })
                 .collect_vec();
-            self.ambiguous_modifications[id].extend(positions);
-            id += 1;
+            self.ambiguous_modifications.push(positions);
+            start_ambiguous_index += 1;
+            start_ambiguous_group_id += 1;
         }
     }
 }

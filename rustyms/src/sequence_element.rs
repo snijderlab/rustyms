@@ -64,22 +64,13 @@ impl SequenceElement {
             write!(
                 f,
                 "[{}#{}{}]",
-                m.group.as_ref().map_or(
-                    if placed.contains(&m.id) {
-                        String::new()
-                    } else {
-                        extra_placed.push(m.id);
-                        m.modification.to_string()
-                    },
-                    |group| if group.1 {
-                        m.modification.to_string()
-                    } else {
-                        String::new()
-                    }
-                ),
-                m.group
-                    .as_ref()
-                    .map_or(m.id.to_string(), |g| g.0.to_string()),
+                if m.preferred && !placed.contains(&m.id) {
+                    extra_placed.push(m.id);
+                    m.modification.to_string()
+                } else {
+                    String::new()
+                },
+                m.group,
                 m.localisation_score
                     .map(|v| format!("({v})"))
                     .unwrap_or_default()

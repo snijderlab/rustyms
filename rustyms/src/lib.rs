@@ -46,7 +46,6 @@ mod isobaric_sets;
 #[cfg(feature = "isotopes")]
 /// Only available with feature `isotopes`.
 mod isotopes;
-mod itertools_extension;
 mod mass_mode;
 pub mod model;
 pub mod modification;
