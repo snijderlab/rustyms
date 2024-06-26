@@ -408,8 +408,8 @@ impl FragmentType {
             Self::diagnostic(DiagnosticPosition::Glycan(_, sug)) => Cow::Owned(format!("{sug}")),
             Self::Oxonium(_) => Cow::Borrowed("oxonium"),
             Self::immonium(_, aa) => Cow::Owned(format!("i{}", aa.char())),
-            Self::m(_, aa) => Cow::Owned(format!("m{}", aa.char())),
-            Self::precursor => Cow::Borrowed("precursor"),
+            Self::m(_, aa) => Cow::Owned(format!("p-s{}", aa.char())),
+            Self::precursor => Cow::Borrowed("p"),
         }
     }
 
@@ -439,38 +439,12 @@ impl FragmentType {
 
 impl Display for FragmentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::a(pos) => write!(f, "a{}", pos.series_number),
-            Self::b(pos) => write!(f, "b{}", pos.series_number),
-            Self::c(pos) => write!(f, "c{}", pos.series_number),
-            Self::d(pos) => write!(f, "d{}", pos.series_number),
-            Self::v(pos) => write!(f, "v{}", pos.series_number),
-            Self::w(pos) => write!(f, "w{}", pos.series_number),
-            Self::x(pos) => write!(f, "x{}", pos.series_number),
-            Self::y(pos) => write!(f, "y{}", pos.series_number),
-            Self::z(pos) => write!(f, "z{}", pos.series_number),
-            Self::z·(pos) => write!(f, "z·{}", pos.series_number),
-            Self::B(pos) => write!(f, "B{}", pos.label()),
-            Self::Y(pos) => write!(f, "Y{}", pos.iter().map(GlycanPosition::label).join("")),
-            Self::Oxonium(positions) => write!(
-                f,
-                "oxonium{}",
-                positions
-                    .iter()
-                    .map(std::string::ToString::to_string)
-                    .join("")
-            ),
-            Self::immonium(pos, aa) => write!(f, "immonium{}{}", aa.char(), pos.series_number),
-            Self::m(pos, aa) => write!(f, "m{}{}", aa.char(), pos.series_number),
-            Self::diagnostic(DiagnosticPosition::Peptide(pos, aa)) => {
-                write!(f, "d{}{}", aa.char(), pos.series_number)
-            }
-            Self::diagnostic(DiagnosticPosition::Labile(m)) => write!(f, "d{m}"),
-            Self::diagnostic(DiagnosticPosition::Glycan(pos, sug)) => {
-                write!(f, "{sug}{}", pos.label())
-            }
-            Self::precursor => write!(f, "precursor"),
-        }
+        write!(
+            f,
+            "{}{}",
+            self.label(),
+            self.position_label().unwrap_or_default()
+        )
     }
 }
 
