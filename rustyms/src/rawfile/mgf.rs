@@ -61,19 +61,18 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
     let reader = BufReader::new(reader);
     let mut current = RawSpectrum::default();
     let mut output = Vec::new();
-    for (linenumber, line) in reader.lines().enumerate() {
-        let linenumber = linenumber + 1;
+    for (line_index, line) in reader.lines().enumerate() {
         let line = line.map_err(|err| {
             CustomError::error(
                 "Could not read mgf file",
                 format!("Error while reading line: {err}"),
-                Context::show(format!("Line number {linenumber}")),
+                Context::show(format!("Line number {}", line_index + 1)),
             )
         })?;
         let base_error = CustomError::error(
             "Could not read mgf file",
             "..",
-            Context::full_line(linenumber, line.clone()),
+            Context::full_line(line_index, line.clone()),
         );
         match line.as_str() {
             "BEGIN IONS" | "" => (),

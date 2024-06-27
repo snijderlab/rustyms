@@ -28,7 +28,7 @@ impl MolecularFormula {
                             CustomError::error(
                                 "Invalid PSI-MOD molecular formula",
                                 "No closing round bracket found",
-                                Context::line(0, value, index, 1),
+                                Context::line(None, value, index, 1),
                             )
                         })?;
                     isotope = Some(
@@ -38,7 +38,7 @@ impl MolecularFormula {
                                 CustomError::error(
                                     "Invalid PSI-MOD molecular formula",
                                     format!("The isotope number {}", explain_number_error(&err)),
-                                    Context::line(0, value, index + 1, len),
+                                    Context::line(None, value, index + 1, len),
                                 )
                             })?,
                     );
@@ -64,7 +64,7 @@ impl MolecularFormula {
                                             "The isotope number {}",
                                             explain_number_error(&err)
                                         ),
-                                        Context::line(0, value, index, v.len()),
+                                        Context::line(None, value, index, v.len()),
                                     )
                                 }),
                                 v.len(),
@@ -79,7 +79,7 @@ impl MolecularFormula {
                                 "An element without a defined mass ({}) was used",
                                 element.unwrap()
                             ),
-                            Context::line(0, value, index - 1, 1),
+                            Context::line(None, value, index - 1, 1),
                         ));
                     }
                     element = None;
@@ -93,7 +93,7 @@ impl MolecularFormula {
                             return Err(CustomError::error(
                                 "Invalid PSI-MOD molecular formula",
                                 format!("An element without a defined mass ({element}) was used"),
-                                Context::line(0, value, index - 1, 1),
+                                Context::line(None, value, index - 1, 1),
                             ));
                         }
                     }
@@ -113,7 +113,7 @@ impl MolecularFormula {
                         return Err(CustomError::error(
                             "Invalid PSI-MOD molecular formula",
                             "Not a valid character in formula",
-                            Context::line(0, value, index, 1),
+                            Context::line(None, value, index, 1),
                         ));
                     }
                 }
@@ -123,7 +123,7 @@ impl MolecularFormula {
             Err(CustomError::error(
                 "Invalid PSI-MOD molecular formula",
                 "Last element missed a count",
-                Context::line(0, value, index, 1),
+                Context::line(None, value, index, 1),
             ))
         } else {
             Ok(result)

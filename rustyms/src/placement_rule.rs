@@ -64,7 +64,7 @@ impl FromStr for PlacementRule {
                         CustomError::error(
                             "Invalid amino acid",
                             "Invalid amino acid in specified amino acids in placement rule",
-                            Context::line(0, s, i, 1),
+                            Context::line(None, s, i, 1),
                         )
                     })
                 })
@@ -74,7 +74,7 @@ impl FromStr for PlacementRule {
                     Err(CustomError::error(
                         "Invalid position",
                         "Use any of the following for the position: Anywhere, AnyNTerm, ProteinNTerm, AnyCTerm, ProteinCTerm",
-                        Context::line(0, s, head.len() + 1, tail.len()),
+                        Context::line(None, s, head.len() + 1, tail.len()),
                     ))
                 },
                 |position| Ok(Self::AminoAcid(aa, position)),

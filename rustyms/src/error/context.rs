@@ -17,7 +17,7 @@ pub enum Context {
     /// When a full line is faulty and no special position can be annotated
     FullLine {
         /// The line number to recognise where the error is located
-        linenumber: usize,
+        line_index: usize,
         /// The line to show the issue itself
         line: String,
     },
@@ -31,8 +31,8 @@ pub enum Context {
     /// The first space (annotated by `<-`, `->`) is the offset, in this case 7. The
     /// second space is the length, in this case 4.
     Line {
-        /// The line number to recognise where the error is located.
-        linenumber: usize,
+        /// The line index to recognise where the error is located.
+        line_index: Option<usize>,
         /// The line to show the issue itself.
         line: String,
         /// The offset of the special position to be annotated.
@@ -42,8 +42,8 @@ pub enum Context {
     },
     /// To show multiple lines where an error occurred.
     Range {
-        /// The linenumber of the first line
-        start_linenumber: usize,
+        /// The index of the first line
+        start_line_index: usize,
         /// The lines to show
         lines: Vec<String>,
         /// The possible offset of the first line, will be padded with spaces
@@ -51,8 +51,8 @@ pub enum Context {
     },
     /// To show multiple lines where an error occurred.
     RangeHighlights {
-        /// The linenumber of the first line
-        start_linenumber: usize,
+        /// The index of the first line
+        start_line_index: usize,
         /// The lines to show
         lines: Vec<String>,
         /// Highlights defined by the line (relative to the set of lines given), start column in that line and length of highlight
@@ -80,22 +80,22 @@ impl Context {
     }
 
     /// Creates a new context when a full line is faulty and no special position can be annotated
-    pub fn full_line(linenumber: usize, line: impl std::string::ToString) -> Self {
+    pub fn full_line(line_index: usize, line: impl std::string::ToString) -> Self {
         Self::FullLine {
-            linenumber,
+            line_index,
             line: line.to_string().replace('\t', " "),
         }
     }
 
     /// Creates a new context when a special position can be annotated on a line
     pub fn line(
-        linenumber: usize,
+        line_index: Option<usize>,
         line: impl std::string::ToString,
         offset: usize,
         length: usize,
     ) -> Self {
         Self::Line {
-            linenumber,
+            line_index,
             line: line.to_string().replace('\t', " "),
             offset,
             length,
@@ -104,15 +104,18 @@ impl Context {
 
     /// Create a context highlighting a certain range on a single line
     pub fn line_range(
-        linenumber: usize,
+        line_index: Option<usize>,
         line: impl std::string::ToString,
         range: impl RangeBounds<usize>,
     ) -> Self {
+        let line = line.to_string();
         match (range.start_bound(), range.end_bound()) {
-            (Bound::Unbounded, Bound::Unbounded) => Self::full_line(linenumber, line),
+            (Bound::Unbounded, Bound::Unbounded) => {
+                line_index.map_or_else(|| Self::show(&line), |i| Self::full_line(i, &line))
+            }
             (start, end) => Self::line(
-                linenumber,
-                line.to_string(),
+                line_index,
+                &line,
                 match start {
                     Bound::Excluded(n) => n + 1,
                     Bound::Included(n) => *n,
@@ -121,7 +124,7 @@ impl Context {
                 match end {
                     Bound::Excluded(n) => n - 1,
                     Bound::Included(n) => *n,
-                    Bound::Unbounded => line.to_string().chars().count(),
+                    Bound::Unbounded => line.chars().count(),
                 },
             ),
         }
@@ -132,14 +135,14 @@ impl Context {
     pub fn position(pos: &FilePosition<'_>) -> Self {
         if pos.text.is_empty() {
             Self::Line {
-                linenumber: pos.line,
+                line_index: Some(pos.line_index),
                 line: String::new(),
                 offset: 0,
                 length: 3,
             }
         } else {
             Self::Line {
-                linenumber: pos.line,
+                line_index: Some(pos.line_index),
                 line: pos
                     .text
                     .lines()
@@ -155,20 +158,20 @@ impl Context {
 
     /// Creates a new context from a start and end point within a single file
     pub fn range(start: &FilePosition<'_>, end: &FilePosition<'_>) -> Self {
-        if start.line == end.line {
+        if start.line_index == end.line_index {
             Self::Line {
-                linenumber: start.line,
+                line_index: Some(start.line_index),
                 line: start.text[..(end.column - start.column)].to_string(),
                 offset: start.column,
                 length: end.column - start.column,
             }
         } else {
             Self::Range {
-                start_linenumber: start.line,
+                start_line_index: start.line_index,
                 lines: start
                     .text
                     .lines()
-                    .take(end.line - start.line)
+                    .take(end.line_index - start.line_index)
                     .map(ToString::to_string)
                     .collect::<Vec<String>>(),
                 offset: start.column,
@@ -178,39 +181,36 @@ impl Context {
 
     /// Overwrite the line number with the given number, if applicable
     #[must_use]
-    pub fn overwrite_line_number(self, line_number: usize) -> Self {
+    pub fn overwrite_line_number(self, line_index: usize) -> Self {
         match self {
-            Self::FullLine { line, .. } => Self::FullLine {
-                linenumber: line_number,
-                line,
-            },
+            Self::FullLine { line, .. } => Self::FullLine { line_index, line },
             Self::Line {
                 line,
                 offset,
                 length,
                 ..
             } => Self::Line {
-                linenumber: line_number,
+                line_index: Some(line_index),
                 line,
                 offset,
                 length,
             },
             Self::Range { lines, offset, .. } => Self::Range {
-                start_linenumber: line_number,
+                start_line_index: line_index,
                 offset,
                 lines,
             },
             Self::RangeHighlights {
                 lines, highlights, ..
             } => Self::RangeHighlights {
-                start_linenumber: line_number,
+                start_line_index: line_index,
                 lines,
                 highlights,
             },
             Self::Multiple { contexts } => Self::Multiple {
                 contexts: contexts
                     .into_iter()
-                    .map(|(l, c)| (l, c.overwrite_line_number(line_number)))
+                    .map(|(l, c)| (l, c.overwrite_line_number(line_index)))
                     .collect(),
             },
             n => n,
@@ -232,16 +232,15 @@ impl Context {
         let margin = match self {
             Self::None | Self::Multiple { .. } => 0,
             Self::Show { .. } => 2,
-            Self::FullLine { linenumber: n, .. } | Self::Line { linenumber: n, .. } => {
-                get_margin(*n)
-            }
+            Self::FullLine { line_index: n, .. } => get_margin(*n),
+            Self::Line { line_index: n, .. } => n.map_or(0, get_margin),
             Self::Range {
-                start_linenumber: n,
+                start_line_index: n,
                 lines: l,
                 ..
             }
             | Self::RangeHighlights {
-                start_linenumber: n,
+                start_line_index: n,
                 lines: l,
                 ..
             } => get_margin(n + l.len()),
@@ -253,16 +252,16 @@ impl Context {
             Self::Show { line } => {
                 write!(f, "\n{:pad$} ╷\n{:pad$} │ {}", "", "", line, pad = margin)?;
             }
-            Self::FullLine { linenumber, line } => write!(
+            Self::FullLine { line_index, line } => write!(
                 f,
                 "\n{:pad$} ╷\n{:<pad$} │ {}",
                 "",
-                linenumber,
+                line_index + 1,
                 line,
                 pad = margin
             )?,
             Self::Line {
-                linenumber,
+                line_index,
                 line,
                 offset,
                 length,
@@ -278,7 +277,7 @@ impl Context {
                     f,
                     "\n{:pad$} ╷\n{:<pad$} │ {}{}{}\n{:pad$} · {}{}",
                     "",
-                    linenumber,
+                    line_index.map_or(String::new(), |n| (n + 1).to_string()),
                     if start == 0 { "" } else { "…" },
                     &line[start..end],
                     if end == line.len() { "" } else { "…" },
@@ -293,12 +292,12 @@ impl Context {
                 )?;
             }
             Self::Range {
-                start_linenumber,
+                start_line_index,
                 lines,
                 offset,
             } => {
                 write!(f, "\n{:pad$} ╷", "", pad = margin)?;
-                let mut number = *start_linenumber;
+                let mut number = *start_line_index + 1;
                 write!(
                     f,
                     "\n{:<pad$} │ {}{}",
@@ -313,12 +312,12 @@ impl Context {
                 }
             }
             Self::RangeHighlights {
-                start_linenumber,
+                start_line_index: start_linenumber,
                 lines,
                 highlights,
             } => {
                 write!(f, "\n{:pad$} ╷", "", pad = margin)?;
-                let mut number = *start_linenumber;
+                let mut number = *start_linenumber + 1;
                 let mut highlights_peek = highlights.iter().peekable();
                 #[allow(unused)]
                 for (index, line) in lines.iter().enumerate() {
@@ -382,8 +381,8 @@ impl fmt::Display for Context {
 pub struct FilePosition<'a> {
     /// The remaining text (as ref so no copies)
     pub text: &'a str,
-    /// The current linenumber
-    pub line: usize,
+    /// The current line index
+    pub line_index: usize,
     /// The current column number
     pub column: usize,
 }

@@ -32,7 +32,7 @@ impl LinearPeptide<VerySimple> {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
                 "A peptide sequence cannot be empty",
-                Context::line(0, line, location.start, 1),
+                Context::line(None, line, location.start, 1),
             ));
         }
         let mut peptide = Self::default();
@@ -56,7 +56,7 @@ impl LinearPeptide<VerySimple> {
                                 CustomError::error(
                                     "Invalid modification",
                                     "No valid closing delimiter",
-                                    Context::line(0, line, location.start + index, 1),
+                                    Context::line(None, line, location.start + index, 1),
                                 )
                             })?;
                     let modification = SimpleModification::try_from(
@@ -72,7 +72,7 @@ impl LinearPeptide<VerySimple> {
                                 "Invalid modification",
                                 "A modification in the sloppy peptide format cannot be ambiguous",
                                 Context::line(
-                                    0,
+                                    None,
                                     line,
                                     location.start + index + 1,
                                     end_index - 1 - index,
@@ -111,7 +111,7 @@ impl LinearPeptide<VerySimple> {
                             CustomError::error(
                                 "Invalid amino acid",
                                 "This character is not a valid amino acid",
-                                Context::line(0, line, location.start + index, 1),
+                                Context::line(None, line, location.start + index, 1),
                             )
                         })?,
                         None,

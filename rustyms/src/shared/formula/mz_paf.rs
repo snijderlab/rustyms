@@ -38,7 +38,7 @@ impl MolecularFormula {
                         CustomError::error(
                             "Invalid formula",
                             format!("The element amount number {}", explain_number_error(&err)),
-                            Context::line_range(0, value, start_index..=end_index),
+                            Context::line_range(None, value, start_index..=end_index),
                         )
                     })?;
                 }
@@ -47,7 +47,7 @@ impl MolecularFormula {
                         "Invalid mzPAF molecular formula",
                         "An element with undefined mass was used",
                         Context::line(
-                            0,
+                            None,
                             value,
                             index,
                             value[index..]
@@ -63,7 +63,7 @@ impl MolecularFormula {
                     "Invalid mzPAF molecular formula",
                     "Not a valid character in formula",
                     Context::line(
-                        0,
+                        None,
                         value,
                         index,
                         value[index..]

@@ -47,7 +47,7 @@ impl CsvLine {
     /// Get the context applicable to the specified column
     pub fn column_context(&self, column: usize) -> crate::error::Context {
         crate::error::Context::line(
-            self.line_index,
+            Some(self.line_index),
             self.line.clone(),
             self.fields[column].1.start,
             self.fields[column].1.len(),
@@ -56,7 +56,7 @@ impl CsvLine {
     /// Get the context for the specified range in the original line
     pub fn range_context(&self, range: std::ops::Range<usize>) -> crate::error::Context {
         crate::error::Context::line(
-            self.line_index(),
+            Some(self.line_index()),
             self.line.clone(),
             range.start,
             range.len(),

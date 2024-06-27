@@ -39,7 +39,7 @@ format_family!(
                         "Invalid Opair line",
                         "The location is not defined, it should be defined like this [<start> to <end>]",
                         Context::line(
-                            loc.line.line_index()+1,
+                            Some(loc.line.line_index()),
                             loc.line.line(),
                             loc.location.start,
                             loc.location.len(),
@@ -59,7 +59,7 @@ format_family!(
                         .parse()
                         .map_err(|_| {
                             CustomError::error(NUMBER_ERROR.0, NUMBER_ERROR.1, Context::line(
-                                loc.line.line_index()+1,
+                                Some(loc.line.line_index()),
                                 loc.line.line(),
                                 loc.location.start + 1,
                                 start,
@@ -69,7 +69,7 @@ format_family!(
                         .parse()
                         .map_err(|_| {
                             CustomError::error(NUMBER_ERROR.0, NUMBER_ERROR.1, Context::line(
-                                loc.line.line_index()+1,
+                                Some(loc.line.line_index()),
                                 loc.line.line(),
                                 loc.location.end - 1 - end,
                                 end,
@@ -88,7 +88,7 @@ format_family!(
                                 "Invalid Opair line",
                                 "The flanking residues could not be parsed as amino acids",
                                 Context::line(
-                                    loc.line.line_index()+1,
+                                    Some(loc.line.line_index()),
                                     loc.line.line(),
                                     loc.location.start,
                                     1,
@@ -102,7 +102,7 @@ format_family!(
                                 "Invalid Opair line",
                                 "The flanking residues could not be parsed as amino acids",
                                 Context::line(
-                                    loc.line.line_index()+1,
+                                    Some(loc.line.line_index()),
                                     loc.line.line(),
                                     loc.location.end - 1,
                                     1,
@@ -136,7 +136,7 @@ format_family!(
                     "Invalid Opair line",
                     "The kind column does not contain a valid value (T/C/D)",
                     Context::line(
-                        loc.line.line_index()+1,
+                        Some(loc.line.line_index()),
                         loc.line.line(),
                         loc.location.start,
                         loc.location.len(),
@@ -162,7 +162,7 @@ format_family!(
                     "Invalid Opair line",
                     "The N glycan motif check column does not contain a valid value (TRUE/FALSE)",
                     Context::line(
-                        loc.line.line_index()+1,
+                        Some(loc.line.line_index()),
                         loc.line.line(),
                         loc.location.start,
                         loc.location.len(),

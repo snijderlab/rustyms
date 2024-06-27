@@ -108,7 +108,7 @@ fn parse_single_modification(
                             CustomError::error(
                         "Invalid modification localisation score",
                         "The ambiguous modification localisation score needs to be a valid number",
-                        Context::line(0, line, offset + m.start(), m.len()),
+                        Context::line(None, line, offset + m.start(), m.len()),
                     )
                         })
                 })
@@ -119,7 +119,7 @@ fn parse_single_modification(
             let basic_error = CustomError::error(
                 "Invalid modification",
                 "..",
-                Context::line(0, line, offset + tail.1, tail.2),
+                Context::line(None, line, offset + tail.1, tail.2),
             );
             match (head.0.as_str(), tail.0) {
                 ("unimod", tail) => {
@@ -241,7 +241,7 @@ fn parse_single_modification(
                     .ok_or_else(||
                         Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Custom], full.0, custom_database)
                     .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a ontology that is not yet supported?")
-                    .with_context(Context::line(0, line, offset+full.1, full.2)))
+                    .with_context(Context::line(None, line, offset+full.1, full.2)))
             }
         } else if full.0.is_empty() {
             Ok(None)
@@ -254,7 +254,7 @@ fn parse_single_modification(
                 .map_err(|_|
                     Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Custom], full.0, custom_database)
                     .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification.")
-                    .with_context(Context::line(0, line, offset+full.1, full.2))
+                    .with_context(Context::line(None, line, offset+full.1, full.2))
                 )
         };
 
@@ -280,7 +280,7 @@ fn parse_single_modification(
                         return Err(CustomError::error(
                                 "Invalid branch definition", 
                                 "A branch definition has to be identical at both sites, or only defined at one site.", 
-                                Context::line(0, line, offset+full.1, full.2)
+                                Context::line(None, line, offset+full.1, full.2)
                             ));
                     }
                     cross_link_lookup[index].1 = Some(linker);
@@ -308,7 +308,7 @@ fn parse_single_modification(
                         return Err(CustomError::error(
                             "Invalid cross-link definition", 
                             "A cross-link definition has to be identical at both sites, or only defined at one site.", 
-                            Context::line(0, line, offset+full.1, full.2)
+                            Context::line(None, line, offset+full.1, full.2)
                         ));
                     }
                     cross_link_lookup[index].1 = Some(linker);
@@ -320,7 +320,7 @@ fn parse_single_modification(
                     group,
                     localisation_score,
                     ambiguous_lookup,
-                    Context::line(0, line, offset + full.1, full.2),
+                    Context::line(None, line, offset + full.1, full.2),
                 )
             }
         } else {
@@ -330,7 +330,7 @@ fn parse_single_modification(
         Err(CustomError::error(
             "Invalid modification",
             "It does not match the Pro Forma definition for modifications",
-            Context::line(0, line, offset, full_modification.len()),
+            Context::line(None, line, offset, full_modification.len()),
         ))
     }
 }

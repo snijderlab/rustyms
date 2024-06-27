@@ -55,7 +55,7 @@ impl GlycanStructure {
                     CustomError::error(
                         "Invalid glycan branch",
                         "No valid closing delimiter",
-                        Context::line(0, line, index, 1),
+                        Context::line(None, line, index, 1),
                     )
                 })?;
                 // Parse the first branch
@@ -70,7 +70,7 @@ impl GlycanStructure {
                         return Err(CustomError::error(
                             "Invalid glycan structure",
                             "Branches should be separated by commas ','",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ));
                     }
                     index += 1;
@@ -98,7 +98,7 @@ impl GlycanStructure {
             Err(CustomError::error(
                 "Could not parse glycan structure",
                 "Could not parse the following part",
-                Context::line(0, line, range.start, range.len()),
+                Context::line(None, line, range.start, range.len()),
             ))
         }
     }

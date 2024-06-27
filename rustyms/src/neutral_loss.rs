@@ -63,7 +63,7 @@ impl FromStr for NeutralLoss {
                 _ => Err(CustomError::error(
                     "Invalid neutral loss",
                     "A neutral loss can only start with '+' or '-'",
-                    Context::line(0, s, 0, 1),
+                    Context::line(None, s, 0, 1),
                 )),
             }
         } else {

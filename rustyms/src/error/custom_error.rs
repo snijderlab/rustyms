@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn create_full_line_error() {
-        let a = CustomError::warning("test", "test", Context::full_line(1, "testing line"));
+        let a = CustomError::warning("test", "test", Context::full_line(0, "testing line"));
         println!("{a}");
         assert_eq!(
             format!("{a}"),
@@ -202,12 +202,12 @@ mod tests {
     fn create_range_error() {
         let pos1 = FilePosition {
             text: "hello world\nthis is a multiline\npiece of teXt",
-            line: 1,
+            line_index: 0,
             column: 0,
         };
         let pos2 = FilePosition {
             text: "",
-            line: 4,
+            line_index: 3,
             column: 13,
         };
         let a = CustomError::warning("test", "test error", Context::range(&pos1, &pos2));
@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(format!("{a}"), "warning: test\n  ╷\n1 │ hello world\n2 │ this is a multiline\n3 │ piece of teXt\n  ╵\ntest error\n");
         assert!(a.is_warning());
         assert_eq!(pos2.text, "");
-        assert_eq!(pos2.line, 4);
+        assert_eq!(pos2.line_index, 4);
         assert_eq!(pos2.column, 13);
     }
 }

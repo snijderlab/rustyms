@@ -177,7 +177,7 @@ impl CompoundPeptidoform {
             return Err(CustomError::error(
                 "Peptide sequence is empty",
                 "A peptide sequence cannot be empty",
-                Context::line(0, line, index, 1),
+                Context::line(None, line, index, 1),
             ));
         }
         let mut peptide = LinearPeptide::default();
@@ -214,7 +214,7 @@ impl CompoundPeptidoform {
             let end_index = end_of_enclosure(line, index+1, b'[', b']').and_then(|i| (chars.get(i+1) == Some(&b'-')).then_some(i+1)).ok_or_else(|| CustomError::error(
                     "Invalid N terminal modification",
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
-                    Context::line(0, line, index, 1),
+                    Context::line(None, line, index, 1),
                 ))?;
             peptide.n_term = Some(
                 SimpleModification::try_from(
@@ -229,7 +229,7 @@ impl CompoundPeptidoform {
                         CustomError::error(
                             "Invalid N terminal modification",
                             "An N terminal modification cannot be ambiguous",
-                            Context::line(0, line, index + 1, end_index - 2 - index),
+                            Context::line(None, line, index + 1, end_index - 2 - index),
                         )
                     })
                 })?,
@@ -246,14 +246,14 @@ impl CompoundPeptidoform {
                         return Err(CustomError::error(
                             "Invalid ambiguous amino acid set",
                             "Ambiguous amino acid sets cannot be nested within ranged ambiguous modifications",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ));
                     }
                     if ambiguous_aa.is_some() {
                         return Err(CustomError::error(
                             "Invalid ambiguous amino acid set",
                             "Ambiguous amino acid sets cannot be nested within ambiguous amino acid sets",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ));
                     }
                     ambiguous_aa = Some(ambiguous_aa_counter);
@@ -269,14 +269,14 @@ impl CompoundPeptidoform {
                         return Err(CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "Ranged ambiguous modifications cannot be nested within ranged ambiguous modifications",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ));
                     }
                     if ambiguous_aa.is_some() {
                         return Err(CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "Ranged ambiguous modifications cannot be nested within ambiguous amino acid sets",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ));
                     }
                     braces_start = Some(peptide.sequence.len());
@@ -290,7 +290,7 @@ impl CompoundPeptidoform {
                         let end_index = end_of_enclosure(line, index+1, b'[', b']').ok_or_else(||CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "No valid closing delimiter",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ))?;
                         let modification = SimpleModification::try_from(
                             line, index + 1..end_index,
@@ -298,7 +298,7 @@ impl CompoundPeptidoform {
                         )?.defined().ok_or_else(|| CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "A ranged ambiguous modification has to be fully defined, so no ambiguous modification is allowed",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ))?;
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
@@ -329,7 +329,7 @@ impl CompoundPeptidoform {
                     let end_index = end_of_enclosure(line, index+1, b'[', b']').ok_or_else(||CustomError::error(
                         "Invalid modification",
                         "No valid closing delimiter",
-                        Context::line(0, line, index, 1),
+                        Context::line(None, line, index, 1),
                     ))?;
                     let modification = SimpleModification::try_from(
                         line, index + 1..end_index,
@@ -342,7 +342,7 @@ impl CompoundPeptidoform {
                             Some(modification.defined().ok_or_else(|| CustomError::error(
                                 "Invalid C terminal modification",
                                 "A C terminal modification cannot be ambiguous",
-                                Context::line(0, line, start_index, index - start_index - 1),
+                                Context::line(None, line, start_index, index - start_index - 1),
                             ))?);
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
@@ -376,7 +376,7 @@ impl CompoundPeptidoform {
                             CustomError::error(
                                 "Invalid modification",
                                 "A modification cannot be placed before any amino acid, did you want to use an N terminal modification ('[mod]-AA..')? or did you want a modification of unknown position ('[mod]?AA..')?",
-                                Context::line(0, line, start_index, index - start_index - 1),
+                                Context::line(None, line, start_index, index - start_index - 1),
                             )
                         )
                     }
@@ -396,7 +396,7 @@ impl CompoundPeptidoform {
                         ch.try_into().map_err(|()| CustomError::error(
                             "Invalid amino acid",
                             "This character is not a valid amino acid",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         ))?,
                         ambiguous_aa,
                     ));
@@ -407,7 +407,7 @@ impl CompoundPeptidoform {
                         CustomError::error(
                             "Parsing error",
                             "A singular hyphen cannot exist ('-'), if this is part of a c-terminus follow the format 'AA-[modification]'",
-                            Context::line(0, line, index, 1),
+                            Context::line(None, line, index, 1),
                         )
                     )
                 }
@@ -417,7 +417,7 @@ impl CompoundPeptidoform {
             return Err(CustomError::error(
                 "Invalid peptide",
                 "A single hyphen cannot end the definition, if a C terminal modification is intended use 'SEQ-[MOD]'",
-                Context::line(0, line, line.len().saturating_sub(2), 1),
+                Context::line(None, line, line.len().saturating_sub(2), 1),
             ));
         }
         if let Some(pos) = braces_start {
@@ -431,7 +431,7 @@ impl CompoundPeptidoform {
             return Err(CustomError::error(
                 "Invalid peptide",
                 "Unclosed ambiguous amino acid group",
-                Context::line(0, line, 0, line.len()),
+                Context::line(None, line, 0, line.len()),
             ));
         }
 
@@ -494,7 +494,7 @@ pub(super) fn global_modifications(
                 CustomError::error(
                     "Global modification not closed",
                     "A global modification should be closed with a closing angle bracket '>'",
-                    Context::line(0, line, index, 1),
+                    Context::line(None, line, index, 1),
                 )
             })?;
         if let Some(offset) = next_char(chars, index, b'@') {
@@ -503,14 +503,14 @@ pub(super) fn global_modifications(
                 return Err(CustomError::error(
                     "Invalid global modification",
                     "A global modification should have an at '@' sign inside the enclosing angle brackets '<>'",
-                    Context::line(0, line, index + 1, at_index - index - 2),
+                    Context::line(None, line, index + 1, at_index - index - 2),
                 ));
             }
             if chars[index + 1] != b'[' || chars[at_index - 2] != b']' {
                 return Err(CustomError::error(
                     "Invalid global modification",
                     "A global modification should always be enclosed in square brackets '[]'",
-                    Context::line(0, line, index + 1, at_index - index - 2),
+                    Context::line(None, line, index + 1, at_index - index - 2),
                 ));
             }
             let modification = SimpleModification::try_from(
@@ -525,7 +525,7 @@ pub(super) fn global_modifications(
                     CustomError::error(
                         "Invalid global modification",
                         "A global modification cannot be ambiguous or a cross-linker",
-                        Context::line(0, line, index + 2, at_index - index - 4),
+                        Context::line(None, line, index + 2, at_index - index - 4),
                     )
                 })
             })
@@ -539,7 +539,7 @@ pub(super) fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(0, line, at_index + 7, end_index - at_index - 7),
+                                    Context::line(None, line, at_index + 7, end_index - at_index - 7),
                                 )
                             })?),
                             modification.clone(),
@@ -559,7 +559,7 @@ pub(super) fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(0, line, at_index + 7, end_index - at_index - 7),
+                                    Context::line(None, line, at_index + 7, end_index - at_index - 7),
                                 )
                             })?),
                             modification.clone(),
@@ -578,7 +578,7 @@ pub(super) fn global_modifications(
                             CustomError::error(
                                 "Invalid global modification",
                                 "The location could not be read as an amino acid",
-                                Context::line(0, line, at_index, end_index - at_index),
+                                Context::line(None, line, at_index, end_index - at_index),
                             )
                         })?),
                         modification.clone(),
@@ -598,7 +598,7 @@ pub(super) fn global_modifications(
                     "Invalid global modification",
                     "Could not determine the element",
                     Context::line(
-                        0,
+                        None,
                         line,
                         index + num.len(),
                         end_index - (index + 1 + num.len()),
@@ -609,7 +609,7 @@ pub(super) fn global_modifications(
                 CustomError::error(
                     "Invalid global modification",
                     format!("The isotope number is {}", explain_number_error(&err)),
-                    Context::line(0, line, index + 1, end_index - index),
+                    Context::line(None, line, index + 1, end_index - index),
                 )
             })?);
             if !el.is_valid(num) {
@@ -619,7 +619,7 @@ pub(super) fn global_modifications(
                         "This element {el} does not have a defined weight {}",
                         num.map_or_else(String::new, |num| format!("for isotope {num}"))
                     ),
-                    Context::line(0, line, index + 1, end_index - index),
+                    Context::line(None, line, index + 1, end_index - index),
                 ));
             }
             global_modifications.push(GlobalModification::Isotope(el, num));
@@ -670,7 +670,7 @@ pub(super) fn unknown_position_mods(
                 errs.push(CustomError::error(
                     "Invalid unknown position modification",
                     "A modification of unknown position cannot be a cross-link",
-                    Context::line_range(0, line, start_index + 1..index),
+                    Context::line_range(None, line, start_index + 1..index),
                 ));
                 continue;
             }
@@ -684,18 +684,18 @@ pub(super) fn unknown_position_mods(
                 index += len + 1;
                 if num < 0 {
                     errs.push(
-                        CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies cannot have more a negative number of copies", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                        CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies cannot have more a negative number of copies", Context::line(None, std::str::from_utf8(chars).unwrap(), index, 1)));
                     0
                 } else if num > i16::MAX as isize {
                     errs.push(
-                        CustomError::error("Invalid unknown position modification", format!("A modification of unknown position with multiple copies cannot have more then {} copies", i16::MAX), Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                        CustomError::error("Invalid unknown position modification", format!("A modification of unknown position with multiple copies cannot have more then {} copies", i16::MAX), Context::line(None, std::str::from_utf8(chars).unwrap(), index, 1)));
                     0
                 } else {
                     num as usize
                 }
             } else {
                 errs.push(
-                    CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(0, std::str::from_utf8(chars).unwrap(), index, 1)));
+                    CustomError::error("Invalid unknown position modification", "A modification of unknown position with multiple copies needs the copy number after the caret ('^') symbol", Context::line(None, std::str::from_utf8(chars).unwrap(), index, 1)));
                 0
             }
         } else {
@@ -727,7 +727,7 @@ fn labile_modifications(
             CustomError::error(
                 "Invalid labile modification",
                 "No valid closing delimiter, a labile modification should be closed by '}'",
-                Context::line(0, line, index, 1),
+                Context::line(None, line, index, 1),
             )
         })?;
 
@@ -744,7 +744,7 @@ fn labile_modifications(
                     CustomError::error(
                         "Invalid labile modification",
                         "A labile modification cannot be ambiguous or a cross-linker",
-                        Context::line(0, line, index + 1, end_index - 1 - index),
+                        Context::line(None, line, index + 1, end_index - 1 - index),
                     )
                 })
             })?,
@@ -769,7 +769,7 @@ pub(super) fn parse_charge_state(
         CustomError::error(
             "Invalid peptide charge state",
             "There should be a number dictating the total charge of the peptide",
-            Context::line(0, line, index + 1, 1),
+            Context::line(None, line, index + 1, 1),
         )
     })?;
     if chars.get(index + 1 + charge_len) == Some(&b'[') {
@@ -778,7 +778,7 @@ pub(super) fn parse_charge_state(
                 CustomError::error(
                     "Invalid adduct ion",
                     "No valid closing delimiter",
-                    Context::line(0, line, index + 2 + charge_len, 1),
+                    Context::line(None, line, index + 2 + charge_len, 1),
                 )
             })?;
         let mut offset = index + 2 + charge_len;
@@ -791,7 +791,7 @@ pub(super) fn parse_charge_state(
                 CustomError::error(
                     "Invalid adduct ion",
                     "Invalid adduct ion count",
-                    Context::line(0, line, offset, 1),
+                    Context::line(None, line, offset, 1),
                 )
             })?;
 
@@ -806,7 +806,7 @@ pub(super) fn parse_charge_state(
                         CustomError::error(
                             "Invalid adduct ion",
                             format!("The adduct ion number {err}"),
-                            Context::line(0, line, offset + set.len() - charge_len, charge_len),
+                            Context::line(None, line, offset + set.len() - charge_len, charge_len),
                         )
                     })?
             };
@@ -820,7 +820,7 @@ pub(super) fn parse_charge_state(
                     return Err(CustomError::error(
                         "Invalid adduct ion",
                         "The adduct ion number should be preceded by a sign",
-                        Context::line(0, line, offset + set.len() - charge_len - 1, 1),
+                        Context::line(None, line, offset + set.len() - charge_len - 1, 1),
                     ))
                 }
             };
@@ -830,7 +830,7 @@ pub(super) fn parse_charge_state(
                 return Err(CustomError::error(
                     "Invalid adduct ion",
                     "The adduct ion should have a formula defined",
-                    Context::line(0, line, offset, set.len()),
+                    Context::line(None, line, offset, set.len()),
                 ));
             }
 
@@ -862,7 +862,7 @@ pub(super) fn parse_charge_state(
             Err(CustomError::error(
                 "Invalid peptide charge state",
                 "The peptide charge state number has to be equal to the sum of all separate adduct ions",
-                Context::line(0, line, index, offset),
+                Context::line(None, line, index, offset),
             ))
         }
     } else {

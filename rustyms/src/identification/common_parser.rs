@@ -221,7 +221,7 @@ impl<'a> Location<'a> {
 
     pub fn context(&self) -> Context {
         Context::line_range(
-            self.line.line_index(),
+            Some(self.line.line_index()),
             self.full_line(),
             self.location.clone(),
         )

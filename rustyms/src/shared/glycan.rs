@@ -56,7 +56,7 @@ impl MonoSaccharide {
     pub fn from_short_iupac(
         original_line: &str,
         start: usize,
-        line_number: usize,
+        line_index: usize,
     ) -> Result<(Self, usize), CustomError> {
         let mut index = start;
         let line = original_line.to_ascii_lowercase();
@@ -78,7 +78,7 @@ impl MonoSaccharide {
                             "Invalid iupac monosaccharide name",
                             "This internally linked glycan could not be parsed, expected Anhydro as modification",
                             Context::Line {
-                                linenumber: line_number,
+                                line_index: Some(line_index),
                                 line: original_line.to_string(),
                                 offset: start_index,
                                 length: index-start_index+5,
@@ -143,7 +143,7 @@ impl MonoSaccharide {
                     "Invalid iupac monosaccharide name",
                     "This name could not be recognised as a standard iupac glycan name",
                     Context::Line {
-                        linenumber: line_number,
+                        line_index: Some(line_index),
                         line: original_line.to_string(),
                         offset: index,
                         length: 3,
@@ -205,7 +205,7 @@ impl MonoSaccharide {
                         "Invalid iupac monosaccharide name",
                         "No detected double linked glycan substituent was found, while the pattern for location is for a double linked substituent",
                         Context::Line {
-                            linenumber: line_number,
+                            line_index: Some(line_index),
                             line: original_line.to_string(),
                             offset: index,
                             length: 2,

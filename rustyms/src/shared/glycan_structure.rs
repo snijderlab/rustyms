@@ -24,7 +24,7 @@ impl GlycanStructure {
     pub fn from_short_iupac(
         line: &str,
         range: Range<usize>,
-        line_number: usize,
+        line_index: usize,
     ) -> Result<Self, CustomError> {
         let mut offset = range.start;
         let mut branch = Self {
@@ -40,18 +40,18 @@ impl GlycanStructure {
                     CustomError::error(
                         "Invalid iupac short glycan",
                         "No closing brace for branch",
-                        Context::line(line_number, line, offset, range.end - offset),
+                        Context::line(Some(line_index), line, offset, range.end - offset),
                     )
                 })?;
                 last_branch.branches.push(Self::from_short_iupac(
                     line,
                     offset + 1..end,
-                    line_number,
+                    line_index,
                 )?);
 
                 offset = end + 1;
             }
-            let (sugar, new_offset) = MonoSaccharide::from_short_iupac(line, offset, line_number)?;
+            let (sugar, new_offset) = MonoSaccharide::from_short_iupac(line, offset, line_index)?;
             offset = new_offset;
 
             last_branch.branches.push(Self {
@@ -70,7 +70,7 @@ impl GlycanStructure {
                     Err(CustomError::error(
                         "Invalid iupac short glycan",
                         "No glycan found",
-                        Context::line(line_number, line.to_string(), range.start, range.len()),
+                        Context::line(Some(line_index), line.to_string(), range.start, range.len()),
                     ))
                 },
                 Ok,

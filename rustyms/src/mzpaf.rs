@@ -40,7 +40,7 @@ fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomE
         Err(CustomError::error(
             "Invalid mzPAF annotation",
             "These characters could not be parsed",
-            Context::line_range(0, line, range.add_start(offset)),
+            Context::line_range(None, line, range.add_start(offset)),
         ))
     }
 }
@@ -70,7 +70,7 @@ fn parse_analyte_number(
                 return Err(CustomError::error(
                     "Invalid mzPAF analyte number",
                     "The analyte number should be followed by an at sign '@'",
-                    Context::line(0, line, num.0, 1),
+                    Context::line(None, line, num.0, 1),
                 ));
             }
             Ok((
@@ -79,7 +79,7 @@ fn parse_analyte_number(
                     CustomError::error(
                         "Invalid mzPAF analyte number",
                         format!("The analyte number number {}", explain_number_error(&err)),
-                        Context::line(0, line, 0, num.0),
+                        Context::line(None, line, 0, num.0),
                     )
                 })?),
             ))
@@ -102,7 +102,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                         CustomError::error(
                             "Invalid mzPAF unknown ion ordinal",
                             format!("The ordinal number {}", explain_number_error(&err)),
-                            Context::line(0, line, range.start_index() + 1, ordinal.0),
+                            Context::line(None, line, range.start_index() + 1, ordinal.0),
                         )
                     })?)),
                 ))
@@ -122,7 +122,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                             CustomError::error(
                                 "Invalid mzPAF unknown ion ordinal",
                                 format!("The ordinal number {}", explain_number_error(&err)),
-                                Context::line(0, line, range.start_index() + 1, ordinal.0),
+                                Context::line(None, line, range.start_index() + 1, ordinal.0),
                             )
                         })?,
                     ),
@@ -132,7 +132,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 Err(CustomError::error(
                     "Invalid mzPAF main series ion ordinal",
                     "For a main series ion the ordinal should be provided, like 'a12'",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 ))
             }
         }
@@ -141,7 +141,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 CustomError::error(
                     "Invalid mzPAF immonium",
                     "The source amino acid for this immonium ion should be present like 'IA'",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 )
             })?;
             let modification = if line[range.clone()].chars().nth(2) == Some('[') {
@@ -176,7 +176,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                         CustomError::error(
                             "Invalid mzPAF immonium ion",
                             "The provided amino acid is not a known amino acid",
-                            Context::line(0, line, range.start_index() + 1, 1),
+                            Context::line(None, line, range.start_index() + 1, 1),
                         )
                     })?,
                     modification.map(|m| m.1),
@@ -189,14 +189,14 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     CustomError::error(
                         "Invalid mzPAF internal ion first ordinal",
                         "The first ordinal for an internal ion should be present",
-                        Context::line(0, line, range.start_index(), 1),
+                        Context::line(None, line, range.start_index(), 1),
                     )
                 })?;
             if line[range.clone()].chars().nth(first_ordinal.0) != Some(':') {
                 return Err(CustomError::error(
                     "Invalid mzPAF internal ion ordinal separator",
                     "The internal ion ordinal separator should be a colon ':', like 'm4:6'",
-                    Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
+                    Context::line(None, line, range.start_index() + 1 + first_ordinal.0, 1),
                 ));
             }
             assert!(
@@ -211,14 +211,14 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 CustomError::error(
                     "Invalid mzPAF internal ion second ordinal",
                     "The second ordinal for an internal ion should be present",
-                    Context::line(0, line, range.start_index() + 1 + first_ordinal.0, 1),
+                    Context::line(None, line, range.start_index() + 1 + first_ordinal.0, 1),
                 )
             })?;
             let first_location = first_ordinal.2.map_err(|err| {
                 CustomError::error(
                     "Invalid mzPAF internal ion first ordinal",
                     format!("The ordinal number {}", explain_number_error(&err)),
-                    Context::line(0, line, range.start_index() + 1, first_ordinal.0),
+                    Context::line(None, line, range.start_index() + 1, first_ordinal.0),
                 )
             })?;
             let second_location = second_ordinal.2.map_err(|err| {
@@ -226,7 +226,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     "Invalid mzPAF internal ion second ordinal",
                     format!("The ordinal number {}", explain_number_error(&err)),
                     Context::line(
-                        0,
+                        None,
                         line,
                         range.start_index() + 2 + first_ordinal.0,
                         second_ordinal.0,
@@ -261,7 +261,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 Err(CustomError::error(
                     "Invalid mzPAF named compound",
                     "A named compound must be named with curly braces '{}' after the '_'",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 ))
             }?;
             Ok((3 + len, IonType::Named(name.to_string())))
@@ -285,7 +285,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 Err(CustomError::error(
                     "Invalid mzPAF reporter ion",
                     "A reporter ion must be named with square braces '[]' after the 'r'",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 ))
             }?;
             mz_paf_named_molecules()
@@ -296,7 +296,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                         Err(CustomError::error(
                             "Unknown mzPAF named reporter ion",
                             "Unknown name",
-                            Context::line(0, line, range.start_index() + 1, len),
+                            Context::line(None, line, range.start_index() + 1, len),
                         ))
                     },
                     |formula| Ok((3 + len, IonType::Reporter(formula))),
@@ -317,7 +317,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 Err(CustomError::error(
                     "Invalid mzPAF formula",
                     "A formula must have the formula defined with curly braces '{}' after the 'f'",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 ))
             }?;
             let formula = MolecularFormula::from_mz_paf(line, formula_range.clone())?;
@@ -328,12 +328,12 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
         Some(_) => Err(CustomError::error(
             "Invalid ion",
             "An ion cannot start with this character",
-            Context::line(0, line, range.start, 1),
+            Context::line(None, line, range.start, 1),
         )),
         None => Err(CustomError::error(
             "Invalid ion",
             "An ion cannot be an empty string",
-            Context::line_range(0, line, range),
+            Context::line_range(None, line, range),
         )),
     }
 }
@@ -371,7 +371,7 @@ fn parse_neutral_loss(
                 return Err(CustomError::error(
                     "Unknown mzPAF named neutral loss",
                     "Unknown name",
-                    Context::line(0, line, offset - name.len() - 1, name.len()),
+                    Context::line(None, line, offset - name.len() - 1, name.len()),
                 ));
             }
         } else {
@@ -401,7 +401,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
                 CustomError::error(
                     "Invalid mzPAF charge",
                     "The number after the charge symbol should be present, eg '^2'.",
-                    Context::line(0, line, range.start_index(), 1),
+                    Context::line(None, line, range.start_index(), 1),
                 )
             })?;
         Ok((
@@ -410,7 +410,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
                 CustomError::error(
                     "Invalid mzPAF charge",
                     format!("The charge number {}", explain_number_error(&err)),
-                    Context::line(0, line, range.start_index() + 1, charge.0),
+                    Context::line(None, line, range.start_index() + 1, charge.0),
                 )
             })? as isize),
         ))
@@ -429,7 +429,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
 //                 CustomError::error(
 //                     "Invalid mzPAF charge",
 //                     "The number after the charge symbol should be present, eg '^2'.",
-//                     Context::line(0, line, range.start_index(), 1),
+//                     Context::line(None, line, range.start_index(), 1),
 //                 )
 //             })?;
 //         Ok((
@@ -438,7 +438,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
 //                 CustomError::error(
 //                     "Invalid mzPAF charge",
 //                     format!("The charge number {}", explain_number_error(&err)),
-//                     Context::line(0, line, range.start_index() + 1, charge.0),
+//                     Context::line(None, line, range.start_index() + 1, charge.0),
 //                 )
 //             })? as isize),
 //         ))
@@ -459,14 +459,14 @@ fn parse_deviation(
             CustomError::error(
                 "Invalid mzPAF deviation",
                 "A deviation should be a number",
-                Context::line_range(0, line, range.start..range.start + 1),
+                Context::line_range(None, line, range.start..range.start + 1),
             ),
         )?;
         let deviation = number.2.map_err(|err| {
             CustomError::error(
                 "Invalid mzPAF deviation",
                 format!("The deviation number {err}",),
-                Context::line_range(0, line, range.start + 1..range.start + 1 + number.0),
+                Context::line_range(None, line, range.start + 1..range.start + 1 + number.0),
             )
         })?;
         if line[range.add_start(1 + number.0 as isize)]

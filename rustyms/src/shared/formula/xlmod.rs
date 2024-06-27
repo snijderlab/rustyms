@@ -27,7 +27,7 @@ impl MolecularFormula {
                 return Err(CustomError::error(
                     "Invalid Xlmod molecular formula",
                     "No element is defined",
-                    Context::line(0, value, offset, block.len()),
+                    Context::line(None, value, offset, block.len()),
                 ));
             }
             let element_len = block.len() - number - isotope_len - usize::from(negative);
@@ -40,7 +40,7 @@ impl MolecularFormula {
                     return Err(CustomError::error(
                         "Invalid Xlmod molecular formula", 
                         "A deuterium cannot have a defined isotope as deuterium is by definition always isotope 2 of hydrogen", 
-                        Context::line(0, value, offset+usize::from(negative), isotope_len)
+                        Context::line(None, value, offset+usize::from(negative), isotope_len)
                     ));
                 }
             } else {
@@ -58,7 +58,7 @@ impl MolecularFormula {
                         "Invalid Xlmod molecular formula",
                         "Not a valid character in formula",
                         Context::line(
-                            0,
+                            None,
                             value,
                             offset + usize::from(negative) + isotope_len,
                             element_len,
@@ -75,7 +75,7 @@ impl MolecularFormula {
                                 "Invalid Xlmod molecular formula",
                                 format!("The isotope number {}", explain_number_error(&err)),
                                 Context::line(
-                                    0,
+                                    None,
                                     value,
                                     offset + usize::from(negative),
                                     isotope_len,
@@ -95,7 +95,7 @@ impl MolecularFormula {
                                 "Invalid Xlmod molecular formula",
                                 format!("The element count {}", explain_number_error(&err)),
                                 Context::line(
-                                    0,
+                                    None,
                                     value,
                                     offset + usize::from(negative) + isotope_len + element_len,
                                     number,
@@ -111,7 +111,7 @@ impl MolecularFormula {
                         isotope.map_or_else(String::default, |i| i.to_string())
                     ),
                     Context::line(
-                        0,
+                        None,
                         value,
                         offset + usize::from(negative),
                         isotope_len + element_len,

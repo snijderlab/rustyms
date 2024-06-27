@@ -57,7 +57,7 @@ impl MolecularFormula {
                             CustomError::error(
                                 "Invalid Pro Forma molecular formula",
                                 "No closing square bracket found",
-                                Context::line(0, value, index, 1),
+                                Context::line(None, value, index, 1),
                             )
                         })?;
                     let isotope = bytes
@@ -108,7 +108,7 @@ impl MolecularFormula {
                                     "Invalid Pro Forma molecular formula",
                                     format!("The element number {}", explain_number_error(&err)),
                                     Context::line(
-                                        0,
+                                        None,
                                         value,
                                         index + isotope + ws1 + ele + ws2,
                                         num_len,
@@ -121,7 +121,7 @@ impl MolecularFormula {
                                 CustomError::error(
                                     "Invalid Pro Forma molecular formula",
                                     format!("The isotope number {}", explain_number_error(&err)),
-                                    Context::line(0, value, index, isotope),
+                                    Context::line(None, value, index, isotope),
                                 )
                             })?;
 
@@ -129,7 +129,7 @@ impl MolecularFormula {
                             return Err(CustomError::error(
                                 "Invalid Pro Forma molecular formula",
                                 format!("Invalid isotope ({isotope}) added for element ({parsed_element})"),
-                                Context::line(0, value, index, len),
+                                Context::line(None, value, index, len),
                             ),);
                         }
                         element = None;
@@ -138,7 +138,7 @@ impl MolecularFormula {
                         return Err(CustomError::error(
                             "Invalid Pro Forma molecular formula",
                             "Invalid element",
-                            Context::line(0, value, index + isotope, ele),
+                            Context::line(None, value, index + isotope, ele),
                         ));
                     }
                 }
@@ -163,7 +163,7 @@ impl MolecularFormula {
                                             "The element number {}",
                                             explain_number_error(&err)
                                         ),
-                                        Context::line(0, value, index, v.len()),
+                                        Context::line(None, value, index, v.len()),
                                     )
                                 }),
                                 v.len(),
@@ -178,7 +178,7 @@ impl MolecularFormula {
                                 "An element without a defined mass ({}) was used",
                                 element.unwrap()
                             ),
-                            Context::line(0, value, index - 1, 1),
+                            Context::line(None, value, index - 1, 1),
                         ));
                     }
                     element = None;
@@ -191,7 +191,7 @@ impl MolecularFormula {
                             return Err(CustomError::error(
                                 "Invalid Pro Forma molecular formula",
                                 format!("An element without a defined mass ({element}) was used"),
-                                Context::line(0, value, index - 1, 1),
+                                Context::line(None, value, index - 1, 1),
                             ));
                         }
                     }
@@ -216,7 +216,7 @@ impl MolecularFormula {
                         "Invalid Pro Forma molecular formula",
                         "Not a valid character in formula",
                         Context::line(
-                            0,
+                            None,
                             value,
                             index,
                             value[index..]
@@ -234,7 +234,7 @@ impl MolecularFormula {
                 return Err(CustomError::error(
                     "Invalid Pro Forma molecular formula",
                     format!("An element without a defined mass ({element}) was used"),
-                    Context::line(0, value, index - 1, 1),
+                    Context::line(None, value, index - 1, 1),
                 ));
             }
         }
