@@ -1,7 +1,7 @@
 //Spectrum	Spectrum.File	Peptide	Modified sequence	Extended.Peptide	Prev.AA	Next.AA	Peptide.Length	Charge	Retention	Observed.Mass	Calibrated.Observed.Mass	Observed.M.Z	Calibrated.Observed.M.Z	Calculated.Peptide.Mass	Calculated.M.Z	Delta.Mass	Expectation	Hyperscore	Nextscore	PeptideProphet.Probability	Number.of.Enzymatic.Termini	Number.of.Missed.Cleavages	Protein.Start	Protein.End	Intensity	Assigned.Modifications	Observed.Modifications	Purity	Is.Unique	Protein	Protein.ID	Entry.Name	Gene	Protein.Description	Mapped.Genes	Mapped.Proteins	condition	group
 use crate::{
     error::{Context, CustomError},
-    helper_functions::explain_number_error,
+    helper_functions::{explain_number_error, InvertResult},
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
@@ -55,7 +55,7 @@ format_family!(
         protein_end: usize, |location: Location| location.parse(NUMBER_ERROR);
         intensity: f64, |location: Location| location.parse(NUMBER_ERROR);
         assigned_modifications: String, |location: Location| Ok(location.get_string());
-        purity: usize, |location: Location| location.parse(NUMBER_ERROR);
+        purity: f64, |location: Location| location.parse(NUMBER_ERROR);
         is_unique: bool, |location: Location| location.parse(BOOL_ERROR);
         protein: String, |location: Location| Ok(location.get_string());
         protein_id: String, |location: Location| Ok(location.get_string());
@@ -64,10 +64,11 @@ format_family!(
         protein_description: String, |location: Location| Ok(location.get_string());
         mapped_genes: Vec<String>, |location: Location| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
         mapped_proteins: Vec<String>, |location: Location| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
-        condition: String, |location: Location| Ok(location.get_string());
-        group: String, |location: Location| Ok(location.get_string());
     }
-    optional { }
+    optional {
+        condition: String, |location: Location| Ok(Some(location.get_string()));
+        group: String, |location: Location| Ok(Some(location.get_string()));
+    }
 );
 
 impl From<MSFraggerData> for IdentifiedPeptide {
@@ -106,36 +107,36 @@ impl std::fmt::Display for MSFraggerVersion {
 pub const V21: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V21,
     spectrum: "spectrum",
-    spectrum_file: "spectrum.file",
-    peptide: "modified sequence",
-    extended_peptide: "extended.peptide",
+    spectrum_file: "spectrum file",
+    peptide: "modified peptide",
+    extended_peptide: "extended peptide",
     z: "charge",
     rt: "retention",
-    experimental_mass: "observed.mass",
-    calibrated_experimental_mass: "calibrated.observed.mass",
-    experimental_mz: "observed.m.z",
-    calibrated_experimental_mz: "calibrated.observed.m.z",
+    experimental_mass: "observed mass",
+    calibrated_experimental_mass: "calibrated observed mass",
+    experimental_mz: "observed m/z",
+    calibrated_experimental_mz: "calibrated observed m/z",
     expectation: "expectation",
     hyperscore: "hyperscore",
     next_score: "nextscore",
-    peptide_prophet_probability: "peptideprophet.probability",
-    enzymatic_termini: "number.of.enzymatic.termini",
-    missed_cleavages: "number.of.missed.cleavages",
-    protein_start: "protein.start",
-    protein_end: "protein.end",
+    peptide_prophet_probability: "peptideprophet probability",
+    enzymatic_termini: "number of enzymatic termini",
+    missed_cleavages: "number of missed cleavages",
+    protein_start: "protein start",
+    protein_end: "protein end",
     intensity: "intensity",
-    assigned_modifications: "assigned.modifications",
+    assigned_modifications: "assigned modifications",
     purity: "purity",
-    is_unique: "is.unique",
+    is_unique: "is unique",
     protein: "protein",
-    protein_id: "protein.id",
-    entry_name: "entry.name",
+    protein_id: "protein id",
+    entry_name: "entry name",
     gene: "gene",
-    protein_description: "protein.description",
-    mapped_genes: "mapped.genes",
-    mapped_proteins: "mapped.proteins",
-    condition: "condition",
-    group: "group",
+    protein_description: "protein description",
+    mapped_genes: "mapped genes",
+    mapped_proteins: "mapped proteins",
+    condition: Some("condition"),
+    group: Some("group"),
 };
 
 /// The scans identifier for a MSFragger identification

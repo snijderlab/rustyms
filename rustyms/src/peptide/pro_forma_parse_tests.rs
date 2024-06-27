@@ -384,6 +384,7 @@ parse_test!("EMEVEESPEK/-1[+e-]", positive_example_146);
 parse_test!("EMEVEESPEK/2+ELVISLIVER/3", positive_example_147);
 parse_test!("AA(?AA)", positive_example_148);
 parse_test!("AA(?AA)AA", positive_example_149);
+parse_test!("[dehydro]^3?Q[gln->pyro-glu]SC", positive_example_150);
 
 // NEGATIVE EXAMPLES
 
@@ -402,8 +403,10 @@ parse_test!(ne "{TMT6plex#g1}AA", negative_example_12);
 parse_test!(ne "{TMT6plex#XL1}AA", negative_example_13);
 parse_test!(ne "{TMT6plex#BRANCH}AA", negative_example_14);
 parse_test!(ne "AA//AA", negative_example_15);
-parse_test!("AA(?A(A)[+1])AA", negative_example_16);
-parse_test!("AA(A(?A))[+1]AA", negative_example_17);
+parse_test!(ne "AA(?A(A)[+1])AA", negative_example_16);
+parse_test!(ne "AA(A(?A))[+1]AA", negative_example_17);
+parse_test!(ne "[dehydro]^3?Q[gln->pyro-glu]S", negative_example_18);
+parse_test!(ne "(Q[gln->pyro-glu]S)[Dehydro]", negative_example_19);
 
 // FUZZED CRASHES
 

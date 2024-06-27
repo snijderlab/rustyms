@@ -114,42 +114,47 @@ impl LinearPeptide<Linked> {
     }
 
     /// Place all global unknown positions at all possible locations as ambiguous modifications
+    /// # Errors
+    /// When a mod cannot be placed anywhere
     pub(super) fn apply_unknown_position_modification(
         &mut self,
         unknown_position_modifications: &[SimpleModification],
-    ) {
+    ) -> Result<(), CustomError> {
         for (unknown_mod_index, modification) in unknown_position_modifications.iter().enumerate() {
             let id = self.ambiguous_modifications.len();
             let length = self.len();
-            #[allow(clippy::unnecessary_filter_map)]
-            // Side effects so the lint does not apply here
-            self.ambiguous_modifications.push(
-                (0..length)
-                    .filter_map(|i| {
-                        if modification
-                            .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
-                            .possible()
-                        {
-                            self.sequence[i]
-                                .possible_modifications
-                                .push(AmbiguousModification {
-                                    id,
-                                    modification: modification.clone(),
-                                    localisation_score: None,
-                                    group: format!("u{unknown_mod_index}"),
-                                    preferred: false,
-                                });
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect(),
-            );
+            let positions = (0..length)
+                .filter(|i| {
+                    if modification
+                        .is_possible(&self.sequence[*i], &PeptidePosition::n(*i, length))
+                        .possible()
+                    {
+                        self.sequence[*i]
+                            .possible_modifications
+                            .push(AmbiguousModification {
+                                id,
+                                modification: modification.clone(),
+                                localisation_score: None,
+                                group: format!("u{unknown_mod_index}"),
+                                preferred: false,
+                            });
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .collect_vec();
+            if positions.is_empty() {
+                return Err(CustomError::error("Modification of unknown position cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
+            }
+            self.ambiguous_modifications.push(positions);
         }
+        Ok(())
     }
 
     /// Place all ranged unknown positions at all possible locations as ambiguous modifications
+    /// # Errors
+    /// When a mod cannot be placed anywhere
     /// # Panics
     /// It panics when information for an ambiguous modification is missing (name/mod).
     pub(super) fn apply_ranged_unknown_position_modification(
@@ -157,7 +162,7 @@ impl LinearPeptide<Linked> {
         ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
         mut start_ambiguous_index: usize,
         mut start_ambiguous_group_id: usize,
-    ) {
+    ) -> Result<(), CustomError> {
         for (start, end, modification) in ranged_unknown_position_modifications {
             let length = self.len();
             #[allow(clippy::unnecessary_filter_map)]
@@ -183,10 +188,14 @@ impl LinearPeptide<Linked> {
                     }
                 })
                 .collect_vec();
+            if positions.is_empty() {
+                return Err(CustomError::error("Modification of unknown position on a range cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
+            }
             self.ambiguous_modifications.push(positions);
             start_ambiguous_index += 1;
             start_ambiguous_group_id += 1;
         }
+        Ok(())
     }
 }
 

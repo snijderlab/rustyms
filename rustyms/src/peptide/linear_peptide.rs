@@ -708,14 +708,16 @@ impl<T> LinearPeptide<T> {
         // Write any modification of unknown position that has no preferred location at the start of the peptide
         let mut any_ambiguous = false;
         for (id, ambiguous) in self.ambiguous_modifications.iter().enumerate() {
-            if ambiguous.iter().all(|i| {
-                let m = self.sequence[*i]
-                    .possible_modifications
-                    .iter()
-                    .find(|m| m.id == id)
-                    .unwrap();
-                !m.preferred
-            }) {
+            if !ambiguous.is_empty()
+                && ambiguous.iter().all(|i| {
+                    let m = self.sequence[*i]
+                        .possible_modifications
+                        .iter()
+                        .find(|m| m.id == id)
+                        .unwrap();
+                    !m.preferred
+                })
+            {
                 let m = self.sequence[ambiguous[0]]
                     .possible_modifications
                     .iter()

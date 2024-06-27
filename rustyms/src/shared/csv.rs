@@ -208,14 +208,11 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
     type Item = Result<CsvLine, CustomError>;
     fn next(&mut self) -> Option<Self::Item> {
         self.lines.next().map(|(line_index, line)| {
-            let line = match line {
-                Ok(line) => line.trim_end().to_string(),
-                Err(err) => return Err(CustomError::error(
+            let line = line.map_err(|err|CustomError::error(
                     "Could not read line",
                     err,
                     Context::full_line(line_index, "(failed)"),
-                ))
-            };
+                ))?;
             csv_separate(&line, self.separator).and_then(|row| {
                 if self.header.len() == row.len() {
                     Ok(CsvLine {

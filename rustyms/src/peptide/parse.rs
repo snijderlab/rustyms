@@ -461,12 +461,12 @@ impl CompoundPeptidoform {
             .map(|(_, group)| group.into_iter().map(|p| p.0).collect()) // Retrieve locations
             .collect();
 
-        peptide.apply_unknown_position_modification(&unknown_position_modifications);
+        peptide.apply_unknown_position_modification(&unknown_position_modifications)?;
         peptide.apply_ranged_unknown_position_modification(
             &ranged_unknown_position_modifications,
             ambiguous_lookup.len(),
             unknown_position_modifications.len(),
-        );
+        )?;
         peptide.enforce_modification_rules()?;
 
         Ok(LinearPeptideResult {
