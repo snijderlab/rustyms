@@ -10,3 +10,4 @@ out
 /rustyms/databases/*.csv
 /rustyms/databases/*.obo
 /rustyms/databases/*.xml
+/rustyms/databases/*.XML

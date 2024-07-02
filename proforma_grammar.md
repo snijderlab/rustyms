@@ -4,11 +4,11 @@ The ProForma specification is fully supported ('level 2-ProForma + top-down comp
 
 ## Sources for the downloaded files
 
-- PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV (v1.031.6)
-- Unimod: http://www.unimod.org/obo/unimod.obo (29:02:2024 10:49)
-- RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (RESIDUES.XML)
-- XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo
-- GNO: http://purl.obolibrary.org/obo/gno.obo (2024-03-18) structures: https://glycosmos.org/download/glycosmos_glycans_list.csv (2024-03-18)
+- PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV (2021-06-13 v1.031.6)
+- Unimod: http://www.unimod.org/obo/unimod.obo (2024-02-29 10:49)
+- RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (2018-04-31 RESIDUES.XML)
+- XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo (2021-03-23 1.1.12)
+- GNO: http://purl.obolibrary.org/obo/gno.obo (2024-05-21) structures: https://glycosmos.org/download/glycosmos_glycans_list.csv (downloaded 2024-07-02)
   - To save space (crates.io has a hard limit on crate size) the unused columns of the structures csv are remove (only 0 and 1 are kept) and the `gno.obo` is trimmed using the following regex: `(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)` (any matching line is removed)
   - The structures csv file has only the first two columns kept for the same reason, also remove the two lines starting with `"`
 - Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv (2021-03-17)
