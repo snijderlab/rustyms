@@ -35,6 +35,7 @@ mod formula;
 #[path = "shared/csv.rs"]
 pub mod csv;
 
+mod ambiguous_label;
 pub mod aminoacid_properties;
 mod aminoacids;
 mod element;
@@ -50,8 +51,8 @@ mod mass_mode;
 pub mod model;
 pub mod modification;
 mod molecular_charge;
+#[path = "shared/multi.rs"]
 mod multi;
-mod multi_formula;
 mod mzpaf;
 mod neutral_loss;
 pub mod ontologies;
@@ -75,7 +76,6 @@ pub use crate::model::Model;
 pub use crate::modification::Modification;
 pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
-pub use crate::multi_formula::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::{
     CompoundPeptidoform, ExtremelySimple, Linear, LinearPeptide, Linked, Peptidoform,

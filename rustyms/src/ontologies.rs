@@ -23,6 +23,7 @@ impl Ontology {
             Self::Gnome => gnome_ontology(),
             Self::Psimod => psimod_ontology(),
             Self::Unimod => unimod_ontology(),
+            Self::Resid => resid_ontology(),
             Self::Xlmod => xlmod_ontology(),
             Self::Custom => custom_database.map_or(&EMPTY_LIST, |c| c),
         }
@@ -141,6 +142,14 @@ fn gnome_ontology() -> &'static OntologyModificationList {
         bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/gnome.dat"))).unwrap()
     })
 }
+/// Get the Resid ontology
+/// # Panics
+/// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
+fn resid_ontology() -> &'static OntologyModificationList {
+    RESID_CELL.get_or_init(|| {
+        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/resid.dat"))).unwrap()
+    })
+}
 /// Get the Xlmod ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
@@ -152,4 +161,5 @@ fn xlmod_ontology() -> &'static OntologyModificationList {
 static UNIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static PSIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static GNOME_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
+static RESID_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static XLMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();

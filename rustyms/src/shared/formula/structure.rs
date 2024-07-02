@@ -1,7 +1,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use crate::Element;
+use crate::{Element, Multi};
 use std::{
     fmt::Write,
     hash::Hash,
@@ -35,6 +35,26 @@ impl<T: Chemical> Chemical for &[T] {
 impl<T: Chemical> Chemical for &Vec<T> {
     fn formula(&self) -> MolecularFormula {
         self.iter().map(Chemical::formula).sum()
+    }
+}
+
+/// Any item that has a number of potential chemical formulas
+pub trait MultiChemical {
+    /// Get all possible molecular formulas
+    fn formulas(&self) -> Multi<MolecularFormula>;
+
+    /// Get the charge of this chemical, it returns None if no charge is defined.
+    fn charge(&self) -> Option<crate::system::isize::Charge> {
+        self.formulas()
+            .first()
+            .map(MolecularFormula::charge)
+            .filter(|c| c.value != 0)
+    }
+
+    /// Return a single formula if this MultiChemical has only one possible formula
+    fn single_formula(&self) -> Option<MolecularFormula> {
+        let formulas = self.formulas();
+        (formulas.len() == 1).then_some(formulas.to_vec().pop().unwrap())
     }
 }
 

@@ -85,6 +85,8 @@
 | ------- | ------------- | -------- | ----- | -------------------------------- | ---------------------------------- |
 | Unimod  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
 | PSI-MOD | Yes           | Yes      | Yes   | NA                               | Yes                                |
-| RESID   | -             | -        | -     | -                                | -                                  |
+| RESID   | Yes           | Yes      | Yes   | NA                               | Yes                                |
 | XL-MOD  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
 | GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      | NA                                 |
+
+Note some modifications that do not fit the assumptions of rustyms might be missing from the ontologies. Examples of these are cross-links with more then 2 positions from XL-MOD and RESID, and modifications with different diff_formulas based on which location they bound from RESID.

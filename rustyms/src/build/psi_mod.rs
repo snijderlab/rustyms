@@ -120,7 +120,6 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
             }
         }
         modification.data = ModData::Mod {
-            monosaccharides: Vec::new(),
             specificities: rules,
         };
         mods.push(modification);

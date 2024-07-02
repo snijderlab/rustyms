@@ -1,20 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{fragment::PeptidePosition, AminoAcid, MolecularFormula, Multi};
-
-/// Any item that has a number of potential chemical formulas
-pub trait MultiChemical {
-    /// Get all possible molecular formulas
-    fn formulas(&self) -> Multi<MolecularFormula>;
-
-    /// Get the charge of this chemical, it returns None if no charge is defined.
-    fn charge(&self) -> Option<crate::system::isize::Charge> {
-        self.formulas()
-            .first()
-            .map(MolecularFormula::charge)
-            .filter(|c| c.value != 0)
-    }
-}
+use crate::{fragment::PeptidePosition, AminoAcid, MolecularFormula};
 
 /// Keep track of what ambiguous option is used
 /// TODO: Maybe also use the labelling system to keep track of which modification neutral loss is applied?

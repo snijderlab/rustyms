@@ -144,6 +144,17 @@ fn parse_single_modification(
                         )
                     })
                 }
+                ("resid", tail) => {
+                    let id = tail[2..].parse::<usize>().map_err(|_| {
+                        basic_error
+                            .with_long_description("RESID accession number should be a number prefixed with 'AA'")
+                    })?;
+                    Ontology::Resid.find_id(id, custom_database).map(Some).ok_or_else(|| {
+                        basic_error.with_long_description(
+                            "The supplied Resid accession number is not an existing modification",
+                        )
+                    })
+                }
                 ("xlmod", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| {
                         basic_error
@@ -185,6 +196,16 @@ fn parse_single_modification(
                     .map(Some)
                     .map_err(|_| {
                         Ontology::Psimod
+                            .find_closest(tail, custom_database)
+                            .with_context(basic_error.context().clone())
+                    }),
+                ("r", tail) => Ontology::Resid
+                    .find_name(tail, custom_database)
+                    .ok_or_else(|| numerical_mod(tail))
+                    .flat_err()
+                    .map(Some)
+                    .map_err(|_| {
+                        Ontology::Resid
                             .find_closest(tail, custom_database)
                             .with_context(basic_error.context().clone())
                     }),

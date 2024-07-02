@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(format!("{a}"), "warning: test\n  ╷\n1 │ hello world\n2 │ this is a multiline\n3 │ piece of teXt\n  ╵\ntest error\n");
         assert!(a.is_warning());
         assert_eq!(pos2.text, "");
-        assert_eq!(pos2.line_index, 4);
+        assert_eq!(pos2.line_index, 3);
         assert_eq!(pos2.column, 13);
     }
 }

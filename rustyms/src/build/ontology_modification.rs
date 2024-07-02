@@ -2,9 +2,8 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    build::glycan::MonoSaccharide,
-    formula::{Chemical, MolecularFormula},
-    DiagnosticIon, LinkerSpecificity, ModificationId, NeutralLoss, SimpleModification,
+    formula::MolecularFormula, AminoAcid, DiagnosticIon, LinkerSpecificity, ModificationId,
+    NeutralLoss, SimpleModification,
 };
 
 #[derive(Debug, Default)]
@@ -23,7 +22,6 @@ pub struct OntologyModification {
 pub enum ModData {
     Mod {
         specificities: Vec<(Vec<PlacementRule>, Vec<NeutralLoss>, Vec<DiagnosticIon>)>,
-        monosaccharides: Vec<(MonoSaccharide, i32)>,
     },
     Linker {
         length: Option<OrderedFloat<f64>>,
@@ -35,7 +33,6 @@ impl Default for ModData {
     fn default() -> Self {
         Self::Mod {
             specificities: Vec::new(),
-            monosaccharides: Vec::new(),
         }
     }
 }
@@ -103,19 +100,12 @@ impl OntologyModification {
             cross_ids: self.cross_ids,
         };
         match self.data {
-            ModData::Mod {
-                monosaccharides,
-                specificities,
-            } => (
+            ModData::Mod { specificities } => (
                 self.id,
                 self.name.to_ascii_lowercase(),
                 SimpleModification::Database {
                     id,
-                    formula: self.formula
-                        + monosaccharides
-                            .iter()
-                            .map(|(s, n)| s.formula() * n)
-                            .sum::<MolecularFormula>(),
+                    formula: self.formula,
                     specificities,
                 },
             ),
@@ -137,7 +127,6 @@ impl OntologyModification {
 }
 
 include!("../shared/placement_rule.rs");
-include!("../shared/aminoacid.rs");
 include!("../shared/ontology.rs");
 
 impl TryInto<Position> for u8 {

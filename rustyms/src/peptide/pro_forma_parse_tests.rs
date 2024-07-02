@@ -63,10 +63,10 @@ parse_test!(
     positive_example_9
 );
 parse_test!("EM[Oxidation]EVEES[Phospho]PEK", positive_example_10);
-// parse_test!(
-//     "EM[R: Methionine sulfone]EVEES[O-phospho-L-serine]PEK",
-//     positive_example_11
-// ); TODO: RESID
+parse_test!(
+    "EM[R:L-methionine sulfone]EVEES[O-phospho-L-serine]PEK",
+    positive_example_11
+);
 parse_test!("EMEVTK[X:DSS#XL1]SESPEK", positive_example_12);
 parse_test!("EM[U:Oxidation]EVEES[U:Phospho]PEK", positive_example_13);
 parse_test!("EM[+15.9949]EVEES[+79.9663]PEK", positive_example_14);
@@ -122,10 +122,10 @@ parse_test!(
     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
     positive_example_36
 );
-parse_test!(
-    "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
-    positive_example_37
-);
+// parse_test!(
+//     "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
+//     positive_example_37
+// ); This modification cannot be placed on N termini (in the database), so invalid
 parse_test!(
     "(?DQ)NGTWEM[Oxidation]ESNENFEGYM[Oxidation]K",
     positive_example_38
@@ -169,10 +169,10 @@ parse_test!(
     "EM[L-methionine sulfoxide]EVEES[O-phospho-L-serine]PEK",
     positive_example_56
 );
-// parse_test!(
-//     "EM[R: L-methionine sulfone]EVEES[O-phospho-L-serine]PEK",
-//     positive_example_57
-// ); TODO: RESID
+parse_test!(
+    "EM[R:L-methionine sulfone]EVEES[O-phospho-L-serine]PEK",
+    positive_example_57
+);
 parse_test!("EMEVTK[X:DSS#XL1]SESPEK", positive_example_58);
 parse_test!("NEEYN[GNO:G59626AS]K", positive_example_59);
 parse_test!("NEEYN[G:G59626AS]K", positive_example_60);
@@ -195,10 +195,10 @@ parse_test!(
 );
 parse_test!("EM[MOD:00719]EVEES[MOD:00046]PEK", positive_example_66);
 parse_test!("EM[UNIMOD:35]EVEES[UNIMOD:56]PEK", positive_example_67);
-// parse_test!(
-//     "EM[RESID:AA0581]EVEES[RESID:AA0037]PEK",
-//     positive_example_68
-// ); TODO: RESID
+parse_test!(
+    "EM[RESID:AA0581]EVEES[RESID:AA0037]PEK",
+    positive_example_68
+);
 parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK[#XL1]", positive_example_69);
 parse_test!(
     "EMK[XLMOD:02000#XL1]EVTKSE[XLMOD:02010#XL2]SK[#XL1]PEK[#XL2]AR",
@@ -241,10 +241,10 @@ parse_test!(
 );
 parse_test!("EVTSEKC[UNIMOD:374#XL1]LEMSC[#XL1]EFD", positive_example_83);
 parse_test!("EVTSEKC[Dehydro#XL1]LEMSC[#XL1]EFD", positive_example_84);
-parse_test!(
-    "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
-    positive_example_85
-);
+// parse_test!(
+//     "ETFGD[MOD:00093#BRANCH]//R[#BRANCH]ATER",
+//     positive_example_85
+// ); This modification cannot be placed on N termini (in the database), so invalid
 parse_test!(
     "AVTKYTSSK[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
     positive_example_86
@@ -825,8 +825,12 @@ fn parse_adduct_ions_02() {
         peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(&[], &[], &mut Vec::new())
     );
     assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0].get_c_term(),
-        peptide.peptidoforms()[1].peptides()[0].get_n_term()
+        peptide.peptidoforms()[0].peptides()[0]
+            .get_c_term()
+            .additional_mass(),
+        peptide.peptidoforms()[1].peptides()[0]
+            .get_n_term()
+            .additional_mass()
     );
     assert!(
         peptide.peptidoforms()[0].peptides()[0].get_n_term()

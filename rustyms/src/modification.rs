@@ -37,6 +37,10 @@ impl ModificationId {
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
                 self.name
             )),
+            Ontology::Resid => Some(format!(
+                "https://proteininformationresource.org/cgi-bin/resid?id=AA{:4}",
+                self.id
+            )),
             Ontology::Xlmod | Ontology::Custom => None,
         }
     }

@@ -183,7 +183,6 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
                 id,
                 data: ModData::Mod {
                     specificities: vec![(origins.0, Vec::new(), diagnostic_ions)],
-                    monosaccharides: Vec::new(),
                 },
             });
         }

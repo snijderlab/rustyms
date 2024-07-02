@@ -11,48 +11,6 @@ use crate::{
 
 include!("shared/aminoacid.rs");
 
-impl MultiChemical for AminoAcid {
-    /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
-    fn formulas(&self) -> Multi<MolecularFormula> {
-        match self {
-            Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).into(),
-            Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).into(), // One of the H's counts as the charge carrier and is added later
-            Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2).into(),
-            Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1).into(),
-            Self::AmbiguousAsparagine => vec![
-                molecular_formula!(H 6 C 4 O 2 N 2),
-                molecular_formula!(H 5 C 4 O 3 N 1),
-            ]
-            .into(),
-            Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1).into(),
-            Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2).into(),
-            Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1).into(),
-            Self::AmbiguousGlutamine => vec![
-                molecular_formula!(H 8 C 5 O 2 N 2),
-                molecular_formula!(H 7 C 5 O 3 N 1),
-            ]
-            .into(),
-            Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1).into(),
-            Self::Histidine => molecular_formula!(H 7 C 6 O 1 N 3).into(),
-            Self::AmbiguousLeucine | Self::Isoleucine | Self::Leucine => {
-                molecular_formula!(H 11 C 6 O 1 N 1).into()
-            }
-            Self::Lysine => molecular_formula!(H 12 C 6 O 1 N 2).into(),
-            Self::Methionine => molecular_formula!(H 9 C 5 O 1 N 1 S 1).into(),
-            Self::Phenylalanine => molecular_formula!(H 9 C 9 O 1 N 1).into(),
-            Self::Proline => molecular_formula!(H 7 C 5 O 1 N 1).into(),
-            Self::Pyrrolysine => molecular_formula!(H 19 C 11 O 2 N 3).into(),
-            Self::Selenocysteine => molecular_formula!(H 5 C 3 O 1 N 1 Se 1).into(),
-            Self::Serine => molecular_formula!(H 5 C 3 O 2 N 1).into(),
-            Self::Threonine => molecular_formula!(H 7 C 4 O 2 N 1).into(),
-            Self::Tryptophan => molecular_formula!(H 10 C 11 O 1 N 2).into(),
-            Self::Tyrosine => molecular_formula!(H 9 C 9 O 2 N 1).into(),
-            Self::Valine => molecular_formula!(H 9 C 5 O 1 N 1).into(),
-            Self::Unknown => molecular_formula!().into(),
-        }
-    }
-}
-
 #[allow(non_upper_case_globals, missing_docs)]
 impl AminoAcid {
     pub const A: Self = Self::Alanine;
