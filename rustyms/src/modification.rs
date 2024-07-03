@@ -30,7 +30,7 @@ impl ModificationId {
                 self.id
             )),
             Ontology::Psimod => Some(format!(
-                "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{:5}",
+                "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{:05}",
                 self.id
             )),
             Ontology::Gnome => Some(format!(
@@ -38,7 +38,7 @@ impl ModificationId {
                 self.name
             )),
             Ontology::Resid => Some(format!(
-                "https://proteininformationresource.org/cgi-bin/resid?id=AA{:4}",
+                "https://proteininformationresource.org/cgi-bin/resid?id=AA{:04}",
                 self.id
             )),
             Ontology::Xlmod | Ontology::Custom => None,
