@@ -1,5 +1,5 @@
 /// A modification on an amino acid
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum Modification {
     /// Any of the simple modifications
     Simple(SimpleModification),
@@ -14,19 +14,57 @@ pub enum Modification {
         /// The name of the cross-linker, if [`CrossLinkName::Branch`] it is a branch instead of cross-link
         name: CrossLinkName,
         /// To determine if the cross-link is placed symmetrically or if asymmetrically if this is the left or right side
-        side: CrossLikeSide,
+        side: CrossLinkSide,
     },
 }
 
 /// Indicate the cross-link side
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub enum CrossLikeSide {
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum CrossLinkSide {
     /// The cross-link is symmetric, or if asymmetric it can be placed in both orientations
-    Symmetric,
+    Symmetric(HashSet<usize>),
     /// The cross-link is asymmetric and this is the 'left' side
-    Left,
+    Left(HashSet<usize>),
     /// The cross-link is asymmetric and this is the 'right' side
-    Right,
+    Right(HashSet<usize>),
+}
+
+impl PartialOrd for CrossLinkSide {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CrossLinkSide {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Self::Symmetric(_), Self::Symmetric(_)) => Ordering::Equal,
+            (Self::Symmetric(_), _) => Ordering::Greater,
+            (_, Self::Symmetric(_)) => Ordering::Less,
+            (Self::Left(_), Self::Left(_)) => Ordering::Equal,
+            (Self::Left(_), _) => Ordering::Greater,
+            (_, Self::Left(_)) => Ordering::Less,
+            (Self::Right(_), Self::Right(_)) => Ordering::Equal,
+        }
+    }
+}
+
+impl std::hash::Hash for CrossLinkSide {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use itertools::Itertools;
+        let (i, r) = match self {
+            Self::Symmetric(r) => (0, r),
+            Self::Left(r) => (1, r),
+            Self::Right(r) => (2, r),
+        };
+        state.write_u8(i);
+        state.write(
+            &r.iter()
+                .sorted()
+                .flat_map(|r| r.to_ne_bytes())
+                .collect_vec(),
+        );
+    }
 }
 
 /// A modification on an amino acid

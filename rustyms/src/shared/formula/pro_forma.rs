@@ -27,6 +27,10 @@ impl MolecularFormula {
     /// Example: [13C2][12C-2]H2N
     /// Example: [13C2]C-2H2N
     /// ```
+    /// ## Allow charge
+    /// Allows electrons to be used to define the charge of the formula
+    /// ## Allow empty
+    /// Allows the string `(empty)` to be used to denote an empty formula
     /// # Errors
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
@@ -36,8 +40,12 @@ impl MolecularFormula {
         value: &str,
         range: impl RangeBounds<usize>,
         allow_charge: bool,
+        allow_empty: bool,
     ) -> Result<Self, CustomError> {
         let (mut index, end) = range.bounds(value.len().saturating_sub(1));
+        if allow_empty && value[index..=end].to_ascii_lowercase() == "(empty)" {
+            return Ok(Self::default());
+        }
         let mut element = None;
         let bytes = value.as_bytes();
         let mut result = Self::default();

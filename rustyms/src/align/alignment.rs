@@ -175,7 +175,7 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
                 .iter()
                 .fold(Multi::default(), |acc, s| {
                     acc * s
-                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new())
+                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new(), false)
                         .0
                 })
         }
@@ -191,7 +191,7 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
                 .iter()
                 .fold(Multi::default(), |acc, s| {
                     acc * s
-                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new())
+                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new(), false)
                         .0
                 })
         }

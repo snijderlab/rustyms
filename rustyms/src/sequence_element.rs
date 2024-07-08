@@ -6,8 +6,7 @@ use crate::{
     error::{Context, CustomError},
     fragment::PeptidePosition,
     modification::{
-        AmbiguousModification, CrossLikeSide, CrossLinkName, LinkerSpecificity, RulePossible,
-        SimpleModification,
+        AmbiguousModification, CrossLinkName, LinkerSpecificity, RulePossible, SimpleModification,
     },
     peptide::Linked,
     placement_rule::PlacementRule,
@@ -85,11 +84,19 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
             .iter()
-            .map(|m| m.formula_inner(all_peptides, visited_peptides, applied_cross_links))
+            .map(|m| {
+                m.formula_inner(
+                    all_peptides,
+                    visited_peptides,
+                    applied_cross_links,
+                    allow_ms_cleavable,
+                )
+            })
             .fold((Multi::default(), HashSet::new()), |(am, av), (m, v)| {
                 (am * m, av.union(&v).cloned().collect())
             });
@@ -103,9 +110,14 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (formula, seen) =
-            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        let (formula, seen) = self.base_formula(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+        );
         (
             formula
                 + self
@@ -126,9 +138,14 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (formula, seen) =
-            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        let (formula, seen) = self.base_formula(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+        );
         (
             formula
                 + self
@@ -151,9 +168,14 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (formula, seen) =
-            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        let (formula, seen) = self.base_formula(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+        );
         (
             formula
                 + self
@@ -172,9 +194,14 @@ impl SequenceElement {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (mut formulas, seen) =
-            self.base_formula(all_peptides, visited_peptides, applied_cross_links);
+        let (mut formulas, seen) = self.base_formula(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+        );
         for modification in &self.possible_modifications {
             formulas = formulas + modification.formula();
         }
@@ -209,46 +236,13 @@ impl SequenceElement {
         let mut diagnostic_ions = Vec::new();
         for modification in &self.modifications {
             match modification {
-                Modification::CrossLink {
-                    linker: SimpleModification::Database { specificities, .. },
-                    ..
+                Modification::CrossLink { linker, side, .. } => {
+                    diagnostic_ions.extend_from_slice(&side.allowed_rules(linker).2);
                 }
-                | Modification::Simple(SimpleModification::Database { specificities, .. }) => {
+                Modification::Simple(SimpleModification::Database { specificities, .. }) => {
                     for (rules, _, ions) in specificities {
                         if PlacementRule::any_possible(rules, self, position) {
                             diagnostic_ions.extend_from_slice(ions);
-                        }
-                    }
-                }
-                Modification::CrossLink {
-                    linker: SimpleModification::Linker { specificities, .. },
-                    side,
-                    ..
-                } => {
-                    for rule in specificities {
-                        match rule {
-                            LinkerSpecificity::Symmetric(rules, _, ions) => {
-                                if PlacementRule::any_possible(rules, self, position) {
-                                    diagnostic_ions.extend_from_slice(ions);
-                                }
-                            }
-                            LinkerSpecificity::Asymmetric((rules_left, rules_right), _, ions) => {
-                                if *side == CrossLikeSide::Symmetric {
-                                    if PlacementRule::any_possible(rules_left, self, position)
-                                        || PlacementRule::any_possible(rules_right, self, position)
-                                    {
-                                        diagnostic_ions.extend_from_slice(ions);
-                                    }
-                                } else if *side == CrossLikeSide::Left {
-                                    if PlacementRule::any_possible(rules_left, self, position) {
-                                        diagnostic_ions.extend_from_slice(ions);
-                                    }
-                                } else if *side == CrossLikeSide::Right {
-                                    if PlacementRule::any_possible(rules_right, self, position) {
-                                        diagnostic_ions.extend_from_slice(ions);
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -270,7 +264,7 @@ impl SequenceElement {
                         }
                     }
                 }
-                _ => (),
+                Modification::Simple(_) => (),
             }
         }
         diagnostic_ions

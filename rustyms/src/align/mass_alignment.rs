@@ -270,7 +270,7 @@ fn calculate_masses<const STEPS: u16>(
         for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
-                .map(|p| p.formulas_all(&[], &[], &mut Vec::new()).0)
+                .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false).0)
                 .sum::<Multi<MolecularFormula>>()
                 .iter()
                 .map(MolecularFormula::monoisotopic_mass)
@@ -453,7 +453,7 @@ mod tests {
             (
                 &a,
                 &a.iter()
-                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new()).0)
+                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false).0)
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()
@@ -461,7 +461,7 @@ mod tests {
             (
                 &b,
                 &b.iter()
-                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new()).0)
+                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false).0)
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()

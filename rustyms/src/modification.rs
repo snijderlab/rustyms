@@ -1,9 +1,11 @@
 //! Handle modification related issues, access provided if you want to dive deeply into modifications in your own code.
 
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use std::{
+    cmp::Ordering,
     collections::HashSet,
     fmt::{Display, Write},
 };
@@ -68,16 +70,16 @@ impl Chemical for SimpleModification {
 }
 
 /// The result of checking if a modification can be placed somewhere.
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum RulePossible {
     /// This modification cannot be placed
     No,
     /// This modification can be placed and if it is a cross-link it can be placed on both ends
-    Symmetric,
+    Symmetric(HashSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'left' side of the cross-link
-    AsymmetricLeft,
+    AsymmetricLeft(HashSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'right' side of the cross-link
-    AsymmetricRight,
+    AsymmetricRight(HashSet<usize>),
 }
 
 impl RulePossible {
@@ -91,12 +93,20 @@ impl std::ops::Add for RulePossible {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Self::Symmetric, _)
-            | (_, Self::Symmetric)
-            | (Self::AsymmetricLeft, Self::AsymmetricRight)
-            | (Self::AsymmetricRight, Self::AsymmetricLeft) => Self::Symmetric,
-            (Self::AsymmetricLeft, _) | (_, Self::AsymmetricLeft) => Self::AsymmetricLeft,
-            (Self::AsymmetricRight, _) | (_, Self::AsymmetricRight) => Self::AsymmetricRight,
+            (Self::Symmetric(a), _) | (_, Self::Symmetric(a)) => Self::Symmetric(a),
+            (Self::AsymmetricLeft(l), Self::AsymmetricRight(r))
+            | (Self::AsymmetricRight(l), Self::AsymmetricLeft(r)) => {
+                let overlap: HashSet<usize> = l.intersection(&r).copied().collect();
+                if overlap.is_empty() {
+                    Self::No
+                } else {
+                    Self::Symmetric(overlap)
+                }
+            }
+            (Self::AsymmetricLeft(l), _) | (_, Self::AsymmetricLeft(l)) => Self::AsymmetricLeft(l),
+            (Self::AsymmetricRight(r), _) | (_, Self::AsymmetricRight(r)) => {
+                Self::AsymmetricRight(r)
+            }
             _ => Self::No,
         }
     }
@@ -126,21 +136,26 @@ impl SimpleModification {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
-                if specificities
+                let matching: HashSet<usize> = specificities
                     .iter()
-                    .any(|(rules, _, _)| PlacementRule::any_possible(rules, seq, position))
-                {
-                    RulePossible::Symmetric
-                } else {
+                    .enumerate()
+                    .filter_map(|(index, (rules, _, _))| {
+                        PlacementRule::any_possible(rules, seq, position).then_some(index)
+                    })
+                    .collect();
+                if matching.is_empty() {
                     RulePossible::No
+                } else {
+                    RulePossible::Symmetric(matching)
                 }
             }
             Self::Linker { specificities, .. } => specificities
                 .iter()
-                .map(|spec| match spec {
+                .enumerate()
+                .map(|(index, spec)| match spec {
                     LinkerSpecificity::Symmetric(rules, _, _) => {
                         if PlacementRule::any_possible(rules, seq, position) {
-                            RulePossible::Symmetric
+                            RulePossible::Symmetric(HashSet::from([index]))
                         } else {
                             RulePossible::No
                         }
@@ -149,18 +164,18 @@ impl SimpleModification {
                         let left = PlacementRule::any_possible(rules_left, seq, position);
                         let right = PlacementRule::any_possible(rules_right, seq, position);
                         if left && right {
-                            RulePossible::Symmetric
+                            RulePossible::Symmetric(HashSet::from([index]))
                         } else if left {
-                            RulePossible::AsymmetricLeft
+                            RulePossible::AsymmetricLeft(HashSet::from([index]))
                         } else if right {
-                            RulePossible::AsymmetricRight
+                            RulePossible::AsymmetricRight(HashSet::from([index]))
                         } else {
                             RulePossible::No
                         }
                     }
                 })
                 .sum::<RulePossible>(),
-            _ => RulePossible::Symmetric,
+            _ => RulePossible::Symmetric(HashSet::default()),
         }
     }
 }
@@ -220,6 +235,66 @@ impl From<SimpleModification> for Modification {
     }
 }
 
+impl CrossLinkSide {
+    /// Get all allowed placement rules with all applicable neutral losses, stubs, and diagnostic ions.
+    pub(crate) fn allowed_rules(
+        &self,
+        linker: &SimpleModification,
+    ) -> (
+        Vec<NeutralLoss>,
+        Vec<(MolecularFormula, MolecularFormula)>,
+        Vec<DiagnosticIon>,
+    ) {
+        let selected_rules = match self {
+            Self::Left(r) | Self::Right(r) | Self::Symmetric(r) => r,
+        };
+        let mut neutral = Vec::new();
+        let mut stubs = Vec::new();
+        let mut diagnostic = Vec::new();
+
+        match linker {
+            SimpleModification::Linker { specificities, .. } => {
+                for rule in specificities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, r)| selected_rules.contains(&i).then_some(r))
+                {
+                    match rule {
+                        LinkerSpecificity::Asymmetric(_, n, d) => {
+                            diagnostic.extend_from_slice(d);
+                            match self {
+                                Self::Left(_) => stubs.extend(n.iter().cloned()),
+                                Self::Right(_) => {
+                                    stubs.extend(n.iter().map(|(l, r)| (r.clone(), l.clone())));
+                                }
+                                Self::Symmetric(_) => stubs.extend(n.iter().flat_map(|(l, r)| {
+                                    vec![(l.clone(), r.clone()), (r.clone(), l.clone())]
+                                })),
+                            }
+                        }
+                        LinkerSpecificity::Symmetric(_, n, d) => {
+                            stubs.extend_from_slice(n);
+                            diagnostic.extend_from_slice(d);
+                        }
+                    }
+                }
+            }
+            SimpleModification::Database { specificities, .. } => {
+                for rule in specificities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, r)| selected_rules.contains(&i).then_some(r))
+                {
+                    neutral.extend_from_slice(&rule.1);
+                    diagnostic.extend_from_slice(&rule.2);
+                }
+            }
+            _ => (),
+        };
+        (neutral, stubs, diagnostic)
+    }
+}
+
 impl Modification {
     /// Get the formula for the whole addition (or subtraction) for this modification
     pub(crate) fn formula_inner(
@@ -227,6 +302,7 @@ impl Modification {
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
@@ -239,6 +315,7 @@ impl Modification {
                 peptide,
                 linker,
                 name,
+                side,
                 ..
             } => {
                 let link = (!applied_cross_links.contains(name))
@@ -247,7 +324,28 @@ impl Modification {
                         linker.formula()
                     })
                     .unwrap_or_default();
-                if visited_peptides.contains(peptide) {
+                let (_, stubs, _) = side.allowed_rules(linker);
+
+                if allow_ms_cleavable && !stubs.is_empty() {
+                    let mut options: Vec<MolecularFormula> =
+                        stubs.iter().map(|s| s.0.clone()).unique().collect();
+                    let mut seen_peptides = HashSet::from([name.clone()]);
+                    options.extend_from_slice(&if visited_peptides.contains(peptide) {
+                        vec![link]
+                    } else {
+                        let (f, seen) = all_peptides[*peptide].formulas_inner(
+                            *peptide,
+                            all_peptides,
+                            visited_peptides,
+                            applied_cross_links,
+                            false,
+                        );
+                        seen_peptides.extend(seen);
+                        (f + link).to_vec()
+                    });
+
+                    (options.into(), seen_peptides)
+                } else if visited_peptides.contains(peptide) {
                     (link.into(), HashSet::from([name.clone()]))
                 } else {
                     let (f, mut seen) = all_peptides[*peptide].formulas_inner(
@@ -255,6 +353,7 @@ impl Modification {
                         all_peptides,
                         visited_peptides,
                         applied_cross_links,
+                        false,
                     );
                     seen.insert(name.clone());
                     (f + link, seen)
@@ -301,7 +400,9 @@ impl Modification {
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
         self.simple()
-            .map_or(RulePossible::Symmetric, |s| s.is_possible(seq, position))
+            .map_or(RulePossible::Symmetric(HashSet::new()), |s| {
+                s.is_possible(seq, position)
+            })
     }
 }
 

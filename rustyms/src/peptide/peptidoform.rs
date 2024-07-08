@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    modification::{CrossLikeSide, CrossLinkName, RulePossible, SimpleModification},
+    modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
     peptide::Linked,
     system::usize::Charge,
     Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
@@ -14,25 +14,25 @@ use crate::{
 pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
 impl MultiChemical for Peptidoform {
-    /// Gives all possible formulas for this peptidoform.
+    /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
     fn formulas(&self) -> Multi<MolecularFormula> {
         self.0
             .first()
-            .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new()))
+            .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new(), true))
             .unwrap_or_default()
     }
 }
 
 impl Peptidoform {
-    /// Gives all possible formulas for this peptidoform.
+    /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
     pub(super) fn formulas_inner(&self) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         self.0
             .first()
-            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new()))
+            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new(), true))
             .unwrap_or_default()
     }
 
@@ -90,19 +90,61 @@ impl Peptidoform {
         if let (Some(pos_1), Some(pos_2)) = (pos_1, pos_2) {
             let left = linker.is_possible(pos_1.1, &pos_1.0);
             let right = linker.is_possible(pos_2.1, &pos_2.0);
-            let specificity = match (left, right) {
-                (RulePossible::Symmetric, RulePossible::Symmetric) => {
-                    Some((CrossLikeSide::Symmetric, CrossLikeSide::Symmetric))
+            let specificity = if matches!(
+                linker,
+                SimpleModification::Formula(_)
+                    | SimpleModification::Glycan(_)
+                    | SimpleModification::GlycanStructure(_)
+                    | SimpleModification::Gno(_, _)
+                    | SimpleModification::Mass(_)
+            ) {
+                Some((
+                    CrossLinkSide::Symmetric(HashSet::default()),
+                    CrossLinkSide::Symmetric(HashSet::default()),
+                ))
+            } else {
+                match (left, right) {
+                    (RulePossible::Symmetric(a), RulePossible::Symmetric(b)) => {
+                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        if intersection.is_empty() {
+                            None
+                        } else {
+                            Some((
+                                CrossLinkSide::Symmetric(intersection.clone()),
+                                CrossLinkSide::Symmetric(intersection),
+                            ))
+                        }
+                    }
+                    (
+                        RulePossible::AsymmetricLeft(a),
+                        RulePossible::AsymmetricRight(b) | RulePossible::Symmetric(b),
+                    ) => {
+                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        if intersection.is_empty() {
+                            None
+                        } else {
+                            Some((
+                                CrossLinkSide::Left(intersection.clone()),
+                                CrossLinkSide::Right(intersection),
+                            ))
+                        }
+                    }
+                    (
+                        RulePossible::AsymmetricRight(a),
+                        RulePossible::AsymmetricLeft(b) | RulePossible::Symmetric(b),
+                    ) => {
+                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        if intersection.is_empty() {
+                            None
+                        } else {
+                            Some((
+                                CrossLinkSide::Right(intersection.clone()),
+                                CrossLinkSide::Left(intersection),
+                            ))
+                        }
+                    }
+                    _ => None,
                 }
-                (
-                    RulePossible::AsymmetricLeft,
-                    RulePossible::AsymmetricRight | RulePossible::Symmetric,
-                ) => Some((CrossLikeSide::Left, CrossLikeSide::Right)),
-                (
-                    RulePossible::AsymmetricRight,
-                    RulePossible::AsymmetricLeft | RulePossible::Symmetric,
-                ) => Some((CrossLikeSide::Right, CrossLikeSide::Left)),
-                _ => None,
             };
             if let Some((left, right)) = specificity {
                 self.0[position_1.0].sequence[position_1.1]

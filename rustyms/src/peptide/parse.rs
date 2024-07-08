@@ -839,6 +839,7 @@ pub(super) fn parse_charge_state(
                 line,
                 offset + count_len..offset + set.len() - charge_len,
                 true,
+                false,
             )?;
             let _ = formula.add((
                 Element::Electron,

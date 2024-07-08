@@ -821,8 +821,18 @@ fn parse_adduct_ions_02() {
     );
     // Check if the C term mod is applied
     assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(&[], &[], &mut Vec::new()),
-        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(&[], &[], &mut Vec::new())
+        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(
+            &[],
+            &[],
+            &mut Vec::new(),
+            false
+        ),
+        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(
+            &[],
+            &[],
+            &mut Vec::new(),
+            false
+        )
     );
     assert_eq!(
         peptide.peptidoforms()[0].peptides()[0]

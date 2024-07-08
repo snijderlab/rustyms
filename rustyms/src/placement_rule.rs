@@ -202,7 +202,7 @@ mod tests {
                 },
                 &PeptidePosition::n(4, 5)
             ),
-            RulePossible::Symmetric,
+            RulePossible::Symmetric(std::collections::HashSet::from([0])),
             "unimod deamidated at end"
         );
     }

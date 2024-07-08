@@ -31,6 +31,8 @@ use crate::{
 };
 
 use ordered_float::OrderedFloat;
+use std::cmp::Ordering;
+use std::collections::HashSet;
 
 include!("../shared/neutral_loss.rs");
 include!("../shared/modification.rs");

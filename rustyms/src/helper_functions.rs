@@ -74,7 +74,7 @@ impl<Ra: RangeBounds<usize>> RangeExtension for Ra {
         match self.end_bound() {
             std::ops::Bound::Unbounded => upper_bound,
             std::ops::Bound::Included(s) => *s.min(&upper_bound),
-            std::ops::Bound::Excluded(s) => (s - 1).min(upper_bound),
+            std::ops::Bound::Excluded(s) => (s.saturating_sub(1)).min(upper_bound),
         }
     }
 }
