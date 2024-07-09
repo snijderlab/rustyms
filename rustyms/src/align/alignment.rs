@@ -173,9 +173,10 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
             let mut placed_a = vec![false; self.seq_a().ambiguous_modifications.len()];
             self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
                 .iter()
-                .fold(Multi::default(), |acc, s| {
+                .enumerate()
+                .fold(Multi::default(), |acc, (index, s)| {
                     acc * s
-                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new(), false)
+                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new(), false, index, 0)
                         .0
                 })
         }
@@ -189,9 +190,10 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
             let mut placed_b = vec![false; self.seq_b().ambiguous_modifications.len()];
             self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
                 .iter()
-                .fold(Multi::default(), |acc, s| {
+                .enumerate()
+                .fold(Multi::default(), |acc, (index, s)| {
                     acc * s
-                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new(), false)
+                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new(), false, index, 0)
                         .0
                 })
         }
@@ -406,8 +408,8 @@ mod tests {
             .abs()
                 < f64::EPSILON
         );
-        let mass_diff_nd = (AminoAcid::N.formulas()[0].monoisotopic_mass()
-            - AminoAcid::D.formulas()[0].monoisotopic_mass())
+        let mass_diff_nd = (AminoAcid::N.formulas(0, 0)[0].monoisotopic_mass()
+            - AminoAcid::D.formulas(0, 0)[0].monoisotopic_mass())
         .value
         .abs();
         let mass_diff_bc = align::<1, Simple, Simple>(

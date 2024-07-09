@@ -35,7 +35,6 @@ mod formula;
 #[path = "shared/csv.rs"]
 pub mod csv;
 
-mod ambiguous_label;
 pub mod aminoacid_properties;
 mod aminoacids;
 mod element;
@@ -73,7 +72,7 @@ pub use crate::formula::*;
 pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
 pub use crate::mass_mode::MassMode;
 pub use crate::model::Model;
-pub use crate::modification::Modification;
+pub use crate::modification::{CrossLinkName, Modification};
 pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;

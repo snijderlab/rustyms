@@ -17,8 +17,8 @@ use crate::{
     peptide::Linked,
     placement_rule::PlacementRule,
     system::{Mass, OrderedMass},
-    Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, NeutralLoss, SequenceElement,
-    Tolerance, WithinTolerance,
+    AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, NeutralLoss,
+    SequenceElement, Tolerance, WithinTolerance,
 };
 
 include!("shared/modification.rs");
@@ -49,17 +49,17 @@ impl ModificationId {
 }
 
 impl Chemical for SimpleModification {
-    fn formula(&self) -> MolecularFormula {
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
         match self {
             Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
             Self::Formula(elements) => elements.clone(),
             Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula() * i.1 as i32
+                    acc + i.0.formula(sequence_index, peptide_index) * i.1 as i32
                 }),
             Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula()
+                glycan.formula(sequence_index, peptide_index)
             }
             Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
             Self::Gno(GnoComposition::Mass(m), _) => {
@@ -303,6 +303,8 @@ impl Modification {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
@@ -310,7 +312,10 @@ impl Modification {
                 (formula.clone() + molecular_formula!(H 2 O 1)).into(),
                 HashSet::new(),
             ),
-            Self::Simple(s) => (s.formula().into(), HashSet::new()),
+            Self::Simple(s) => (
+                s.formula(sequence_index, peptide_index).into(),
+                HashSet::new(),
+            ),
             Self::CrossLink {
                 peptide,
                 linker,
@@ -321,17 +326,25 @@ impl Modification {
                 let link = (!applied_cross_links.contains(name))
                     .then(|| {
                         applied_cross_links.push(name.clone());
-                        linker.formula()
+                        linker.formula(sequence_index, peptide_index)
                     })
                     .unwrap_or_default();
                 let (_, stubs, _) = side.allowed_rules(linker);
 
                 if allow_ms_cleavable && !stubs.is_empty() {
-                    let mut options: Vec<MolecularFormula> =
-                        stubs.iter().map(|s| s.0.clone()).unique().collect();
+                    let mut options: Vec<MolecularFormula> = stubs
+                        .iter()
+                        .map(|s| {
+                            s.0.clone().with_labels(&[AmbiguousLabel::CrossLinkBroken(
+                                name.clone(),
+                                s.0.clone(),
+                            )])
+                        })
+                        .unique()
+                        .collect();
                     let mut seen_peptides = HashSet::from([name.clone()]);
                     options.extend_from_slice(&if visited_peptides.contains(peptide) {
-                        vec![link]
+                        vec![link.with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])]
                     } else {
                         let (f, seen) = all_peptides[*peptide].formulas_inner(
                             *peptide,
@@ -341,12 +354,18 @@ impl Modification {
                             false,
                         );
                         seen_peptides.extend(seen);
-                        (f + link).to_vec()
+                        (f + link)
+                            .with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
+                            .to_vec()
                     });
 
                     (options.into(), seen_peptides)
                 } else if visited_peptides.contains(peptide) {
-                    (link.into(), HashSet::from([name.clone()]))
+                    (
+                        link.with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
+                            .into(),
+                        HashSet::from([name.clone()]),
+                    )
                 } else {
                     let (f, mut seen) = all_peptides[*peptide].formulas_inner(
                         *peptide,
@@ -356,7 +375,10 @@ impl Modification {
                         false,
                     );
                     seen.insert(name.clone());
-                    (f + link, seen)
+                    (
+                        (f + link).with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())]),
+                        seen,
+                    )
                 }
             }
         }
@@ -365,8 +387,8 @@ impl Modification {
     /// Get the formula for a modification, if it is a cross linked modification only get the cross link
     pub fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Simple(s) => s.formula(),
-            Self::CrossLink { linker, .. } => linker.formula(),
+            Self::Simple(s) => s.formula(0, 0),
+            Self::CrossLink { linker, .. } => linker.formula(0, 0),
         }
     }
 }
@@ -434,7 +456,7 @@ impl SimpleModification {
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
                 .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
+                    tolerance.within(&mass.into_inner(), &m.formula(0, 0).monoisotopic_mass())
                 })
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
@@ -454,7 +476,7 @@ impl SimpleModification {
                         .iter()
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
-                .filter(|(_, _, _, m)| *formula == m.formula())
+                .filter(|(_, _, _, m)| *formula == m.formula(0, 0))
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
             ),
@@ -525,8 +547,8 @@ pub struct AmbiguousModification {
 }
 
 impl Chemical for AmbiguousModification {
-    fn formula(&self) -> MolecularFormula {
-        self.modification.formula()
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+        self.modification.formula(sequence_index, peptide_index)
     }
 }
 
@@ -551,3 +573,11 @@ impl Display for CrossLinkName {
 }
 
 include!("shared/ontology.rs");
+
+#[test]
+fn test_reading_custom_modifications_json() {
+    use serde_json;
+    let data = r#"[ [ 1, "uranium linker", { "Linker": { "specificities": [ { "Asymmetric": [ [ [ { "AminoAcid": [ [ "Selenocysteine" ], "AnyCTerm" ] }, { "AminoAcid": [ [ "GlutamicAcid" ], "Anywhere" ] } ], [ { "AminoAcid": [ [ "Selenocysteine" ], "AnyNTerm" ] } ] ], [ [ { "elements": [ [ "U", null, 1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "U", null, 1 ] ], "additional_mass": 0.0 } ] ], [ { "elements": [ [ "Te", null, 1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "Ne", null, 1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "H", null, 2 ], [ "He", null, 3 ] ], "additional_mass": 0.0 }, { "elements": [ [ "H", null, 1 ], [ "He", null, 2 ] ], "additional_mass": 0.0 }, { "elements": [ [ "I", null, 1 ], [ "Er", null, 1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "H", null, 12 ], [ "C", null, 12 ], [ "O", null, 1 ] ], "additional_mass": 0.0 } ] ] } ], "formula": { "elements": [ [ "U", null, 2 ] ], "additional_mass": 0.0 }, "id": { "ontology": "Custom", "name": "Uranium linker", "id": 1, "description": "Have some uranium, its delicious!", "synonyms": [], "cross_ids": [ [ "Pubmed", "21714143" ] ] }, "length": 23.9 } } ], [ 2, "helium", { "Database": { "specificities": [ [ [ { "AminoAcid": [ [ "Alanine" ], "Anywhere" ] } ], [], [] ], [ [ { "AminoAcid": [ [ "Methionine" ], "Anywhere" ] } ], [ { "Loss": { "elements": [], "additional_mass": 12.0 } } ], [] ] ], "formula": { "elements": [ [ "He", null, 2 ] ], "additional_mass": 0.0 }, "id": { "ontology": "Custom", "name": "Helium", "id": 2, "description": "heeeelium", "synonyms": [ "heeeelium", "funny gas" ], "cross_ids": [ [ "Pubmed", "42" ], [ "Unimod", "12" ], [ "Resid", "A12" ] ] } } } ], [ 3, "db18", { "Database": { "specificities": [ [ [ { "AminoAcid": [ [ "Cysteine" ], "Anywhere" ] } ], [ { "Gain": { "elements": [], "additional_mass": 372.25 } }, { "Gain": { "elements": [], "additional_mass": 373.258 } }, { "Gain": { "elements": [], "additional_mass": 371.242 } }, { "Gain": { "elements": [], "additional_mass": 240.171 } }, { "Gain": { "elements": [], "additional_mass": 239.163 } }, { "Gain": { "elements": [], "additional_mass": 241.179 } }, { "Gain": { "elements": [], "additional_mass": 197.129 } }, { "Gain": { "elements": [], "additional_mass": 198.137 } }, { "Gain": { "elements": [], "additional_mass": 196.121 } }, { "Gain": { "elements": [], "additional_mass": 619.418 } }, { "Gain": { "elements": [], "additional_mass": 621.4343 } }, { "Gain": { "elements": [], "additional_mass": 649.465 } }, { "Gain": { "elements": [], "additional_mass": 677.497 } }, { "Gain": { "elements": [], "additional_mass": 618.41 } }, { "Gain": { "elements": [], "additional_mass": 620.426 } }, { "Gain": { "elements": [], "additional_mass": 648.457 } }, { "Gain": { "elements": [], "additional_mass": 676.489 } }, { "Gain": { "elements": [], "additional_mass": 620.426 } }, { "Gain": { "elements": [], "additional_mass": 622.442 } }, { "Gain": { "elements": [], "additional_mass": 650.473 } }, { "Gain": { "elements": [], "additional_mass": 678.504 } }, { "Gain": { "elements": [], "additional_mass": 28.006 } } ], [ { "elements": [], "additional_mass": 372.25 }, { "elements": [], "additional_mass": 240.171 }, { "elements": [], "additional_mass": 197.129 }, { "elements": [], "additional_mass": 619.418 }, { "elements": [], "additional_mass": 621.434 }, { "elements": [], "additional_mass": 649.465 }, { "elements": [], "additional_mass": 677.497 } ] ] ], "formula": { "elements": [], "additional_mass": 676.489 }, "id": { "ontology": "Custom", "name": "DB18", "id": 3, "description": "", "synonyms": [], "cross_ids": [] } } } ], [ 4, "disulfide", { "Linker": { "specificities": [ { "Symmetric": [ [ { "AminoAcid": [ [ "Cysteine" ], "Anywhere" ] } ], [ [ { "elements": [], "additional_mass": 0.0 }, { "elements": [], "additional_mass": 0.0 } ], [ { "elements": [ [ "H", null, -1 ] ], "additional_mass": 0.0 }, { "elements": [], "additional_mass": 0.0 } ], [ { "elements": [ [ "H", null, -1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "H", null, -1 ] ], "additional_mass": 0.0 } ] ], [] ] } ], "formula": { "elements": [ [ "H", null, -2 ] ], "additional_mass": 0.0 }, "id": { "ontology": "Custom", "name": "Disulfide", "id": 4, "description": "A disulfide with all potential neutral losses", "synonyms": [], "cross_ids": [] }, "length": 0.0 } } ], [ 5, "dsso", { "Linker": { "specificities": [ { "Symmetric": [ [ { "AminoAcid": [ [ "Lysine" ], "Anywhere" ] } ], [ [ { "elements": [ [ "H", null, 1 ], [ "C", null, 3 ], [ "N", null, -1 ], [ "O", null, 3 ], [ "S", null, 1 ] ], "additional_mass": 0.0 }, { "elements": [ [ "H", null, 1 ], [ "C", null, 3 ], [ "N", null, -1 ], [ "O", null, 2 ] ], "additional_mass": 0.0 } ] ], [] ] } ], "formula": { "elements": [ [ "H", null, 2 ], [ "C", null, 6 ], [ "N", null, -2 ], [ "O", null, 5 ], [ "S", null, 1 ] ], "additional_mass": 0.0 }, "id": { "ontology": "Custom", "name": "DSSO", "id": 5, "description": "", "synonyms": [], "cross_ids": [] }, "length": 0.0 } } ]]"#;
+    let mods: Vec<(usize, String, SimpleModification)> = serde_json::from_str(data).unwrap();
+    assert!(mods.len() > 1);
+}

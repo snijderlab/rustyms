@@ -10,8 +10,9 @@ use crate::{
     },
     peptide::Linked,
     placement_rule::PlacementRule,
-    Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
+    AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
 };
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{aminoacids::AminoAcid, modification::Modification};
@@ -85,6 +86,8 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
@@ -95,12 +98,17 @@ impl SequenceElement {
                     visited_peptides,
                     applied_cross_links,
                     allow_ms_cleavable,
+                    sequence_index,
+                    peptide_index,
                 )
             })
             .fold((Multi::default(), HashSet::new()), |(am, av), (m, v)| {
                 (am * m, av.union(&v).cloned().collect())
             });
-        (self.aminoacid.formulas() * formula, seen)
+        (
+            self.aminoacid.formulas(sequence_index, peptide_index) * formula,
+            seen,
+        )
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
@@ -111,21 +119,36 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
+            sequence_index,
+            peptide_index,
         );
         (
-            formula
+            (formula
                 + self
                     .possible_modifications
                     .iter()
                     .filter(|&m| selected_ambiguous.contains(&m.id))
-                    .map(Chemical::formula)
-                    .sum::<MolecularFormula>(),
+                    .map(|f| f.formula(sequence_index, peptide_index))
+                    .sum::<MolecularFormula>())
+            .with_labels(
+                &selected_ambiguous
+                    .iter()
+                    .copied()
+                    .map(|id| AmbiguousLabel::Modification {
+                        id,
+                        sequence_index,
+                        peptide_index,
+                    })
+                    .collect_vec(),
+            ),
             seen,
         )
     }
@@ -139,12 +162,16 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
+            sequence_index,
+            peptide_index,
         );
         (
             formula
@@ -154,7 +181,7 @@ impl SequenceElement {
                     .filter_map(|m| {
                         (!placed[m.id]).then(|| {
                             placed[m.id] = true;
-                            m.formula()
+                            m.formula(sequence_index, peptide_index)
                         })
                     })
                     .sum::<MolecularFormula>(),
@@ -169,19 +196,23 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
+            sequence_index,
+            peptide_index,
         );
         (
             formula
                 + self
                     .possible_modifications
                     .iter()
-                    .map(Chemical::formula)
+                    .map(|f| f.formula(sequence_index, peptide_index))
                     .sum::<MolecularFormula>(),
             seen,
         )
@@ -195,15 +226,19 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
+        sequence_index: usize,
+        peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (mut formulas, seen) = self.base_formula(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
+            sequence_index,
+            peptide_index,
         );
         for modification in &self.possible_modifications {
-            formulas = formulas + modification.formula();
+            formulas = formulas + modification.formula(sequence_index, peptide_index);
         }
         (formulas, seen)
     }

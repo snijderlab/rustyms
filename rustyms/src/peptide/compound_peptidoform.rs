@@ -14,8 +14,11 @@ pub struct CompoundPeptidoform(pub(super) Vec<Peptidoform>);
 
 impl MultiChemical for CompoundPeptidoform {
     /// Gives all possible formulas for this compound peptidoform
-    fn formulas(&self) -> Multi<MolecularFormula> {
-        self.0.iter().flat_map(|p| p.formulas().to_vec()).collect()
+    fn formulas(&self, sequence_index: usize, peptide_index: usize) -> Multi<MolecularFormula> {
+        self.0
+            .iter()
+            .flat_map(|p| p.formulas(sequence_index, peptide_index).to_vec())
+            .collect()
     }
 }
 

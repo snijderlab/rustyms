@@ -17,7 +17,7 @@ impl MolecularCharge {
         Self {
             charge_carriers: vec![(
                 charge,
-                MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
+                MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)], &[])
                     .unwrap(),
             )],
         }
@@ -72,7 +72,7 @@ impl MolecularCharge {
 }
 
 impl Chemical for MolecularCharge {
-    fn formula(&self) -> MolecularFormula {
+    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
         self.charge_carriers
             .iter()
             .map(|(n, mol)| mol.clone() * *n as i32)
@@ -93,8 +93,11 @@ impl std::fmt::Display for MolecularCharge {
                 .sum::<isize>()
         )?;
         if !self.charge_carriers.iter().all(|c| {
-            c.1 == MolecularFormula::new(&[(Element::H, None, 1), (Element::Electron, None, -1)])
-                .unwrap()
+            c.1 == MolecularFormula::new(
+                &[(Element::H, None, 1), (Element::Electron, None, -1)],
+                &[],
+            )
+            .unwrap()
         }) {
             write!(f, "[")?;
             let mut first = true;
@@ -125,6 +128,9 @@ mod tests {
         let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1))]);
         let options = mc.all_charge_options();
         assert_eq!(options.len(), 1);
-        assert_eq!(options[0].formula(), molecular_formula!(H 1 Electron -1));
+        assert_eq!(
+            options[0].formula(0, 0),
+            molecular_formula!(H 1 Electron -1)
+        );
     }
 }

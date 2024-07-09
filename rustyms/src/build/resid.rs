@@ -194,10 +194,10 @@ fn parse_resid(debug: bool) -> Vec<OntologyModification> {
                     continue 'entry;
                 }
                 let diff_formula = modification.formula.clone()
-                    - rule.0.single_formula().expect("B or Z used as target")
+                    - rule.0.single_formula(0, 0).expect("B or Z used as target")
                     - rule
                         .1
-                        .map(|a| a.single_formula().expect("B or Z used as target"))
+                        .map(|a| a.single_formula(0, 0).expect("B or Z used as target"))
                         .unwrap_or_default();
                 if shared_formula.is_some_and(|s| s != diff_formula) {
                     print(

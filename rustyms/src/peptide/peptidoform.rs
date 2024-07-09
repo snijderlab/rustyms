@@ -17,7 +17,7 @@ impl MultiChemical for Peptidoform {
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
-    fn formulas(&self) -> Multi<MolecularFormula> {
+    fn formulas(&self, _sequence_index: usize, _peptide_index: usize) -> Multi<MolecularFormula> {
         self.0
             .first()
             .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new(), true))

@@ -42,7 +42,7 @@ impl MonoSaccharide {
         composition.retain(|el| el.1 != 0);
         let mut composition = composition
             .into_iter()
-            .map(|(m, n)| (m.formula(), n))
+            .map(|(m, n)| (m.formula(0, 0), n))
             .collect_vec();
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
@@ -73,7 +73,7 @@ impl MonoSaccharide {
         position: GlycanPosition,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
-            self.formula(),
+            self.formula(0, 0),
             Charge::default(),
             peptidoform_index,
             peptide_index,
@@ -81,7 +81,6 @@ impl MonoSaccharide {
                 position,
                 self.clone(),
             )),
-            String::new(),
         );
         if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
             vec![
@@ -168,7 +167,7 @@ mod tests {
                     .find(|p| p.0 == *name)
                     .unwrap_or_else(|| panic!("Assumed {name} would be defined"))
                     .1
-                    .formula(),
+                    .formula(0, 0),
                 *formula,
                 "{name}",
             );
@@ -285,7 +284,7 @@ mod tests {
             MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
                 .unwrap()
                 .0
-                .formula()
+                .formula(0, 0)
                 .monoisotopic_mass()
                 .value
                 .round(),

@@ -1,7 +1,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use crate::{Element, Multi};
+use crate::{AminoAcid, CrossLinkName, Element, Multi};
 use std::{
     fmt::Write,
     hash::Hash,
@@ -18,55 +18,101 @@ pub struct MolecularFormula {
     pub(in super::super) elements: Vec<(crate::Element, Option<NonZeroU16>, i32)>,
     /// Any addition mass, defined to be monoisotopic
     pub(in super::super) additional_mass: OrderedFloat<f64>,
+    /// The labels of sources of ambiguity/multiplicity
+    #[serde(default)]
+    pub(in super::super) labels: Vec<AmbiguousLabel>,
+}
+
+/// Keep track of what ambiguous option is used
+// TODO: Maybe also use the labelling system to keep track of which modification neutral loss is applied?
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum AmbiguousLabel {
+    /// A ambiguous amino acid, with the actual amino acid used tracked
+    AminoAcid {
+        /// Which amino acid is used
+        option: AminoAcid,
+        /// What location in the sequence are we talking about
+        sequence_index: usize,
+        /// Peptide index
+        peptide_index: usize,
+    },
+    /// A ambiguous modification, with the actual position
+    Modification {
+        /// Which ambiguous modification
+        id: usize,
+        /// Which location
+        sequence_index: usize,
+        /// Peptide index
+        peptide_index: usize,
+    },
+    /// The actual charge used, when there are multiple charge carriers
+    ChargeCarrier(MolecularFormula),
+    /// An intact cross-link
+    CrossLinkBound(CrossLinkName),
+    /// A broken cross-link, having the name and the stub that was left in its place
+    CrossLinkBroken(CrossLinkName, MolecularFormula),
 }
 
 /// Any item that has a clearly defined single molecular formula
 pub trait Chemical {
     /// Get the molecular formula
-    fn formula(&self) -> MolecularFormula;
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula;
 }
 
 impl<T: Chemical> Chemical for &[T] {
-    fn formula(&self) -> MolecularFormula {
-        self.iter().map(Chemical::formula).sum()
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+        self.iter()
+            .map(|f| f.formula(sequence_index, peptide_index))
+            .sum()
     }
 }
 
 impl<T: Chemical> Chemical for &Vec<T> {
-    fn formula(&self) -> MolecularFormula {
-        self.iter().map(Chemical::formula).sum()
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+        self.iter()
+            .map(|f| f.formula(sequence_index, peptide_index))
+            .sum()
     }
 }
 
 /// Any item that has a number of potential chemical formulas
 pub trait MultiChemical {
     /// Get all possible molecular formulas
-    fn formulas(&self) -> Multi<MolecularFormula>;
+    fn formulas(&self, sequence_index: usize, peptide_index: usize) -> Multi<MolecularFormula>;
 
     /// Get the charge of this chemical, it returns None if no charge is defined.
+    #[allow(dead_code)]
     fn charge(&self) -> Option<crate::system::isize::Charge> {
-        self.formulas()
+        self.formulas(0, 0)
             .first()
             .map(MolecularFormula::charge)
             .filter(|c| c.value != 0)
     }
 
-    /// Return a single formula if this MultiChemical has only one possible formula
-    fn single_formula(&self) -> Option<MolecularFormula> {
-        let formulas = self.formulas();
+    /// Return a single formula if this `MultiChemical` has only one possible formula
+    fn single_formula(
+        &self,
+        sequence_index: usize,
+        peptide_index: usize,
+    ) -> Option<MolecularFormula> {
+        let formulas = self.formulas(sequence_index, peptide_index);
         (formulas.len() == 1).then_some(formulas.to_vec().pop().unwrap())
     }
 }
 
 impl MolecularFormula {
     /// Create a new molecular formula, if the chosen isotopes are not valid it returns None
-    pub fn new(elements: &[(crate::Element, Option<NonZeroU16>, i32)]) -> Option<Self> {
+    pub fn new(
+        elements: &[(crate::Element, Option<NonZeroU16>, i32)],
+        labels: &[AmbiguousLabel],
+    ) -> Option<Self> {
         if elements.iter().any(|e| !e.0.is_valid(e.1)) {
             None
         } else {
             let result = Self {
                 elements: elements.to_vec(),
                 additional_mass: 0.0.into(),
+                labels: labels.to_vec(),
             };
             Some(result.simplify())
         }
@@ -107,7 +153,20 @@ impl MolecularFormula {
         Self {
             elements: Vec::new(),
             additional_mass: OrderedFloat(additional_mass),
+            labels: Vec::new(),
         }
+    }
+
+    /// Add the following labels to this formula
+    #[allow(dead_code)]
+    pub(crate) fn with_labels(mut self, labels: &[AmbiguousLabel]) -> Self {
+        self.labels.extend_from_slice(labels);
+        self
+    }
+
+    /// The labels of sources of ambiguity/multiplicity
+    pub fn labels(&self) -> &[AmbiguousLabel] {
+        &self.labels
     }
 
     /// Add the given element to this formula (while keeping it ordered and simplified).
@@ -180,6 +239,7 @@ impl MolecularFormula {
             let result = Self {
                 elements: new_elements,
                 additional_mass: self.additional_mass,
+                labels: self.labels.clone(),
             };
             Some(result.simplify())
         } else {
@@ -268,6 +328,7 @@ impl Add<&MolecularFormula> for &MolecularFormula {
     type Output = MolecularFormula;
     fn add(self, rhs: &MolecularFormula) -> Self::Output {
         let mut result = (*self).clone();
+        result.labels.extend_from_slice(&rhs.labels);
         let mut index_result = 0;
         let mut index_rhs = 0;
         result.additional_mass += rhs.additional_mass;
@@ -299,6 +360,7 @@ impl Sub<&MolecularFormula> for &MolecularFormula {
     type Output = MolecularFormula;
     fn sub(self, rhs: &MolecularFormula) -> Self::Output {
         let mut result = (*self).clone();
+        result.labels.extend_from_slice(&rhs.labels);
         let mut index_result = 0;
         let mut index_rhs = 0;
         result.additional_mass -= rhs.additional_mass;
@@ -336,6 +398,7 @@ impl Mul<&i32> for &MolecularFormula {
                 .copied()
                 .map(|part| (part.0, part.1, part.2 * rhs))
                 .collect(),
+            labels: self.labels.clone(),
         }
     }
 }
@@ -349,6 +412,7 @@ impl AddAssign<&Self> for MolecularFormula {
         let mut index_self = 0;
         let mut index_rhs = 0;
         self.additional_mass += rhs.additional_mass;
+        self.labels.extend_from_slice(&rhs.labels);
         while index_rhs < rhs.elements.len() {
             let (el, i, n) = rhs.elements[index_rhs];
             if index_self < self.elements.len() {
@@ -417,6 +481,9 @@ macro_rules! formula_internal {
         formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
-        $crate::MolecularFormula::new(&[$($output)*]).unwrap()
+        $crate::MolecularFormula::new(&[$($output)*], &[]).unwrap()
+    };
+    ([($($l:expr),*)] -> [$($output:tt)*]) =>{
+        $crate::MolecularFormula::new(&[$($output)*], &[$($l),*]).unwrap()
     };
 }

@@ -348,8 +348,12 @@ impl ParseHelper for &str {
 }
 
 impl Chemical for MonoSaccharide {
-    fn formula(&self) -> MolecularFormula {
-        self.base_sugar.formula() + self.substituents.as_slice().formula()
+    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+        self.base_sugar.formula(sequence_index, peptide_index)
+            + self
+                .substituents
+                .as_slice()
+                .formula(sequence_index, peptide_index)
     }
 }
 
@@ -418,7 +422,7 @@ impl Display for BaseSugar {
 }
 
 impl Chemical for BaseSugar {
-    fn formula(&self) -> MolecularFormula {
+    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
         match self {
             Self::None => MolecularFormula::default(),
             Self::Sugar => molecular_formula!(H 2 C 2 O 1),
@@ -651,7 +655,7 @@ impl Display for GlycanSubstituent {
 }
 
 impl Chemical for GlycanSubstituent {
-    fn formula(&self) -> MolecularFormula {
+    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
         let side = match self {
             Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
             Self::Acetyl => molecular_formula!(H 3 C 2 O 1),
@@ -671,7 +675,7 @@ impl Chemical for GlycanSubstituent {
             Self::DiMethylGlyceryl => molecular_formula!(H 9 C 5 O 3),
             Self::Ethanolamine => molecular_formula!(H 6 C 2 N 1 O 1),
             Self::EtOH => molecular_formula!(H 5 C 2 O 2),
-            Self::Element(el) => MolecularFormula::new(&[(*el, None, 1)]).unwrap(),
+            Self::Element(el) => MolecularFormula::new(&[(*el, None, 1)], &[]).unwrap(),
             Self::Formyl => molecular_formula!(H 1 C 1 O 1),
             Self::Glyceryl | Self::Lac => molecular_formula!(H 5 C 3 O 3),
             Self::Glycolyl => molecular_formula!(H 3 C 2 O 2),

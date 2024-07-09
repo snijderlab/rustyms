@@ -120,9 +120,9 @@ impl GlycanStructure {
         // Sort the branches on decreasing molecular weight
         let mut branches = self.branches;
         branches.sort_unstable_by(|a, b| {
-            b.formula()
+            b.formula(0, 0)
                 .monoisotopic_mass()
-                .partial_cmp(&a.formula().monoisotopic_mass())
+                .partial_cmp(&a.formula(0, 0).monoisotopic_mass())
                 .unwrap()
         });
 
@@ -280,7 +280,7 @@ mod test {
         let (sugar, _) = MonoSaccharide::from_short_iupac("Neu5Ac", 0, 0).unwrap();
         dbg!(&sugar);
 
-        assert_eq!(sugar.formula(), molecular_formula!(C 11 H 17 N 1 O 8));
+        assert_eq!(sugar.formula(0, 0), molecular_formula!(C 11 H 17 N 1 O 8));
     }
 
     #[test]

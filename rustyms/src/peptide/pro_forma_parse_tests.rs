@@ -724,7 +724,7 @@ fn parse_custom() {
         "A[Formula:U1|INFO:Custom:WEEE]"
     );
     assert_eq!(
-        peptide.unwrap().formulas(),
+        peptide.unwrap().formulas(0, 0),
         molecular_formula!(C 3 H 7 N 1 O 2 U 1).into()
     );
 }
@@ -737,8 +737,8 @@ fn parse_xl_intra() {
         .expect("Peptide is not a singular peptide");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        singular.formulas(0, 0),
+        (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1))
         .into()
@@ -757,8 +757,8 @@ fn parse_xl_inter() {
     let peptidoform = peptidoform.unwrap();
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        peptidoform.formulas(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        peptidoform.formulas(0, 0),
+        (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
             .into()
@@ -825,13 +825,17 @@ fn parse_adduct_ions_02() {
             &[],
             &[],
             &mut Vec::new(),
-            false
+            false,
+            0,
+            0,
         ),
         peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(
             &[],
             &[],
             &mut Vec::new(),
-            false
+            false,
+            0,
+            0,
         )
     );
     assert_eq!(

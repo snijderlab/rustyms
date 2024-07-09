@@ -167,7 +167,7 @@ impl std::fmt::Display for MolecularFormula {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{molecular_formula, MolecularFormula};
+    use crate::{molecular_formula, AminoAcid, Fragment, MolecularFormula, MultiChemical};
 
     #[test]
     fn sorted() {
@@ -265,5 +265,62 @@ mod tests {
             MolecularFormula::from_unimod("H(6) C(4) N(2) dHex", ..),
             Ok(molecular_formula!(C 10 H 16 N 2 O 4))
         );
+    }
+
+    #[test]
+    fn labels() {
+        let labelled = AminoAcid::B.formulas(0, 0);
+        let unlabelled: crate::Multi<MolecularFormula> =
+            vec![molecular_formula!(C 1), molecular_formula!(H 1)].into();
+        let mut mul_assign_l = labelled.clone();
+        mul_assign_l *= &unlabelled;
+        let mut mul_assign_u = unlabelled.clone();
+        mul_assign_u *= &labelled;
+
+        let all_labelled = |multi: &crate::Multi<MolecularFormula>| {
+            multi.to_vec().iter().all(|o| !o.labels().is_empty())
+        };
+        assert!(all_labelled(&labelled));
+        assert!(!all_labelled(&unlabelled));
+        assert!(!all_labelled(&(&unlabelled * &unlabelled)));
+        assert!(all_labelled(&(labelled.clone() - molecular_formula!(C 1))));
+        assert!(all_labelled(&(labelled.clone() + molecular_formula!(C 1))));
+        assert!(all_labelled(&(&labelled * &unlabelled)));
+        assert!(all_labelled(&(&unlabelled * &labelled)));
+        assert!(all_labelled(
+            &[&labelled, &unlabelled].into_iter().cloned().sum()
+        ));
+        assert!(all_labelled(&mul_assign_l));
+        assert!(all_labelled(&mul_assign_u));
+
+        let fragment_l = Fragment::generate_all(
+            &labelled,
+            0,
+            0,
+            &crate::fragment::FragmentType::precursor,
+            &unlabelled,
+            &[],
+        );
+        let fragment_u = Fragment::generate_all(
+            &unlabelled,
+            0,
+            0,
+            &crate::fragment::FragmentType::precursor,
+            &unlabelled,
+            &[],
+        );
+        let fragment_ul = Fragment::generate_all(
+            &unlabelled,
+            0,
+            0,
+            &crate::fragment::FragmentType::precursor,
+            &labelled,
+            &[],
+        );
+        let all_fragments_labelled =
+            |multi: &[Fragment]| multi.iter().all(|o| !o.formula.labels().is_empty());
+        assert!(all_fragments_labelled(&fragment_l));
+        assert!(!all_fragments_labelled(&fragment_u));
+        assert!(all_fragments_labelled(&fragment_ul));
     }
 }

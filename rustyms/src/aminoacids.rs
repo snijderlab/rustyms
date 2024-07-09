@@ -116,7 +116,11 @@ impl AminoAcid {
     ];
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
-    pub fn satellite_ion_fragments(self) -> Multi<MolecularFormula> {
+    pub fn satellite_ion_fragments(
+        self,
+        sequence_index: usize,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
         match self {
             Self::Alanine
             | Self::Glycine
@@ -130,36 +134,40 @@ impl AminoAcid {
             Self::Asparagine => molecular_formula!(H 2 C 1 N 1 O 1).into(),
             Self::AsparticAcid => molecular_formula!(H 1 C 1 O 2).into(),
             Self::AmbiguousAsparagine => vec![
-                molecular_formula!(H 2 C 1 N 1 O 1),
-                molecular_formula!(H 1 C 1 O 2),
+                molecular_formula!(H 2 C 1 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Asparagine, sequence_index, peptide_index})),
+                molecular_formula!(H 1 C 1 O 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::AsparticAcid, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Cysteine => molecular_formula!(H 1 S 1).into(),
             Self::Glutamine => molecular_formula!(H 4 C 2 N 1 O 1).into(),
             Self::GlutamicAcid => molecular_formula!(H 3 C 2 O 2).into(),
             Self::AmbiguousGlutamine => vec![
-                molecular_formula!(H 4 C 2 N 1 O 1),
-                molecular_formula!(H 3 C 2 O 2),
+                molecular_formula!(H 4 C 2 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Glutamine, sequence_index, peptide_index})),
+                molecular_formula!(H 3 C 2 O 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptide_index})),
             ]
             .into(),
-            Self::Isoleucine => {
-                vec![molecular_formula!(H 3 C 1), molecular_formula!(H 5 C 2)].into()
-            }
-            Self::Leucine => molecular_formula!(H 7 C 3).into(),
-            Self::AmbiguousLeucine => vec![
+            Self::Isoleucine => vec![
                 molecular_formula!(H 3 C 1),
                 molecular_formula!(H 5 C 2),
-                molecular_formula!(H 7 C 3),
+            ]
+            .into(),
+            Self::Leucine => molecular_formula!(H 7 C 3).into(),
+            Self::AmbiguousLeucine => vec![
+                molecular_formula!(H 3 C 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Isoleucine, sequence_index, peptide_index})),
+                molecular_formula!(H 5 C 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Isoleucine, sequence_index, peptide_index})),
+                molecular_formula!(H 7 C 3 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Leucine, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Lysine => molecular_formula!(H 8 C 3 N 1).into(),
             Self::Methionine => molecular_formula!(H 5 C 2 S 1).into(),
-            Self::Pyrrolysine => molecular_formula!(H 15 C 9 N 2 O 1).into(), // Weird, TODO: figure out what to make of this
+            Self::Pyrrolysine => molecular_formula!(H 15 C 9 N 2 O 1).into(),
             Self::Selenocysteine => molecular_formula!(Se 1).into(),
             Self::Serine => molecular_formula!(H 1 O 1).into(),
-            Self::Threonine => {
-                vec![molecular_formula!(H 1 O 1), molecular_formula!(H 3 C 1)].into()
-            }
+            Self::Threonine => vec![
+                molecular_formula!(H 1 O 1),
+                molecular_formula!(H 3 C 1),
+            ]
+            .into(),
             Self::Valine => molecular_formula!(H 3 C 1).into(), // Technically two options, but both have the same mass
         }
     }
@@ -328,43 +336,50 @@ impl AminoAcid {
         allow_side: (bool, bool),
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
+        let n_pos = PeptidePosition::n(sequence_index, sequence_length);
+        let c_pos = PeptidePosition::c(sequence_index, sequence_length);
         if ions.a.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications - molecular_formula!(H 1 C 1 O 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications - molecular_formula!(H 1 C 1 O 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::a(PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::a(n_pos),
                 n_term,
                 ions.a.1,
             ));
         }
         if ions.b.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications - molecular_formula!(H 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications - molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::b(PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::b(n_pos),
                 n_term,
                 ions.b.1,
             ));
         }
         if ions.c.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications + molecular_formula!(H 2 N 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications + molecular_formula!(H 2 N 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::c(PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::c(n_pos),
                 n_term,
                 ions.c.1,
             ));
         }
         if ions.d.0 && allow_side.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(-self.satellite_ion_fragments() * self.formulas()
+                &(-self.satellite_ion_fragments(sequence_index, peptide_index)
+                    * modifications
+                    * self.formulas(sequence_index, peptide_index)
                     + molecular_formula!(H 1 C 1 O 1)),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::d(PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::d(n_pos),
                 n_term,
                 ions.d.1,
             ));
@@ -374,56 +389,62 @@ impl AminoAcid {
                 &molecular_formula!(H 3 C 2 N 1 O 1).into(),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::v(PeptidePosition::n(sequence_index, sequence_length)),
+                &FragmentType::v(n_pos),
                 c_term,
                 ions.v.1,
             ));
         }
         if ions.w.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(-self.satellite_ion_fragments() * self.formulas() + molecular_formula!(H 2 N 1)),
+                &(-self.satellite_ion_fragments(sequence_index, peptide_index)
+                    * modifications
+                    * self.formulas(sequence_index, peptide_index)
+                    + molecular_formula!(H 2 N 1)),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::w(PeptidePosition::c(sequence_index, sequence_length)),
+                &FragmentType::w(c_pos),
                 c_term,
                 ions.w.1,
             ));
         }
         if ions.x.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas()
+                &(self.formulas(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::x(PeptidePosition::c(sequence_index, sequence_length)),
+                &FragmentType::x(c_pos),
                 c_term,
                 ions.x.1,
             ));
         }
         if ions.y.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications + molecular_formula!(H 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications + molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::y(PeptidePosition::c(sequence_index, sequence_length)),
+                &FragmentType::y(c_pos),
                 c_term,
                 ions.y.1,
             ));
         }
         if ions.z.0 && allow_side.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications - molecular_formula!(H 2 N 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications - molecular_formula!(H 2 N 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::z(PeptidePosition::c(sequence_index, sequence_length)),
+                &FragmentType::z(c_pos),
                 c_term,
                 ions.z.1,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas() * (modifications - molecular_formula!(H 1 N 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications - molecular_formula!(H 1 N 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::z·(PeptidePosition::c(sequence_index, sequence_length)),
+                &FragmentType::z·(c_pos),
                 c_term,
                 ions.z.1,
             ));
@@ -439,10 +460,11 @@ impl AminoAcid {
         // Immonium ions will only be generated with charge 1
         if ions.immonium {
             let options = Fragment::generate_all(
-                &(self.formulas() * (modifications - molecular_formula!(C 1 O 1))),
+                &(self.formulas(sequence_index, peptide_index)
+                    * (modifications - molecular_formula!(C 1 O 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::immonium(PeptidePosition::n(sequence_index, sequence_length), self),
+                &FragmentType::immonium(n_pos, self),
                 &Multi::default(),
                 self.immonium_losses().as_slice(),
             );
@@ -521,8 +543,8 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.formulas()[0].average_weight();
-        let mass_ala = AminoAcid::Ala.formulas()[0].monoisotopic_mass();
+        let weight_ala = AminoAcid::A.formulas(0, 0)[0].average_weight();
+        let mass_ala = AminoAcid::Ala.formulas(0, 0)[0].monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -530,8 +552,8 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.formulas()[0].average_weight();
-        let mass_lys = AminoAcid::Lys.formulas()[0].monoisotopic_mass();
+        let weight_lys = AminoAcid::K.formulas(0, 0)[0].average_weight();
+        let mass_lys = AminoAcid::Lys.formulas(0, 0)[0].monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
@@ -565,8 +587,8 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.formulas()[0].monoisotopic_mass().value,
-                aa.formulas()[0].average_weight().value,
+                aa.formulas(0, 0)[0].monoisotopic_mass().value,
+                aa.formulas(0, 0)[0].average_weight().value,
             );
             println!(
                 "{}: {} {} {} {}",

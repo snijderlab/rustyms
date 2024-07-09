@@ -18,7 +18,8 @@ use crate::{
         f64::{MassOverCharge, Ratio},
         usize::Charge,
     },
-    AminoAcid, Chemical, MassMode, Modification, MolecularFormula, Multi, NeutralLoss,
+    AmbiguousLabel, AminoAcid, Chemical, MassMode, Modification, MolecularFormula, Multi,
+    NeutralLoss,
 };
 
 /// A theoretical fragment of a peptide
@@ -36,10 +37,8 @@ pub struct Fragment {
     pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
-    /// Additional description for humans
-    pub label: String,
-    /// All cycles this fragment contains as determined by the cross-links and peptides involved
-    pub cycles: Vec<(Vec<usize>, Vec<CrossLinkName>)>,
+    // All cycles this fragment contains as determined by the cross-links and peptides involved
+    // pub cycles: Vec<(Vec<usize>, Vec<CrossLinkName>)>,
 }
 
 impl Fragment {
@@ -62,7 +61,6 @@ impl Fragment {
         peptidoform_index: usize,
         peptide_index: usize,
         ion: FragmentType,
-        label: String,
     ) -> Self {
         Self {
             formula: theoretical_mass,
@@ -70,9 +68,7 @@ impl Fragment {
             ion,
             peptidoform_index,
             peptide_index,
-            label,
             neutral_loss: None,
-            cycles: Vec::new(),
         }
     }
 
@@ -96,7 +92,6 @@ impl Fragment {
                     peptidoform_index,
                     peptide_index,
                     annotation.clone(),
-                    String::new(),
                 )
             })
             .flat_map(|m| m.with_neutral_losses(neutral_losses))
@@ -108,8 +103,9 @@ impl Fragment {
     /// If the charge is negative.
     #[must_use]
     pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
-        // TODO: Figure out if labelling these in any way would be nice for later checking when used with adduct ions other than protons
-        let formula = charge.formula();
+        let formula = charge
+            .formula(0, 0)
+            .with_labels(&[AmbiguousLabel::ChargeCarrier(charge.formula(0, 0))]);
         let c = Charge::new::<crate::system::charge::e>(
             usize::try_from(formula.charge().value).unwrap(),
         );
@@ -153,15 +149,14 @@ impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}@{}{:+}{} {}",
+            "{}@{}{:+}{}",
             self.ion,
             self.mz(MassMode::Monoisotopic).value,
             self.charge.value,
             self.neutral_loss
                 .as_ref()
                 .map(std::string::ToString::to_string)
-                .unwrap_or_default(),
-            self.label
+                .unwrap_or_default()
         )
     }
 }
@@ -556,12 +551,11 @@ mod tests {
     #[test]
     fn neutral_loss() {
         let a = Fragment::new(
-            AminoAcid::AsparticAcid.formulas()[0].clone(),
+            AminoAcid::AsparticAcid.formulas(0, 0)[0].clone(),
             Charge::new::<crate::system::charge::e>(1),
             0,
             0,
             FragmentType::precursor,
-            String::new(),
         );
         let loss = a.with_neutral_losses(&[NeutralLoss::Loss(molecular_formula!(H 2 O 1))]);
         dbg!(&a, &loss);

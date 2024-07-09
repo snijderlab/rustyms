@@ -20,9 +20,10 @@ mod build;
 mod multi;
 
 use crate::build::glycan;
+pub use crate::build::CrossLinkName;
 use crate::build::*;
 pub use crate::element::*;
-pub use crate::formula::MolecularFormula;
+pub use crate::formula::{AmbiguousLabel, MolecularFormula};
 pub use crate::multi::Multi;
 
 fn main() {
