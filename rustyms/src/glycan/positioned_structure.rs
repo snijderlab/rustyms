@@ -50,51 +50,55 @@ impl PositionedGlycanStructure {
     ) -> Vec<Fragment> {
         let single_charges = charge_carriers.all_single_charge_options();
         let all_charges = charge_carriers.all_charge_options();
-        model.glycan.as_ref().map_or(vec![], |neutral_losses| {
-            // Get all base fragments from this node and all its children
-            let mut base_fragments = self
-                .oxonium_fragments(peptidoform_index, peptide_index, attachment)
-                .into_iter()
-                .flat_map(|f| f.with_charges(&single_charges))
-                .flat_map(|f| f.with_neutral_losses(neutral_losses))
-                .collect_vec();
-            // Generate all Y fragments
-            base_fragments.extend(
-                self.internal_break_points(peptide_index, attachment)
-                    .iter()
-                    .filter(|(_, bonds)| {
-                        bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
-                            && !bonds.iter().all(|b| matches!(b, GlycanBreakPos::End(_)))
-                    })
-                    .flat_map(move |(f, bonds)| {
-                        full_formula.iter().map(move |full| {
-                            Fragment::new(
-                                full - self.formula(attachment.1, peptide_index) + f,
-                                Charge::zero(),
-                                peptidoform_index,
-                                peptide_index,
-                                FragmentType::Y(
-                                    bonds
-                                        .iter()
-                                        .filter(|b| !matches!(b, GlycanBreakPos::End(_)))
-                                        .map(GlycanBreakPos::position)
-                                        .cloned()
-                                        .collect(),
-                                ),
-                            )
-                        })
-                    })
-                    .flat_map(|f| f.with_charges(&all_charges))
-                    .flat_map(|f| f.with_neutral_losses(neutral_losses)),
-            );
-            // Generate all diagnostic ions
-            base_fragments.extend(
-                self.diagnostic_ions(peptidoform_index, peptide_index, attachment)
+        model
+            .glycan
+            .0
+            .then(|| {
+                // Get all base fragments from this node and all its children
+                let mut base_fragments = self
+                    .oxonium_fragments(peptidoform_index, peptide_index, attachment)
                     .into_iter()
-                    .flat_map(|f| f.with_charges(&single_charges)),
-            );
-            base_fragments
-        })
+                    .flat_map(|f| f.with_charges(&single_charges))
+                    .flat_map(|f| f.with_neutral_losses(&model.glycan.2))
+                    .collect_vec();
+                // Generate all Y fragments
+                base_fragments.extend(
+                    self.internal_break_points(peptide_index, attachment)
+                        .iter()
+                        .filter(|(_, bonds)| {
+                            bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
+                                && !bonds.iter().all(|b| matches!(b, GlycanBreakPos::End(_)))
+                        })
+                        .flat_map(move |(f, bonds)| {
+                            full_formula.iter().map(move |full| {
+                                Fragment::new(
+                                    full - self.formula(attachment.1, peptide_index) + f,
+                                    Charge::zero(),
+                                    peptidoform_index,
+                                    peptide_index,
+                                    FragmentType::Y(
+                                        bonds
+                                            .iter()
+                                            .filter(|b| !matches!(b, GlycanBreakPos::End(_)))
+                                            .map(GlycanBreakPos::position)
+                                            .cloned()
+                                            .collect(),
+                                    ),
+                                )
+                            })
+                        })
+                        .flat_map(|f| f.with_charges(&all_charges))
+                        .flat_map(|f| f.with_neutral_losses(&model.glycan.2)),
+                );
+                // Generate all diagnostic ions
+                base_fragments.extend(
+                    self.diagnostic_ions(peptidoform_index, peptide_index, attachment)
+                        .into_iter()
+                        .flat_map(|f| f.with_charges(&single_charges)),
+                );
+                base_fragments
+            })
+            .unwrap_or_default()
     }
 
     /// Get uncharged diagnostic ions from all positions

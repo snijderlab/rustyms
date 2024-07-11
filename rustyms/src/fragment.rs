@@ -12,7 +12,6 @@ use uom::num_traits::Zero;
 
 use crate::{
     glycan::MonoSaccharide,
-    modification::CrossLinkName,
     molecular_charge::MolecularCharge,
     system::{
         f64::{MassOverCharge, Ratio},

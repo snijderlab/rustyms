@@ -2,7 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{fragment::PeptidePosition, system::f64::MassOverCharge, NeutralLoss, Tolerance};
+use crate::{
+    fragment::PeptidePosition, helper_functions::RangeExtension, system::f64::MassOverCharge,
+    NeutralLoss, Tolerance,
+};
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
@@ -37,8 +40,8 @@ pub struct Model {
     pub modification_specific_neutral_losses: bool,
     /// If the diagnostic ions specific for modifications should be generated
     pub modification_specific_diagnostic_ions: bool,
-    /// If some search for glycan (B/Y/Internal) with the given neutral losses
-    pub glycan: Option<Vec<NeutralLoss>>,
+    /// (allow structural fragments, allow compositional fragments (of this number of mono saccharides (inclusive range)), the allowed neutral losses)
+    pub glycan: (bool, (usize, usize), Vec<NeutralLoss>),
     /// Allow any MS cleavable cross-link to be cleaved
     pub allow_cross_link_cleavage: bool,
     /// The matching tolerance
@@ -204,9 +207,21 @@ impl Model {
     }
     /// Set glycans, `None` makes no fragments, `Some(_)` makes fragments, with the given neutral losses
     #[must_use]
-    pub fn glycan(self, neutral_losses: Option<Vec<NeutralLoss>>) -> Self {
+    pub fn glycan(
+        self,
+        allow_structural: bool,
+        allow_compositional: std::ops::RangeInclusive<usize>,
+        neutral_losses: Vec<NeutralLoss>,
+    ) -> Self {
         Self {
-            glycan: neutral_losses,
+            glycan: (
+                allow_structural,
+                (
+                    allow_compositional.start_index(),
+                    allow_compositional.end_index(usize::MAX),
+                ),
+                neutral_losses,
+            ),
             ..self
         }
     }
@@ -290,10 +305,14 @@ impl Model {
             m: true,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
-            glycan: Some(vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
-            ]),
+            glycan: (
+                true,
+                (1, 3),
+                vec![
+                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
+                ],
+            ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -316,7 +335,7 @@ impl Model {
             m: false,
             modification_specific_neutral_losses: false,
             modification_specific_diagnostic_ions: false,
-            glycan: None,
+            glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: false,
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -354,10 +373,14 @@ impl Model {
             m: false,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
-            glycan: Some(vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
-            ]),
+            glycan: (
+                true,
+                (1, 3),
+                vec![
+                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
+                ],
+            ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -392,7 +415,7 @@ impl Model {
             m: false,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
-            glycan: None,
+            glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }
@@ -427,7 +450,7 @@ impl Model {
             m: false,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: true,
-            glycan: None,
+            glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
         }

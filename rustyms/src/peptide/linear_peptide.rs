@@ -554,14 +554,6 @@ impl<T> LinearPeptide<T> {
             .with_neutral_losses(&model.precursor)
         }));
 
-        // Generate broken cross-link precursor
-        // if model.allow_cross_link_cleavage {
-        //     for link in all_cross_links {
-        //         let mass = self.formulas_inner(peptide_index, all_peptides, &[], &mut vec![link]).0;
-
-        //     }
-        // }
-
         // Add glycan fragmentation to all peptide fragments
         // Assuming that only one glycan can ever fragment at the same time,
         // and that no peptide fragmentation occurs during glycan fragmentation

@@ -3,7 +3,7 @@
 use crate::{
     fragment::{Fragment, FragmentType, GlycanPosition},
     system::usize::Charge,
-    NeutralLoss,
+    AminoAcid, Model, MolecularCharge, Multi, NeutralLoss,
 };
 
 include!("../shared/glycan.rs");
@@ -62,6 +62,96 @@ impl MonoSaccharide {
         }
         composition.retain(|el| el.1 != 0);
         composition
+    }
+
+    pub(crate) fn theoretical_fragments(
+        composition: &[(usize, Self)],
+        model: &Model,
+        peptidoform_index: usize,
+        peptide_index: usize,
+        charge_carriers: &MolecularCharge,
+        full_formula: &Multi<MolecularFormula>,
+        attachment: (AminoAcid, usize),
+    ) -> Vec<Fragment> {
+        let flatted_composition = composition
+            .iter()
+            .flat_map(|(amount, sugar)| std::iter::repeat(sugar).take(*amount))
+            .collect_vec();
+        let mut fragments = Vec::new();
+        let single_charges = charge_carriers.all_single_charge_options();
+        for k in model.glycan.1 .0..=model.glycan.1 .1 {
+            if k == 0 {
+                continue;
+            }
+            for combination in flatted_composition.iter().combinations(k).unique() {
+                let formula: MolecularFormula = combination
+                    .iter()
+                    .map(|s| s.formula(attachment.1, peptide_index))
+                    .sum();
+                fragments.extend(
+                    Fragment::new(
+                        formula.clone(),
+                        Charge::default(),
+                        peptidoform_index,
+                        peptide_index,
+                        FragmentType::precursor, // TODO: create compositional B fragment type
+                    )
+                    .with_charges(&single_charges)
+                    .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
+                );
+                fragments.extend(full_formula.to_vec().iter().flat_map(|base| {
+                    Fragment::new(
+                        base - &formula,
+                        Charge::default(),
+                        peptidoform_index,
+                        peptide_index,
+                        FragmentType::precursor, // TODO: create compositional Y fragment type
+                    )
+                    .with_charges(&single_charges)
+                    .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
+                }));
+            }
+        }
+        fragments
+    }
+
+    fn composition_options(
+        composition: &[(usize, Self)],
+        range: std::ops::RangeInclusive<usize>,
+    ) -> Vec<Vec<(usize, Self)>> {
+        if range == (0..=0) {
+            return Vec::new();
+        }
+        let mut options: Vec<Vec<(usize, Self)>> = Vec::new();
+        let mut result: Vec<Vec<(usize, Self)>> = Vec::new();
+        for sugar in composition {
+            let mut new_options = Vec::new();
+            if options.is_empty() {
+                for n in 0..=sugar.0 {
+                    new_options.push(vec![(n, sugar.1.clone())]);
+                }
+            } else {
+                for n in 0..=sugar.0 {
+                    for o in &options {
+                        let mut new = o.clone();
+                        new.push((n, sugar.1.clone()));
+                        let size: usize = new.iter().map(|(a, _)| a).sum();
+                        match size.cmp(range.end()) {
+                            std::cmp::Ordering::Greater => (),             // Ignore
+                            std::cmp::Ordering::Equal => result.push(new), // Cannot get bigger
+                            std::cmp::Ordering::Less => {
+                                if size >= *range.start() {
+                                    result.push(new.clone());
+                                }
+                                new_options.push(new); // Can get bigger
+                            }
+                        }
+                    }
+                }
+            }
+            options = new_options;
+        }
+        result
     }
 
     /// Generate all uncharged diagnostic ions for this monosaccharide.
@@ -290,5 +380,46 @@ mod tests {
                 .round(),
             411.0
         );
+    }
+
+    #[test]
+    fn composition_options() {
+        let hex = MonoSaccharide::new(BaseSugar::Hexose(None), &[]);
+        let hep = MonoSaccharide::new(BaseSugar::Heptose(None), &[]);
+        let composition = &[(1, hex.clone()), (2, hep.clone())];
+        let options_0: Vec<Vec<(usize, MonoSaccharide)>> =
+            MonoSaccharide::composition_options(composition, 0..=0);
+        let options_1 = MonoSaccharide::composition_options(composition, 1..=1);
+        let options_2 = MonoSaccharide::composition_options(composition, 2..=2);
+        let options_3 = MonoSaccharide::composition_options(composition, 3..=3);
+        let options_0_3 = MonoSaccharide::composition_options(composition, 0..=3);
+        // TODO: improve testability and transform the results into a list of strings that are easy to read
+        assert_eq!(
+            options_0,
+            Vec::<Vec<(usize, MonoSaccharide)>>::new(),
+            "0 size composition should be empty"
+        );
+        assert_eq!(
+            options_0_3.iter().sorted().collect_vec(),
+            options_1
+                .iter()
+                .chain(options_2.iter())
+                .chain(options_3.iter())
+                .sorted()
+                .collect_vec(),
+            "0..=3 should be consistent with 0+1+2+3 separately"
+        );
+        assert_eq!(
+            &options_1,
+            &[vec![(1, hex.clone())], vec![(1, hep.clone())]]
+        );
+        assert_eq!(
+            &options_2,
+            &[
+                vec![(1, hex.clone()), (1, hep.clone())],
+                vec![(2, hep.clone())]
+            ]
+        );
+        assert_eq!(&options_3, &[vec![(1, hex), (2, hep)]]);
     }
 }

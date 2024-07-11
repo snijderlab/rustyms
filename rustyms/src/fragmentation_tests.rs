@@ -338,10 +338,7 @@ fn glycan_fragmentation() {
         (2882.47169015166, "N"),
         (2679.39232015166, "Base"),
     ];
-    let model = Model {
-        glycan: Some(Vec::new()),
-        ..Model::none()
-    };
+    let model = Model::none().glycan(true, 0..=0, Vec::new());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
