@@ -6,7 +6,7 @@ use crate::{
     fragment::PeptidePosition,
     modification::{AmbiguousModification, CrossLinkName, SimpleModification},
     placement_rule::Position,
-    LinearPeptide, Linked, Peptidoform,
+    LinearPeptide, Linked, Modification, Peptidoform,
 };
 
 use super::GlobalModification;
@@ -14,6 +14,7 @@ use super::GlobalModification;
 /// Validate all cross links
 /// # Errors
 /// If there is a cross link with more then 2 locations. Or if there never is a definition for this cross link.
+/// Or if there are peptides that cannot be reached from the first peptide.
 pub fn cross_links(
     peptides: Vec<LinearPeptide<Linked>>,
     cross_links_found: HashMap<usize, Vec<(usize, usize)>>,
@@ -60,15 +61,30 @@ pub fn cross_links(
         }
     }
 
-    // TODO: create a function that list all peptides you can reach from a given peptide and check if all are connected
-    // let mut connected = peptidoform.formulas_inner().1;
-    // if peptidoform.peptides().len() > 1 && connected.len() != peptidoform.peptides().len() {
-    //     return Err(CustomError::error(
-    //         "Unconnected peptidoform",
-    //         "Not all peptides in this peptidoform are connected with cross-links or branches, if separate peptides were intended use the chimeric notation `+` instead of the peptidoform notation `//`.",
-    //          Context::full_line(0, line),
-    //     ));
-    // }
+    // Check if all peptides can be reached from the first one
+    let mut found_peptides = Vec::new();
+    let mut stack = vec![0];
+
+    while let Some(index) = stack.pop() {
+        found_peptides.push(index);
+        for seq in &peptidoform.0[index].sequence {
+            for modification in &seq.modifications {
+                if let Modification::CrossLink { peptide, .. } = modification {
+                    if !found_peptides.contains(peptide) && !stack.contains(peptide) {
+                        stack.push(*peptide);
+                    }
+                }
+            }
+        }
+    }
+
+    if found_peptides.len() != peptidoform.peptides().len() {
+        return Err(CustomError::error(
+            "Unconnected peptidoform",
+            "Not all peptides in this peptidoform are connected with cross-links or branches, if separate peptides were intended use the chimeric notation `+` instead of the peptidoform notation `//`.",
+             Context::full_line(0, line),
+        ));
+    }
 
     Ok(peptidoform)
 }
