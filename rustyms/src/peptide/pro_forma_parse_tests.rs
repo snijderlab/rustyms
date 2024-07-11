@@ -541,7 +541,17 @@ parse_test!(ne "EMEVESPEK/3[+2eW$Ґa+,+HH+]", fuzz_92);
 parse_test!(ne "<d><d>NEKEVEESPEMEVEESPEK/3[8P  皚H+]/333333[+2N", fuzz_93);
 parse_test!(ne "EMEgEgEE//V//HMEgMEVRAL[Formula:[13C2][12C-2]N4EEMEVEESPEKEEMEVENSPSEM[:Oyidatiom3<cEVENSPSEM[:Pxidatiom3<cvU:Oxidatiom3<cn]W$à{+2Na+,+B+N+K,1,c-term>A+H+MEVSPnU:Oxidatiom3<cn]{+2Na+,+B+N+g,K,c-ter5]WEN[Formula:W1SSSSSSSSSSSSSSS-2EHEVRAL[Formula:[13C2[12C-2]N45]WEN[Formula:W1SSSSSSSSSSSSSSS", fuzz_94);
 parse_test!(ne "jTRA[Formula:[1SB2]ymEMK[X:[07C     ---,  򆼡,-----   ]hZyvLMOD:0203[13AU]EVTKSESPgK/31 2Na+    ---,  򆼡,-----   ]hZyvLMeeeee~eeeeeeeeeeeeMeeee eeILTClSIGDE+K+K[U:iTidatioOxidation]nQEVNhxiL1]EVTKSESPrK/", fuzz_95);
+parse_test!(ne "EEiTRA[formula:[13C2]KKKKKKKKKKKKKKKKtion]hZA[Formula:o]iTRA[formula:[13333333333333333333333333333333333333333333333333333333333333iTRAQ4plex]-EM[U:Oatdxi33333333333333EMM[U:QdatioɒLdation]nQEVNhS[xxidati]n]EEEM33333333333333333333333333333C2]KKKn]hZ", fuzz_96);
 
+parse_test!(ne "[iT4plex]-EM[Oxidation]EVNES[ES[Phospho]PEK[iTRAQ4plex]-[Methyl]", hang_01);
+parse_test!(ne "[TRAQ4plex]-EM[     iTRAQ4plex]-EM[      ", hang_02);
+parse_test!(ne "<< II0>", hang_03);
+parse_test!(ne "[iTRAQFplex]-EM[Oxidation]EVNES[Phospho]PEKniTREMK[XLMOD:02000#XL1]]EVTKSET:02000#XL1E[XLMOD[XLMOD:02  򆼡", hang_04);
+parse_test!(ne "iTRA[Formula:[  |||||||||||||||||||||]hZsqh|||||||    13C      ]E", hang_05);
+parse_test!(ne "uHLC[Formula:[13C2][19C2]n12W-20]EO[avqrx|hNiwxy]E", hang_06);
+parse_test!(ne "<5BE>[qTR(Qplex]-EM[Oxidation]EVNES[Phospho]EEEEEEEEEEEEEEEEELEEEEEEEEEEEEEMK[XLMOD:021]E+K", hang_07);
+parse_test!(ne "[Formula:K13pUKOLM[0s|ho]DLM[0spho]]-", hang_08);
+parse_test!(ne "[MOD:020110#EMEspho|O-phosL-serine|OCE//K[][]UENCE//K[]UENCE", hang_09);
 // Personal tests
 
 #[test]
