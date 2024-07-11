@@ -80,45 +80,42 @@ impl MonoSaccharide {
         }
         let mut fragments = Vec::new();
         let single_charges = charge_carriers.all_single_charge_options();
-        if model.glycan.1 .1 >= 2 {
-            let compositions = Self::composition_options(
-                composition,
-                model.glycan.1 .0.max(2)..=model.glycan.1 .1,
-            );
+        let all_charges = charge_carriers.all_charge_options();
+        let compositions =
+            Self::composition_options(composition, model.glycan.1 .0..=model.glycan.1 .1);
 
-            // Generate compositional B and Y ions
-            for composition in compositions {
-                let formula: MolecularFormula = composition
-                    .iter()
-                    .map(|s| s.0.formula(attachment.1, peptide_index) * s.1 as i32)
-                    .sum();
-                fragments.extend(
-                    Fragment::new(
-                        formula.clone(),
-                        Charge::default(),
-                        peptidoform_index,
-                        peptide_index,
-                        FragmentType::OxoniumComposition(
-                            composition.clone(),
-                            attachment.0,
-                            attachment.1,
-                        ),
-                    )
-                    .with_charges(&single_charges)
-                    .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
-                );
-                fragments.extend(full_formula.to_vec().iter().flat_map(|base| {
-                    Fragment::new(
-                        base - &formula,
-                        Charge::default(),
-                        peptidoform_index,
-                        peptide_index,
-                        FragmentType::YComposition(composition.clone(), attachment.0, attachment.1),
-                    )
-                    .with_charges(&single_charges)
-                    .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
-                }));
-            }
+        // Generate compositional B and Y ions
+        for composition in compositions {
+            let formula: MolecularFormula = composition
+                .iter()
+                .map(|s| s.0.formula(attachment.1, peptide_index) * s.1 as i32)
+                .sum();
+            fragments.extend(
+                Fragment::new(
+                    formula.clone(),
+                    Charge::default(),
+                    peptidoform_index,
+                    peptide_index,
+                    FragmentType::OxoniumComposition(
+                        composition.clone(),
+                        attachment.0,
+                        attachment.1,
+                    ),
+                )
+                .with_charges(&single_charges)
+                .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
+            );
+            fragments.extend(full_formula.to_vec().iter().flat_map(|base| {
+                Fragment::new(
+                    base - &formula,
+                    Charge::default(),
+                    peptidoform_index,
+                    peptide_index,
+                    FragmentType::YComposition(composition.clone(), attachment.0, attachment.1),
+                )
+                .with_charges(&all_charges)
+                .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
+            }));
         }
 
         // Generate compositional diagnostic ions
@@ -133,6 +130,7 @@ impl MonoSaccharide {
                             attachment.1,
                             sugar.clone(),
                         ),
+                        false,
                     )
                     .into_iter()
                     .flat_map(|d| d.with_charges(&single_charges)),
@@ -194,6 +192,7 @@ impl MonoSaccharide {
         peptidoform_index: usize,
         peptide_index: usize,
         position: DiagnosticPosition,
+        add_base: bool,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
             self.formula(0, 0),
@@ -202,48 +201,48 @@ impl MonoSaccharide {
             peptide_index,
             FragmentType::diagnostic(position),
         );
-        if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
-            vec![
-                base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
-            ]
-        } else if matches!(self.base_sugar, BaseSugar::Hexose(_))
-            && self.substituents == [GlycanSubstituent::NAcetyl]
-        {
-            vec![
-                base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 4 O 2))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 4 H 8 O 4))),
-            ]
-        } else if matches!(self.base_sugar, BaseSugar::Nonose)
-            && (self.substituents
-                == [
-                    GlycanSubstituent::Amino,
-                    GlycanSubstituent::Acetyl,
-                    GlycanSubstituent::Acid,
+        let mut result =
+            if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
+                vec![
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
                 ]
-                || self.substituents
+            } else if matches!(self.base_sugar, BaseSugar::Hexose(_))
+                && self.substituents == [GlycanSubstituent::NAcetyl]
+            {
+                vec![
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 4 O 2))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 4 O 2))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 1 H 6 O 3))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 2 H 6 O 3))),
+                    base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(C 4 H 8 O 4))),
+                ]
+            } else if matches!(self.base_sugar, BaseSugar::Nonose)
+                && (self.substituents
                     == [
                         GlycanSubstituent::Amino,
-                        GlycanSubstituent::Glycolyl,
+                        GlycanSubstituent::Acetyl,
                         GlycanSubstituent::Acid,
-                    ])
-        {
-            // Neu5Ac and Neu5Gc
-            vec![
-                base.clone(),
-                base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1))),
-            ]
-        } else {
-            Vec::new()
+                    ]
+                    || self.substituents
+                        == [
+                            GlycanSubstituent::Amino,
+                            GlycanSubstituent::Glycolyl,
+                            GlycanSubstituent::Acid,
+                        ])
+            {
+                // Neu5Ac and Neu5Gc
+                vec![base.with_neutral_loss(&NeutralLoss::Loss(molecular_formula!(H 2 O 1)))]
+            } else {
+                return Vec::new(); // Do not add this full glycan as diagnostic ion
+            };
+        if add_base {
+            result.push(base.clone())
         }
+        result
     }
 }
 

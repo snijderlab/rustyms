@@ -417,7 +417,7 @@ impl FragmentType {
             Self::diagnostic(
                 DiagnosticPosition::Glycan(_, sug)
                 | DiagnosticPosition::GlycanCompositional(_, _, sug),
-            ) => Cow::Owned(format!("{sug}")),
+            ) => Cow::Owned(format!("d{sug}")),
             Self::Oxonium(_) | Self::OxoniumComposition(_, _, _) => Cow::Borrowed("oxonium"),
             Self::immonium(_, aa) => Cow::Owned(format!("i{}", aa.char())),
             Self::m(_, aa) => Cow::Owned(format!("p-s{}", aa.char())),
@@ -438,7 +438,9 @@ impl FragmentType {
             Self::y(_) => FragmentKind::y,
             Self::z(_) | Self::z·(_) => FragmentKind::z,
             Self::Y(_) | Self::YComposition(_, _, _) => FragmentKind::Y,
-            Self::diagnostic(DiagnosticPosition::Glycan(_, _))
+            Self::diagnostic(
+                DiagnosticPosition::Glycan(_, _) | DiagnosticPosition::GlycanCompositional(_, _, _),
+            )
             | Self::B(_)
             | Self::Oxonium(_)
             | Self::OxoniumComposition(_, _, _) => FragmentKind::Oxonium,

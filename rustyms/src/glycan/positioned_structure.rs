@@ -115,6 +115,7 @@ impl PositionedGlycanStructure {
                 self.position(attachment),
                 self.sugar.clone(),
             ),
+            true,
         );
         output.extend(
             self.branches
