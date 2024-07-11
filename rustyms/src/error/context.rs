@@ -279,7 +279,11 @@ impl Context {
                     "",
                     line_index.map_or(String::new(), |n| (n + 1).to_string()),
                     if start == 0 { "" } else { "…" },
-                    &line[start..end],
+                    &line
+                        .chars()
+                        .skip(start)
+                        .take(end - start)
+                        .collect::<String>(),
                     if end == line.len() { "" } else { "…" },
                     "",
                     " ".repeat(*offset - start + usize::from(start != 0)),

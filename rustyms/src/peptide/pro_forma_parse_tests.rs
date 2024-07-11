@@ -540,6 +540,7 @@ parse_test!(ne "EMECIDWDDMJLOAIAPCFQRBO/3[+2EEEEE0000000000000000+,+HNaSPEKEVBFE
 parse_test!(ne "EMEVESPEK/3[+2eW$Ґa+,+HH+]", fuzz_92);
 parse_test!(ne "<d><d>NEKEVEESPEMEVEESPEK/3[8P  皚H+]/333333[+2N", fuzz_93);
 parse_test!(ne "EMEgEgEE//V//HMEgMEVRAL[Formula:[13C2][12C-2]N4EEMEVEESPEKEEMEVENSPSEM[:Oyidatiom3<cEVENSPSEM[:Pxidatiom3<cvU:Oxidatiom3<cn]W$à{+2Na+,+B+N+K,1,c-term>A+H+MEVSPnU:Oxidatiom3<cn]{+2Na+,+B+N+g,K,c-ter5]WEN[Formula:W1SSSSSSSSSSSSSSS-2EHEVRAL[Formula:[13C2[12C-2]N45]WEN[Formula:W1SSSSSSSSSSSSSSS", fuzz_94);
+parse_test!(ne "jTRA[Formula:[1SB2]ymEMK[X:[07C     ---,  򆼡,-----   ]hZyvLMOD:0203[13AU]EVTKSESPgK/31 2Na+    ---,  򆼡,-----   ]hZyvLMeeeee~eeeeeeeeeeeeMeeee eeILTClSIGDE+K+K[U:iTidatioOxidation]nQEVNhxiL1]EVTKSESPrK/", fuzz_95);
 
 // Personal tests
 
