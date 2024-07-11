@@ -176,37 +176,67 @@ impl<T> LinearPeptide<T> {
         &self.global
     }
 
-    /// Find all neutral losses in the given stretch of peptide
+    /// Find all neutral losses in the given stretch of peptide (loss, peptide index, sequence index)
     fn potential_neutral_losses(
         &self,
         range: impl RangeBounds<usize>,
-    ) -> Vec<(NeutralLoss, PeptidePosition)> {
-        self.iter(range)
+        all_peptides: &[LinearPeptide<Linked>],
+        peptide_index: usize,
+        ignore_peptides: &mut Vec<usize>,
+    ) -> Vec<(NeutralLoss, usize, usize)> {
+        ignore_peptides.push(peptide_index);
+        let mut found_peptides = Vec::new();
+        let own_losses = self
+            .iter(range)
             .flat_map(|(pos, aa)| {
                 aa.modifications
                     .iter()
-                    .filter_map(move |modification| {
-                        if let Modification::Simple(SimpleModification::Database {
+                    .filter_map(|modification| match modification {
+                        Modification::Simple(SimpleModification::Database {
                             specificities,
                             ..
-                        }) = modification
-                        {
-                            Some(specificities)
-                        } else {
-                            None
+                        }) => Some(
+                            specificities
+                                .iter()
+                                .filter_map(move |(rules, rule_losses, _)| {
+                                    if PlacementRule::any_possible(rules, aa, &pos) {
+                                        Some(rule_losses)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .map(move |loss| (loss.clone(), peptide_index, pos.sequence_index))
+                                .collect_vec(),
+                        ),
+                        Modification::CrossLink {
+                            linker,
+                            peptide,
+                            side,
+                            ..
+                        } => {
+                            if !ignore_peptides.contains(peptide) {
+                                found_peptides.push(*peptide)
+                            };
+                            let (neutral, _, _) = side.allowed_rules(linker);
+                            Some(
+                                neutral
+                                    .into_iter()
+                                    .map(|n| (n, peptide_index, pos.sequence_index))
+                                    .collect_vec(),
+                            )
                         }
+                        _ => None,
                     })
                     .flatten()
-                    .filter_map(move |(rules, rule_losses, _)| {
-                        if PlacementRule::any_possible(rules, aa, &pos) {
-                            Some(rule_losses)
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-                    .map(move |loss| (loss.clone(), pos))
+                    .collect_vec()
             })
+            .collect_vec();
+        own_losses
+            .into_iter()
+            .chain(found_peptides.into_iter().flat_map(|p| {
+                all_peptides[p].potential_neutral_losses(.., all_peptides, p, ignore_peptides)
+            }))
             .collect()
     }
 
@@ -636,7 +666,8 @@ impl<T> LinearPeptide<T> {
             peptide_index,
         );
         if apply_neutral_losses {
-            let neutral_losses = self.potential_neutral_losses(range);
+            let neutral_losses =
+                self.potential_neutral_losses(range, all_peptides, peptide_index, &mut Vec::new());
             let mut all_masses =
                 Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
             all_masses.extend(ambiguous_mods_masses.iter().cloned());

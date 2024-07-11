@@ -737,11 +737,11 @@ fn parse_xl_intra() {
         .expect("Peptide is not a singular peptide");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas(0, 0),
+        singular.formulas(0, 0).to_vec()[0].elements(),
         (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1))
-        .into()
+        .elements()
     );
 }
 
@@ -757,11 +757,11 @@ fn parse_xl_inter() {
     let peptidoform = peptidoform.unwrap();
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        peptidoform.formulas(0, 0),
+        peptidoform.formulas(0, 0).to_vec()[0].elements(),
         (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
-            .into()
+            .elements()
     );
 }
 
