@@ -2,6 +2,7 @@
 
 use crate::{
     fragment::{DiagnosticPosition, Fragment, FragmentType, PeptidePosition},
+    glycan::MonoSaccharide,
     helper_functions::RangeExtension,
     modification::{
         CrossLinkName, GnoComposition, LinkerSpecificity, Modification, SimpleModification,
@@ -557,7 +558,17 @@ impl<T> LinearPeptide<T> {
         // Add glycan fragmentation to all peptide fragments
         // Assuming that only one glycan can ever fragment at the same time,
         // and that no peptide fragmentation occurs during glycan fragmentation
+        let full_formula = self
+            .formulas_inner(
+                peptide_index,
+                all_peptides,
+                &[],
+                &mut Vec::new(),
+                model.allow_cross_link_cleavage,
+            )
+            .0;
         for (sequence_index, position) in self.sequence.iter().enumerate() {
+            let attachment = (position.aminoacid, sequence_index);
             for modification in &position.modifications {
                 if let Modification::Simple(SimpleModification::GlycanStructure(glycan)) =
                     modification
@@ -571,16 +582,8 @@ impl<T> LinearPeptide<T> {
                                 peptidoform_index,
                                 peptide_index,
                                 charge_carriers,
-                                &self
-                                    .formulas_inner(
-                                        peptide_index,
-                                        all_peptides,
-                                        &[],
-                                        &mut Vec::new(),
-                                        model.allow_cross_link_cleavage,
-                                    )
-                                    .0,
-                                (position.aminoacid, sequence_index),
+                                &full_formula,
+                                attachment,
                             ),
                     );
                 } else if let Modification::Simple(SimpleModification::Gno(
@@ -597,18 +600,22 @@ impl<T> LinearPeptide<T> {
                                 peptidoform_index,
                                 peptide_index,
                                 charge_carriers,
-                                &self
-                                    .formulas_inner(
-                                        peptide_index,
-                                        all_peptides,
-                                        &[],
-                                        &mut Vec::new(),
-                                        model.allow_cross_link_cleavage,
-                                    )
-                                    .0,
-                                (position.aminoacid, sequence_index),
+                                &full_formula,
+                                attachment,
                             ),
                     );
+                } else if let Modification::Simple(SimpleModification::Glycan(composition)) =
+                    modification
+                {
+                    output.extend(MonoSaccharide::theoretical_fragments(
+                        composition,
+                        model,
+                        peptidoform_index,
+                        peptide_index,
+                        charge_carriers,
+                        &full_formula,
+                        attachment,
+                    ));
                 }
             }
         }

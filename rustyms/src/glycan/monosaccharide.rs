@@ -1,7 +1,7 @@
 //! Handle monosaccharides
 
 use crate::{
-    fragment::{Fragment, FragmentType, GlycanPosition},
+    fragment::{DiagnosticPosition, Fragment, FragmentType, GlycanPosition},
     system::usize::Charge,
     AminoAcid, Model, MolecularCharge, Multi, NeutralLoss,
 };
@@ -64,8 +64,9 @@ impl MonoSaccharide {
         composition
     }
 
+    /// Generate the theoretical fragments, if any monosaccharide is present a negative number of times no fragments are generated.
     pub(crate) fn theoretical_fragments(
-        composition: &[(usize, Self)],
+        composition: &[(Self, isize)],
         model: &Model,
         peptidoform_index: usize,
         peptide_index: usize,
@@ -73,20 +74,23 @@ impl MonoSaccharide {
         full_formula: &Multi<MolecularFormula>,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
-        let flatted_composition = composition
-            .iter()
-            .flat_map(|(amount, sugar)| std::iter::repeat(sugar).take(*amount))
-            .collect_vec();
+        if composition.iter().any(|(_, a)| u16::try_from(*a).is_err()) {
+            // u16: negative + also ensure it fits within the bounds of the molecular formula structure
+            return Vec::new();
+        }
         let mut fragments = Vec::new();
         let single_charges = charge_carriers.all_single_charge_options();
-        for k in model.glycan.1 .0..=model.glycan.1 .1 {
-            if k == 0 {
-                continue;
-            }
-            for combination in flatted_composition.iter().combinations(k).unique() {
-                let formula: MolecularFormula = combination
+        if model.glycan.1 .1 >= 2 {
+            let compositions = Self::composition_options(
+                composition,
+                model.glycan.1 .0.max(2)..=model.glycan.1 .1,
+            );
+
+            // Generate compositional B and Y ions
+            for composition in compositions {
+                let formula: MolecularFormula = composition
                     .iter()
-                    .map(|s| s.formula(attachment.1, peptide_index))
+                    .map(|s| s.0.formula(attachment.1, peptide_index) * s.1 as i32)
                     .sum();
                 fragments.extend(
                     Fragment::new(
@@ -94,7 +98,11 @@ impl MonoSaccharide {
                         Charge::default(),
                         peptidoform_index,
                         peptide_index,
-                        FragmentType::precursor, // TODO: create compositional B fragment type
+                        FragmentType::OxoniumComposition(
+                            composition.clone(),
+                            attachment.0,
+                            attachment.1,
+                        ),
                     )
                     .with_charges(&single_charges)
                     .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
@@ -105,37 +113,62 @@ impl MonoSaccharide {
                         Charge::default(),
                         peptidoform_index,
                         peptide_index,
-                        FragmentType::precursor, // TODO: create compositional Y fragment type
+                        FragmentType::YComposition(composition.clone(), attachment.0, attachment.1),
                     )
                     .with_charges(&single_charges)
                     .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
                 }));
             }
         }
+
+        // Generate compositional diagnostic ions
+        for (sugar, _) in composition {
+            fragments.extend(
+                sugar
+                    .diagnostic_ions(
+                        peptidoform_index,
+                        peptide_index,
+                        DiagnosticPosition::GlycanCompositional(
+                            attachment.0,
+                            attachment.1,
+                            sugar.clone(),
+                        ),
+                    )
+                    .into_iter()
+                    .flat_map(|d| d.with_charges(&single_charges)),
+            );
+        }
+
         fragments
     }
 
+    /// Get all unique combinations of monosaccharides within the given range of number of monosaccharides used
     fn composition_options(
-        composition: &[(usize, Self)],
+        composition: &[(Self, isize)],
         range: std::ops::RangeInclusive<usize>,
-    ) -> Vec<Vec<(usize, Self)>> {
+    ) -> Vec<Vec<(Self, isize)>> {
         if range == (0..=0) {
             return Vec::new();
         }
-        let mut options: Vec<Vec<(usize, Self)>> = Vec::new();
-        let mut result: Vec<Vec<(usize, Self)>> = Vec::new();
+        let mut options: Vec<Vec<(Self, isize)>> = Vec::new();
+        let mut result: Vec<Vec<(Self, isize)>> = Vec::new();
         for sugar in composition {
             let mut new_options = Vec::new();
-            if options.is_empty() {
-                for n in 0..=sugar.0 {
-                    new_options.push(vec![(n, sugar.1.clone())]);
+            // Always start fresh
+            for n in 1..=sugar.1 as usize {
+                let new = vec![(sugar.0.clone(), n as isize)];
+                if range.contains(&n) {
+                    result.push(new.clone());
                 }
-            } else {
-                for n in 0..=sugar.0 {
+                new_options.push(new);
+            }
+            // And build on previous combinations
+            if !options.is_empty() {
+                for n in 1..=sugar.1 as usize {
                     for o in &options {
                         let mut new = o.clone();
-                        new.push((n, sugar.1.clone()));
-                        let size: usize = new.iter().map(|(a, _)| a).sum();
+                        new.push((sugar.0.clone(), n as isize));
+                        let size = new.iter().fold(0, |acc, (_, a)| acc + *a) as usize;
                         match size.cmp(range.end()) {
                             std::cmp::Ordering::Greater => (),             // Ignore
                             std::cmp::Ordering::Equal => result.push(new), // Cannot get bigger
@@ -149,7 +182,7 @@ impl MonoSaccharide {
                     }
                 }
             }
-            options = new_options;
+            options.extend_from_slice(&new_options);
         }
         result
     }
@@ -160,17 +193,14 @@ impl MonoSaccharide {
         &self,
         peptidoform_index: usize,
         peptide_index: usize,
-        position: GlycanPosition,
+        position: DiagnosticPosition,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
             self.formula(0, 0),
             Charge::default(),
             peptidoform_index,
             peptide_index,
-            FragmentType::diagnostic(crate::fragment::DiagnosticPosition::Glycan(
-                position,
-                self.clone(),
-            )),
+            FragmentType::diagnostic(position),
         );
         if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
             vec![
@@ -384,42 +414,47 @@ mod tests {
 
     #[test]
     fn composition_options() {
-        let hex = MonoSaccharide::new(BaseSugar::Hexose(None), &[]);
-        let hep = MonoSaccharide::new(BaseSugar::Heptose(None), &[]);
-        let composition = &[(1, hex.clone()), (2, hep.clone())];
-        let options_0: Vec<Vec<(usize, MonoSaccharide)>> =
-            MonoSaccharide::composition_options(composition, 0..=0);
+        let composition = &[
+            (MonoSaccharide::new(BaseSugar::Hexose(None), &[]), 1),
+            (MonoSaccharide::new(BaseSugar::Heptose(None), &[]), 2),
+        ];
+        let options_0 = MonoSaccharide::composition_options(composition, 0..=0);
         let options_1 = MonoSaccharide::composition_options(composition, 1..=1);
         let options_2 = MonoSaccharide::composition_options(composition, 2..=2);
         let options_3 = MonoSaccharide::composition_options(composition, 3..=3);
         let options_0_3 = MonoSaccharide::composition_options(composition, 0..=3);
+        let human_readable = |options: &[Vec<(MonoSaccharide, isize)>]| {
+            options
+                .iter()
+                .map(|option| {
+                    option
+                        .iter()
+                        .map(|sug| format!("{}{}", sug.0, sug.1))
+                        .join("&")
+                })
+                .join(",")
+        };
         // TODO: improve testability and transform the results into a list of strings that are easy to read
         assert_eq!(
-            options_0,
-            Vec::<Vec<(usize, MonoSaccharide)>>::new(),
+            human_readable(&options_0),
+            "",
             "0 size composition should be empty"
         );
         assert_eq!(
-            options_0_3.iter().sorted().collect_vec(),
-            options_1
-                .iter()
-                .chain(options_2.iter())
-                .chain(options_3.iter())
-                .sorted()
-                .collect_vec(),
+            human_readable(&options_0_3.iter().cloned().sorted().collect_vec()),
+            human_readable(
+                &options_1
+                    .iter()
+                    .cloned()
+                    .chain(options_2.iter().cloned())
+                    .chain(options_3.iter().cloned())
+                    .sorted()
+                    .collect_vec()
+            ),
             "0..=3 should be consistent with 0+1+2+3 separately"
         );
-        assert_eq!(
-            &options_1,
-            &[vec![(1, hex.clone())], vec![(1, hep.clone())]]
-        );
-        assert_eq!(
-            &options_2,
-            &[
-                vec![(1, hex.clone()), (1, hep.clone())],
-                vec![(2, hep.clone())]
-            ]
-        );
-        assert_eq!(&options_3, &[vec![(1, hex), (2, hep)]]);
+        assert_eq!(human_readable(&options_1), "Hex1,Hep1", "Options 1");
+        assert_eq!(human_readable(&options_2), "Hep2,Hex1&Hep1", "Options 2");
+        assert_eq!(human_readable(&options_3), "Hex1&Hep2", "Options 3");
     }
 }

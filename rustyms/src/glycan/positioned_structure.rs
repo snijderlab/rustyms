@@ -108,9 +108,14 @@ impl PositionedGlycanStructure {
         peptide_index: usize,
         attachment: (AminoAcid, usize),
     ) -> Vec<Fragment> {
-        let mut output =
-            self.sugar
-                .diagnostic_ions(peptidoform_index, peptide_index, self.position(attachment));
+        let mut output = self.sugar.diagnostic_ions(
+            peptidoform_index,
+            peptide_index,
+            crate::fragment::DiagnosticPosition::Glycan(
+                self.position(attachment),
+                self.sugar.clone(),
+            ),
+        );
         output.extend(
             self.branches
                 .iter()
