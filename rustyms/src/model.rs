@@ -444,7 +444,10 @@ impl Model {
             ),
             precursor: vec![
                 NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 1 O 1)),
                 NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                NeutralLoss::Loss(molecular_formula!(C 1 H 1 O 2)),
+                NeutralLoss::Loss(molecular_formula!(C 2 H 3 O 2)),
             ],
             immonium: false,
             m: false,
