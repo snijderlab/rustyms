@@ -543,6 +543,17 @@ impl<T> LinearPeptide<T> {
             &mut Vec::new(),
             model.allow_cross_link_cleavage,
         );
+        // Allow neutral losses from modifications for the precursor
+        let mut precursor_neutral_losses = if model.modification_specific_neutral_losses {
+            self.potential_neutral_losses(.., all_peptides, peptide_index, &mut Vec::new())
+                .into_iter()
+                .map(|(n, _, _)| n)
+                .collect_vec()
+        } else {
+            Vec::new()
+        };
+        precursor_neutral_losses.extend_from_slice(&model.precursor);
+
         output.extend(full_precursor.iter().flat_map(|m| {
             Fragment::new(
                 m.clone(),
@@ -552,7 +563,7 @@ impl<T> LinearPeptide<T> {
                 FragmentType::precursor,
             )
             .with_charge(charge_carriers)
-            .with_neutral_losses(&model.precursor)
+            .with_neutral_losses(&precursor_neutral_losses)
         }));
 
         // Add glycan fragmentation to all peptide fragments
