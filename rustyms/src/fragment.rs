@@ -214,7 +214,7 @@ impl PeptidePosition {
     pub const fn flip_terminal(self) -> Self {
         Self {
             sequence_index: self.sequence_index,
-            series_number: self.sequence_length - self.series_number + 1,
+            series_number: self.sequence_length + 1 - self.series_number,
             sequence_length: self.sequence_length,
         }
     }
