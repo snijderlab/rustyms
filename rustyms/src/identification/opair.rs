@@ -5,6 +5,7 @@ use super::{
 };
 use crate::{
     error::{Context, CustomError},
+    ontologies::CustomDatabase,
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
@@ -22,17 +23,17 @@ format_family!(
     OpairData,
     OpairVersion, [&O_PAIR], b'\t';
     required {
-        file_name: String, |location: Location| Ok(location.get_string());
-        scan: usize, |location: Location| location.parse(NUMBER_ERROR);
-        rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        precursor_scan_number: usize, |location: Location| location.parse(NUMBER_ERROR);
-        mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
-        mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        accession: String, |location: Location| Ok(location.get_string());
-        organism: String, |location: Location| Ok(location.get_string());
-        protein_name: String, |location: Location| Ok(location.get_string());
-        protein_location: (usize, usize), |location: Location| location.parse_with(
+        file_name: String, |location: Location, _| Ok(location.get_string());
+        scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        precursor_scan_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        accession: String, |location: Location, _| Ok(location.get_string());
+        organism: String, |location: Location, _| Ok(location.get_string());
+        protein_name: String, |location: Location, _| Ok(location.get_string());
+        protein_location: (usize, usize), |location: Location, _| location.parse_with(
             |loc| {
                 if loc.location.len() < 3 {
                     return Err(CustomError::error(
@@ -78,8 +79,8 @@ format_family!(
                 ))
             },
         );
-        base_sequence: String, |location: Location| Ok(location.get_string());
-        flanking_residues: (AminoAcid, AminoAcid),|location: Location| location.parse_with(
+        base_sequence: String, |location: Location, _| Ok(location.get_string());
+        flanking_residues: (AminoAcid, AminoAcid),|location: Location, _| location.parse_with(
             |loc| {
                 Ok((
                     AminoAcid::try_from(loc.line.line().as_bytes()[loc.location.start]).map_err(
@@ -112,22 +113,22 @@ format_family!(
                 ))
             },
         );
-        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            None,
+            custom_database,
         );
-        mod_number: usize, |location: Location| location.parse(NUMBER_ERROR);
-        theoretical_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        rank: usize, |location: Location| location.parse(NUMBER_ERROR);
-        matched_ion_series: String, |location: Location| Ok(location.get_string());
-        matched_ion_mz_ratios: String, |location: Location| Ok(location.get_string());
-        matched_ion_mass_error: String, |location: Location| Ok(location.get_string());
-        matched_ion_ppm: String, |location: Location| Ok(location.get_string());
-        matched_ion_intensities:String, |location: Location| Ok(location.get_string());
-        matched_ion_counts: String,|location: Location| Ok(location.get_string());
-        kind: OpairMatchKind, |location: Location| location.parse_with(|loc| {
+        mod_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        theoretical_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        matched_ion_series: String, |location: Location, _| Ok(location.get_string());
+        matched_ion_mz_ratios: String, |location: Location, _| Ok(location.get_string());
+        matched_ion_mass_error: String, |location: Location, _| Ok(location.get_string());
+        matched_ion_ppm: String, |location: Location, _| Ok(location.get_string());
+        matched_ion_intensities:String, |location: Location, _| Ok(location.get_string());
+        matched_ion_counts: String,|location: Location, _| Ok(location.get_string());
+        kind: OpairMatchKind, |location: Location, _| location.parse_with(|loc| {
             match &loc.line.line()[loc.location.clone()] {
                 "T" => Ok(OpairMatchKind::Target),
                 "C" => Ok(OpairMatchKind::Contamination),
@@ -144,17 +145,17 @@ format_family!(
                 )),
             }
         });
-        q_value: f64, |location: Location| location.parse(NUMBER_ERROR);
-        pep: f64, |location: Location| location.parse(NUMBER_ERROR);
-        pep_q_value: f64, |location: Location| location.parse(NUMBER_ERROR);
-        localisation_score: f64, |location: Location| location.parse(NUMBER_ERROR);
-        yion_score: f64, |location: Location| location.parse(NUMBER_ERROR);
-        diagnostic_ion_score: f64, |location: Location| location.parse(NUMBER_ERROR);
-        plausible_glycan_number: usize, |location: Location| location.parse(NUMBER_ERROR);
-        total_glycosylation_sites: usize, |location: Location| location.parse(NUMBER_ERROR);
-        glycan_mass:Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        plausible_glycan_composition: String, |location: Location| Ok(location.get_string());
-        n_glycan_motif: bool, |location: Location| location.parse_with(|loc| {
+        q_value: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        pep: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        pep_q_value: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        localisation_score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        yion_score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        diagnostic_ion_score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        plausible_glycan_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        total_glycosylation_sites: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        glycan_mass:Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        plausible_glycan_composition: String, |location: Location, _| Ok(location.get_string());
+        n_glycan_motif: bool, |location: Location, _| location.parse_with(|loc| {
             match &loc.line.line()[loc.location.clone()] {
                 "TRUE" => Ok(true),
                 "FALSE" => Ok(false),
@@ -170,16 +171,16 @@ format_family!(
                 )),
             }
         });
-        r138_144: f64, |location: Location| location.parse(NUMBER_ERROR);
-        plausible_glycan_structure: String, |location: Location| Ok(location.get_string());
-        glycan_localisation_level: String, |location: Location| Ok(location
+        r138_144: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        plausible_glycan_structure: String, |location: Location, _| Ok(location.get_string());
+        glycan_localisation_level: String, |location: Location, _| Ok(location
             .get_string()
             .trim_start_matches("Level")
             .to_string());
-        glycan_peptide_site_specificity: String, |location: Location| Ok(location.get_string());
-        glycan_protein_site_specificity:String, |location: Location| Ok(location.get_string());
-        all_potential_glycan_localisations: String, |location: Location| Ok(location.get_string());
-        all_site_specific_localisation_probabilities: String, |location: Location| Ok(location.get_string());
+        glycan_peptide_site_specificity: String, |location: Location, _| Ok(location.get_string());
+        glycan_protein_site_specificity:String, |location: Location, _| Ok(location.get_string());
+        all_potential_glycan_localisations: String, |location: Location, _| Ok(location.get_string());
+        all_site_specific_localisation_probabilities: String, |location: Location, _| Ok(location.get_string());
     }
     optional { }
 );

@@ -6,6 +6,7 @@ use super::opair::OpairData;
 use super::peaks::PeaksData;
 use super::{MSFraggerData, MaxQuantData, SageData};
 use crate::error::CustomError;
+use crate::ontologies::CustomDatabase;
 use crate::peptide::VerySimple;
 use crate::system::usize::Charge;
 use crate::LinearPeptide;
@@ -109,18 +110,29 @@ where
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors
     /// When the source is not a valid peptide
-    fn parse(source: &Self::Source) -> Result<(Self, &'static Self::Format), CustomError>;
+    fn parse(
+        source: &Self::Source,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<(Self, &'static Self::Format), CustomError>;
     /// Parse a single identified peptide with the given format
     /// # Errors
     /// When the source is not a valid peptide
-    fn parse_specific(source: &Self::Source, format: &Self::Format) -> Result<Self, CustomError>;
+    fn parse_specific(
+        source: &Self::Source,
+        format: &Self::Format,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<Self, CustomError>;
     /// Parse a source of multiple peptides automatically determining the format to use by the first item
     /// # Errors
     /// When the source is not a valid peptide
-    fn parse_many<I: Iterator<Item = Self::Source>>(iter: I) -> IdentifiedPeptideIter<Self, I> {
+    fn parse_many<I: Iterator<Item = Self::Source>>(
+        iter: I,
+        custom_database: Option<&CustomDatabase>,
+    ) -> IdentifiedPeptideIter<Self, I> {
         IdentifiedPeptideIter {
             iter: Box::new(iter),
             format: None,
+            custom_database,
         }
     }
     /// Parse a file with identified peptides.
@@ -128,21 +140,30 @@ where
     /// Returns Err when the file could not be opened
     fn parse_file(
         path: impl AsRef<std::path::Path>,
+        custom_database: Option<&CustomDatabase>,
     ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError>;
 }
 
 /// Convenience type to not have to type out long iterator types
-pub type BoxedIdentifiedPeptideIter<T> =
-    IdentifiedPeptideIter<T, Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>>;
+pub type BoxedIdentifiedPeptideIter<'lifetime, T> = IdentifiedPeptideIter<
+    'lifetime,
+    T,
+    Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>,
+>;
 
 /// An iterator returning parsed identified peptides
-pub struct IdentifiedPeptideIter<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> {
+pub struct IdentifiedPeptideIter<
+    'lifetime,
+    R: IdentifiedPeptideSource,
+    I: Iterator<Item = R::Source>,
+> {
     iter: Box<I>,
     format: Option<R::Format>,
+    custom_database: Option<&'lifetime CustomDatabase>,
 }
 
-impl<R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> Iterator
-    for IdentifiedPeptideIter<R, I>
+impl<'lifetime, R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> Iterator
+    for IdentifiedPeptideIter<'lifetime, R, I>
 where
     R::Format: 'static,
 {
@@ -151,9 +172,13 @@ where
         if let Some(format) = &self.format {
             self.iter
                 .next()
-                .map(|source| R::parse_specific(&source, format))
+                .map(|source| R::parse_specific(&source, format, self.custom_database))
         } else {
-            match self.iter.next().map(|source| R::parse(&source)) {
+            match self
+                .iter
+                .next()
+                .map(|source| R::parse(&source, self.custom_database))
+            {
                 None => None,
                 Some(Ok((pep, format))) => {
                     self.format = Some(format.clone());

@@ -42,9 +42,9 @@ macro_rules! format_family {
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
-            fn parse(source: &Self::Source) -> Result<(Self, &'static Self::Format), CustomError> {
+            fn parse(source: &Self::Source,custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
                 for format in $versions {
-                    if let Ok(peptide) = Self::parse_specific(source, format) {
+                    if let Ok(peptide) = Self::parse_specific(source, format, custom_database) {
                         return Ok((peptide, format));
                     }
                 }
@@ -56,18 +56,19 @@ macro_rules! format_family {
             }
             fn parse_file(
                 path: impl AsRef<std::path::Path>,
+                custom_database: Option<&crate::ontologies::CustomDatabase>,
             ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError> {
                 parse_csv(path, $separator, None).map(|lines| {
                     Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
                         lines.map(Result::unwrap),
-                    ))
+                    ), custom_database)
                 })
             }
             #[allow(clippy::redundant_closure_call)] // Macro magic
-            fn parse_specific(source: &Self::Source, format: &$format) -> Result<Self, CustomError> {
+            fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
                 Ok(Self {
-                    $($rname: $rf(source.column(format.$rname)?)?,)*
-                    $($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c))).invert()?,)*
+                    $($rname: $rf(source.column(format.$rname)?, custom_database)?,)*
+                    $($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c, custom_database))).invert()?,)*
                     version: format.version.clone()
                 })
             }
@@ -75,7 +76,10 @@ macro_rules! format_family {
     };
 }
 
-pub(crate) trait HasLocation {
+pub trait HasLocation {
+    /// Get the specified column.
+    /// # Errors
+    /// If the column does not exist.
     fn column<'a>(&'a self, name: &str) -> Result<Location<'a>, CustomError>;
 }
 

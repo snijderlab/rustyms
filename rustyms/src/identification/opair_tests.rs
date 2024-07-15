@@ -11,7 +11,7 @@ fn opair() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = OpairData::parse_specific(&line, &opair::O_PAIR)
+        let _read: IdentifiedPeptide = OpairData::parse_specific(&line, &opair::O_PAIR, None)
             .unwrap()
             .into();
     }

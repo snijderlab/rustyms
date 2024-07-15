@@ -389,7 +389,7 @@ impl AminoAcid {
                 &molecular_formula!(H 3 C 2 N 1 O 1).into(),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::v(n_pos),
+                &FragmentType::v(c_pos),
                 c_term,
                 ions.v.1,
             ));

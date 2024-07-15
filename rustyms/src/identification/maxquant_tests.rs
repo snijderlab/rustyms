@@ -11,7 +11,7 @@ fn maxquant_msms() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS)
+        let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS, None)
             .unwrap()
             .into();
     }
@@ -22,9 +22,10 @@ fn maxquant_msms_scans() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS_SCANS)
-            .unwrap()
-            .into();
+        let _read: IdentifiedPeptide =
+            MaxQuantData::parse_specific(&line, &maxquant::MSMS_SCANS, None)
+                .unwrap()
+                .into();
     }
 }
 #[test]
@@ -34,7 +35,7 @@ fn maxquant_novo_msms_scans() {
     for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS)
+            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS, None)
                 .unwrap()
                 .into();
     }
@@ -46,7 +47,7 @@ fn maxquant_novo_msms_scans_new() {
     for line in lines.map(Result::unwrap) {
         println!("{line}");
         let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS)
+            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS, None)
                 .unwrap()
                 .into();
     }

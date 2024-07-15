@@ -244,18 +244,19 @@ impl Model {
 }
 
 impl Model {
-    /// Give all possible ions for the given position
+    /// Give all possible ions for the given N position
     pub fn ions(&self, position: PeptidePosition) -> PossibleIons {
+        let c_position = position.flip_terminal();
         PossibleIons {
             a: (self.a.0.possible(position), self.a.1.as_slice()),
             b: (self.b.0.possible(position), self.b.1.as_slice()),
             c: (self.c.0.possible(position), self.c.1.as_slice()),
             d: (self.d.0.possible(position), self.d.1.as_slice()),
-            v: (self.v.0.possible(position), self.v.1.as_slice()),
-            w: (self.w.0.possible(position), self.w.1.as_slice()),
-            x: (self.x.0.possible(position), self.x.1.as_slice()),
-            y: (self.y.0.possible(position), self.y.1.as_slice()),
-            z: (self.z.0.possible(position), self.z.1.as_slice()),
+            v: (self.v.0.possible(c_position), self.v.1.as_slice()),
+            w: (self.w.0.possible(c_position), self.w.1.as_slice()),
+            x: (self.x.0.possible(c_position), self.x.1.as_slice()),
+            y: (self.y.0.possible(c_position), self.y.1.as_slice()),
+            z: (self.z.0.possible(c_position), self.z.1.as_slice()),
             precursor: self.precursor.as_slice(),
             immonium: self.immonium,
         }
@@ -265,39 +266,39 @@ impl Model {
     pub fn all() -> Self {
         Self {
             a: (
-                Location::SkipC(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             b: (
-                Location::SkipC(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             c: (
-                Location::SkipC(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             d: (
-                Location::SkipC(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             v: (
-                Location::SkipC(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             w: (
-                Location::SkipN(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             x: (
-                Location::SkipN(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             y: (
-                Location::SkipN(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             z: (
-                Location::SkipN(1),
+                Location::All,
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
@@ -499,8 +500,19 @@ impl Location {
             }
             Self::SkipC(n) => position.sequence_length - position.sequence_index > *n,
             Self::TakeC(n) => position.sequence_length - position.sequence_index <= *n,
-            Self::All => true,
+            Self::All => position.series_number != position.sequence_length,
             Self::None => false,
         }
     }
+}
+
+#[test]
+fn location_all() {
+    let all = Model::all();
+    let ions_n0 = all.ions(PeptidePosition::n(0, 2));
+    let ions_c0 = all.ions(PeptidePosition::c(0, 2));
+    assert!(ions_n0.a.0);
+    assert!(!ions_n0.x.0);
+    assert!(!ions_c0.a.0);
+    assert!(ions_c0.x.0);
 }

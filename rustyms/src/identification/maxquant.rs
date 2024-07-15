@@ -1,6 +1,7 @@
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    ontologies::CustomDatabase,
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
@@ -25,60 +26,60 @@ format_family!(
     MaxQuantData,
     MaxQuantVersion, [&MSMS, &MSMS_SCANS, &NOVO_MSMS_SCANS], b'\t';
     required {
-        raw_file: String, |location: Location| Ok(location.get_string());
-        scan_number: usize, |location: Location| location.parse(NUMBER_ERROR);
-        scan_index: usize, |location: Location| location.parse(NUMBER_ERROR);
-        modifications: String, |location: Location| Ok(location.get_string());
-        proteins: String, |location: Location| Ok(location.get_string());
-        peptide: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        raw_file: String, |location: Location, _| Ok(location.get_string());
+        scan_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        scan_index: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        modifications: String, |location: Location, _| Ok(location.get_string());
+        proteins: String, |location: Location, _| Ok(location.get_string());
+        peptide: Option<LinearPeptide<VerySimple>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            None
+            custom_database
         ));
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
-        fragmentation: String, |location: Location| Ok(location.get_string());
-        mass_analyser: String, |location: Location| Ok(location.get_string());
-        ty: String, |location: Location| Ok(location.get_string());
-        scan_event_number: usize, |location: Location| location.parse(NUMBER_ERROR);
-        pep: f64, |location: Location| location.parse(NUMBER_ERROR);
-        score: f64, |location: Location| location.parse(NUMBER_ERROR);
-        precursor: Option<usize>, |location: Location| location.ignore("-1").parse::<usize>(NUMBER_ERROR);
-        precursor_intensity: f64, |location: Location| location.parse(NUMBER_ERROR);
-        precursor_apex_function: f64, |location: Location| location.parse(NUMBER_ERROR);
-        precursor_apex_offset: f64, |location: Location| location.parse(NUMBER_ERROR);
-        precursor_apex_offset_time: f64, |location: Location| location.parse(NUMBER_ERROR);
+        z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        fragmentation: String, |location: Location, _| Ok(location.get_string());
+        mass_analyser: String, |location: Location, _| Ok(location.get_string());
+        ty: String, |location: Location, _| Ok(location.get_string());
+        scan_event_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        pep: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        precursor: Option<usize>, |location: Location, _| location.ignore("-1").parse::<usize>(NUMBER_ERROR);
+        precursor_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        precursor_apex_function: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        precursor_apex_offset: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        precursor_apex_offset_time: f64, |location: Location, _| location.parse(NUMBER_ERROR);
     }
     optional {
-        missed_cleavages: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        isotope_index: isize, |location: Location| location.or_empty().parse::<isize>(NUMBER_ERROR);
-        mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        mass_error_da: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        mass_error_ppm: Ratio, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        simple_mass_error_ppm: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        retention_time:Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        number_of_matches: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        intensity_coverage: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        peak_coverage: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        delta_score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        score_diff: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        localisation_probability: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        all_modified_sequences: Vec<LinearPeptide<VerySimple>>,|location: Location| location.array(';')
-                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, None))
+        missed_cleavages: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        isotope_index: isize, |location: Location, _| location.or_empty().parse::<isize>(NUMBER_ERROR);
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        mass_error_da: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        mass_error_ppm: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
+        simple_mass_error_ppm: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        retention_time:Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        number_of_matches: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        intensity_coverage: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        peak_coverage: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        delta_score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        score_diff: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        localisation_probability: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        all_modified_sequences: Vec<LinearPeptide<VerySimple>>,|location: Location, custom_database: Option<&CustomDatabase>| location.array(';')
+                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database))
                 .collect::<Result<Vec<LinearPeptide<VerySimple>>, CustomError>>();
-        id: usize,|location: Location| location.parse::<usize>(NUMBER_ERROR);
-        peptide_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        protein_group_ids: Vec<usize>, |location: Location| location.array(';').map(|p| p.parse::<usize>(NUMBER_ERROR)).collect::<Result<Vec<_>,_>>();
-        modified_peptide_id:usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        evidence_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        base_peak_intensity: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        total_ion_current: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        collision_energy: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        dn_sequence: String, |location: Location| Ok(location.get_string());
-        dn_combined_score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR);
-        dn_n_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        dn_c_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        dn_missing_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        id: usize,|location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        peptide_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        protein_group_ids: Vec<usize>, |location: Location, _| location.array(';').map(|p| p.parse::<usize>(NUMBER_ERROR)).collect::<Result<Vec<_>,_>>();
+        modified_peptide_id:usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        evidence_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        base_peak_intensity: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        total_ion_current: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        collision_energy: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        dn_sequence: String, |location: Location, _| Ok(location.get_string());
+        dn_combined_score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        dn_n_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        dn_c_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        dn_missing_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
     }
 );
 

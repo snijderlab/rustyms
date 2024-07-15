@@ -210,6 +210,14 @@ impl PeptidePosition {
     pub const fn is_c_terminal(&self) -> bool {
         self.sequence_index == self.sequence_length - 1
     }
+    /// Flip to the other series (N->C and C->N)
+    pub const fn flip_terminal(self) -> Self {
+        Self {
+            sequence_index: self.sequence_index,
+            series_number: self.sequence_length - self.series_number + 1,
+            sequence_length: self.sequence_length,
+        }
+    }
 }
 
 /// The definition of the position of an ion inside a glycan
@@ -581,5 +589,18 @@ mod tests {
         dbg!(&a, &loss);
         assert_eq!(a.formula, loss[0].formula);
         assert_eq!(a.formula, &loss[1].formula + &molecular_formula!(H 2 O 1));
+    }
+
+    #[test]
+    fn flip_terminal() {
+        let n0 = PeptidePosition::n(0, 2);
+        let n1 = PeptidePosition::n(1, 2);
+        let n2 = PeptidePosition::n(2, 2);
+        let c0 = PeptidePosition::c(0, 2);
+        let c1 = PeptidePosition::c(1, 2);
+        let c2 = PeptidePosition::c(2, 2);
+        assert_eq!(n0.flip_terminal(), c0);
+        assert_eq!(n1.flip_terminal(), c1);
+        assert_eq!(n2.flip_terminal(), c2);
     }
 }

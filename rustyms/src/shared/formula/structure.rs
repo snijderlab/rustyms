@@ -460,7 +460,7 @@ impl std::iter::Sum<Self> for MolecularFormula {
 /// or if an element is used that does not have a defined molecular weight (does not have natural abundance).
 macro_rules! molecular_formula {
     ($($tail:tt)*) => {
-        formula_internal!([$($tail)*] -> [])
+        $crate::formula_internal!([$($tail)*] -> [])
     };
 }
 
@@ -469,16 +469,16 @@ macro_rules! molecular_formula {
 /// Internal code for the [`molecular_formula`] macro.
 macro_rules! formula_internal {
     ([$e:ident $n:literal $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, None, $n),])
+        $crate::formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, None, $n),])
     };
     ([[$i:literal $e:ident $n:literal] $($tail:tt)*] -> [$($output:tt)*]) => {
-        formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
+        $crate::formula_internal!([$($tail)*] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([$e:ident $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*($crate::Element::$e, None, $n),])
+        $crate::formula_internal!([] -> [$($output)*($crate::Element::$e, None, $n),])
     };
     ([[$i:literal $e:ident] $n:expr] -> [$($output:tt)*]) =>{
-        formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
+        $crate::formula_internal!([] -> [$($output)*($crate::Element::$e, Some(std::num::NonZeroU16::new($i).unwrap()), $n),])
     };
     ([] -> [$($output:tt)*]) =>{
         $crate::MolecularFormula::new(&[$($output)*], &[]).unwrap()

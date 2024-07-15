@@ -11,7 +11,7 @@ fn msfragger_v21() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21)
+        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21, None)
             .unwrap()
             .into();
     }
@@ -23,7 +23,7 @@ fn msfragger_v21_manual() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21)
+        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21, None)
             .unwrap()
             .into();
     }
@@ -35,7 +35,7 @@ fn msfragger_detect() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let result = MSFraggerData::parse(&line).unwrap();
+        let result = MSFraggerData::parse(&line, None).unwrap();
         let _read: IdentifiedPeptide = result.0.into();
         assert_eq!(result.1, &msfragger::V21);
     }

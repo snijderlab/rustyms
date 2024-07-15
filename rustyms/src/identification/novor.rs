@@ -6,6 +6,7 @@ use super::{
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    ontologies::CustomDatabase,
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
@@ -24,37 +25,37 @@ format_family!(
     NovorData,
     NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',';
     required {
-        scan: usize, |location: Location| location.parse(NUMBER_ERROR);
-        mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
-        mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        ppm: Ratio, |location: Location| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        score: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
+        scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            None,
+            custom_database,
         );
     }
     optional {
-        id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        spectra_id: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        fraction: usize, |location: Location| location
+        id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        spectra_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        fraction: usize, |location: Location, _| location
             .apply(|l| Location {
                 line: l.line,
                 location: l.location.start + 1..l.location.end,
             }) // Skip the F of the F{num} definition
             .parse::<usize>(NUMBER_ERROR);
-        rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        mass_err: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        length: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        peptide_no_ptm: String, |location: Location| Ok(Some(location.get_string()));
-        protein: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        protein_start: usize, |location: Location| location.parse::<usize>(NUMBER_ERROR);
-        protein_origin:String, |location: Location| Ok(Some(location.get_string()));
-        protein_all: String, |location: Location| Ok(Some(location.get_string()));
-        database_sequence: String, |location: Location| Ok(Some(location.get_string()));
-        local_confidence: Vec<f64>, |location: Location| location.array('-')
+        rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        mass_err: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        length: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        peptide_no_ptm: String, |location: Location, _| Ok(Some(location.get_string()));
+        protein: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        protein_start: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        protein_origin:String, |location: Location, _| Ok(Some(location.get_string()));
+        protein_all: String, |location: Location, _| Ok(Some(location.get_string()));
+        database_sequence: String, |location: Location, _| Ok(Some(location.get_string()));
+        local_confidence: Vec<f64>, |location: Location, _| location.array('-')
                     .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
                     .collect::<Result<Vec<_>, _>>();
     }

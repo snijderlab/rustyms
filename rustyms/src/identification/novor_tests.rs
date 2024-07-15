@@ -11,7 +11,7 @@ fn novor_old_denovo() {
     let lines = parse_csv_raw(reader, b',', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::OLD_DENOVO)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::OLD_DENOVO, None)
             .unwrap()
             .into();
     }
@@ -23,7 +23,7 @@ fn novor_new_denovo() {
     let lines = parse_csv_raw(reader, b',', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_DENOVO)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_DENOVO, None)
             .unwrap()
             .into();
     }
@@ -35,7 +35,7 @@ fn novor_new_psm() {
     let lines = parse_csv_raw(reader, b',', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_PSM)
+        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_PSM, None)
             .unwrap()
             .into();
     }
@@ -47,7 +47,7 @@ fn novor_detect() {
     let lines = parse_csv_raw(reader, b',', None).unwrap();
     for line in lines.map(std::result::Result::unwrap) {
         println!("{line}");
-        let result = NovorData::parse(&line).unwrap();
+        let result = NovorData::parse(&line, None).unwrap();
         let _read: IdentifiedPeptide = result.0.into();
         assert_eq!(result.1, &novor::OLD_DENOVO);
     }

@@ -1,7 +1,7 @@
 //! Handle monosaccharides
 
 use crate::{
-    fragment::{DiagnosticPosition, Fragment, FragmentType, GlycanPosition},
+    fragment::{DiagnosticPosition, Fragment, FragmentType},
     system::usize::Charge,
     AminoAcid, Model, MolecularCharge, Multi, NeutralLoss,
 };

@@ -11,7 +11,7 @@ fn sage() {
     let lines = parse_csv_raw(reader, b'\t', None).unwrap();
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide = SageData::parse_specific(&line, &sage::VERSION_0_14)
+        let _read: IdentifiedPeptide = SageData::parse_specific(&line, &sage::VERSION_0_14, None)
             .unwrap()
             .into();
     }

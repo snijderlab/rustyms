@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    ontologies::CustomDatabase,
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
@@ -30,39 +31,39 @@ format_family!(
     PeaksData,
     PeaksVersion, [&OLD, &X, &XPLUS, &AB, &XI], b',';
     required {
-        scan: Vec<PeaksId>, |location: Location| location.or_empty()
+        scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
-        peptide: LinearPeptide<VerySimple>, |location: Location| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
-                            None,
+                            custom_database,
                         );
-        tag_length: usize, |location: Location| location.parse(NUMBER_ERROR);
-        alc: f64, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        length: usize, |location: Location| location.parse(NUMBER_ERROR);
-        mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
-        mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        area: Option<f64>, |location: Location| location.or_empty().parse(NUMBER_ERROR);
-        ppm: f64, |location: Location| location.parse(NUMBER_ERROR);
-        ptm: String, |location: Location| Ok(location.get_string());
-        local_confidence: Vec<f64>, |location: Location| location
+        tag_length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        area: Option<f64>, |location: Location, _| location.or_empty().parse(NUMBER_ERROR);
+        ppm: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        ptm: String, |location: Location, _| Ok(location.get_string());
+        local_confidence: Vec<f64>, |location: Location, _| location
                 .array(' ')
                 .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
                 .collect::<Result<Vec<_>, _>>();
-        tag: String, |location: Location| Ok(location.get_string());
-        mode: String, |location: Location| Ok(location.get_string());
+        tag: String, |location: Location, _| Ok(location.get_string());
+        mode: String, |location: Location, _| Ok(location.get_string());
     }
     optional {
-        fraction: usize, |location: Location| location.parse(NUMBER_ERROR).map(Some);
-        source_file: String, |location: Location| Ok(Some(location.get_string()));
-        feature: PeaksId, |location: Location| location.or_empty().parse(ID_ERROR);
-        de_novo_score: f64, |location: Location| location
+        fraction: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
+        source_file: String, |location: Location, _| Ok(Some(location.get_string()));
+        feature: PeaksId, |location: Location, _| location.or_empty().parse(ID_ERROR);
+        de_novo_score: f64, |location: Location, _| location
                 .parse::<f64>(NUMBER_ERROR)
                 .map(|f| f / 100.0);
-        predicted_rt: Time, |location: Location| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::min>));
-        accession: String, |location: Location|  Ok(Some(location.get_string()));
+        predicted_rt: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::min>));
+        accession: String, |location: Location, _|  Ok(Some(location.get_string()));
     }
 );
 

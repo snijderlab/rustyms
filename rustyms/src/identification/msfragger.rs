@@ -2,6 +2,7 @@
 use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, InvertResult},
+    ontologies::CustomDatabase,
     peptide::VerySimple,
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
@@ -31,43 +32,43 @@ format_family!(
     MSFraggerData,
     MSFraggerVersion, [&V21], b'\t';
     required {
-        spectrum: MSFraggerID, |location: Location| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
-        spectrum_file: String, |location: Location| Ok(location.get_string());
-        peptide: Option<LinearPeptide<VerySimple>>, |location: Location| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        spectrum: MSFraggerID, |location: Location, _| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
+        spectrum_file: String, |location: Location, _| Ok(location.get_string());
+        peptide: Option<LinearPeptide<VerySimple>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            None
+            custom_database
         ));
-        extended_peptide: String, |location: Location| Ok(location.get_string());
-        z: Charge, |location: Location| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
-        rt: Time, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
-        experimental_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        calibrated_experimental_mass: Mass, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        experimental_mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        calibrated_experimental_mz: MassOverCharge, |location: Location| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        expectation: f64, |location: Location| location.parse(NUMBER_ERROR);
-        hyperscore: f64, |location: Location| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
-        next_score: f64, |location: Location| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
-        peptide_prophet_probability: f64, |location: Location| location.parse(NUMBER_ERROR);
-        enzymatic_termini: usize, |location: Location| location.parse(NUMBER_ERROR);
-        missed_cleavages: usize, |location: Location| location.parse(NUMBER_ERROR);
-        protein_start: usize, |location: Location| location.parse(NUMBER_ERROR);
-        protein_end: usize, |location: Location| location.parse(NUMBER_ERROR);
-        intensity: f64, |location: Location| location.parse(NUMBER_ERROR);
-        assigned_modifications: String, |location: Location| Ok(location.get_string());
-        purity: f64, |location: Location| location.parse(NUMBER_ERROR);
-        is_unique: bool, |location: Location| location.parse(BOOL_ERROR);
-        protein: String, |location: Location| Ok(location.get_string());
-        protein_id: String, |location: Location| Ok(location.get_string());
-        entry_name: String, |location: Location| Ok(location.get_string());
-        gene: String, |location: Location| Ok(location.get_string());
-        protein_description: String, |location: Location| Ok(location.get_string());
-        mapped_genes: Vec<String>, |location: Location| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
-        mapped_proteins: Vec<String>, |location: Location| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
+        extended_peptide: String, |location: Location, _| Ok(location.get_string());
+        z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
+        rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
+        experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        calibrated_experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        calibrated_experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        expectation: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        hyperscore: f64, |location: Location, _| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
+        next_score: f64, |location: Location, _| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
+        peptide_prophet_probability: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        enzymatic_termini: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        missed_cleavages: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        protein_start: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        protein_end: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        assigned_modifications: String, |location: Location, _| Ok(location.get_string());
+        purity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        is_unique: bool, |location: Location, _| location.parse(BOOL_ERROR);
+        protein: String, |location: Location, _| Ok(location.get_string());
+        protein_id: String, |location: Location, _| Ok(location.get_string());
+        entry_name: String, |location: Location, _| Ok(location.get_string());
+        gene: String, |location: Location, _| Ok(location.get_string());
+        protein_description: String, |location: Location, _| Ok(location.get_string());
+        mapped_genes: Vec<String>, |location: Location, _| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
+        mapped_proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
     }
     optional {
-        condition: String, |location: Location| Ok(Some(location.get_string()));
-        group: String, |location: Location| Ok(Some(location.get_string()));
+        condition: String, |location: Location, _| Ok(Some(location.get_string()));
+        group: String, |location: Location, _| Ok(Some(location.get_string()));
     }
 );
 
