@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -55,10 +55,15 @@ impl CompoundPeptidoform {
         }
         base
     }
-}
 
-impl Display for CompoundPeptidoform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// Display this compound peptidoform.
+    /// `specification_compliant` Displays this compound peptidoform either normalised to the internal representation or as fully spec compliant ProForma
+    /// (no glycan structure or custom modifications).
+    /// # Panics
+    /// When some peptides do not have the same global isotope modifications.
+    /// # Errors
+    /// If the underlying formatter errors.
+    pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
         let global_equal = self
             .peptidoforms()
             .iter()
@@ -88,10 +93,16 @@ impl Display for CompoundPeptidoform {
             if !first {
                 write!(f, "+")?;
             }
-            p.display(f, false)?;
+            p.display(f, false, specification_compliant)?;
             first = false;
         }
         Ok(())
+    }
+}
+
+impl Display for CompoundPeptidoform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.display(f, true)
     }
 }
 

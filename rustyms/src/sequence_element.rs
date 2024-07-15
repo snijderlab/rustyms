@@ -1,6 +1,6 @@
 #![warn(dead_code)]
 
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Write};
 
 use crate::{
     error::{Context, CustomError},
@@ -45,9 +45,10 @@ impl SequenceElement {
     /// If the underlying formatter errors.
     pub(crate) fn display(
         &self,
-        f: &mut std::fmt::Formatter<'_>,
+        f: &mut impl Write,
         placed: &[usize],
         last_ambiguous: Option<usize>,
+        specification_compliant: bool,
     ) -> Result<Vec<usize>, std::fmt::Error> {
         let mut extra_placed = Vec::new();
         if last_ambiguous.is_some() && last_ambiguous != self.ambiguous {
@@ -58,18 +59,19 @@ impl SequenceElement {
         }
         write!(f, "{}", self.aminoacid.char())?;
         for m in &self.modifications {
-            write!(f, "[{m}]")?;
+            write!(f, "[")?;
+            m.display(f, specification_compliant)?;
+            write!(f, "]")?;
         }
         for m in &self.possible_modifications {
+            write!(f, "[",)?;
+            if m.preferred && !placed.contains(&m.id) {
+                extra_placed.push(m.id);
+                m.modification.display(f, specification_compliant)?;
+            };
             write!(
                 f,
-                "[{}#{}{}]",
-                if m.preferred && !placed.contains(&m.id) {
-                    extra_placed.push(m.id);
-                    m.modification.to_string()
-                } else {
-                    String::new()
-                },
+                "#{}{}]",
                 m.group,
                 m.localisation_score
                     .map(|v| format!("({v})"))

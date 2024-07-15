@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Write};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -174,15 +174,18 @@ impl Peptidoform {
         }
     }
 
-    /// Display this peptidoform
+    /// Display this peptidoform.
+    /// `specification_compliant` Displays this peptidoform either normalised to the internal representation or as fully spec compliant ProForma
+    /// (no glycan structure or custom modifications).
     /// # Panics
     /// When some peptides do not have the same global isotope modifications.
     /// # Errors
     /// If the underlying formatter errors.
-    pub(crate) fn display(
+    pub fn display(
         &self,
-        f: &mut std::fmt::Formatter<'_>,
+        f: &mut impl Write,
         show_global_mods: bool,
+        specification_compliant: bool,
     ) -> std::fmt::Result {
         if show_global_mods {
             let global_equal = self
@@ -209,7 +212,7 @@ impl Peptidoform {
             if !first {
                 write!(f, "//")?;
             }
-            p.display(f, false)?;
+            p.display(f, false, specification_compliant)?;
             first = false;
         }
         Ok(())
@@ -218,6 +221,6 @@ impl Peptidoform {
 
 impl std::fmt::Display for Peptidoform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.display(f, true)
+        self.display(f, true, true)
     }
 }

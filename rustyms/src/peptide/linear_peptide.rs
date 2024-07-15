@@ -18,7 +18,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    fmt::Display,
+    fmt::{Display, Write},
     marker::PhantomData,
     num::NonZeroU16,
     ops::{Index, RangeBounds},
@@ -766,11 +766,18 @@ impl<T> LinearPeptide<T> {
             .collect(), seen)
     }
 
-    /// Display this peptide
-    pub(crate) fn display(
+    /// Display this peptide.
+    /// `specification_compliant` Displays this peptide either normalised to the internal representation or as fully spec compliant ProForma
+    /// (no glycan structure or custom modifications).
+    /// # Errors
+    /// If the formatter supplied errors.
+    /// # Panics
+    /// If there is an ambiguous modification without a definition, this indicates an error in rustyms.
+    pub fn display(
         &self,
-        f: &mut std::fmt::Formatter<'_>,
+        f: &mut impl Write,
         show_global_mods: bool,
+        specification_compliant: bool,
     ) -> std::fmt::Result {
         if show_global_mods {
             for (element, isotope) in &self.global {
@@ -803,7 +810,9 @@ impl<T> LinearPeptide<T> {
                     .iter()
                     .find(|m| m.id == id)
                     .unwrap();
-                write!(f, "[{}#{}]", m.modification, m.group)?;
+                write!(f, "[")?;
+                m.modification.display(f, specification_compliant)?;
+                write!(f, "#{}]", m.group)?;
                 any_ambiguous = true;
             }
         }
@@ -811,19 +820,23 @@ impl<T> LinearPeptide<T> {
             write!(f, "?")?;
         }
         if let Some(m) = &self.n_term {
-            write!(f, "[{m}]-")?;
+            write!(f, "[")?;
+            m.display(f, specification_compliant)?;
+            write!(f, "]-")?;
         }
         let mut placed = Vec::new();
         let mut last_ambiguous = None;
         for position in &self.sequence {
-            placed.extend(position.display(f, &placed, last_ambiguous)?);
+            placed.extend(position.display(f, &placed, last_ambiguous, specification_compliant)?);
             last_ambiguous = position.ambiguous;
         }
         if last_ambiguous.is_some() {
             write!(f, ")")?;
         }
         if let Some(m) = &self.c_term {
-            write!(f, "-[{m}]")?;
+            write!(f, "-[")?;
+            m.display(f, specification_compliant)?;
+            write!(f, "]")?;
         }
         if let Some(c) = &self.charge_carriers {
             write!(f, "/{c}")?;
@@ -996,7 +1009,7 @@ impl<T: Into<Linear>> LinearPeptide<T> {
 
 impl<T> Display for LinearPeptide<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.display(f, true)
+        self.display(f, true, true)
     }
 }
 

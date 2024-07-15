@@ -178,10 +178,12 @@ impl SimpleModification {
             _ => RulePossible::Symmetric(HashSet::default()),
         }
     }
-}
 
-impl Display for SimpleModification {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// Display a modification either normalised to the internal representation or as fully valid ProForma
+    /// (no glycan structure or custom modifications).
+    /// # Errors
+    /// When the given writer errors.
+    pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
         match self {
             Self::Mass(m) => {
                 write!(f, "{:+}", m.value)?;
@@ -196,7 +198,7 @@ impl Display for SimpleModification {
                     .iter()
                     .fold(String::new(), |acc, m| acc + &format!("{}{}", m.0, m.1))
             )?,
-            Self::GlycanStructure(glycan) => write!(
+            Self::GlycanStructure(glycan) if specification_compliant => write!(
                 f,
                 "Glycan:{}|INFO:Structure:{glycan}",
                 glycan
@@ -207,6 +209,7 @@ impl Display for SimpleModification {
                         acc
                     })
             )?,
+            Self::GlycanStructure(glycan) => write!(f, "GlycanStructure:{glycan}")?,
             Self::Database {
                 formula,
                 id:
@@ -216,8 +219,19 @@ impl Display for SimpleModification {
                         ..
                     },
                 ..
-            } => {
+            } if specification_compliant => {
                 write!(f, "Formula:{formula}|INFO:Custom:{name}")?;
+            }
+            Self::Database {
+                id:
+                    ModificationId {
+                        name,
+                        ontology: Ontology::Custom,
+                        ..
+                    },
+                ..
+            } if specification_compliant => {
+                write!(f, "C:{name}")?;
             }
             Self::Database { id, .. } => {
                 write!(f, "{}:{}", id.ontology.char(), id.name)?;
@@ -226,6 +240,12 @@ impl Display for SimpleModification {
             Self::Linker { id, .. } => write!(f, "{}:{}", id.ontology.char(), id.name)?,
         }
         Ok(())
+    }
+}
+
+impl Display for SimpleModification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.display(f, true)
     }
 }
 
@@ -552,14 +572,24 @@ impl Chemical for AmbiguousModification {
     }
 }
 
-impl Display for Modification {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Modification {
+    /// Display a modification either normalised to the internal representation or as fully valid ProForma
+    /// (no glycan structure or custom modifications).
+    /// # Errors
+    /// When the given writer errors.
+    pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
         match self {
-            Self::Simple(sim) => write!(f, "{sim}"),
+            Self::Simple(sim) => sim.display(f, specification_compliant),
             Self::CrossLink { name, linker, .. } => write!(f, "{linker}{name}"),
         }
         .unwrap();
         Ok(())
+    }
+}
+
+impl Display for Modification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.display(f, true)
     }
 }
 

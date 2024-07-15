@@ -42,17 +42,19 @@ macro_rules! format_family {
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
-            fn parse(source: &Self::Source,custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
+            fn parse(source: &Self::Source, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
+                let mut errors = Vec::new();
                 for format in $versions {
-                    if let Ok(peptide) = Self::parse_specific(source, format, custom_database) {
-                        return Ok((peptide, format));
+                    match Self::parse_specific(source, format, custom_database) {
+                        Ok(peptide) => return Ok((peptide, format)),
+                        Err(err) => errors.push(err),
                     }
                 }
                 Err(CustomError::error(
                     format!("Invalid {} line", stringify!($format)),
                     "The correct format could not be determined automatically",
                     source.full_context(),
-                ))
+                ).with_underlying_errors(errors))
             }
             fn parse_file(
                 path: impl AsRef<std::path::Path>,

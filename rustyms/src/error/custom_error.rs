@@ -1,4 +1,5 @@
 use super::Context;
+use itertools::Itertools;
 use serde::*;
 use std::error;
 use std::fmt;
@@ -16,6 +17,8 @@ pub struct CustomError {
     suggestions: Vec<String>,
     /// The context, in the most general sense this produces output which leads the user to the right place in the code or file
     context: Context,
+    /// Underlying errors
+    underlying_errors: Vec<CustomError>,
 }
 
 #[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
@@ -37,6 +40,7 @@ impl CustomError {
             long_description: long_desc.to_string(),
             suggestions: Vec::new(),
             context,
+            underlying_errors: Vec::new(),
         }
     }
     /// Create a new `CustomError`
@@ -56,6 +60,7 @@ impl CustomError {
             long_description: long_desc,
             suggestions: Vec::new(),
             context,
+            underlying_errors: Vec::new(),
         }
     }
     /// Create a new `CustomError`
@@ -75,6 +80,7 @@ impl CustomError {
             long_description: long_desc.to_string(),
             suggestions: Vec::new(),
             context,
+            underlying_errors: Vec::new(),
         }
     }
 
@@ -132,6 +138,15 @@ impl CustomError {
         }
     }
 
+    /// Create a copy of the error with the given underlying errors
+    #[must_use]
+    pub fn with_underlying_errors(&self, underlying_errors: Vec<Self>) -> Self {
+        Self {
+            underlying_errors,
+            ..self.clone()
+        }
+    }
+
     /// Overwrite the line number with the given number, if applicable
     #[must_use]
     pub fn overwrite_line_number(&self, line_number: usize) -> Self {
@@ -161,6 +176,16 @@ impl fmt::Debug for CustomError {
             0 => Ok(()),
             1 => writeln!(f, "Did you mean: {}?", self.suggestions[0]),
             _ => writeln!(f, "Did you mean any of: {}?", self.suggestions.join(", ")),
+        }
+        .unwrap();
+        match self.underlying_errors.len() {
+            0 => Ok(()),
+            1 => writeln!(f, "Underlying error:\n{}", self.underlying_errors[0]),
+            _ => writeln!(
+                f,
+                "Underlying errors:\n{}",
+                self.underlying_errors.iter().join("\n")
+            ),
         }
     }
 }
