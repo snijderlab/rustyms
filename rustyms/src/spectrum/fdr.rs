@@ -26,6 +26,7 @@ impl AnnotatedSpectrum {
         let mzs = fragments
             .iter()
             .map(|f| (f.mz(mass_mode), f.peptidoform_index, f.peptide_index))
+            .filter(|(mz, _, _)| model.mz_range.contains(mz))
             .collect_vec();
 
         let individual_peptides = self

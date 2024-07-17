@@ -141,27 +141,30 @@ impl RawSpectrum {
         };
 
         for fragment in theoretical_fragments {
+            // Determine fragment mz and see if it is within the model range.
+            let mz = fragment.mz(mode);
+            if !model.mz_range.contains(&mz) {
+                continue;
+            }
+
             // Get the index of the element closest to this value (spectrum is defined to always be sorted)
             let index = self
                 .spectrum
-                .binary_search_by(|p| p.mz.value.total_cmp(&fragment.mz(mode).value))
-                .map_or_else(|i| i, |i| i);
+                .binary_search_by(|p| p.mz.value.total_cmp(&mz.value))
+                .unwrap_or_else(|i| i);
 
             // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
             let mut closest = (0, f64::INFINITY);
             for i in
                 if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1)
             {
-                let ppm = self.spectrum[i].ppm(fragment, mode).value;
+                let ppm = self.spectrum[i].ppm(mz).value;
                 if ppm < closest.1 {
                     closest = (i, ppm);
                 }
             }
 
-            if model
-                .tolerance
-                .within(&self.spectrum[closest.0].mz, &fragment.mz(mode))
-            {
+            if model.tolerance.within(&self.spectrum[closest.0].mz, &mz) {
                 annotated.spectrum[closest.0]
                     .annotation
                     .push((fragment.clone(), Vec::new()));
@@ -301,7 +304,7 @@ impl Eq for RawPeak {}
 
 impl RawPeak {
     /// Determine the ppm error for the given fragment
-    pub fn ppm(&self, fragment: &Fragment, mode: MassMode) -> Ratio {
-        self.mz.ppm(fragment.mz(mode))
+    pub fn ppm(&self, mz: MassOverCharge) -> Ratio {
+        self.mz.ppm(mz)
     }
 }

@@ -6,14 +6,23 @@ use serde::{Deserialize, Serialize};
 use crate::{
     fragment::{Fragment, FragmentKind},
     peptide::ExtremelySimple,
-    AnnotatedSpectrum, LinearPeptide,
+    AnnotatedSpectrum, LinearPeptide, MassMode, Model,
 };
 
 impl AnnotatedSpectrum {
     /// Get the spectrum scores for this annotated spectrum.
     /// The returned tuple has the scores for all peptides combined as first item
     /// and as second item a vector with for each peptide its individual scores.
-    pub fn scores(&self, fragments: &[Fragment]) -> (Scores, Vec<Vec<Scores>>) {
+    pub fn scores(
+        &self,
+        fragments: &[Fragment],
+        model: &Model,
+        mass_mode: MassMode,
+    ) -> (Scores, Vec<Vec<Scores>>) {
+        let fragments = fragments
+            .iter()
+            .filter(|f| model.mz_range.contains(&f.mz(mass_mode)))
+            .collect_vec();
         let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
         let individual_peptides = self
             .peptide
@@ -27,7 +36,7 @@ impl AnnotatedSpectrum {
                     .enumerate()
                     .map(|(peptide_index, peptide)| {
                         let (recovered_fragments, peaks, intensity_annotated) =
-                            self.base_score(fragments, Some(peptide_index), None);
+                            self.base_score(&fragments, Some(peptide_index), None);
                         let positions =
                             self.score_positions(peptidoform_index, peptide_index, None);
                         Scores {
@@ -38,7 +47,7 @@ impl AnnotatedSpectrum {
                                 positions: Recovered::new(positions, peptide.len() as u32),
                             },
                             ions: self.score_individual_ions(
-                                fragments,
+                                &fragments,
                                 Some((peptidoform_index, peptide_index, peptide)),
                                 total_intensity,
                             ),
@@ -49,8 +58,8 @@ impl AnnotatedSpectrum {
             .collect();
         // Get the statistics for the combined peptides
         let (recovered_fragments, peaks, intensity_annotated) =
-            self.base_score(fragments, None, None);
-        let unique_formulas = self.score_unique_formulas(fragments, None, None);
+            self.base_score(&fragments, None, None);
+        let unique_formulas = self.score_unique_formulas(&fragments, None, None);
         (
             Scores {
                 score: Score::UniqueFormulas {
@@ -60,7 +69,7 @@ impl AnnotatedSpectrum {
                     unique_formulas,
                 },
                 ions: self.score_individual_ions::<ExtremelySimple>(
-                    fragments,
+                    &fragments,
                     None,
                     total_intensity,
                 ),
@@ -72,7 +81,7 @@ impl AnnotatedSpectrum {
     /// Get the base score of this spectrum
     fn base_score(
         &self,
-        fragments: &[Fragment],
+        fragments: &[&Fragment],
         peptide_index: Option<usize>,
         ion: Option<FragmentKind>,
     ) -> (Recovered<u32>, Recovered<u32>, f64) {
@@ -138,7 +147,7 @@ impl AnnotatedSpectrum {
     /// Get the amount of unique formulas recovered
     fn score_unique_formulas(
         &self,
-        fragments: &[Fragment],
+        fragments: &[&Fragment],
         peptide_index: Option<usize>,
         ion: Option<FragmentKind>,
     ) -> Recovered<u32> {
@@ -169,7 +178,7 @@ impl AnnotatedSpectrum {
     /// Get the scores for the individual ion series
     fn score_individual_ions<T>(
         &self,
-        fragments: &[Fragment],
+        fragments: &[&Fragment],
         peptide: Option<(usize, usize, &LinearPeptide<T>)>,
         total_intensity: f64,
     ) -> Vec<(FragmentKind, Score)> {

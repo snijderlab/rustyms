@@ -1,15 +1,19 @@
 //! Handle model instantiation.
 
+use std::ops::RangeInclusive;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    fragment::PeptidePosition, helper_functions::RangeExtension, system::f64::MassOverCharge,
+    fragment::PeptidePosition,
+    helper_functions::RangeExtension,
+    system::{f64::MassOverCharge, mz},
     NeutralLoss, Tolerance,
 };
 
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Model {
     /// a series ions
@@ -46,6 +50,8 @@ pub struct Model {
     pub allow_cross_link_cleavage: bool,
     /// The matching tolerance
     pub tolerance: Tolerance<MassOverCharge>,
+    /// The range in which fragments fall, can be used to limit the theoretical fragments to a known window
+    pub mz_range: RangeInclusive<MassOverCharge>,
 }
 
 /// A struct to handle all possible fragments that could be generated on a single location
@@ -241,6 +247,11 @@ impl Model {
             ..self
         }
     }
+    /// Set the mz range
+    #[must_use]
+    pub fn mz_range(self, mz_range: RangeInclusive<MassOverCharge>) -> Self {
+        Self { mz_range, ..self }
+    }
 }
 
 impl Model {
@@ -316,6 +327,7 @@ impl Model {
             ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
 
@@ -339,6 +351,7 @@ impl Model {
             glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: false,
             tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
 
@@ -384,6 +397,7 @@ impl Model {
             ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
 
@@ -419,6 +433,7 @@ impl Model {
             glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
 
@@ -457,6 +472,7 @@ impl Model {
             glycan: (false, (0, 0), Vec::new()),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
 }
