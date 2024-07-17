@@ -6,11 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     fragment::{Fragment, FragmentKind},
     peptide::ExtremelySimple,
-    system::{
-        f64::{MassOverCharge, Ratio},
-        mass_over_charge::mz,
-    },
-    AnnotatedSpectrum, LinearPeptide, MassMode, Model, WithinTolerance,
+    AnnotatedSpectrum, LinearPeptide,
 };
 
 impl AnnotatedSpectrum {
@@ -260,74 +256,6 @@ impl AnnotatedSpectrum {
         )
         .collect()
     }
-
-    /// Get a false discovery rate estimation for this annotation. See the [`Fdr`] struct for all statistics that can be retrieved.
-    pub fn fdr(&self, fragments: &[Fragment], model: &Model) -> Fdr {
-        let masses = fragments
-            .iter()
-            .map(|f| f.mz(MassMode::Monoisotopic))
-            .collect_vec();
-        let mut results = Vec::with_capacity(50);
-
-        for offset in -25..=25 {
-            let peaks = self
-                .spectrum
-                .iter()
-                .map(|p| {
-                    p.experimental_mz
-                        + MassOverCharge::new::<mz>(std::f64::consts::PI + f64::from(offset))
-                })
-                .collect_vec();
-            let mut peak_annotated = vec![false; peaks.len()];
-            let mut annotated = 0;
-            for mass in &masses {
-                // Get the index of the element closest to this value (spectrum is defined to always be sorted)
-                let index = peaks
-                    .binary_search_by(|p| p.value.total_cmp(&mass.value))
-                    .unwrap_or_else(|i| i);
-
-                // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
-                let mut closest = (0, Ratio::new::<crate::system::ratio::ppm>(f64::INFINITY));
-                #[allow(clippy::needless_range_loop)] // I like this better
-                for i in if index == 0 { 0 } else { index - 1 }
-                    ..=(index + 1).min(self.spectrum.len() - 1)
-                {
-                    let ppm = peaks[i].ppm(*mass);
-                    if ppm < closest.1 {
-                        closest = (i, ppm);
-                    }
-                }
-
-                if model
-                    .tolerance
-                    .within(&self.spectrum[closest.0].experimental_mz, mass)
-                    && !peak_annotated[closest.0]
-                {
-                    annotated += 1;
-                    peak_annotated[closest.0] = true;
-                }
-            }
-            results.push(f64::from(annotated) / self.spectrum.len() as f64);
-        }
-        let average = results.iter().sum::<f64>() / results.len() as f64;
-        let st_dev = results
-            .iter()
-            .map(|x| (x - average).powi(2))
-            .sum::<f64>()
-            .sqrt();
-        let actual = self
-            .spectrum
-            .iter()
-            .filter(|p| !p.annotation.is_empty())
-            .count() as f64
-            / self.spectrum.len() as f64;
-
-        Fdr {
-            actual,
-            average_false: average,
-            standard_deviation_false: st_dev,
-        }
-    }
 }
 
 /// The scores for an annotated spectrum
@@ -394,34 +322,5 @@ where
     /// Get the recovered amount as fraction
     pub fn fraction(&self) -> f64 {
         f64::from(self.found) / f64::from(self.total)
-    }
-}
-
-/// A false discovery rate for an annotation to a spectrum
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct Fdr {
-    /// The fraction of the total (assumed to be true) peaks that could be annotated
-    pub actual: f64,
-    /// The average fraction of the false peaks that could be annotated
-    pub average_false: f64,
-    /// The standard deviation of the false peaks that could be annotated
-    pub standard_deviation_false: f64,
-}
-
-impl Fdr {
-    /// Get the false discovery rate (as a fraction).
-    /// The average number of false peaks annotated divided by the average number of annotated peaks.
-    pub fn fdr(&self) -> f64 {
-        self.average_false / self.actual
-    }
-
-    /// Get the number of standard deviations the number of annotated peaks is from the average number of false annotations.
-    pub fn sigma(&self) -> f64 {
-        (self.actual - self.average_false) / self.standard_deviation_false
-    }
-
-    /// Get the score of this annotation. Defined as the log2 of the sigma.
-    pub fn score(&self) -> f64 {
-        self.sigma().log2()
     }
 }
