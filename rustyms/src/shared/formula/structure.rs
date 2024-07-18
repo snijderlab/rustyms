@@ -276,24 +276,32 @@ impl MolecularFormula {
             .iter()
             .find(|e| e.0 == Element::C && e.1.is_none())
         {
-            f(carbon, &mut buffer);
+            if carbon.2 != 0 {
+                f(carbon, &mut buffer);
+            }
             if let Some(hydrogen) = self
                 .elements
                 .iter()
                 .find(|e| e.0 == Element::H && e.1.is_none())
             {
-                f(hydrogen, &mut buffer);
+                if hydrogen.2 != 0 {
+                    f(hydrogen, &mut buffer);
+                }
             }
             for element in self
                 .elements
                 .iter()
                 .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
             {
-                f(element, &mut buffer);
+                if element.2 != 0 {
+                    f(element, &mut buffer);
+                }
             }
         } else {
             for element in &self.elements {
-                f(element, &mut buffer);
+                if element.2 != 0 {
+                    f(element, &mut buffer);
+                }
             }
         }
         if self.additional_mass != 0.0 {
