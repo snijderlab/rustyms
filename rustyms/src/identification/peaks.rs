@@ -4,7 +4,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::{SloppyParsingParameters, VerySimple},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
@@ -37,6 +37,7 @@ format_family!(
                             location.full_line(),
                             location.location.clone(),
                             custom_database,
+                            SloppyParsingParameters::default()
                         );
         tag_length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);

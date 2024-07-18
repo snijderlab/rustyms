@@ -3,7 +3,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, InvertResult},
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::{SloppyParsingParameters, VerySimple},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
@@ -37,7 +37,8 @@ format_family!(
         peptide: Option<LinearPeptide<VerySimple>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            custom_database
+            custom_database,
+            SloppyParsingParameters {ignore_prefix_lowercase_n: true},
         ));
         extended_peptide: String, |location: Location, _| Ok(location.get_string());
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);

@@ -6,7 +6,7 @@ use super::{
 use crate::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::{SloppyParsingParameters, VerySimple},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
 };
@@ -117,6 +117,7 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
+            SloppyParsingParameters::default()
         );
         mod_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         theoretical_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);

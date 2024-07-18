@@ -2,7 +2,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::{SloppyParsingParameters, VerySimple},
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
@@ -34,7 +34,8 @@ format_family!(
         peptide: Option<LinearPeptide<VerySimple>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
-            custom_database
+            custom_database,
+            SloppyParsingParameters::default()
         ));
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         fragmentation: String, |location: Location, _| Ok(location.get_string());
@@ -65,7 +66,7 @@ format_family!(
         score_diff: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         localisation_probability: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         all_modified_sequences: Vec<LinearPeptide<VerySimple>>,|location: Location, custom_database: Option<&CustomDatabase>| location.array(';')
-                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database))
+                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database, SloppyParsingParameters::default()))
                 .collect::<Result<Vec<LinearPeptide<VerySimple>>, CustomError>>();
         id: usize,|location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         peptide_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);

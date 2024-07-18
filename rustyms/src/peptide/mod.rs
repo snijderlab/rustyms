@@ -14,5 +14,6 @@ mod validate;
 pub use compound_peptidoform::*;
 pub use linear_peptide::*;
 pub use parse_modification::*;
+pub use parse_sloppy::SloppyParsingParameters;
 pub use peptide_complexity::*;
 pub use peptidoform::*;

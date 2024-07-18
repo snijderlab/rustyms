@@ -7,7 +7,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::{SloppyParsingParameters, VerySimple},
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
@@ -35,6 +35,7 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
+            SloppyParsingParameters::default(),
         );
     }
     optional {

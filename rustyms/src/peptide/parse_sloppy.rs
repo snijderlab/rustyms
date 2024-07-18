@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Context, CustomError},
@@ -11,6 +12,12 @@ use crate::{
 };
 
 use crate::modification::Modification;
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct SloppyParsingParameters {
+    /// Ignore a prefix lowercase n as in `n[211]GC[779]RQSSEEK` as this indicates an N terminal modification in MSFragger
+    pub ignore_prefix_lowercase_n: bool,
+}
 
 impl LinearPeptide<VerySimple> {
     /// Read sloppy pro forma like sequences. Defined by the use of square or round braces to indicate
@@ -27,6 +34,7 @@ impl LinearPeptide<VerySimple> {
         line: &str,
         location: std::ops::Range<usize>,
         custom_database: Option<&CustomDatabase>,
+        parameters: SloppyParsingParameters,
     ) -> Result<Self, CustomError> {
         if line[location.clone()].trim().is_empty() {
             return Err(CustomError::error(
@@ -43,7 +51,8 @@ impl LinearPeptide<VerySimple> {
 
         while index < chars.len() {
             match chars[index] {
-                b'_' => index += 1, //ignore
+                b'n' if parameters.ignore_prefix_lowercase_n && index == 0 => index += 1, //ignore
+                b'_' => index += 1,                                                       //ignore
                 b'[' | b'(' => {
                     let (open, close) = if chars[index] == b'[' {
                         (b'[', b']')
@@ -206,6 +215,25 @@ mod tests {
         assert_eq!(
             Modification::sloppy_modification_internal("Deamidation (NQ)"),
             Some(Ontology::Unimod.find_name("deamidated", None).unwrap())
+        );
+    }
+
+    #[test]
+    fn sloppy_msfragger() {
+        assert_eq!(
+            LinearPeptide::<VerySimple>::sloppy_pro_forma(
+                "n[211]GC[779]RQSSEEK",
+                0..20,
+                None,
+                SloppyParsingParameters {
+                    ignore_prefix_lowercase_n: true
+                }
+            )
+            .unwrap(),
+            LinearPeptide::pro_forma("[211]-GC[779]RQSSEEK", None)
+                .unwrap()
+                .very_simple()
+                .unwrap()
         );
     }
 }
