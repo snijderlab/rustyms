@@ -10,7 +10,7 @@ use crate::{
     molecular_charge::MolecularCharge,
     peptide::*,
     placement_rule::PlacementRule,
-    system::usize::Charge,
+    system::{charge, usize::Charge},
     Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical, NeutralLoss,
     Protease, SequenceElement,
 };
@@ -250,8 +250,8 @@ impl<T> LinearPeptide<T> {
                     .map(move |diag| (diag, DiagnosticPosition::Peptide(pos, aa.aminoacid)))
             })
             .chain(self.labile.iter().flat_map(move |modification| {
-                if let SimpleModification::Database { specificities, .. } = modification {
-                    specificities
+                match modification {
+                    SimpleModification::Database { specificities, .. } => specificities
                         .iter()
                         .flat_map(|(_, _, diag)| diag)
                         .map(|diag| {
@@ -260,9 +260,8 @@ impl<T> LinearPeptide<T> {
                                 DiagnosticPosition::Labile(modification.clone().into()),
                             )
                         })
-                        .collect_vec()
-                } else if let SimpleModification::Linker { specificities, .. } = modification {
-                    specificities
+                        .collect_vec(),
+                    SimpleModification::Linker { specificities, .. } => specificities
                         .iter()
                         .flat_map(|rule| match rule {
                             LinkerSpecificity::Symmetric(_, _, ions)
@@ -274,9 +273,8 @@ impl<T> LinearPeptide<T> {
                                 DiagnosticPosition::Labile(modification.clone().into()),
                             )
                         })
-                        .collect_vec()
-                } else {
-                    Vec::new()
+                        .collect_vec(),
+                    _ => Vec::new(),
                 }
             }))
             .unique()
@@ -594,7 +592,7 @@ impl<T> LinearPeptide<T> {
                                 peptide_index,
                                 charge_carriers,
                                 &full_formula,
-                                attachment,
+                                Some(attachment),
                             ),
                     );
                 } else if let Modification::Simple(SimpleModification::Gno(
@@ -612,7 +610,7 @@ impl<T> LinearPeptide<T> {
                                 peptide_index,
                                 charge_carriers,
                                 &full_formula,
-                                attachment,
+                                Some(attachment),
                             ),
                     );
                 } else if let Modification::Simple(SimpleModification::Glycan(composition)) =
@@ -625,7 +623,7 @@ impl<T> LinearPeptide<T> {
                         peptide_index,
                         charge_carriers,
                         &full_formula,
-                        attachment,
+                        Some(attachment),
                     ));
                 }
             }
@@ -644,6 +642,40 @@ impl<T> LinearPeptide<T> {
                 }
                 .with_charges(&single_charges)
             }));
+        }
+
+        // Add labile glycan fragments
+        for modification in &self.labile {
+            match modification {
+                SimpleModification::Glycan(composition) => {
+                    output.extend(MonoSaccharide::theoretical_fragments(
+                        composition,
+                        model,
+                        peptidoform_index,
+                        peptide_index,
+                        charge_carriers,
+                        &full_formula,
+                        None,
+                    ));
+                }
+                SimpleModification::GlycanStructure(structure)
+                | SimpleModification::Gno(GnoComposition::Structure(structure), _) => {
+                    output.extend(
+                        structure
+                            .clone()
+                            .determine_positions()
+                            .generate_theoretical_fragments(
+                                model,
+                                peptidoform_index,
+                                peptide_index,
+                                charge_carriers,
+                                &full_formula,
+                                None,
+                            ),
+                    );
+                }
+                _ => (),
+            }
         }
 
         output

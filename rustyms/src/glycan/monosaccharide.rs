@@ -72,7 +72,7 @@ impl MonoSaccharide {
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
         full_formula: &Multi<MolecularFormula>,
-        attachment: (AminoAcid, usize),
+        attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         if composition.iter().any(|(_, a)| u16::try_from(*a).is_err()) {
             // u16: negative + also ensure it fits within the bounds of the molecular formula structure
@@ -88,7 +88,7 @@ impl MonoSaccharide {
         for composition in compositions {
             let formula: MolecularFormula = composition
                 .iter()
-                .map(|s| s.0.formula(attachment.1, peptide_index) * s.1 as i32)
+                .map(|s| s.0.formula(0, peptide_index) * s.1 as i32)
                 .sum();
             fragments.extend(
                 Fragment::new(
@@ -96,11 +96,7 @@ impl MonoSaccharide {
                     Charge::default(),
                     peptidoform_index,
                     peptide_index,
-                    FragmentType::OxoniumComposition(
-                        composition.clone(),
-                        attachment.0,
-                        attachment.1,
-                    ),
+                    FragmentType::OxoniumComposition(composition.clone(), attachment),
                 )
                 .with_charges(&single_charges)
                 .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
@@ -111,7 +107,7 @@ impl MonoSaccharide {
                     Charge::default(),
                     peptidoform_index,
                     peptide_index,
-                    FragmentType::YComposition(composition.clone(), attachment.0, attachment.1),
+                    FragmentType::YComposition(composition.clone(), attachment),
                 )
                 .with_charges(&all_charges)
                 .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
@@ -125,11 +121,7 @@ impl MonoSaccharide {
                     .diagnostic_ions(
                         peptidoform_index,
                         peptide_index,
-                        DiagnosticPosition::GlycanCompositional(
-                            attachment.0,
-                            attachment.1,
-                            sugar.clone(),
-                        ),
+                        DiagnosticPosition::GlycanCompositional(sugar.clone(), attachment),
                         false,
                     )
                     .into_iter()

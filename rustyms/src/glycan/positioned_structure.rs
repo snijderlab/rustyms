@@ -46,7 +46,7 @@ impl PositionedGlycanStructure {
         peptide_index: usize,
         charge_carriers: &MolecularCharge,
         full_formula: &Multi<MolecularFormula>,
-        attachment: (AminoAcid, usize),
+        attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         let single_charges = charge_carriers.all_single_charge_options();
         let all_charges = charge_carriers.all_charge_options();
@@ -72,7 +72,7 @@ impl PositionedGlycanStructure {
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
-                                    full - self.formula(attachment.1, peptide_index) + f,
+                                    full - self.formula(0, peptide_index) + f,
                                     Charge::zero(),
                                     peptidoform_index,
                                     peptide_index,
@@ -106,7 +106,7 @@ impl PositionedGlycanStructure {
         &self,
         peptidoform_index: usize,
         peptide_index: usize,
-        attachment: (AminoAcid, usize),
+        attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         let mut output = self.sugar.diagnostic_ions(
             peptidoform_index,
@@ -131,11 +131,11 @@ impl PositionedGlycanStructure {
         &self,
         peptidoform_index: usize,
         peptide_index: usize,
-        attachment: (AminoAcid, usize),
+        attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         // Generate the basic single breakage B fragments
         let mut base_fragments = vec![Fragment::new(
-            self.formula(attachment.1, peptide_index),
+            self.formula(0, peptide_index),
             Charge::zero(),
             peptidoform_index,
             peptide_index,
@@ -180,14 +180,14 @@ impl PositionedGlycanStructure {
     fn internal_break_points(
         &self,
         peptide_index: usize,
-        attachment: (AminoAcid, usize),
+        attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<(MolecularFormula, Vec<GlycanBreakPos>)> {
         // Find every internal fragment ending at this bond (in a B breakage) (all bonds found are Y breakages and endings)
         // Walk through all branches and determine all possible breakages
         if self.branches.is_empty() {
             vec![
                 (
-                    self.formula(attachment.1, peptide_index),
+                    self.formula(0, peptide_index),
                     vec![GlycanBreakPos::End(self.position(attachment))],
                 ),
                 (
@@ -216,7 +216,7 @@ impl PositionedGlycanStructure {
                     }
                 })
                 .into_iter()
-                .map(|(m, b)| (m + self.sugar.formula(attachment.1, peptide_index), b))
+                .map(|(m, b)| (m + self.sugar.formula(0, peptide_index), b))
                 .chain(std::iter::once((
                     // add the option of it breaking here
                     MolecularFormula::default(),
@@ -226,7 +226,7 @@ impl PositionedGlycanStructure {
         }
     }
 
-    fn position(&self, attachment: (AminoAcid, usize)) -> GlycanPosition {
+    fn position(&self, attachment: Option<(AminoAcid, usize)>) -> GlycanPosition {
         GlycanPosition {
             inner_depth: self.inner_depth,
             series_number: self.outer_depth + 1,

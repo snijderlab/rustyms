@@ -230,7 +230,7 @@ pub struct GlycanPosition {
     /// The branch naming
     pub branch: Vec<usize>,
     /// The aminoacid index where this glycan is attached
-    pub attachment: (AminoAcid, usize),
+    pub attachment: Option<(AminoAcid, usize)>,
 }
 
 impl GlycanPosition {
@@ -265,9 +265,11 @@ impl GlycanPosition {
     pub fn label(&self) -> String {
         format!("{}{}", self.series_number, self.branch_names())
     }
-    /// Generate the label for this glycan attachment eg N1 (1 based numbering)
+    /// Generate the label for this glycan attachment eg N1 (1 based numbering) or an empty string if the attachment is unknown
     pub fn attachment(&self) -> String {
-        format!("{}{}", self.attachment.0.char(), self.attachment.1 + 1)
+        self.attachment
+            .map(|(aa, pos)| format!("{aa}{pos}"))
+            .unwrap_or_default()
     }
 }
 
@@ -277,7 +279,7 @@ pub enum DiagnosticPosition {
     /// A position on a glycan
     Glycan(GlycanPosition, MonoSaccharide),
     /// A position on a compositional glycan (attachment AA + sequence index + the sugar)
-    GlycanCompositional(AminoAcid, usize, MonoSaccharide),
+    GlycanCompositional(MonoSaccharide, Option<(AminoAcid, usize)>),
     /// A position on a peptide
     Peptide(PeptidePosition, AminoAcid),
     /// Labile modification
@@ -323,9 +325,9 @@ pub enum FragmentType {
     /// Internal glycan fragment, meaning both a B and Y breakages (and potentially multiple of both), resulting in a set of monosaccharides
     Oxonium(Vec<GlycanBreakPos>),
     /// A B or internal glycan fragment for a glycan where only the composition is known, also saves the attachment (AA + sequence index)
-    OxoniumComposition(Vec<(MonoSaccharide, isize)>, AminoAcid, usize),
+    OxoniumComposition(Vec<(MonoSaccharide, isize)>, Option<(AminoAcid, usize)>),
     /// A B or internal glycan fragment for a glycan where only the composition is known, also saves the attachment (AA + sequence index)
-    YComposition(Vec<(MonoSaccharide, isize)>, AminoAcid, usize),
+    YComposition(Vec<(MonoSaccharide, isize)>, Option<(AminoAcid, usize)>),
     /// Immonium ion
     immonium(PeptidePosition, AminoAcid),
     /// Precursor with amino acid side chain loss
@@ -390,7 +392,7 @@ impl FragmentType {
                     .map(std::string::ToString::to_string)
                     .join(""),
             ),
-            Self::YComposition(sugars, _, _) | Self::OxoniumComposition(sugars, _, _) => Some(
+            Self::YComposition(sugars, _) | Self::OxoniumComposition(sugars, _) => Some(
                 sugars
                     .iter()
                     .map(|(sugar, amount)| format!("{sugar}{amount}"))
@@ -398,7 +400,7 @@ impl FragmentType {
             ),
             Self::precursor
             | Self::diagnostic(
-                DiagnosticPosition::Labile(_) | DiagnosticPosition::GlycanCompositional(_, _, _),
+                DiagnosticPosition::Labile(_) | DiagnosticPosition::GlycanCompositional(_, _),
             ) => None,
         }
     }
@@ -417,16 +419,16 @@ impl FragmentType {
             Self::z(_) => Cow::Borrowed("z"),
             Self::z·(_) => Cow::Borrowed("z·"),
             Self::B(_) => Cow::Borrowed("B"),
-            Self::Y(_) | Self::YComposition(_, _, _) => Cow::Borrowed("Y"),
+            Self::Y(_) | Self::YComposition(_, _) => Cow::Borrowed("Y"),
             Self::diagnostic(DiagnosticPosition::Peptide(_, aa)) => {
                 Cow::Owned(format!("d{}", aa.char()))
             }
             Self::diagnostic(DiagnosticPosition::Labile(m)) => Cow::Owned(format!("d{m}")),
             Self::diagnostic(
                 DiagnosticPosition::Glycan(_, sug)
-                | DiagnosticPosition::GlycanCompositional(_, _, sug),
+                | DiagnosticPosition::GlycanCompositional(sug, _),
             ) => Cow::Owned(format!("d{sug}")),
-            Self::Oxonium(_) | Self::OxoniumComposition(_, _, _) => Cow::Borrowed("oxonium"),
+            Self::Oxonium(_) | Self::OxoniumComposition(_, _) => Cow::Borrowed("oxonium"),
             Self::immonium(_, aa) => Cow::Owned(format!("i{}", aa.char())),
             Self::m(_, aa) => Cow::Owned(format!("p-s{}", aa.char())),
             Self::precursor => Cow::Borrowed("p"),
@@ -445,13 +447,13 @@ impl FragmentType {
             Self::x(_) => FragmentKind::x,
             Self::y(_) => FragmentKind::y,
             Self::z(_) | Self::z·(_) => FragmentKind::z,
-            Self::Y(_) | Self::YComposition(_, _, _) => FragmentKind::Y,
+            Self::Y(_) | Self::YComposition(_, _) => FragmentKind::Y,
             Self::diagnostic(
-                DiagnosticPosition::Glycan(_, _) | DiagnosticPosition::GlycanCompositional(_, _, _),
+                DiagnosticPosition::Glycan(_, _) | DiagnosticPosition::GlycanCompositional(_, _),
             )
             | Self::B(_)
             | Self::Oxonium(_)
-            | Self::OxoniumComposition(_, _, _) => FragmentKind::Oxonium,
+            | Self::OxoniumComposition(_, _) => FragmentKind::Oxonium,
             Self::diagnostic(_) => FragmentKind::diagnostic,
             Self::immonium(_, _) => FragmentKind::immonium,
             Self::m(_, _) => FragmentKind::m,
