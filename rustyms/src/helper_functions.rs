@@ -273,9 +273,11 @@ pub fn end_of_enclosure_with_brackets(
     let mut index = start;
     while index < text.len() {
         if !text.is_char_boundary(index) {
+            index += 1;
             continue;
         }
         if index + 1 < text.len() && !text.is_char_boundary(index + 1) {
+            index += 1;
             continue;
         }
         let ch = text.as_bytes()[index];
