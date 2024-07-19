@@ -268,8 +268,15 @@ impl Context {
             } => {
                 let (start, end) = if line.len() > MAX_COLS {
                     let pad = MAX_COLS.saturating_sub(*length) / 2;
-                    let start = offset.saturating_sub(pad);
-                    (start.min(line.len()), (start + MAX_COLS).min(line.len()))
+                    let mut start = offset.saturating_sub(pad).min(line.len());
+                    while !line.is_char_boundary(start) {
+                        start -= 1;
+                    }
+                    let mut end = (start + MAX_COLS).min(line.len());
+                    while !line.is_char_boundary(end) {
+                        end += 1;
+                    }
+                    (start, end)
                 } else {
                     (0, line.len())
                 };
@@ -279,11 +286,7 @@ impl Context {
                     "",
                     line_index.map_or(String::new(), |n| (n + 1).to_string()),
                     if start == 0 { "" } else { "…" },
-                    &line
-                        .chars()
-                        .skip(start)
-                        .take(end - start)
-                        .collect::<String>(),
+                    &line[start..end],
                     if end == line.len() { "" } else { "…" },
                     "",
                     " ".repeat(*offset - start + usize::from(start != 0)),
