@@ -6,8 +6,9 @@ use crate::{
     helper_functions::{explain_number_error, next_number, Characters, RangeExtension, RangeMaths},
     modification::{Ontology, SimpleModification},
     system::{e, isize::Charge, mz, MassOverCharge},
-    AminoAcid, Fragment, MolecularFormula, NeutralLoss, Tolerance,
+    AminoAcid, Fragment, MolecularCharge, MolecularFormula, NeutralLoss, Tolerance,
 };
+// TODO: custom errors are off as they assume the input to be Bytes but now get Character offsets.
 
 /// Parse a mzPAF peak annotation line (can contain multiple annotations).
 /// # Errors
@@ -27,20 +28,21 @@ fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomE
         (range.clone(), false)
     };
     let (left_range, _analyte_number) = parse_analyte_number(line, left_range)?;
-    let (offset, _ion) = parse_ion(line, left_range)?;
-    let (offset, _neutral_losses) = parse_neutral_loss(line, range.add_start(offset))?;
-    // Parse isotopes
-    let (offset, _charge) = parse_charge(line, range.add_start(offset))?;
+    let (left_range, _ion) = parse_ion(line, left_range)?;
+    let (left_range, _neutral_losses) = parse_neutral_loss(line, left_range)?;
+    // Parse isotopes (currently considered ambiguous with Iodine loss/gain)
     // Parse adduct type
-    let (offset, _deviation) = parse_deviation(line, range.add_start(offset))?;
+    let (left_range, _adduct_type) = parse_adduct_type(line, left_range)?;
+    let (left_range, _charge) = parse_charge(line, left_range)?;
+    let (left_range, _deviation) = parse_deviation(line, left_range)?;
     // Parse confidence
-    if offset == range.len() {
+    if left_range.is_empty() {
         Ok(Fragment::default())
     } else {
         Err(CustomError::error(
             "Invalid mzPAF annotation",
             "These characters could not be parsed",
-            Context::line_range(None, line, range.add_start(offset)),
+            Context::line_range(None, line, left_range),
         ))
     }
 }
@@ -90,14 +92,17 @@ fn parse_analyte_number(
 /// Parse a mzPAF ion.
 /// # Errors
 /// When the ion is not formatted correctly.
-fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), CustomError> {
-    match line[range.clone()].chars().next() {
+fn parse_ion(
+    line: &str,
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, IonType), CustomError> {
+    match line.chars().nth(range.start_index()) {
         Some('?') => {
             if let Some(ordinal) =
                 next_number::<false, false, usize>(line, range.add_start(1_usize))
             {
                 Ok((
-                    1 + ordinal.0,
+                    range.add_start(1 + ordinal.0),
                     IonType::Unknown(Some(ordinal.2.map_err(|err| {
                         CustomError::error(
                             "Invalid mzPAF unknown ion ordinal",
@@ -107,7 +112,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     })?)),
                 ))
             } else {
-                Ok((1, IonType::Unknown(None)))
+                Ok((range.add_start(1_usize), IonType::Unknown(None)))
             }
         }
         Some(c @ ('a' | 'b' | 'c' | 'x' | 'y' | 'z')) => {
@@ -115,7 +120,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 next_number::<false, false, usize>(line, range.add_start(1_usize))
             {
                 Ok((
-                    1 + ordinal.0,
+                    range.add_start(1 + ordinal.0),
                     IonType::MainSeries(
                         c,
                         ordinal.2.map_err(|err| {
@@ -170,7 +175,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 None
             };
             Ok((
-                2 + modification.as_ref().map_or(0, |m| m.0),
+                range.add_start(2 + modification.as_ref().map_or(0, |m| m.0)),
                 IonType::Immonium(
                     AminoAcid::try_from(amino_acid).map_err(|()| {
                         CustomError::error(
@@ -234,7 +239,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                 )
             })?;
             Ok((
-                2 + first_ordinal.0 + second_ordinal.0,
+                range.add_start(2 + first_ordinal.0 + second_ordinal.0),
                 IonType::Internal(first_location, second_location),
             ))
         }
@@ -255,7 +260,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     .unwrap();
                 Ok((
                     last.0 + last.1.len_utf8() - first,
-                    &line[range][first..last.0 + last.1.len_utf8()],
+                    &line[range.clone()][first..last.0 + last.1.len_utf8()],
                 ))
             } else {
                 Err(CustomError::error(
@@ -264,9 +269,9 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     Context::line(None, line, range.start_index(), 1),
                 ))
             }?;
-            Ok((3 + len, IonType::Named(name.to_string())))
+            Ok((range.add_start(3 + len), IonType::Named(name.to_string())))
         }
-        Some('p') => Ok((1, IonType::Precursor)),
+        Some('p') => Ok((range.add_start(1_usize), IonType::Precursor)),
         Some('r') => {
             // Same name as neutral losses
             let (len, name) = if line[range.clone()].chars().nth(1) == Some('[') {
@@ -299,7 +304,7 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                             Context::line(None, line, range.start_index() + 1, len),
                         ))
                     },
-                    |formula| Ok((3 + len, IonType::Reporter(formula))),
+                    |formula| Ok((range.add_start(3 + len), IonType::Reporter(formula))),
                 )
         }
         Some('f') => {
@@ -320,9 +325,13 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
                     Context::line(None, line, range.start_index(), 1),
                 ))
             }?;
-            let formula = MolecularFormula::from_mz_paf(line, formula_range.clone())?;
+            let formula =
+                MolecularFormula::from_pro_forma(line, formula_range.clone(), false, false)?;
 
-            Ok((3 + formula_range.len(), IonType::Formula(formula)))
+            Ok((
+                range.add_start(3 + formula_range.len()),
+                IonType::Formula(formula),
+            ))
         }
         Some('s') => todo!(), // TODO: return as Formula
         Some(_) => Err(CustomError::error(
@@ -340,16 +349,16 @@ fn parse_ion(line: &str, range: Range<usize>) -> Result<(Characters, IonType), C
 
 fn parse_neutral_loss(
     line: &str,
-    range: Range<usize>,
-) -> Result<(Characters, Vec<NeutralLoss>), CustomError> {
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, Vec<NeutralLoss>), CustomError> {
     let mut offset = 0;
     let mut neutral_losses = Vec::new();
-    while let Some(c @ ('-' | '+')) = line[range.clone()].chars().nth(offset) {
-        if line[range.clone()].chars().nth(1) == Some('[') {
-            let first = line[range.clone()].char_indices().nth(2).unwrap().0;
-            let last = line[range.clone()]
+    while let Some(c @ ('-' | '+')) = line.chars().nth(range.start_index() + offset) {
+        if line.chars().nth(range.start_index() + 1) == Some('[') {
+            let first = line.char_indices().nth(range.start_index() + 2).unwrap().0;
+            let last = line
                 .char_indices()
-                .skip(2)
+                .skip(range.start_index() + 2)
                 .take_while(|(_, c)| *c != ']')
                 .last()
                 .unwrap();
@@ -375,14 +384,19 @@ fn parse_neutral_loss(
                 ));
             }
         } else {
-            let first = line[range.clone()].char_indices().nth(1).unwrap().0;
-            let last = line[range.clone()]
+            let first = line.char_indices().nth(range.start_index() + 1).unwrap().0;
+            let last = line
                 .char_indices()
-                .skip(2)
+                .skip(range.start_index() + 2)
                 .take_while(|(_, c)| c.is_ascii_alphanumeric())
                 .last()
                 .unwrap();
-            let formula = MolecularFormula::from_mz_paf(line, first..last.0 + last.1.len_utf8())?;
+            let formula = MolecularFormula::from_pro_forma(
+                line,
+                first..last.0 + last.1.len_utf8(),
+                false,
+                false,
+            )?;
             neutral_losses.push(match c {
                 '+' => NeutralLoss::Gain(formula),
                 '-' => NeutralLoss::Loss(formula),
@@ -391,11 +405,78 @@ fn parse_neutral_loss(
             offset += 1 + last.0 + last.1.len_utf8() - first;
         }
     }
-    Ok((offset, neutral_losses))
+    Ok((range.add_start(offset), neutral_losses))
 }
 
-fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge), CustomError> {
-    if line[range.clone()].starts_with('^') {
+fn parse_adduct_type(
+    line: &str,
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, Option<MolecularCharge>), CustomError> {
+    if line.chars().nth(range.start_index()) == Some('[') {
+        if line
+            .chars()
+            .nth(range.start_index() + 1)
+            .map(|c| c.to_ascii_lowercase())
+            != Some('m')
+        {
+            return Err(CustomError::error(
+                "Invalid mzPAF adduct type",
+                "The adduct type should start with 'M', as in '[M+nA]'",
+                Context::line(None, line, range.start_index() + 1, 1),
+            ));
+        }
+        let mut carriers = Vec::new();
+        let mut offset = 2;
+        while let Some(number) = next_number::<true, false, isize>(line, range.add_start(offset)) {
+            let first = line
+                .char_indices()
+                .nth(range.start_index() + offset + number.0)
+                .unwrap()
+                .0;
+            let last = line
+                .char_indices()
+                .skip(range.start_index() + offset + number.0)
+                .take_while(|(_, c)| c.is_ascii_alphanumeric())
+                .fold((0, 0, ' '), |acc, (index, c)| (acc.0 + 1, index, c));
+            let formula = MolecularFormula::from_pro_forma(
+                line,
+                first..last.1 + last.2.len_utf8(),
+                false,
+                false,
+            )?;
+            carriers.push((
+                number.2.map_err(|err| {
+                    CustomError::error(
+                        "Invalid mzPAF adduct ordinal",
+                        format!("The ordinal number {}", explain_number_error(&err)),
+                        Context::line(None, line, range.start_index() + offset, number.0),
+                    )
+                })?,
+                formula,
+            ));
+            offset += number.0 + last.0;
+        }
+        if line.chars().nth(range.start_index() + offset) != Some(']') {
+            return Err(CustomError::error(
+                "Invalid mzPAF adduct type",
+                "The adduct type should be closed with ']'",
+                Context::line(None, line, range.start_index() + offset, 1),
+            ));
+        }
+        Ok((
+            range.add_start(offset + 1),
+            Some(MolecularCharge::new(&carriers)),
+        ))
+    } else {
+        Ok((range, None))
+    }
+}
+
+fn parse_charge(
+    line: &str,
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, Charge), CustomError> {
+    if line.chars().nth(range.start_index()) == Some('^') {
         let charge =
             next_number::<false, false, u32>(line, range.add_start(1_usize)).ok_or_else(|| {
                 CustomError::error(
@@ -405,7 +486,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
                 )
             })?;
         Ok((
-            charge.0 + 1,
+            range.add_start(charge.0 + 1),
             Charge::new::<e>(charge.2.map_err(|err| {
                 CustomError::error(
                     "Invalid mzPAF charge",
@@ -415,7 +496,7 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
             })? as isize),
         ))
     } else {
-        Ok((0, Charge::new::<e>(1)))
+        Ok((range, Charge::new::<e>(1)))
     }
 }
 
@@ -452,16 +533,17 @@ fn parse_charge(line: &str, range: Range<usize>) -> Result<(Characters, Charge),
 /// When the deviation is not '<number>' or '<number>ppm'.
 fn parse_deviation(
     line: &str,
-    range: Range<usize>,
-) -> Result<(Characters, Option<Tolerance<MassOverCharge>>), CustomError> {
-    if line[range.clone()].starts_with('/') {
-        let number = next_number::<true, true, f64>(line, range.add_start(1_usize)).ok_or(
-            CustomError::error(
-                "Invalid mzPAF deviation",
-                "A deviation should be a number",
-                Context::line_range(None, line, range.start..range.start + 1),
-            ),
-        )?;
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, Option<Tolerance<MassOverCharge>>), CustomError> {
+    if line.chars().nth(range.start_index()) == Some('/') {
+        let number =
+            next_number::<true, true, f64>(line, range.add_start(1_usize)).ok_or_else(|| {
+                CustomError::error(
+                    "Invalid mzPAF deviation",
+                    "A deviation should be a number",
+                    Context::line_range(None, line, range.start..=range.start + 1),
+                )
+            })?;
         let deviation = number.2.map_err(|err| {
             CustomError::error(
                 "Invalid mzPAF deviation",
@@ -469,21 +551,28 @@ fn parse_deviation(
                 Context::line_range(None, line, range.start + 1..range.start + 1 + number.0),
             )
         })?;
-        if line[range.add_start(1 + number.0 as isize)]
+        if line
+            .chars()
+            .skip(range.start_index() + 1)
+            .take(3)
+            .collect::<String>()
             .to_ascii_lowercase()
-            .starts_with("ppm")
+            == "ppm"
         {
-            Ok((1 + number.0 + 3, Some(Tolerance::new_ppm(deviation))))
+            Ok((
+                range.add_start(1 + number.0 + 3),
+                Some(Tolerance::new_ppm(deviation)),
+            ))
         } else {
             Ok((
-                1 + number.0,
+                range.add_start(1 + number.0),
                 Some(Tolerance::new_absolute(MassOverCharge::new::<mz>(
                     deviation,
                 ))),
             ))
         }
     } else {
-        Ok((0, None))
+        Ok((range, None))
     }
 }
 

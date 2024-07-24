@@ -25,6 +25,7 @@ test = false
 doc = false
 bench = false
 
-# cargo afl build (in correct dir)
-# cargo afl fuzz -i fuzz/in -o out target/debug/pro_forma
-# open out/default/crashes/* | save crashes.txt -f
+# in root dir
+# cargo afl build --release -p rustyms-fuzz
+# cargo afl fuzz -i fuzz/in -o out_pro_forma target/release/pro_forma
+# open out_pro_forma/default/crashes/* | save crashes.txt -f

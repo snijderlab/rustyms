@@ -407,6 +407,8 @@ parse_test!(ne "AA(?A(A)[+1])AA", negative_example_16);
 parse_test!(ne "AA(A(?A))[+1]AA", negative_example_17);
 parse_test!(ne "[dehydro]^3?Q[gln->pyro-glu]S", negative_example_18);
 parse_test!(ne "(Q[gln->pyro-glu]S)[Dehydro]", negative_example_19);
+parse_test!(ne "()[Dehydro]S", negative_example_20);
+parse_test!(ne "S()[Dehydro]", negative_example_21);
 
 // FUZZED CRASHES
 
