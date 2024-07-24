@@ -236,5 +236,14 @@ mod tests {
                 .unwrap()
         );
     }
-    //ffffffff[gln->|yro-glu]SC2N:iTRAQ4pleeeeeB] hang
+
+    #[test]
+    fn sloppy_hang() {
+        let _ = LinearPeptide::<VerySimple>::sloppy_pro_forma(
+            "ffffffff[gln->|yro-glu]SC2N:iTRAQ4pleeeeeB]",
+            0..20,
+            None,
+            SloppyParsingParameters::default(),
+        );
+    }
 }

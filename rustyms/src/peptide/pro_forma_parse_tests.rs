@@ -544,33 +544,34 @@ parse_test!(ne "jTRA[Formula:[1SB2]ymEMK[X:[07C     ---,  򆼡,-----   ]hZyvLM
 parse_test!(ne "EEiTRA[formula:[13C2]KKKKKKKKKKKKKKKKtion]hZA[Formula:o]iTRA[formula:[13333333333333333333333333333333333333333333333333333333333333iTRAQ4plex]-EM[U:Oatdxi33333333333333EMM[U:QdatioɒLdation]nQEVNhS[xxidati]n]EEEM33333333333333333333333333333C2]KKKn]hZ", fuzz_96);
 parse_test!(ne "<d>", fuzz_97);
 parse_test!(ne "<[TMT2plex]@K,N-Term<Rf>_ZSU\\`R>", fuzz_98);
-// <[TMT6plex]@K,N-term>
-// <[TMT6plex]@K,N-term>
-// <[TMT6plex]@K,N-termKATPEILTCNSIGoooooooooooooooooooooooCL>
-// <[TMt6plex]@K,N-termK,N-term)A)AqaqIRORXO6plATPEILqq,N-termK,N-term>
-// <111TC>
-// <d>
-// <[TMT6plex]@K,N>
-// <d>
-// <111TC><100Y>
-// <[TMt6plex]@K,N-termK,c-termK,K,N-termK,c-termKNr,c-term<111TC>TEEESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSatLoln->
-// <111TC><111TE><111TE><111TC>
-// <11c>
-// <111nB>
-// <111SB><111SB><111SB><111SB><111SB>
-// <111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><10b><111TC><111TC><111TC>
-// <[TMT6plex]@L,N-term<lI><lOlex>TC>
-// <[TMT6plex]@K,k>
-// <[]@K,k>
-// <[TMt6plex]@m>
-// <[TMt6plex]@K,N-termK,N-term,N-term4F:K,r,N-term>
-// [Glycan:SSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5HexS0FFFFFFFFFFFFFFFFSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5HexS0FFFFFFFFFFFFFFFFSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSnSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDECFFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSnSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5FFFFDEC5FFFFFF0]?EMHHHHHHHHFFFFFFFFFNE
-// ()[Glycan:H0]AA/LAA)[Glycan:H0](LAA)AA(LAA)[Glycan:H0]AA(LAA)[Glycan:H0](LAA)-[Me[For:[12C-P]4?Q[[Glycan:HexSHHSHgHHHEPP-[Me[
-// <[TMt6plex]@K,N-termK,c-termK,K,N-termK,c-termKNrmG,c-termK,K,N-termK,c-termoK,K,K,N-termKKeq,N-termK,c-termK,K,N-termK,c,K,N-term-tertK,N-term>
-// <[TMt6plex]@K,N-termerm,N-term4F:K,r,N-termcan:K,m,N-term4pxrm,C-term4@111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB>
-// <[TMT2plex]@K,m>
-// <[TMT6plex]@K,C-termn:H>
-// <d><d>
+parse_test!(ne "<[TMT6plex]@K,N-term>", fuzz_99);
+parse_test!(ne "<[TMT6plex]@K,N-term>", fuzz_100);
+parse_test!(ne "<[TMT6plex]@K,N-termKATPEILTCNSIGoooooooooooooooooooooooCL>", fuzz_101);
+parse_test!(ne "<[TMt6plex]@K,N-termK,N-term)A)AqaqIRORXO6plATPEILqq,N-termK,N-term>", fuzz_102);
+parse_test!(ne "<111TC>", fuzz_103);
+parse_test!(ne "<d>", fuzz_104);
+parse_test!(ne "<[TMT6plex]@K,N>", fuzz_105);
+parse_test!(ne "<d>", fuzz_106);
+parse_test!(ne "<111TC><100Y>", fuzz_107);
+parse_test!(ne "<[TMt6plex]@K,N-termK,c-termK,K,N-termK,c-termKNr,c-term<111TC>TEEESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSatLoln->", fuzz_108);
+parse_test!(ne "<111TC><111TE><111TE><111TC>", fuzz_109);
+parse_test!(ne "<11c>", fuzz_110);
+parse_test!(ne "<111nB>", fuzz_111);
+parse_test!(ne "<111SB><111SB><111SB><111SB><111SB>", fuzz_112);
+parse_test!(ne "<111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><111TC><111TC><11c><111TC><111TC><111TC><111TC><10b><111TC><111TC><111TC>", fuzz_113);
+parse_test!(ne "<[TMT6plex]@L,N-term<lI><lOlex>TC>", fuzz_114);
+parse_test!(ne "<[TMT6plex]@K,k>", fuzz_115);
+parse_test!(ne "<[]@K,k>", fuzz_116);
+parse_test!(ne "<[TMt6plex]@m>", fuzz_117);
+parse_test!(ne "<[TMt6plex]@K,N-termK,N-term,N-term4F:K,r,N-term>", fuzz_118);
+parse_test!(ne "[Glycan:SSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5HexS0FFFFFFFFFFFFFFFFSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5HexS0FFFFFFFFFFFFFFFFSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDEC5FFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSnSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDECFFFFFFF7777777777777777777SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSnSSSSSSSSSSSSSSSSSSSSSSSSSSSS767777FFFFFDEC5FFFFDEC5FFFFFF0]?EMHHHHHHHHFFFFFFFFFNE", fuzz_119);
+parse_test!(ne "()[Glycan:H0]AA/LAA)[Glycan:H0](LAA)AA(LAA)[Glycan:H0]AA(LAA)[Glycan:H0](LAA)-[Me[For:[12C-P]4?Q[[Glycan:HexSHHSHgHHHEPP-[Me[", fuzz_120);
+parse_test!(ne "<[TMt6plex]@K,N-termK,c-termK,K,N-termK,c-termKNrmG,c-termK,K,N-termK,c-termoK,K,K,N-termKKeq,N-termK,c-termK,K,N-termK,c,K,N-term-tertK,N-term>", fuzz_121);
+parse_test!(ne "<[TMt6plex]@K,N-termerm,N-term4F:K,r,N-termcan:K,m,N-term4pxrm,C-term4@111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB><111nB>", fuzz_122);
+parse_test!(ne "<[TMT2plex]@K,m>", fuzz_123);
+parse_test!(ne "<[TMT6plex]@K,C-termn:H>", fuzz_124);
+parse_test!(ne "<d><d>", fuzz_125);
+parse_test!(ne "<[TMT6plex]@K,N-term>", fuzz_126);
 
 parse_test!(ne "[iT4plex]-EM[Oxidation]EVNES[ES[Phospho]PEK[iTRAQ4plex]-[Methyl]", hang_01);
 parse_test!(ne "[TRAQ4plex]-EM[     iTRAQ4plex]-EM[      ", hang_02);
@@ -627,13 +628,12 @@ parse_test!(ne "[dehydrotio]^<?Q[[1]]SEro dAA]^	 NE	 ", hang_52);
 parse_test!(ne "[ͨH2>Z]uU:򆼡Kngthhhhhhhhhh@K,N-serm>Z", hang_53);
 parse_test!(ne "[Glycan:HHHHHHHHHHHH0HHHHH0HHHHHNNNHNNNNNN2][12C-2]H22222NNNNNNNhNNNNNNN222222222222NNNNNNfNNHHHHHHH0HHHHH0HHHHHNNNNNNNNNNNNNfNNHHHHHHH0HHHHH0HHHHHNNNNN0]-T", hang_54);
 parse_test!(ne "[Glycan:HHHHHTRIHHHH0HHHHH0HHHHHNNNHNNNNNNNfNNHHHHHHH0][12CL2]H2NNNNNENhNNNNHHFYFIFDPTDK/3NENMCHBJQCN[M:06101[C:[plex]-[UC:i			 NES[thydatiotionngting[U:iTRAQ%pl[U:Oxidation]EV  S[U:PhosphoEVEESPEex]-EM[U:O", hang_55);
-
-// {Glycan:Hex}[iTRAQ4plex]-EV[Oovered|IRAQ4plex]-EV[Oovered|INFxidatNFxidation]EVNES[Phospho]PEK[iTRAQ4plex]-[Methylan:]
-// [iTRAQ4plVx]-EM[O   tion]DVNESHP{M[Ox		hospho]PPPPEK[iTRAQ4plex]-[Met򆼠
-// [Glycan:HexSHHHHH1HHTET][Hex][dehydro6plfx][Hex][deydro]^ESA
-// [Glycan: ][Glyc   GS0][Glycan:{GlyexS0][G{GS0x]@K,N>ATQQQLTCNly
-// [dehydro]^-5[Glycan:HexSHHHH1HH@E3333333fx][d   [de@exSHH^HH1HH@ET6H13333333fx][HexGG ][dehydro]^-2[Glycan:HexSHHHH1HH@E3333333fx][d   [dehydro]^-______________________________2\H\H
-// [Formula:FMTcNu:PHRXRwW2ec|lmZzeqokjzkrTp]-
+parse_test!(ne "{Glycan:Hex}[iTRAQ4plex]-EV[Oovered|IRAQ4plex]-EV[Oovered|INFxidatNFxidation]EVNES[Phospho]PEK[iTRAQ4plex]-[Methylan:]", hang_56);
+parse_test!(ne "[iTRAQ4plVx]-EM[O   tion]DVNESHP{M[Ox		hospho]PPPPEK[iTRAQ4plex]-[Met򆼠", hang_57);
+parse_test!(ne "[Glycan:HexSHHHHH1HHTET][Hex][dehydro6plfx][Hex][deydro]^ESA", hang_58);
+parse_test!(ne "[Glycan: ][Glyc   GS0][Glycan:{GlyexS0][G{GS0x]@K,N>ATQQQLTCNly", hang_59);
+parse_test!(ne "[dehydro]^-5[Glycan:HexSHHHH1HH@E3333333fx][d   [de@exSHH^HH1HH@ET6H13333333fx][HexGG ][dehydro]^-2[Glycan:HexSHHHH1HH@E3333333fx][d   [dehydro]^-______________________________2\\H\\H", hang_60);
+parse_test!(ne "[Formula:FMTcNu:PHRXRwW2ec|lmZzeqokjzkrTp]-", hang_61);
 
 // Personal tests
 

@@ -10,8 +10,11 @@ include!("../shared/glycan.rs");
 include!("../shared/glycan_lists.rs");
 
 impl MonoSaccharide {
-    /// Generate the composition used for searching on glycans
-    pub(crate) fn simplify_composition(mut composition: Vec<(Self, isize)>) -> Vec<(Self, isize)> {
+    /// Simplify a glycan composition to be sorted and deduplicated.
+    /// Returns None if overflow occurred, meaning that there where more than isize::MAX or less then isize::MIN monosaccharides for one species.
+    pub(crate) fn simplify_composition(
+        mut composition: Vec<(Self, isize)>,
+    ) -> Option<Vec<(Self, isize)>> {
         // Sort on monosaccharide
         composition.retain(|el| el.1 != 0);
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
@@ -23,7 +26,7 @@ impl MonoSaccharide {
             let this = &composition[index];
             let next = &composition[index + 1];
             if this.0 == next.0 {
-                composition[index].1 += next.1;
+                composition[index].1 = composition[index].1.checked_add(next.1)?;
                 composition.remove(index + 1);
                 max = max.saturating_sub(1);
             } else {
@@ -31,7 +34,7 @@ impl MonoSaccharide {
             }
         }
         composition.retain(|el| el.1 != 0);
-        composition
+        Some(composition)
     }
 
     /// Generate the composition used for searching on glycans

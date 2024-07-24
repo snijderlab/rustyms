@@ -150,16 +150,15 @@ impl CompoundPeptidoform {
             }
         }
 
-        let peptidoform =
-            super::validate::cross_links(peptides, cross_links_found, &cross_link_lookup, line)?;
-
-        if peptidoform.peptides().is_empty() {
+        if peptides.is_empty() {
             Err(CustomError::error(
                 "No peptide found",
                 "The peptidoform definition is empty",
                 Context::full_line(0, line),
             ))
         } else {
+            let peptidoform =
+                super::validate::cross_links(peptides, cross_links_found, &cross_link_lookup, line)?;
             Ok((peptidoform, index))
         }
     }
@@ -303,7 +302,7 @@ impl CompoundPeptidoform {
                         index = end_index + 1;
                         ranged_unknown_position_modifications.push((
                             start,
-                            peptide.sequence.len() - 1,
+                            peptide.sequence.len().saturating_sub(1),
                             modification,
                         ));
                     }

@@ -320,10 +320,7 @@ impl Model {
             glycan: (
                 true,
                 (1, 3),
-                vec![
-                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                    NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
-                ],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
@@ -390,10 +387,7 @@ impl Model {
             glycan: (
                 true,
                 (1, 3),
-                vec![
-                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                    NeutralLoss::Loss(molecular_formula!(H 4 O 2)),
-                ],
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
             ),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),

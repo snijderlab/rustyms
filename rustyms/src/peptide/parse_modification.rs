@@ -243,7 +243,9 @@ fn parse_single_modification(
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid glycan: {e}"
                         ))
-                    })?),
+                    })?).ok_or_else(|| basic_error.with_long_description(format!(
+                        "The occurrence of one monosaccharide species is outside of the range {} to {}", isize::MIN, isize::MAX
+                    )))?,
                 ))),
                 ("glycanstructure", _) => {
                     GlycanStructure::parse(&line.to_ascii_lowercase(), offset + tail.1..offset + tail.1 + tail.2)
