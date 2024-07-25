@@ -1,4 +1,4 @@
-use crate::{Chemical, Element, MolecularFormula, SequencePosition};
+use crate::{system::isize::Charge, Chemical, Element, MolecularFormula, SequencePosition};
 use serde::{Deserialize, Serialize};
 
 /// A selection of ions that together define the charge of a peptide
@@ -68,6 +68,15 @@ impl MolecularCharge {
             .filter(|o| o.iter().map(|o| o.0).sum::<isize>() != 0)
             .map(|charge_carriers| Self { charge_carriers })
             .collect()
+    }
+
+    /// Get the total charge of these charge carriers
+    pub fn charge(&self) -> Charge {
+        self.charge_carriers
+            .iter()
+            .fold(Charge::default(), |acc, (amount, formula)| {
+                acc + *amount * formula.charge()
+            })
     }
 }
 

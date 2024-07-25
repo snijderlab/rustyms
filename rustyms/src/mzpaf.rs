@@ -6,45 +6,89 @@ use crate::{
     helper_functions::{explain_number_error, next_number, Characters, RangeExtension, RangeMaths},
     modification::{Ontology, SimpleModification},
     system::{e, isize::Charge, mz, MassOverCharge},
-    AminoAcid, Fragment, MolecularCharge, MolecularFormula, NeutralLoss, Tolerance,
+    AminoAcid, MolecularCharge, MolecularFormula, NeutralLoss, Tolerance,
 };
 // TODO: custom errors are off as they assume the input to be Bytes but now get Character offsets.
 
 /// Parse a mzPAF peak annotation line (can contain multiple annotations).
 /// # Errors
 /// When the annotation does not follow the format.
-pub fn parse_mzpaf(_line: &str) -> Result<Vec<Fragment>, CustomError> {
-    Ok(Vec::new())
+pub fn parse_mzpaf(line: &str) -> Result<Vec<PeakAnnotation>, CustomError> {
+    let mut annotations = Vec::new();
+
+    // Parse first
+    let (mut range, a) = parse_annotation(line, 0..line.chars().count())?;
+    annotations.push(a);
+
+    // Parse any following
+    while !range.is_empty() {
+        if line.chars().nth(range.start_index()) == Some(',') {
+            range.add_start(1_usize);
+        } else {
+            return Err(CustomError::error(
+                "Invalid mzPAF annotation delimiter",
+                "Different mzPAF annotations should be separated with commas ','.",
+                Context::line(None, line, range.start_index(), 1),
+            ));
+        }
+        let (r, a) = parse_annotation(line, range)?;
+        range = r;
+        annotations.push(a);
+    }
+
+    Ok(annotations)
 }
 
 /// Parse a single mzPAF peak annotation.
 /// # Errors
 /// When the annotation does not follow the format.
-fn parse_annotation(line: &str, range: Range<usize>) -> Result<Fragment, CustomError> {
-    // Parse &
-    let (left_range, _auxiliary) = if line[range.clone()].starts_with('&') {
+fn parse_annotation(
+    line: &str,
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, PeakAnnotation), CustomError> {
+    let (left_range, auxiliary) = if line.chars().nth(range.start_index()) == Some('&') {
         (range.add_start(1_usize), true)
     } else {
         (range.clone(), false)
     };
-    let (left_range, _analyte_number) = parse_analyte_number(line, left_range)?;
-    let (left_range, _ion) = parse_ion(line, left_range)?;
-    let (left_range, _neutral_losses) = parse_neutral_loss(line, left_range)?;
-    // Parse isotopes (currently considered ambiguous with Iodine loss/gain)
-    // Parse adduct type
-    let (left_range, _adduct_type) = parse_adduct_type(line, left_range)?;
-    let (left_range, _charge) = parse_charge(line, left_range)?;
-    let (left_range, _deviation) = parse_deviation(line, left_range)?;
-    // Parse confidence
-    if left_range.is_empty() {
-        Ok(Fragment::default())
-    } else {
-        Err(CustomError::error(
-            "Invalid mzPAF annotation",
-            "These characters could not be parsed",
-            Context::line_range(None, line, left_range),
-        ))
+    let (left_range, analyte_number) = parse_analyte_number(line, left_range)?;
+    let (left_range, ion) = parse_ion(line, left_range)?;
+    let (left_range, neutral_losses) = parse_neutral_loss(line, left_range)?;
+    // TODO: Parse isotopes (currently considered ambiguous with Iodine loss/gain)
+    let (left_range, adduct_type) = parse_adduct_type(line, left_range)?;
+    let (left_range, charge) = parse_charge(line, left_range)?;
+    let (left_range, deviation) = parse_deviation(line, left_range)?;
+    let (left_range, confidence) = parse_confidence(line, left_range)?;
+    if let Some(adduct) = &adduct_type {
+        if adduct.charge() != charge {
+            return Err(CustomError::error(
+                "Invalid mzPAF annotation", 
+                "The defined charge should be identical to the total charge as defined in the adduct ions", 
+                Context::line_range(None, line, range)));
+        }
     }
+    Ok((
+        left_range,
+        PeakAnnotation {
+            auxiliary,
+            analyte_number,
+            ion,
+            neutral_losses,
+            charge: adduct_type.unwrap_or_else(|| MolecularCharge::proton(charge.value)),
+            deviation,
+            confidence,
+        },
+    ))
+}
+
+struct PeakAnnotation {
+    auxiliary: bool,
+    analyte_number: Option<usize>,
+    ion: IonType,
+    neutral_losses: Vec<NeutralLoss>,
+    charge: MolecularCharge,
+    deviation: Option<Tolerance<MassOverCharge>>,
+    confidence: Option<f64>,
 }
 
 enum IonType {
@@ -571,6 +615,35 @@ fn parse_deviation(
                 ))),
             ))
         }
+    } else {
+        Ok((range, None))
+    }
+}
+
+/// Parse a mzPAF confidence.
+/// # Errors
+/// When the deviation is not '*<number>'.
+fn parse_confidence(
+    line: &str,
+    range: Range<Characters>,
+) -> Result<(Range<Characters>, Option<f64>), CustomError> {
+    if line.chars().nth(range.start_index()) == Some('*') {
+        let number =
+            next_number::<true, true, f64>(line, range.add_start(1_usize)).ok_or_else(|| {
+                CustomError::error(
+                    "Invalid mzPAF confidence",
+                    "A confidence should be a number",
+                    Context::line_range(None, line, range.start..=range.start + 1),
+                )
+            })?;
+        let confidence = number.2.map_err(|err| {
+            CustomError::error(
+                "Invalid mzPAF confidence",
+                format!("The confidence number {err}",),
+                Context::line_range(None, line, range.start + 1..range.start + 1 + number.0),
+            )
+        })?;
+        Ok((range.add_start(number.0 + 1), Some(confidence)))
     } else {
         Ok((range, None))
     }
