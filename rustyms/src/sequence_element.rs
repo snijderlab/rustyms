@@ -4,13 +4,13 @@ use std::{collections::HashSet, fmt::Write};
 
 use crate::{
     error::{Context, CustomError},
-    fragment::PeptidePosition,
     modification::{
         AmbiguousModification, CrossLinkName, LinkerSpecificity, RulePossible, SimpleModification,
     },
     peptide::Linked,
     placement_rule::PlacementRule,
     AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
+    SequencePosition,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -88,7 +88,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
@@ -121,7 +121,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
@@ -164,7 +164,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
@@ -198,7 +198,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self.base_formula(
@@ -228,7 +228,7 @@ impl SequenceElement {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (mut formulas, seen) = self.base_formula(
@@ -250,7 +250,7 @@ impl SequenceElement {
     /// If a rule has been broken.
     pub(crate) fn enforce_modification_rules(
         &self,
-        position: &PeptidePosition,
+        position: SequencePosition,
     ) -> Result<(), CustomError> {
         for modification in &self.modifications {
             if modification.is_possible(self, position) == RulePossible::No {
@@ -259,7 +259,7 @@ impl SequenceElement {
                     format!(
                         "Modification {modification} is not allowed on aminoacid {} index {}",
                         self.aminoacid.char(),
-                        position.sequence_index,
+                        position,
                     ),
                     Context::none(),
                 ));
@@ -269,7 +269,7 @@ impl SequenceElement {
     }
 
     /// Get all possible diagnostic ions
-    pub(crate) fn diagnostic_ions(&self, position: &PeptidePosition) -> Vec<DiagnosticIon> {
+    pub(crate) fn diagnostic_ions(&self, position: SequencePosition) -> Vec<DiagnosticIon> {
         let mut diagnostic_ions = Vec::new();
         for modification in &self.modifications {
             match modification {

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     peptide::Linked, system::usize::Charge, Fragment, LinearPeptide, Model, MolecularFormula,
-    Multi, MultiChemical, Peptidoform, SequenceElement,
+    Multi, MultiChemical, Peptidoform, SequenceElement, SequencePosition,
 };
 
 /// A single pro forma entry, can contain multiple peptidoforms
@@ -14,7 +14,11 @@ pub struct CompoundPeptidoform(pub(super) Vec<Peptidoform>);
 
 impl MultiChemical for CompoundPeptidoform {
     /// Gives all possible formulas for this compound peptidoform
-    fn formulas(&self, sequence_index: usize, peptide_index: usize) -> Multi<MolecularFormula> {
+    fn formulas(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
         self.0
             .iter()
             .flat_map(|p| p.formulas(sequence_index, peptide_index).to_vec())

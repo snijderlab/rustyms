@@ -13,6 +13,7 @@ use crate::{
 
 use crate::modification::Modification;
 
+/// Parameters to control the parsing of 'sloppy' ProForma sequences.
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SloppyParsingParameters {
     /// Ignore a prefix lowercase n as in `n[211]GC[779]RQSSEEK` as this indicates an N terminal modification in MSFragger
@@ -105,12 +106,12 @@ impl LinearPeptide<VerySimple> {
                     match peptide.sequence.last_mut() {
                         Some(aa) => aa.modifications.push(modification),
                         None => {
-                            peptide.n_term = Some(
+                            peptide.n_term = Some(Modification::Simple(
                                 modification
                                     .simple()
                                     .expect("Can only put a simple modification on an N terminus.")
                                     .clone(),
-                            );
+                            ));
                         }
                     }
                 }

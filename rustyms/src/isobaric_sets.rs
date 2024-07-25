@@ -3,12 +3,11 @@ use std::cmp::Ordering;
 use itertools::Itertools;
 
 use crate::{
-    fragment::PeptidePosition,
     modification::{Modification, SimpleModification},
     peptide::Simple,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, SequenceElement, Tolerance,
+    AminoAcid, Chemical, LinearPeptide, SequenceElement, SequencePosition, Tolerance,
 };
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
@@ -33,7 +32,7 @@ pub fn building_blocks(
     fn can_be_placed(
         modification: &SimpleModification,
         seq: &SequenceElement,
-        position: &PeptidePosition,
+        position: SequencePosition,
     ) -> bool {
         if let SimpleModification::Database { specificities, .. } = modification {
             specificities.is_empty()
@@ -109,10 +108,12 @@ pub fn building_blocks(
             .flat_map(|(a, m)| {
                 #[allow(clippy::redundant_clone)] // not redundant
                 let mc = m.clone();
-                a.formulas_all(&[], &[], &mut Vec::new(), false, 0, 0)
+                a.formulas_all(&[], &[], &mut Vec::new(), false, SequencePosition::default(), 0)
                     .0
                     .iter()
-                    .map(|f| f.monoisotopic_mass() + m.formula(0, 0).monoisotopic_mass())
+                    .map(|f| {
+                        f.monoisotopic_mass() + m.formula(SequencePosition::default(), 0).monoisotopic_mass()
+                    })
                     .map(|mass| (a.clone(), mc.clone(), mass))
                     .collect_vec()
             })
@@ -121,7 +122,7 @@ pub fn building_blocks(
         options
     }
 
-    let generate = |index| {
+    let generate = |position| {
         let mut options: Vec<(SequenceElement, Mass)> = amino_acids
             .iter()
             .flat_map(|aa| {
@@ -131,19 +132,8 @@ pub fn building_blocks(
                         .iter()
                         .filter(|&m| {
                             m.1.as_ref().map_or_else(
-                                || {
-                                    can_be_placed(
-                                        &m.0,
-                                        &SequenceElement::new(*aa, None),
-                                        &PeptidePosition::n(index, 2),
-                                    )
-                                },
-                                |rule| {
-                                    rule.is_possible(
-                                        &SequenceElement::new(*aa, None),
-                                        &PeptidePosition::n(index, 2),
-                                    )
-                                },
+                                || can_be_placed(&m.0, &SequenceElement::new(*aa, None), position),
+                                |rule| rule.is_possible(&SequenceElement::new(*aa, None), position),
                             )
                         })
                         .map(|m| SequenceElement {
@@ -166,8 +156,8 @@ pub fn building_blocks(
                         .iter()
                         .filter(|&m| {
                             m.1.as_ref().map_or_else(
-                                || can_be_placed(&m.0, &seq, &PeptidePosition::n(index, 2)),
-                                |rule| rule.is_possible(&seq, &PeptidePosition::n(index, 2)),
+                                || can_be_placed(&m.0, &seq, position),
+                                |rule| rule.is_possible(&seq, position),
                             )
                         })
                         .map(|m| {
@@ -184,7 +174,7 @@ pub fn building_blocks(
                 options
             })
             .flat_map(|s| {
-                s.formulas_all(&[], &[], &mut Vec::new(), false, 0, 0)
+                s.formulas_all(&[], &[], &mut Vec::new(), false, position, 0)
                     .0
                     .iter()
                     .map(|f| (s.clone(), f.monoisotopic_mass()))
@@ -198,7 +188,7 @@ pub fn building_blocks(
     // Create the building blocks
     (
         generate_terminal(&|rule| n_term_options(amino_acids, rule), fixed, variable),
-        generate(1),
+        generate(SequencePosition::Index(0)),
         generate_terminal(&|rule| c_term_options(amino_acids, rule), fixed, variable),
     )
 }
@@ -343,13 +333,21 @@ impl IsobaricSetIterator {
                 self.base
                     .as_ref()
                     .and_then(|b| b.n_term.clone())
-                    .or_else(|| self.state.0.map(|i| self.n_term[i].1.clone())),
+                    .or_else(|| {
+                        self.state
+                            .0
+                            .map(|i| Modification::Simple(self.n_term[i].1.clone()))
+                    }),
             )
             .c_term(
                 self.base
                     .as_ref()
                     .and_then(|b| b.c_term.clone())
-                    .or_else(|| self.state.1.map(|i| self.c_term[i].1.clone())),
+                    .or_else(|| {
+                        self.state
+                            .1
+                            .map(|i| Modification::Simple(self.c_term[i].1.clone()))
+                    }),
             )
     }
 

@@ -79,7 +79,7 @@ impl AnnotatedSpectrum {
                 })
                 .collect_vec();
             let mut peak_annotated = vec![false; peaks.len()];
-            let mut peaks_annotated = 0;
+            let mut number_peaks_annotated = 0;
             let mut intensity_annotated = 0.0;
             for mass in mzs {
                 // Get the index of the element closest to this value (spectrum is defined to always be sorted)
@@ -104,13 +104,13 @@ impl AnnotatedSpectrum {
                     .within(&self.spectrum[closest.0].experimental_mz, mass)
                     && !peak_annotated[closest.0]
                 {
-                    peaks_annotated += 1;
+                    number_peaks_annotated += 1;
                     intensity_annotated += self.spectrum[closest.0].intensity.0;
                     peak_annotated[closest.0] = true;
                 }
             }
             results.push((
-                f64::from(peaks_annotated) / self.spectrum.len() as f64,
+                f64::from(number_peaks_annotated) / self.spectrum.len() as f64,
                 intensity_annotated / total_intensity,
             ));
         }

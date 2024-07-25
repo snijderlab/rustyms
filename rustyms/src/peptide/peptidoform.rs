@@ -7,7 +7,7 @@ use crate::{
     modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
     peptide::Linked,
     system::usize::Charge,
-    Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical,
+    Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical, SequencePosition,
 };
 /// A single peptidoform, can contain multiple linear peptides
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
@@ -17,7 +17,11 @@ impl MultiChemical for Peptidoform {
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
-    fn formulas(&self, _sequence_index: usize, _peptide_index: usize) -> Multi<MolecularFormula> {
+    fn formulas(
+        &self,
+        _sequence_index: SequencePosition,
+        _peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
         self.0
             .first()
             .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new(), true))
@@ -74,22 +78,16 @@ impl Peptidoform {
     /// The positions are first the peptide index and second the sequence index.
     pub fn add_cross_link(
         &mut self,
-        position_1: (usize, usize),
-        position_2: (usize, usize),
+        position_1: (usize, SequencePosition),
+        position_2: (usize, SequencePosition),
         linker: SimpleModification,
         name: CrossLinkName,
     ) -> bool {
-        let pos_1 = self
-            .0
-            .get(position_1.0)
-            .and_then(|seq| seq.iter(position_1.1..=position_1.1).next());
-        let pos_2 = self
-            .0
-            .get(position_2.0)
-            .and_then(|seq| seq.iter(position_2.1..=position_2.1).next());
+        let pos_1 = self.0.get(position_1.0).map(|seq| &seq[position_1.1]);
+        let pos_2 = self.0.get(position_2.0).map(|seq| &seq[position_2.1]);
         if let (Some(pos_1), Some(pos_2)) = (pos_1, pos_2) {
-            let left = linker.is_possible(pos_1.1, &pos_1.0);
-            let right = linker.is_possible(pos_2.1, &pos_2.0);
+            let left = linker.is_possible(pos_1, position_1.1);
+            let right = linker.is_possible(pos_2, position_1.1);
             let specificity = if matches!(
                 linker,
                 SimpleModification::Formula(_)
@@ -147,24 +145,26 @@ impl Peptidoform {
                 }
             };
             if let Some((left, right)) = specificity {
-                self.0[position_1.0].sequence[position_1.1]
-                    .modifications
-                    .push(crate::Modification::CrossLink {
+                self.0[position_1.0].add_modification(
+                    position_1.1,
+                    crate::Modification::CrossLink {
                         peptide: position_2.0,
                         sequence_index: position_2.1,
                         linker: linker.clone(),
                         name: name.clone(),
                         side: left,
-                    });
-                self.0[position_2.0].sequence[position_2.1]
-                    .modifications
-                    .push(crate::Modification::CrossLink {
+                    },
+                );
+                self.0[position_2.0].add_modification(
+                    position_2.1,
+                    crate::Modification::CrossLink {
                         peptide: position_1.0,
                         sequence_index: position_1.1,
                         linker,
                         name,
                         side: right,
-                    });
+                    },
+                );
                 true
             } else {
                 false

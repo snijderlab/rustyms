@@ -151,7 +151,11 @@ impl Display for GlycanStructure {
 }
 
 impl Chemical for GlycanStructure {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(
+        &self,
+        sequence_index: crate::SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
         self.sugar.formula(sequence_index, peptide_index)
             + self
                 .branches

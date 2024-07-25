@@ -6,16 +6,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Context, CustomError},
-    fragment::PeptidePosition,
     modification::{Modification, ModificationId, Ontology, SimpleModification},
-    AminoAcid, SequenceElement,
+    AminoAcid, SequenceElement, SequencePosition,
 };
 
 include!("shared/placement_rule.rs");
 
 impl PlacementRule {
     /// Check if this rule fits with the given location
-    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> bool {
+    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> bool {
         match self {
             Self::AminoAcid(aa, r_pos) => {
                 aa.iter().any(|a| *a == seq.aminoacid) && r_pos.is_possible(position)
@@ -40,14 +39,14 @@ impl PlacementRule {
             }
             Self::Terminal(r_pos) => {
                 r_pos.is_possible(position)
-                    && (position.is_n_terminal() || position.is_c_terminal())
+                    && (position == SequencePosition::NTerm || position == SequencePosition::CTerm)
             }
             Self::Anywhere => true,
         }
     }
 
     /// Check if any of the given rules are possible
-    pub fn any_possible(rules: &[Self], seq: &SequenceElement, position: &PeptidePosition) -> bool {
+    pub fn any_possible(rules: &[Self], seq: &SequenceElement, position: SequencePosition) -> bool {
         rules.iter().any(|r| r.is_possible(seq, position))
     }
 }
@@ -96,11 +95,11 @@ impl FromStr for PlacementRule {
 
 impl Position {
     /// See if the given peptide position is a valid position given this [`Position`] as placement rule.
-    pub const fn is_possible(self, position: &PeptidePosition) -> bool {
+    pub fn is_possible(self, position: SequencePosition) -> bool {
         match self {
             Self::Anywhere => true,
-            Self::AnyNTerm | Self::ProteinNTerm => position.is_n_terminal(),
-            Self::AnyCTerm | Self::ProteinCTerm => position.is_c_terminal(),
+            Self::AnyNTerm | Self::ProteinNTerm => position == SequencePosition::NTerm,
+            Self::AnyCTerm | Self::ProteinCTerm => position == SequencePosition::CTerm,
         }
     }
 }
@@ -136,7 +135,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(0, 1)
+                SequencePosition::Index(0)
             ),
             "Multi level mod cannot be placed if the dependent mod is not present"
         );
@@ -148,7 +147,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(0, 1)
+                SequencePosition::Index(0)
             ),
             "Multi level mod can be placed if the dependent mod is present"
         );
@@ -164,7 +163,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(0, 5)
+                crate::SequencePosition::NTerm
             ),
             "start"
         );
@@ -176,7 +175,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(2, 5)
+                crate::SequencePosition::Index(2)
             ),
             "middle"
         );
@@ -188,7 +187,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(4, 5)
+                crate::SequencePosition::CTerm
             ),
             "end"
         );
@@ -200,7 +199,7 @@ mod tests {
                     possible_modifications: Vec::new(),
                     ambiguous: None
                 },
-                &PeptidePosition::n(4, 5)
+                crate::SequencePosition::CTerm
             ),
             RulePossible::Symmetric(std::collections::HashSet::from([0])),
             "unimod deamidated at end"

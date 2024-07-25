@@ -3,10 +3,9 @@ use std::collections::HashMap;
 
 use crate::{
     error::{Context, CustomError},
-    fragment::PeptidePosition,
     modification::{AmbiguousModification, CrossLinkName, SimpleModification},
     placement_rule::Position,
-    LinearPeptide, Linked, Modification, Peptidoform,
+    LinearPeptide, Linked, Modification, Peptidoform, SequencePosition,
 };
 
 use super::GlobalModification;
@@ -17,7 +16,7 @@ use super::GlobalModification;
 /// Or if there are peptides that cannot be reached from the first peptide.
 pub fn cross_links(
     peptides: Vec<LinearPeptide<Linked>>,
-    cross_links_found: HashMap<usize, Vec<(usize, usize)>>,
+    cross_links_found: HashMap<usize, Vec<(usize, SequencePosition)>>,
     cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
 ) -> Result<Peptidoform, CustomError> {
@@ -67,6 +66,16 @@ pub fn cross_links(
 
     while let Some(index) = stack.pop() {
         found_peptides.push(index);
+        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].n_term {
+            if !found_peptides.contains(peptide) && !stack.contains(peptide) {
+                stack.push(*peptide);
+            }
+        }
+        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].c_term {
+            if !found_peptides.contains(peptide) && !stack.contains(peptide) {
+                stack.push(*peptide);
+            }
+        }
         for seq in &peptidoform.0[index].sequence {
             for modification in &seq.modifications {
                 if let Modification::CrossLink { peptide, .. } = modification {
@@ -96,15 +105,14 @@ impl LinearPeptide<Linked> {
         &mut self,
         global_modifications: &[GlobalModification],
     ) -> bool {
-        let length = self.len();
         for modification in global_modifications {
             match modification {
                 GlobalModification::Fixed(pos, aa, modification) => {
                     for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
-                        pos.is_possible(&PeptidePosition::n(*index, length))
+                        pos.is_possible(SequencePosition::Index(*index))
                             && aa.map_or(true, |aa| aa == seq.aminoacid)
                             && modification
-                                .is_possible(seq, &PeptidePosition::n(*index, length))
+                                .is_possible(seq, SequencePosition::Index(*index))
                                 .possible()
                     }) {
                         match pos {
@@ -112,10 +120,10 @@ impl LinearPeptide<Linked> {
                                 seq.modifications.push(modification.clone().into());
                             }
                             Position::AnyNTerm | Position::ProteinNTerm => {
-                                self.n_term = Some(modification.clone());
+                                self.n_term = Some(Modification::Simple(modification.clone()));
                             }
                             Position::AnyCTerm | Position::ProteinCTerm => {
-                                self.c_term = Some(modification.clone());
+                                self.c_term = Some(Modification::Simple(modification.clone()));
                             }
                         }
                     }
@@ -142,7 +150,7 @@ impl LinearPeptide<Linked> {
             let positions = (0..length)
                 .filter(|i| {
                     if modification
-                        .is_possible(&self.sequence[*i], &PeptidePosition::n(*i, length))
+                        .is_possible(&self.sequence[*i], SequencePosition::Index(*i))
                         .possible()
                     {
                         self.sequence[*i]
@@ -180,13 +188,12 @@ impl LinearPeptide<Linked> {
         mut start_ambiguous_group_id: usize,
     ) -> Result<(), CustomError> {
         for (start, end, modification) in ranged_unknown_position_modifications {
-            let length = self.len();
             #[allow(clippy::unnecessary_filter_map)]
             // Side effects so the lint does not apply here
             let positions = (*start..=*end)
                 .filter_map(|i| {
                     if modification
-                        .is_possible(&self.sequence[i], &PeptidePosition::n(i, length))
+                        .is_possible(&self.sequence[i], SequencePosition::Index(i))
                         .possible()
                     {
                         self.sequence[i]
@@ -220,7 +227,7 @@ impl<T> LinearPeptide<T> {
     /// If a modification rule is broken it returns an error.
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {
         for (position, seq) in self.iter(..) {
-            seq.enforce_modification_rules(&position)?;
+            seq.enforce_modification_rules(position.sequence_index)?;
         }
         Ok(())
     }

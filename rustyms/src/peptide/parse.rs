@@ -13,7 +13,7 @@ use crate::{
     ontologies::CustomDatabase,
     peptide::Linked,
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform,
-    SequenceElement,
+    SequenceElement, SequencePosition,
 };
 
 use super::{GlobalModification, ReturnModification};
@@ -29,7 +29,7 @@ struct LinearPeptideResult {
     peptide: LinearPeptide<Linked>,
     index: usize,
     ending: End,
-    cross_links: Vec<(usize, usize)>,
+    cross_links: Vec<(usize, SequencePosition)>,
 }
 
 impl LinearPeptide<Linked> {
@@ -185,8 +185,7 @@ impl CompoundPeptidoform {
         let mut ambiguous_aa_counter = 0;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
-        // (id, sequence index)
-        let mut cross_link_found_positions: Vec<(usize, usize)> = Vec::new();
+        let mut cross_link_found_positions: Vec<(usize, SequencePosition)> = Vec::new();
         let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
             Vec::new();
         let mut unknown_position_modifications = Vec::new();
@@ -215,7 +214,7 @@ impl CompoundPeptidoform {
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(None, line, index, 1),
                 ))?;
-            peptide.n_term = Some(
+            peptide.n_term = 
                 SimpleModification::try_from(
                     line,
                     index + 1..end_index - 1,
@@ -223,16 +222,18 @@ impl CompoundPeptidoform {
                     cross_link_lookup,
                     custom_database,
                 )
-                .and_then(|m| {
-                    m.defined().ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid N terminal modification",
-                            "An N terminal modification cannot be ambiguous",
-                            Context::line(None, line, index + 1, end_index - 2 - index),
-                        )
-                    })
-                })?,
-            );
+                .and_then(|m| 
+                    match m {
+                        ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
+                        ReturnModification::CrossLinkReferenced(id) =>
+                            {cross_link_found_positions.push((id, SequencePosition::NTerm)); Ok(None)},
+                        ReturnModification::AmbiguousPreferred(_, _) | 
+                            ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
+                                "Invalid N terminal modification",
+                                "An N terminal modification cannot be ambiguous",
+                                Context::line(None, line, index + 1, end_index - 2 - index),
+                            )),
+                    })?;
             index = end_index + 1;
         }
 
@@ -336,12 +337,18 @@ impl CompoundPeptidoform {
                     let start_index = index +1;
                     index = end_index + 1;
                     if is_c_term {
-                        peptide.c_term =
-                            Some(modification.defined().ok_or_else(|| CustomError::error(
-                                "Invalid C terminal modification",
-                                "A C terminal modification cannot be ambiguous",
-                                Context::line(None, line, start_index, index - start_index - 1),
-                            ))?);
+                        peptide.c_term = 
+                            match modification {
+                                ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
+                                ReturnModification::CrossLinkReferenced(id) =>
+                                    {cross_link_found_positions.push((id, SequencePosition::CTerm)); Ok(None)},
+                                ReturnModification::AmbiguousPreferred(_, _) | 
+                                    ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
+                                        "Invalid C terminal modification",
+                                        "A C terminal modification cannot be ambiguous",
+                                        Context::line(None, line, index + 1, end_index - 2 - index),
+                                    )),
+                            }?;
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
                             let (buf, charge_carriers) = parse_charge_state(line, index)?;
@@ -367,7 +374,7 @@ impl CompoundPeptidoform {
                             ReturnModification::AmbiguousReferenced(id, localisation_score) =>
                                 ambiguous_found_positions.push((sequence_index, false, id, localisation_score)),
                             ReturnModification::CrossLinkReferenced(id) =>
-                                cross_link_found_positions.push((id, sequence_index)),
+                                cross_link_found_positions.push((id, SequencePosition::Index(sequence_index))),
                         }
                     } else {
                         return Err(

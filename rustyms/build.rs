@@ -18,6 +18,8 @@ mod build;
 
 #[path = "./src/shared/multi.rs"]
 mod multi;
+#[path = "./src/shared/sequence_position.rs"]
+mod sequence_position;
 
 use crate::build::glycan;
 pub use crate::build::CrossLinkName;
@@ -25,6 +27,7 @@ use crate::build::*;
 pub use crate::element::*;
 pub use crate::formula::{AmbiguousLabel, MolecularFormula};
 pub use crate::multi::Multi;
+pub use crate::sequence_position::*;
 
 fn main() {
     let debug = env::var("DEBUG_BUILD").map(|v| v == "1").unwrap_or(false);

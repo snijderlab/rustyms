@@ -11,7 +11,7 @@ include!("../shared/glycan_lists.rs");
 
 impl MonoSaccharide {
     /// Simplify a glycan composition to be sorted and deduplicated.
-    /// Returns None if overflow occurred, meaning that there where more than isize::MAX or less then isize::MIN monosaccharides for one species.
+    /// Returns None if overflow occurred, meaning that there where more than `isize::MAX` or less then `isize::MIN` monosaccharides for one species.
     pub(crate) fn simplify_composition(
         mut composition: Vec<(Self, isize)>,
     ) -> Option<Vec<(Self, isize)>> {
@@ -45,7 +45,7 @@ impl MonoSaccharide {
         composition.retain(|el| el.1 != 0);
         let mut composition = composition
             .into_iter()
-            .map(|(m, n)| (m.formula(0, 0), n))
+            .map(|(m, n)| (m.formula(SequencePosition::default(), 0), n))
             .collect_vec();
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
@@ -91,7 +91,7 @@ impl MonoSaccharide {
         for composition in compositions {
             let formula: MolecularFormula = composition
                 .iter()
-                .map(|s| s.0.formula(0, peptide_index) * s.1 as i32)
+                .map(|s| s.0.formula(SequencePosition::default(), peptide_index) * s.1 as i32)
                 .sum();
             fragments.extend(
                 Fragment::new(
@@ -190,7 +190,7 @@ impl MonoSaccharide {
         add_base: bool,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
-            self.formula(0, 0),
+            self.formula(SequencePosition::default(), 0),
             Charge::default(),
             peptidoform_index,
             peptide_index,
@@ -235,7 +235,7 @@ impl MonoSaccharide {
                 return Vec::new(); // Do not add this full glycan as diagnostic ion
             };
         if add_base {
-            result.push(base.clone())
+            result.push(base)
         }
         result
     }
@@ -281,7 +281,7 @@ mod tests {
                     .find(|p| p.0 == *name)
                     .unwrap_or_else(|| panic!("Assumed {name} would be defined"))
                     .1
-                    .formula(0, 0),
+                    .formula(SequencePosition::default(), 0),
                 *formula,
                 "{name}",
             );
@@ -398,7 +398,7 @@ mod tests {
             MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
                 .unwrap()
                 .0
-                .formula(0, 0)
+                .formula(SequencePosition::default(), 0)
                 .monoisotopic_mass()
                 .value
                 .round(),

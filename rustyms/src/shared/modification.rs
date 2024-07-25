@@ -8,7 +8,7 @@ pub enum Modification {
         /// The index of the peptide this cross-link is bound to (can be the index for this peptide if it is an intra link)
         peptide: usize,
         /// The sequence index where this cross-link is bound to
-        sequence_index: usize,
+        sequence_index: crate::SequencePosition,
         /// The linker that defines the chemical structure that is the actual linker
         linker: SimpleModification,
         /// The name of the cross-linker, if [`CrossLinkName::Branch`] it is a branch instead of cross-link
@@ -38,10 +38,11 @@ impl PartialOrd for CrossLinkSide {
 impl Ord for CrossLinkSide {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Self::Symmetric(_), Self::Symmetric(_)) => Ordering::Equal,
+            (Self::Symmetric(_), Self::Symmetric(_)) | (Self::Left(_), Self::Left(_)) => {
+                Ordering::Equal
+            }
             (Self::Symmetric(_), _) => Ordering::Greater,
             (_, Self::Symmetric(_)) => Ordering::Less,
-            (Self::Left(_), Self::Left(_)) => Ordering::Equal,
             (Self::Left(_), _) => Ordering::Greater,
             (_, Self::Left(_)) => Ordering::Less,
             (Self::Right(_), Self::Right(_)) => Ordering::Equal,

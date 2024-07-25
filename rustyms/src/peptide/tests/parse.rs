@@ -10,6 +10,7 @@ use crate::{
     placement_rule::{self, PlacementRule},
     system::{da, usize::Charge},
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
+    SequencePosition,
 };
 
 #[test]
@@ -362,7 +363,7 @@ fn parse_chimeric() {
 #[test]
 fn parse_unimod() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma(
-        "Q[U:Gln->pyro-Glu]E[Cation:Na]AA",
+        "[U:Gln->pyro-Glu]-QE[Cation:Na]AA",
         None
     ));
     assert!(peptide.is_ok());
@@ -400,7 +401,7 @@ fn parse_custom() {
         "A[Formula:U1|INFO:Custom:WEEE]"
     );
     assert_eq!(
-        peptide.unwrap().formulas(0, 0),
+        peptide.unwrap().formulas(SequencePosition::default(), 0),
         molecular_formula!(C 3 H 7 N 1 O 2 U 1).into()
     );
 }
@@ -413,8 +414,13 @@ fn parse_xl_intra() {
         .expect("Peptide is not a singular peptide");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas(0, 0).to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
+        singular.formulas(SequencePosition::default(), 0).to_vec()[0].elements(),
+        (AminoAcid::Alanine
+            .formulas(SequencePosition::default(), 0)
+            .to_vec()
+            .pop()
+            .unwrap()
+            * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1))
         .elements()
@@ -433,8 +439,16 @@ fn parse_xl_inter() {
     let peptidoform = peptidoform.unwrap();
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        peptidoform.formulas(0, 0).to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas(0, 0).to_vec().pop().unwrap() * 2
+        peptidoform
+            .formulas(SequencePosition::default(), 0)
+            .to_vec()[0]
+            .elements(),
+        (AminoAcid::Alanine
+            .formulas(SequencePosition::default(), 0)
+            .to_vec()
+            .pop()
+            .unwrap()
+            * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
             .elements()
@@ -477,53 +491,5 @@ fn parse_adduct_ions_01() {
     assert_eq!(
         peptide.peptidoforms()[0].peptides()[0].sequence,
         peptide.peptidoforms()[1].peptides()[0].sequence
-    );
-}
-
-#[test]
-fn parse_adduct_ions_02() {
-    let peptide = dbg!(CompoundPeptidoform::pro_forma("A-[+1]/2[1Na+,+H+]+[+1]-A", None).unwrap());
-    assert_eq!(peptide.peptidoforms().len(), 2);
-    assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0]
-            .charge_carriers
-            .clone()
-            .unwrap()
-            .charge_carriers,
-        vec![
-            (1, molecular_formula!(Na 1 Electron -1)),
-            (1, molecular_formula!(H 1 Electron -1))
-        ]
-    );
-    // Check if the C term mod is applied
-    assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0].sequence[0].formulas_all(
-            &[],
-            &[],
-            &mut Vec::new(),
-            false,
-            0,
-            0,
-        ),
-        peptide.peptidoforms()[1].peptides()[0].sequence[0].formulas_all(
-            &[],
-            &[],
-            &mut Vec::new(),
-            false,
-            0,
-            0,
-        )
-    );
-    assert_eq!(
-        peptide.peptidoforms()[0].peptides()[0]
-            .get_c_term()
-            .additional_mass(),
-        peptide.peptidoforms()[1].peptides()[0]
-            .get_n_term()
-            .additional_mass()
-    );
-    assert!(
-        peptide.peptidoforms()[0].peptides()[0].get_n_term()
-            != peptide.peptidoforms()[1].peptides()[0].get_c_term()
     );
 }

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     peptide::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
-    SequenceElement, Tolerance, WithinTolerance,
+    SequenceElement, SequencePosition, Tolerance, WithinTolerance,
 };
 
 use super::{
@@ -270,7 +270,17 @@ fn calculate_masses<const STEPS: u16>(
         for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence[i - j..=i]
                 .iter()
-                .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false, i, 0).0)
+                .map(|p| {
+                    p.formulas_all(
+                        &[],
+                        &[],
+                        &mut Vec::new(),
+                        false,
+                        SequencePosition::Index(i),
+                        0,
+                    )
+                    .0
+                })
                 .sum::<Multi<MolecularFormula>>()
                 .iter()
                 .map(MolecularFormula::monoisotopic_mass)
@@ -439,7 +449,7 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::score;
-    use crate::AminoAcid;
+    use crate::{AminoAcid, SequencePosition};
     use crate::{MolecularFormula, Multi, SequenceElement};
 
     #[test]
@@ -453,7 +463,16 @@ mod tests {
             (
                 &a,
                 &a.iter()
-                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false, 0, 0).0)
+                    .map(|p| p
+                        .formulas_all(
+                            &[],
+                            &[],
+                            &mut Vec::new(),
+                            false,
+                            SequencePosition::default(),
+                            0
+                        )
+                        .0)
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()
@@ -461,7 +480,16 @@ mod tests {
             (
                 &b,
                 &b.iter()
-                    .map(|p| p.formulas_all(&[], &[], &mut Vec::new(), false, 0, 0).0)
+                    .map(|p| p
+                        .formulas_all(
+                            &[],
+                            &[],
+                            &mut Vec::new(),
+                            false,
+                            SequencePosition::default(),
+                            0
+                        )
+                        .0)
                     .sum::<Multi<MolecularFormula>>()[0]
                     .monoisotopic_mass()
                     .into()

@@ -167,7 +167,9 @@ impl std::fmt::Display for MolecularFormula {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{molecular_formula, AminoAcid, Fragment, MolecularFormula, MultiChemical};
+    use crate::{
+        molecular_formula, AminoAcid, Fragment, MolecularFormula, MultiChemical, SequencePosition,
+    };
 
     #[test]
     fn sorted() {
@@ -269,7 +271,7 @@ mod tests {
 
     #[test]
     fn labels() {
-        let labelled = AminoAcid::B.formulas(0, 0);
+        let labelled = AminoAcid::B.formulas(SequencePosition::default(), 0);
         let unlabelled: crate::Multi<MolecularFormula> =
             vec![molecular_formula!(C 1), molecular_formula!(H 1)].into();
         let mut mul_assign_l = labelled.clone();

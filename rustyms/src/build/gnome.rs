@@ -64,7 +64,7 @@ fn parse_gnome(_debug: bool) -> HashMap<String, GNOmeModification> {
             } else {
                 None
             },
-            ..Default::default()
+            ..GNOmeModification::default()
         };
 
         obj.lines.get("property_value").map(|values| {

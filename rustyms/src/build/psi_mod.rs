@@ -38,7 +38,7 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
                 .expect("Incorrect psi mod id, should be numerical"),
             name: obj.lines["name"][0].to_string(),
             ontology: super::ontology_modification::Ontology::Psimod,
-            ..Default::default()
+            ..OntologyModification::default()
         };
         if let Some(values) = obj.lines.get("def") {
             assert!(values.len() == 1);

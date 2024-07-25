@@ -1,7 +1,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use crate::{AminoAcid, CrossLinkName, Element, Multi};
+use crate::{AminoAcid, CrossLinkName, Element, Multi, SequencePosition};
 use std::{
     fmt::Write,
     hash::Hash,
@@ -41,7 +41,7 @@ pub enum AmbiguousLabel {
         /// Which ambiguous modification
         id: usize,
         /// Which location
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         /// Peptide index
         peptide_index: usize,
     },
@@ -56,11 +56,11 @@ pub enum AmbiguousLabel {
 /// Any item that has a clearly defined single molecular formula
 pub trait Chemical {
     /// Get the molecular formula
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula;
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula;
 }
 
 impl<T: Chemical> Chemical for &[T] {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         self.iter()
             .map(|f| f.formula(sequence_index, peptide_index))
             .sum()
@@ -68,7 +68,7 @@ impl<T: Chemical> Chemical for &[T] {
 }
 
 impl<T: Chemical> Chemical for &Vec<T> {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         self.iter()
             .map(|f| f.formula(sequence_index, peptide_index))
             .sum()
@@ -78,12 +78,16 @@ impl<T: Chemical> Chemical for &Vec<T> {
 /// Any item that has a number of potential chemical formulas
 pub trait MultiChemical {
     /// Get all possible molecular formulas
-    fn formulas(&self, sequence_index: usize, peptide_index: usize) -> Multi<MolecularFormula>;
+    fn formulas(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula>;
 
     /// Get the charge of this chemical, it returns None if no charge is defined.
     #[allow(dead_code)]
     fn charge(&self) -> Option<crate::system::isize::Charge> {
-        self.formulas(0, 0)
+        self.formulas(SequencePosition::default(), 0)
             .first()
             .map(MolecularFormula::charge)
             .filter(|c| c.value != 0)
@@ -92,7 +96,7 @@ pub trait MultiChemical {
     /// Return a single formula if this `MultiChemical` has only one possible formula
     fn single_formula(
         &self,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> Option<MolecularFormula> {
         let formulas = self.formulas(sequence_index, peptide_index);

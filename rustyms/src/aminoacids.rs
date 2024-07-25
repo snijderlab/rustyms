@@ -6,7 +6,7 @@ use crate::{
     fragment::{Fragment, FragmentType, PeptidePosition},
     model::*,
     molecular_charge::MolecularCharge,
-    Multi, MultiChemical, NeutralLoss,
+    Multi, MultiChemical, NeutralLoss, SequencePosition,
 };
 
 include!("shared/aminoacid.rs");
@@ -116,11 +116,16 @@ impl AminoAcid {
     ];
 
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
+    /// # Panics
+    /// When the sequence index is terminal.
     pub fn satellite_ion_fragments(
         self,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> Multi<MolecularFormula> {
+        let crate::SequencePosition::Index(sequence_index) = sequence_index else {
+            panic!("Not allowed to call satellite ion fragments with a terminal sequence index")
+        };
         match self {
             Self::Alanine
             | Self::Glycine
@@ -134,16 +139,16 @@ impl AminoAcid {
             Self::Asparagine => molecular_formula!(H 2 C 1 N 1 O 1).into(),
             Self::AsparticAcid => molecular_formula!(H 1 C 1 O 2).into(),
             Self::AmbiguousAsparagine => vec![
-                molecular_formula!(H 2 C 1 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Asparagine, sequence_index, peptide_index})),
-                molecular_formula!(H 1 C 1 O 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::AsparticAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 2 C 1 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Asparagine, sequence_index, peptide_index})),
+                molecular_formula!(H 1 C 1 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::AsparticAcid, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Cysteine => molecular_formula!(H 1 S 1).into(),
             Self::Glutamine => molecular_formula!(H 4 C 2 N 1 O 1).into(),
             Self::GlutamicAcid => molecular_formula!(H 3 C 2 O 2).into(),
             Self::AmbiguousGlutamine => vec![
-                molecular_formula!(H 4 C 2 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Glutamine, sequence_index, peptide_index})),
-                molecular_formula!(H 3 C 2 O 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 4 C 2 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Glutamine, sequence_index, peptide_index})),
+                molecular_formula!(H 3 C 2 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::GlutamicAcid, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Isoleucine => vec![
@@ -153,9 +158,9 @@ impl AminoAcid {
             .into(),
             Self::Leucine => molecular_formula!(H 7 C 3).into(),
             Self::AmbiguousLeucine => vec![
-                molecular_formula!(H 3 C 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Isoleucine, sequence_index, peptide_index})),
-                molecular_formula!(H 5 C 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Isoleucine, sequence_index, peptide_index})),
-                molecular_formula!(H 7 C 3 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Leucine, sequence_index, peptide_index})),
+                molecular_formula!(H 3 C 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptide_index})),
+                molecular_formula!(H 5 C 2 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptide_index})),
+                molecular_formula!(H 7 C 3 (crate::AmbiguousLabel::AminoAcid{option: Self::Leucine, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Lysine => molecular_formula!(H 8 C 3 N 1).into(),
@@ -328,7 +333,7 @@ impl AminoAcid {
         c_term: &Multi<MolecularFormula>,
         modifications: &Multi<MolecularFormula>,
         charge_carriers: &MolecularCharge,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         sequence_length: usize,
         ions: &PossibleIons,
         peptidoform_index: usize,
@@ -543,8 +548,9 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.formulas(0, 0)[0].average_weight();
-        let mass_ala = AminoAcid::Ala.formulas(0, 0)[0].monoisotopic_mass();
+        let weight_ala = AminoAcid::A.formulas(SequencePosition::default(), 0)[0].average_weight();
+        let mass_ala =
+            AminoAcid::Ala.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -552,8 +558,9 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.formulas(0, 0)[0].average_weight();
-        let mass_lys = AminoAcid::Lys.formulas(0, 0)[0].monoisotopic_mass();
+        let weight_lys = AminoAcid::K.formulas(SequencePosition::default(), 0)[0].average_weight();
+        let mass_lys =
+            AminoAcid::Lys.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
@@ -587,8 +594,12 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.formulas(0, 0)[0].monoisotopic_mass().value,
-                aa.formulas(0, 0)[0].average_weight().value,
+                aa.formulas(SequencePosition::default(), 0)[0]
+                    .monoisotopic_mass()
+                    .value,
+                aa.formulas(SequencePosition::default(), 0)[0]
+                    .average_weight()
+                    .value,
             );
             println!(
                 "{}: {} {} {} {}",

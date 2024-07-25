@@ -1,4 +1,4 @@
-use crate::{Chemical, Element, MolecularFormula};
+use crate::{Chemical, Element, MolecularFormula, SequencePosition};
 use serde::{Deserialize, Serialize};
 
 /// A selection of ions that together define the charge of a peptide
@@ -72,7 +72,11 @@ impl MolecularCharge {
 }
 
 impl Chemical for MolecularCharge {
-    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
+    fn formula(
+        &self,
+        _sequence_index: SequencePosition,
+        _peptide_index: usize,
+    ) -> MolecularFormula {
         self.charge_carriers
             .iter()
             .map(|(n, mol)| mol.clone() * *n as i32)
@@ -119,7 +123,7 @@ impl std::fmt::Display for MolecularCharge {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::Chemical;
+    use crate::{Chemical, SequencePosition};
 
     use super::MolecularCharge;
 
@@ -129,7 +133,7 @@ mod tests {
         let options = mc.all_charge_options();
         assert_eq!(options.len(), 1);
         assert_eq!(
-            options[0].formula(0, 0),
+            options[0].formula(SequencePosition::default(), 0),
             molecular_formula!(H 1 Electron -1)
         );
     }

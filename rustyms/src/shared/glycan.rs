@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{Context, CustomError},
     formula::{Chemical, MolecularFormula},
-    Element, ELEMENT_PARSE_LIST,
+    Element, SequencePosition, ELEMENT_PARSE_LIST,
 };
 
 /// A monosaccharide with all its complexity
@@ -348,7 +348,7 @@ impl ParseHelper for &str {
 }
 
 impl Chemical for MonoSaccharide {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         self.base_sugar.formula(sequence_index, peptide_index)
             + self
                 .substituents
@@ -422,7 +422,11 @@ impl Display for BaseSugar {
 }
 
 impl Chemical for BaseSugar {
-    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
+    fn formula(
+        &self,
+        _sequence_index: SequencePosition,
+        _peptide_index: usize,
+    ) -> MolecularFormula {
         match self {
             Self::None => MolecularFormula::default(),
             Self::Sugar => molecular_formula!(H 2 C 2 O 1),
@@ -655,7 +659,11 @@ impl Display for GlycanSubstituent {
 }
 
 impl Chemical for GlycanSubstituent {
-    fn formula(&self, _sequence_index: usize, _peptide_index: usize) -> MolecularFormula {
+    fn formula(
+        &self,
+        _sequence_index: SequencePosition,
+        _peptide_index: usize,
+    ) -> MolecularFormula {
         let side = match self {
             Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),
             Self::Acetyl => molecular_formula!(H 3 C 2 O 1),

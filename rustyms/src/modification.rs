@@ -11,14 +11,13 @@ use std::{
 };
 
 use crate::{
-    fragment::PeptidePosition,
     glycan::{GlycanStructure, MonoSaccharide},
     ontologies::CustomDatabase,
     peptide::Linked,
     placement_rule::PlacementRule,
     system::{Mass, OrderedMass},
     AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, NeutralLoss,
-    SequenceElement, Tolerance, WithinTolerance,
+    SequenceElement, SequencePosition, Tolerance, WithinTolerance,
 };
 
 include!("shared/modification.rs");
@@ -49,7 +48,7 @@ impl ModificationId {
 }
 
 impl Chemical for SimpleModification {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         match self {
             Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
             Self::Formula(elements) => elements.clone(),
@@ -132,7 +131,7 @@ impl SimpleModification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
+    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> RulePossible {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
@@ -323,7 +322,7 @@ impl Modification {
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        sequence_index: usize,
+        sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
@@ -407,8 +406,8 @@ impl Modification {
     /// Get the formula for a modification, if it is a cross linked modification only get the cross link
     pub fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Simple(s) => s.formula(0, 0),
-            Self::CrossLink { linker, .. } => linker.formula(0, 0),
+            Self::Simple(s) => s.formula(SequencePosition::default(), 0),
+            Self::CrossLink { linker, .. } => linker.formula(SequencePosition::default(), 0),
         }
     }
 }
@@ -440,7 +439,7 @@ impl Modification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: &PeptidePosition) -> RulePossible {
+    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> RulePossible {
         self.simple()
             .map_or(RulePossible::Symmetric(HashSet::new()), |s| {
                 s.is_possible(seq, position)
@@ -476,7 +475,10 @@ impl SimpleModification {
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
                 .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula(0, 0).monoisotopic_mass())
+                    tolerance.within(
+                        &mass.into_inner(),
+                        &m.formula(SequencePosition::default(), 0).monoisotopic_mass(),
+                    )
                 })
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
@@ -496,7 +498,7 @@ impl SimpleModification {
                         .iter()
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
-                .filter(|(_, _, _, m)| *formula == m.formula(0, 0))
+                .filter(|(_, _, _, m)| *formula == m.formula(SequencePosition::default(), 0))
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
             ),
@@ -567,7 +569,7 @@ pub struct AmbiguousModification {
 }
 
 impl Chemical for AmbiguousModification {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         self.modification.formula(sequence_index, peptide_index)
     }
 }
@@ -582,8 +584,6 @@ impl Modification {
             Self::Simple(sim) => sim.display(f, specification_compliant),
             Self::CrossLink { name, linker, .. } => write!(f, "{linker}{name}"),
         }
-        .unwrap();
-        Ok(())
     }
 }
 

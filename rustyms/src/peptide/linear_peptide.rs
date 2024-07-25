@@ -10,9 +10,9 @@ use crate::{
     molecular_charge::MolecularCharge,
     peptide::*,
     placement_rule::PlacementRule,
-    system::{charge, usize::Charge},
+    system::usize::Charge,
     Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical, NeutralLoss,
-    Protease, SequenceElement,
+    Protease, SequenceElement, SequencePosition,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ use std::{
     fmt::{Display, Write},
     marker::PhantomData,
     num::NonZeroU16,
-    ops::{Index, RangeBounds},
+    ops::{Index, IndexMut, RangeBounds},
     slice::SliceIndex,
 };
 use uom::num_traits::Zero;
@@ -36,9 +36,9 @@ pub struct LinearPeptide<T> {
     /// Labile modifications, which will not be found in the actual spectrum.
     pub labile: Vec<SimpleModification>,
     /// N terminal modification
-    pub n_term: Option<SimpleModification>,
+    pub n_term: Option<Modification>,
     /// C terminal modification
-    pub c_term: Option<SimpleModification>,
+    pub c_term: Option<Modification>,
     /// The sequence of this peptide (includes local modifications)
     pub sequence: Vec<SequenceElement>,
     /// For each ambiguous modification list all possible positions it can be placed on.
@@ -123,14 +123,14 @@ impl<T> LinearPeptide<T> {
 
     /// Add the N terminal modification
     #[must_use]
-    pub fn n_term(mut self, term: Option<SimpleModification>) -> Self {
+    pub fn n_term(mut self, term: Option<Modification>) -> Self {
         self.n_term = term;
         self
     }
 
     /// Add the C terminal modification
     #[must_use]
-    pub fn c_term(mut self, term: Option<SimpleModification>) -> Self {
+    pub fn c_term(mut self, term: Option<Modification>) -> Self {
         self.c_term = term;
         self
     }
@@ -155,21 +155,47 @@ impl<T> LinearPeptide<T> {
     }
 
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
-    pub fn get_n_term(&self) -> MolecularFormula {
-        molecular_formula!(H 1)
-            + self
-                .n_term
-                .as_ref()
-                .map_or_else(MolecularFormula::default, |f| f.formula(0, 0))
+    fn get_n_term(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
+        self.n_term.as_ref().map_or_else(Multi::default, |f| {
+            f.formula_inner(
+                all_peptides,
+                visited_peptides,
+                applied_cross_links,
+                allow_ms_cleavable,
+                SequencePosition::NTerm,
+                peptide_index,
+            )
+            .0
+        }) + molecular_formula!(H 1)
     }
 
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
-    pub fn get_c_term(&self) -> MolecularFormula {
-        molecular_formula!(H 1 O 1)
-            + self
-                .c_term
-                .as_ref()
-                .map_or_else(MolecularFormula::default, |f| f.formula(0, 0))
+    fn get_c_term(
+        &self,
+        all_peptides: &[LinearPeptide<Linked>],
+        visited_peptides: &[usize],
+        applied_cross_links: &mut Vec<CrossLinkName>,
+        allow_ms_cleavable: bool,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
+        self.c_term.as_ref().map_or_else(Multi::default, |f| {
+            f.formula_inner(
+                all_peptides,
+                visited_peptides,
+                applied_cross_links,
+                allow_ms_cleavable,
+                SequencePosition::CTerm,
+                peptide_index,
+            )
+            .0
+        }) + molecular_formula!(H 1 O 1)
     }
 
     /// Get the global isotope modifications
@@ -184,7 +210,7 @@ impl<T> LinearPeptide<T> {
         all_peptides: &[LinearPeptide<Linked>],
         peptide_index: usize,
         ignore_peptides: &mut Vec<usize>,
-    ) -> Vec<(NeutralLoss, usize, usize)> {
+    ) -> Vec<(NeutralLoss, usize, SequencePosition)> {
         ignore_peptides.push(peptide_index);
         let mut found_peptides = Vec::new();
         let own_losses = self
@@ -200,7 +226,7 @@ impl<T> LinearPeptide<T> {
                             specificities
                                 .iter()
                                 .filter_map(move |(rules, rule_losses, _)| {
-                                    if PlacementRule::any_possible(rules, aa, &pos) {
+                                    if PlacementRule::any_possible(rules, aa, pos.sequence_index) {
                                         Some(rule_losses)
                                     } else {
                                         None
@@ -217,7 +243,7 @@ impl<T> LinearPeptide<T> {
                             ..
                         } => {
                             if !ignore_peptides.contains(peptide) {
-                                found_peptides.push(*peptide)
+                                found_peptides.push(*peptide);
                             };
                             let (neutral, _, _) = side.allowed_rules(linker);
                             Some(
@@ -227,7 +253,7 @@ impl<T> LinearPeptide<T> {
                                     .collect_vec(),
                             )
                         }
-                        _ => None,
+                        Modification::Simple(_) => None,
                     })
                     .flatten()
                     .collect_vec()
@@ -245,7 +271,7 @@ impl<T> LinearPeptide<T> {
     fn diagnostic_ions(&self) -> Vec<(DiagnosticIon, DiagnosticPosition)> {
         self.iter(..)
             .flat_map(|(pos, aa)| {
-                aa.diagnostic_ions(&pos)
+                aa.diagnostic_ions(pos.sequence_index)
                     .into_iter()
                     .map(move |diag| (diag, DiagnosticPosition::Peptide(pos, aa.aminoacid)))
             })
@@ -287,10 +313,43 @@ impl<T> LinearPeptide<T> {
         range: impl RangeBounds<usize>,
     ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &SequenceElement)> + '_ {
         let start = range.start_index();
-        self.sequence[(range.start_bound().cloned(), range.end_bound().cloned())]
-            .iter()
-            .enumerate()
-            .map(move |(index, seq)| (PeptidePosition::n(index + start, self.len()), seq))
+        std::iter::once((
+            PeptidePosition::n(SequencePosition::NTerm, self.len()),
+            &self[SequencePosition::NTerm],
+        ))
+        .take(usize::from(start == 0))
+        .chain(
+            self.sequence[(range.start_bound().cloned(), range.end_bound().cloned())]
+                .iter()
+                .enumerate()
+                .map(move |(index, seq)| {
+                    (
+                        PeptidePosition::n(SequencePosition::Index(index + start), self.len()),
+                        seq,
+                    )
+                }),
+        )
+        .chain(
+            std::iter::once((
+                PeptidePosition::n(SequencePosition::CTerm, self.len()),
+                &self[SequencePosition::CTerm],
+            ))
+            .take(usize::from(range.end_index(self.len()) == self.len())),
+        )
+    }
+
+    /// Add a modification at the given position. If the position is terminal replace any modification already present.
+    /// If the position is on a side chain add it to the list of modifications.
+    pub(super) fn add_modification(
+        &mut self,
+        position: SequencePosition,
+        modification: Modification,
+    ) {
+        match position {
+            SequencePosition::NTerm => self.n_term = Some(modification),
+            SequencePosition::Index(index) => self.sequence[index].modifications.push(modification),
+            SequencePosition::CTerm => self.c_term = Some(modification),
+        }
     }
 
     /// Iterate over a range in the peptide and keep track of the position
@@ -319,7 +378,7 @@ impl<T> LinearPeptide<T> {
         range: impl RangeBounds<usize>,
         aa_range: impl RangeBounds<usize>,
         index: usize,
-        base: &MolecularFormula,
+        base: &Multi<MolecularFormula>,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
@@ -376,7 +435,7 @@ impl<T> LinearPeptide<T> {
                                 visited_peptides,
                                 applied_cross_links,
                                 allow_ms_cleavable,
-                                index,
+                                SequencePosition::Index(index),
                                 peptide_index,
                             );
                             (acc.0 * f, acc.1.union(&s).cloned().collect())
@@ -384,6 +443,7 @@ impl<T> LinearPeptide<T> {
                     );
                 (
                     acc.0
+                        * base
                         * formulas
                             .iter()
                             .map(move |m| {
@@ -391,9 +451,13 @@ impl<T> LinearPeptide<T> {
                                     .possible_modifications
                                     .iter()
                                     .filter(|&am| ambiguous_local.contains(&&am.id))
-                                    .map(|f| f.formula(index, peptide_index))
+                                    .map(|f| {
+                                        f.formula(
+                                            crate::SequencePosition::Index(index),
+                                            peptide_index,
+                                        )
+                                    })
                                     .sum::<MolecularFormula>()
-                                    + base
                                     + m
                             })
                             .collect::<Multi<MolecularFormula>>(),
@@ -401,7 +465,7 @@ impl<T> LinearPeptide<T> {
                 )
             });
         if result.0.is_empty() {
-            (base.into(), HashSet::new())
+            (base.clone(), HashSet::new())
         } else {
             result
         }
@@ -428,16 +492,23 @@ impl<T> LinearPeptide<T> {
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for sequence_index in 0..self.sequence.len() {
-            let position = PeptidePosition::n(sequence_index, self.len());
+            let position = PeptidePosition::n(SequencePosition::Index(sequence_index), self.len());
             let mut cross_links = Vec::new();
+            let visited_peptides = vec![peptide_index];
             let (n_term, n_term_seen) = self.all_masses(
                 ..=sequence_index,
                 ..sequence_index,
                 sequence_index,
-                &self.get_n_term(),
+                &self.get_n_term(
+                    all_peptides,
+                    &visited_peptides,
+                    &mut cross_links,
+                    model.allow_cross_link_cleavage,
+                    peptide_index,
+                ),
                 model.modification_specific_neutral_losses,
                 all_peptides,
-                &[peptide_index],
+                &visited_peptides,
                 &mut cross_links,
                 model.allow_cross_link_cleavage,
                 peptide_index,
@@ -446,10 +517,16 @@ impl<T> LinearPeptide<T> {
                 sequence_index..,
                 sequence_index + 1..,
                 sequence_index,
-                &self.get_c_term(),
+                &self.get_c_term(
+                    all_peptides,
+                    &visited_peptides,
+                    &mut cross_links,
+                    model.allow_cross_link_cleavage,
+                    peptide_index,
+                ),
                 model.modification_specific_neutral_losses,
                 all_peptides,
-                &[peptide_index],
+                &visited_peptides,
                 &mut cross_links,
                 model.allow_cross_link_cleavage,
                 peptide_index,
@@ -466,7 +543,7 @@ impl<T> LinearPeptide<T> {
                         &[peptide_index],
                         &mut cross_links,
                         model.allow_cross_link_cleavage,
-                        sequence_index,
+                        SequencePosition::Index(sequence_index),
                         peptide_index,
                     );
                     (acc.0 * f, acc.1.union(&s).cloned().collect())
@@ -477,7 +554,7 @@ impl<T> LinearPeptide<T> {
                 &c_term,
                 &modifications_total,
                 charge_carriers,
-                sequence_index,
+                SequencePosition::Index(sequence_index),
                 self.sequence.len(),
                 &model.ions(position),
                 peptidoform_index,
@@ -504,7 +581,7 @@ impl<T> LinearPeptide<T> {
                     .flat_map(|m| {
                         self.sequence[sequence_index]
                             .aminoacid
-                            .formulas(sequence_index, peptide_index)
+                            .formulas(SequencePosition::Index(sequence_index), peptide_index)
                             .iter()
                             .flat_map(|aa| {
                                 Fragment::generate_all(
@@ -688,7 +765,7 @@ impl<T> LinearPeptide<T> {
         range: impl RangeBounds<usize> + Clone,
         aa_range: impl RangeBounds<usize>,
         index: usize,
-        base: &MolecularFormula,
+        base: &Multi<MolecularFormula>,
         apply_neutral_losses: bool,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
@@ -742,7 +819,7 @@ impl<T> LinearPeptide<T> {
                     visited_peptides,
                     applied_cross_links,
                     allow_ms_cleavable,
-                    index,
+                    SequencePosition::Index(index),
                     peptide_index,
                 )
                 .0;
@@ -774,8 +851,19 @@ impl<T> LinearPeptide<T> {
         );
         let mut new_visited_peptides = vec![peptide_index];
         new_visited_peptides.extend_from_slice(visited_peptides);
-        let mut formulas: Multi<MolecularFormula> =
-            vec![self.get_n_term() + self.get_c_term()].into();
+        let mut formulas: Multi<MolecularFormula> = self.get_n_term(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+            peptide_index,
+        ) * self.get_c_term(
+            all_peptides,
+            visited_peptides,
+            applied_cross_links,
+            allow_ms_cleavable,
+            peptide_index,
+        );
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         let mut seen = HashSet::new();
         for (index, pos) in self.sequence.iter().enumerate() {
@@ -785,7 +873,7 @@ impl<T> LinearPeptide<T> {
                 &new_visited_peptides,
                 applied_cross_links,
                 allow_ms_cleavable,
-                index,
+                SequencePosition::Index(index),
                 peptide_index,
             );
             formulas *= pos_f;
@@ -1006,11 +1094,20 @@ impl<T: Into<Linear>> LinearPeptide<T> {
     #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn formulas(&self) -> Multi<MolecularFormula> {
         let mut formulas: Multi<MolecularFormula> =
-            vec![self.get_n_term() + self.get_c_term()].into();
+            self.get_n_term(&[], &[], &mut Vec::new(), false, 0)
+                * self.get_c_term(&[], &[], &mut Vec::new(), false, 0);
         let mut placed = vec![false; self.ambiguous_modifications.len()];
         for (index, pos) in self.sequence.iter().enumerate() {
             formulas *= pos
-                .formulas_greedy(&mut placed, &[], &[], &mut Vec::new(), false, index, 0)
+                .formulas_greedy(
+                    &mut placed,
+                    &[],
+                    &[],
+                    &mut Vec::new(),
+                    false,
+                    SequencePosition::Index(index),
+                    0,
+                )
                 .0;
         }
 
@@ -1078,6 +1175,28 @@ impl<I: SliceIndex<[SequenceElement]>, T> Index<I> for LinearPeptide<T> {
 
     fn index(&self, index: I) -> &Self::Output {
         &self.sequence[index]
+    }
+}
+
+impl<T> Index<SequencePosition> for LinearPeptide<T> {
+    type Output = SequenceElement;
+
+    fn index(&self, index: SequencePosition) -> &Self::Output {
+        match index {
+            SequencePosition::NTerm => &self.sequence[0],
+            SequencePosition::Index(i) => &self.sequence[i],
+            SequencePosition::CTerm => self.sequence.last().unwrap(),
+        }
+    }
+}
+
+impl<T> IndexMut<SequencePosition> for LinearPeptide<T> {
+    fn index_mut(&mut self, index: SequencePosition) -> &mut Self::Output {
+        match index {
+            SequencePosition::NTerm => &mut self.sequence[0],
+            SequencePosition::Index(i) => &mut self.sequence[i],
+            SequencePosition::CTerm => self.sequence.last_mut().unwrap(),
+        }
     }
 }
 

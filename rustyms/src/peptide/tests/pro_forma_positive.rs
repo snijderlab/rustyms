@@ -199,7 +199,7 @@ parse_test!("EVTSEKC[Dehydro#XL1]LEMSC[#XL1]EFD", positive_example_84);
 //     positive_example_85
 // ); This modification cannot be placed on N termini (in the database), so invalid
 parse_test!(
-    "AVTKYTSSK[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
+    "AVTKYTSSK-[MOD:00134#BRANCH]//AGKQLEDGRTLSDYNIQKESTLHLVLRLRG-[#BRANCH]",
     positive_example_86
 );
 parse_test!("NEEYN[GNO:G59626AS]K", positive_example_87);
@@ -337,4 +337,4 @@ parse_test!("EMEVEESPEK/-1[+e-]", positive_example_146);
 parse_test!("EMEVEESPEK/2+ELVISLIVER/3", positive_example_147);
 parse_test!("AA(?AA)", positive_example_148);
 parse_test!("AA(?AA)AA", positive_example_149);
-parse_test!("[dehydro]^3?Q[gln->pyro-glu]SC", positive_example_150);
+parse_test!("[dehydro]^3?[gln->pyro-glu]-QSC", positive_example_150);

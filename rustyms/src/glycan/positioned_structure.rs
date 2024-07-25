@@ -10,7 +10,7 @@ use crate::{
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
     molecular_charge::MolecularCharge,
     system::usize::Charge,
-    AminoAcid, Model, Multi,
+    AminoAcid, Model, Multi, SequencePosition,
 };
 
 use crate::uom::num_traits::Zero;
@@ -26,7 +26,7 @@ pub struct PositionedGlycanStructure {
 }
 
 impl Chemical for PositionedGlycanStructure {
-    fn formula(&self, sequence_index: usize, peptide_index: usize) -> MolecularFormula {
+    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
         self.sugar.formula(sequence_index, peptide_index)
             + self
                 .branches
@@ -72,7 +72,7 @@ impl PositionedGlycanStructure {
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
-                                    full - self.formula(0, peptide_index) + f,
+                                    full - self.formula(SequencePosition::default(), peptide_index) + f,
                                     Charge::zero(),
                                     peptidoform_index,
                                     peptide_index,
@@ -135,7 +135,7 @@ impl PositionedGlycanStructure {
     ) -> Vec<Fragment> {
         // Generate the basic single breakage B fragments
         let mut base_fragments = vec![Fragment::new(
-            self.formula(0, peptide_index),
+            self.formula(SequencePosition::default(), peptide_index),
             Charge::zero(),
             peptidoform_index,
             peptide_index,
@@ -187,7 +187,7 @@ impl PositionedGlycanStructure {
         if self.branches.is_empty() {
             vec![
                 (
-                    self.formula(0, peptide_index),
+                    self.formula(SequencePosition::default(), peptide_index),
                     vec![GlycanBreakPos::End(self.position(attachment))],
                 ),
                 (
@@ -216,7 +216,7 @@ impl PositionedGlycanStructure {
                     }
                 })
                 .into_iter()
-                .map(|(m, b)| (m + self.sugar.formula(0, peptide_index), b))
+                .map(|(m, b)| (m + self.sugar.formula(SequencePosition::default(), peptide_index), b))
                 .chain(std::iter::once((
                     // add the option of it breaking here
                     MolecularFormula::default(),

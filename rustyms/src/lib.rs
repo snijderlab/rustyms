@@ -63,6 +63,8 @@ mod protease;
 mod rand;
 pub mod rawfile;
 mod sequence_element;
+#[path = "shared/sequence_position.rs"]
+mod sequence_position;
 pub mod spectrum;
 pub mod system;
 mod tolerance;
@@ -82,6 +84,7 @@ pub use crate::peptide::{
 };
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
+pub use crate::sequence_position::*;
 pub use crate::spectrum::{AnnotatedSpectrum, RawSpectrum};
 pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;

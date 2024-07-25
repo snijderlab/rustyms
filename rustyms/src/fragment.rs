@@ -18,7 +18,7 @@ use crate::{
         usize::Charge,
     },
     AmbiguousLabel, AminoAcid, Chemical, MassMode, Modification, MolecularFormula, Multi,
-    NeutralLoss,
+    NeutralLoss, SequencePosition,
 };
 
 /// A theoretical fragment of a peptide
@@ -103,8 +103,10 @@ impl Fragment {
     #[must_use]
     pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
         let formula = charge
-            .formula(0, 0)
-            .with_labels(&[AmbiguousLabel::ChargeCarrier(charge.formula(0, 0))]);
+            .formula(SequencePosition::default(), 0)
+            .with_labels(&[AmbiguousLabel::ChargeCarrier(
+                charge.formula(SequencePosition::default(), 0),
+            )]);
         let c = Charge::new::<crate::system::charge::e>(
             usize::try_from(formula.charge().value).unwrap(),
         );
@@ -178,7 +180,7 @@ pub struct MatchedIsotopeDistribution {
 #[non_exhaustive]
 pub struct PeptidePosition {
     /// The sequence index (0 based into the peptide sequence)
-    pub sequence_index: usize,
+    pub sequence_index: SequencePosition,
     /// The series number (1 based from the ion series terminal)
     pub series_number: usize,
     /// The length of the whole sequence
@@ -187,28 +189,36 @@ pub struct PeptidePosition {
 
 impl PeptidePosition {
     /// Generate a position for N terminal ion series
-    pub const fn n(sequence_index: usize, length: usize) -> Self {
+    pub const fn n(sequence_index: SequencePosition, length: usize) -> Self {
         Self {
             sequence_index,
-            series_number: sequence_index + 1,
+            series_number: match sequence_index {
+                SequencePosition::NTerm => 0,
+                SequencePosition::Index(i) => i + 1,
+                SequencePosition::CTerm => length,
+            },
             sequence_length: length,
         }
     }
     /// Generate a position for C terminal ion series
-    pub const fn c(sequence_index: usize, length: usize) -> Self {
+    pub const fn c(sequence_index: SequencePosition, length: usize) -> Self {
         Self {
             sequence_index,
-            series_number: length - sequence_index,
+            series_number: match sequence_index {
+                SequencePosition::NTerm => length,
+                SequencePosition::Index(i) => length - i,
+                SequencePosition::CTerm => 0,
+            },
             sequence_length: length,
         }
     }
     /// Check if this position is on the N terminus
-    pub const fn is_n_terminal(&self) -> bool {
-        self.sequence_index == 0
+    pub fn is_n_terminal(&self) -> bool {
+        self.sequence_index == SequencePosition::NTerm
     }
     /// Check if this position is on the C terminus
-    pub const fn is_c_terminal(&self) -> bool {
-        self.sequence_index == self.sequence_length - 1
+    pub fn is_c_terminal(&self) -> bool {
+        self.sequence_index == SequencePosition::CTerm
     }
     /// Flip to the other series (N->C and C->N)
     pub const fn flip_terminal(self) -> Self {
@@ -581,7 +591,7 @@ mod tests {
     #[test]
     fn neutral_loss() {
         let a = Fragment::new(
-            AminoAcid::AsparticAcid.formulas(0, 0)[0].clone(),
+            AminoAcid::AsparticAcid.formulas(SequencePosition::default(), 0)[0].clone(),
             Charge::new::<crate::system::charge::e>(1),
             0,
             0,
@@ -595,12 +605,12 @@ mod tests {
 
     #[test]
     fn flip_terminal() {
-        let n0 = PeptidePosition::n(0, 2);
-        let n1 = PeptidePosition::n(1, 2);
-        let n2 = PeptidePosition::n(2, 2);
-        let c0 = PeptidePosition::c(0, 2);
-        let c1 = PeptidePosition::c(1, 2);
-        let c2 = PeptidePosition::c(2, 2);
+        let n0 = PeptidePosition::n(SequencePosition::Index(0), 2);
+        let n1 = PeptidePosition::n(SequencePosition::Index(1), 2);
+        let n2 = PeptidePosition::n(SequencePosition::Index(2), 2);
+        let c0 = PeptidePosition::c(SequencePosition::Index(0), 2);
+        let c1 = PeptidePosition::c(SequencePosition::Index(1), 2);
+        let c2 = PeptidePosition::c(SequencePosition::Index(2), 2);
         assert_eq!(n0.flip_terminal(), c0);
         assert_eq!(n1.flip_terminal(), c1);
         assert_eq!(n2.flip_terminal(), c2);

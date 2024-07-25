@@ -17,6 +17,7 @@ use crate::system::Ratio;
 use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;
+use crate::SequencePosition;
 
 /// An alignment of two reads. It has either a reference to the two sequences to prevent overzealous use of memory, or if needed use [`Self::to_owned`] to get a variant that clones the sequences and so can be used in more places.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -176,7 +177,15 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
                 .enumerate()
                 .fold(Multi::default(), |acc, (index, s)| {
                     acc * s
-                        .formulas_greedy(&mut placed_a, &[], &[], &mut Vec::new(), false, index, 0)
+                        .formulas_greedy(
+                            &mut placed_a,
+                            &[],
+                            &[],
+                            &mut Vec::new(),
+                            false,
+                            SequencePosition::Index(index),
+                            0,
+                        )
                         .0
                 })
         }
@@ -193,7 +202,15 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
                 .enumerate()
                 .fold(Multi::default(), |acc, (index, s)| {
                     acc * s
-                        .formulas_greedy(&mut placed_b, &[], &[], &mut Vec::new(), false, index, 0)
+                        .formulas_greedy(
+                            &mut placed_b,
+                            &[],
+                            &[],
+                            &mut Vec::new(),
+                            false,
+                            SequencePosition::Index(index),
+                            0,
+                        )
                         .0
                 })
         }
@@ -213,13 +230,14 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
+    #[allow(clippy::missing_panics_doc)]
     pub fn ppm(&self) -> Ratio {
         self.mass_a()
             .iter()
             .cartesian_product(self.mass_b().iter())
             .map(|(a, b)| a.monoisotopic_mass().ppm(b.monoisotopic_mass()))
             .min_by(|a, b| a.value.total_cmp(&b.value))
-            .expect("An empty Multi<MolecularFormula>  was detected")
+            .expect("An empty Multi<MolecularFormula> was detected")
     }
 
     /// Get a short representation of the alignment in CIGAR like format.
@@ -345,7 +363,7 @@ mod tests {
         align::{align, matrix::BLOSUM62, AlignType},
         peptide::Simple,
         system::da,
-        AminoAcid, LinearPeptide, MultiChemical,
+        AminoAcid, LinearPeptide, MultiChemical, SequencePosition,
     };
 
     #[test]
@@ -408,8 +426,9 @@ mod tests {
             .abs()
                 < f64::EPSILON
         );
-        let mass_diff_nd = (AminoAcid::N.formulas(0, 0)[0].monoisotopic_mass()
-            - AminoAcid::D.formulas(0, 0)[0].monoisotopic_mass())
+        let mass_diff_nd = (AminoAcid::N.formulas(SequencePosition::default(), 0)[0]
+            .monoisotopic_mass()
+            - AminoAcid::D.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass())
         .value
         .abs();
         let mass_diff_bc = align::<1, Simple, Simple>(

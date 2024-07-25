@@ -498,18 +498,20 @@ pub enum Location {
 
 impl Location {
     /// Determine if an ion is possible on this location
+    /// # Panics
+    /// If the peptide position is a terminal position
     pub const fn possible(&self, position: PeptidePosition) -> bool {
+        let crate::SequencePosition::Index(sequence_index) = position.sequence_index else {
+            panic!("Not allowed to call possible with a terminal PeptidePosition")
+        };
         match self {
-            Self::SkipN(n) => position.sequence_index >= *n,
+            Self::SkipN(n) => sequence_index >= *n,
             Self::SkipNC(n, c) => {
-                position.sequence_index >= *n
-                    && position.sequence_length - position.sequence_index > *c
+                sequence_index >= *n && position.sequence_length - sequence_index > *c
             }
-            Self::TakeN { skip, take } => {
-                position.sequence_index >= *skip && position.sequence_index < *skip + *take
-            }
-            Self::SkipC(n) => position.sequence_length - position.sequence_index > *n,
-            Self::TakeC(n) => position.sequence_length - position.sequence_index <= *n,
+            Self::TakeN { skip, take } => sequence_index >= *skip && sequence_index < *skip + *take,
+            Self::SkipC(n) => position.sequence_length - sequence_index > *n,
+            Self::TakeC(n) => position.sequence_length - sequence_index <= *n,
             Self::All => position.series_number != position.sequence_length,
             Self::None => false,
         }
@@ -519,8 +521,8 @@ impl Location {
 #[test]
 fn location_all() {
     let all = Model::all();
-    let ions_n0 = all.ions(PeptidePosition::n(0, 2));
-    let ions_c0 = all.ions(PeptidePosition::c(0, 2));
+    let ions_n0 = all.ions(PeptidePosition::n(crate::SequencePosition::default(), 2));
+    let ions_c0 = all.ions(PeptidePosition::c(crate::SequencePosition::default(), 2));
     assert!(ions_n0.a.0);
     assert!(!ions_n0.x.0);
     assert!(!ions_c0.a.0);

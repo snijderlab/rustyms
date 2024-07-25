@@ -158,23 +158,32 @@ impl TryFrom<u8> for AminoAcid {
 
 impl MultiChemical for AminoAcid {
     /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
-    fn formulas(&self, sequence_index: usize, peptide_index: usize) -> Multi<MolecularFormula> {
+    /// # Panics
+    /// Is the sequence index is a terminal index
+    fn formulas(
+        &self,
+        sequence_index: crate::SequencePosition,
+        peptide_index: usize,
+    ) -> Multi<MolecularFormula> {
+        let crate::SequencePosition::Index(sequence_index) = sequence_index else {
+            panic!("Not allowed to call amino acid formulas with a terminal sequence index")
+        };
         match self {
             Self::Alanine => molecular_formula!(H 5 C 3 O 1 N 1).into(),
             Self::Arginine => molecular_formula!(H 12 C 6 O 1 N 4).into(), // One of the H's counts as the charge carrier and is added later
             Self::Asparagine => molecular_formula!(H 6 C 4 O 2 N 2).into(),
             Self::AsparticAcid => molecular_formula!(H 5 C 4 O 3 N 1).into(),
             Self::AmbiguousAsparagine => vec![
-                molecular_formula!(H 6 C 4 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Asparagine, sequence_index, peptide_index})),
-                molecular_formula!(H 5 C 4 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::AsparticAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 6 C 4 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: Self::Asparagine, sequence_index, peptide_index})),
+                molecular_formula!(H 5 C 4 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: Self::AsparticAcid, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Cysteine => molecular_formula!(H 5 C 3 O 1 N 1 S 1).into(),
             Self::Glutamine => molecular_formula!(H 8 C 5 O 2 N 2).into(),
             Self::GlutamicAcid => molecular_formula!(H 7 C 5 O 3 N 1).into(),
             Self::AmbiguousGlutamine => vec![
-                molecular_formula!(H 8 C 5 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Glutamine, sequence_index, peptide_index})),
-                molecular_formula!(H 7 C 5 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 8 C 5 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: Self::Glutamine, sequence_index, peptide_index})),
+                molecular_formula!(H 7 C 5 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: Self::GlutamicAcid, sequence_index, peptide_index})),
             ]
             .into(),
             Self::Glycine => molecular_formula!(H 3 C 2 O 1 N 1).into(),
