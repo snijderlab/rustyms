@@ -25,6 +25,13 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "peaks"
+path = "fuzz_targets/peaks.rs"
+test = false
+doc = false
+bench = false
+
 # in root dir
 # cargo afl build --release -p rustyms-fuzz
 # cargo afl fuzz -i fuzz/in -o out_pro_forma target/release/pro_forma

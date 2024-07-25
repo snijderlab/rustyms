@@ -12,7 +12,7 @@ use iai_callgrind::{
 
 #[inline(never)]
 fn setup(a: &str, b: &str) -> (LinearPeptide<Simple>, LinearPeptide<Simple>) {
-    let _force_elements_init = black_box(AminoAcid::A.formulas(0, 0));
+    let _force_elements_init = black_box(AminoAcid::A.formulas(SequencePosition::default(), 0));
     (
         LinearPeptide::pro_forma(a, None).unwrap().simple().unwrap(),
         LinearPeptide::pro_forma(b, None).unwrap().simple().unwrap(),

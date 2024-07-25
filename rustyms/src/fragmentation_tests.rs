@@ -110,8 +110,8 @@ fn with_possible_modifications() {
         (297.093720, "precursor"),
     ];
     let model = Model {
-        b: (Location::SkipC(1), vec![]),
-        y: (Location::SkipN(1), vec![]),
+        b: (Location::All, vec![]),
+        y: (Location::All, vec![]),
         ..Model::none()
     };
     test(
@@ -434,7 +434,10 @@ fn test(
     }
 
     for left in &calculated_fragments {
-        println!("Excess fragments: {left}");
+        println!(
+            "Excess fragments: {left} (labels: {:?})",
+            left.formula.labels()
+        );
     }
     let not_found: Vec<usize> = found
         .iter()
