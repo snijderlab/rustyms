@@ -26,18 +26,64 @@ macro_rules! parse_test {
             assert_eq!(res, res_back, "{} != {back}", $case);
         }
     };
-    (single $case:literal, $name:ident) => {
+    (ne $case:literal, $name:ident) => {
         #[test]
         fn $name() {
             let res = $crate::CompoundPeptidoform::pro_forma($case, None);
             println!("{}\n{:?}", $case, res);
+            assert!(res.is_err());
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! parse_sloppy_test {
+    ($case:literal, $name:ident) => {
+        #[test]
+        fn $name() {
+            let res = $crate::LinearPeptide::sloppy_pro_forma(
+                $case,
+                0..$case.len(),
+                None,
+                SloppyParsingParameters::default(),
+            );
+            let res_leading_n = $crate::LinearPeptide::sloppy_pro_forma(
+                $case,
+                0..$case.len(),
+                None,
+                SloppyParsingParameters {
+                    ignore_prefix_lowercase_n: true,
+                },
+            );
+            let res_upper = $crate::LinearPeptide::sloppy_pro_forma(
+                &$case.to_ascii_uppercase(),
+                0..$case.len(),
+                None,
+                SloppyParsingParameters::default(),
+            );
+            let res_lower = $crate::LinearPeptide::sloppy_pro_forma(
+                &$case.to_ascii_lowercase(),
+                0..$case.len(),
+                None,
+                SloppyParsingParameters::default(),
+            );
+            println!("{}", $case);
+            dbg!(&res);
             assert!(res.is_ok());
+            assert_eq!(res, res_leading_n);
+            assert_eq!(res, res_upper);
+            assert_eq!(res, res_lower);
         }
     };
     (ne $case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = $crate::CompoundPeptidoform::pro_forma($case, None);
+            let res = $crate::LinearPeptide::sloppy_pro_forma(
+                $case,
+                0..$case.len(),
+                None,
+                SloppyParsingParameters::default(),
+            );
             println!("{}\n{:?}", $case, res);
             assert!(res.is_err());
         }

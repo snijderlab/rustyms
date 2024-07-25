@@ -1,5 +1,6 @@
 use crate::{
-    modification::Ontology, LinearPeptide, Modification, SloppyParsingParameters, VerySimple,
+    modification::Ontology, parse_sloppy_test, LinearPeptide, Modification,
+    SloppyParsingParameters, VerySimple,
 };
 
 #[test]
@@ -29,12 +30,5 @@ fn sloppy_msfragger() {
     );
 }
 
-#[test]
-fn sloppy_hang() {
-    let _ = LinearPeptide::<VerySimple>::sloppy_pro_forma(
-        "ffffffff[gln->|yro-glu]SC2N:iTRAQ4pleeeeeB]",
-        0..20,
-        None,
-        SloppyParsingParameters::default(),
-    );
-}
+parse_sloppy_test!(ne "_", fuzz_01);
+parse_sloppy_test!(ne "ffffffff[gln->|yro-glu]SC2N:iTRAQ4pleeeeeB]", hang_01);

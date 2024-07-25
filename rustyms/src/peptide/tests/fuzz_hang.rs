@@ -63,3 +63,4 @@ parse_test!(ne "[Glycan:HexSHHHHH1HHTET][Hex][dehydro6plfx][Hex][deydro]^ESA", 
 parse_test!(ne "[Glycan: ][Glyc   GS0][Glycan:{GlyexS0][G{GS0x]@K,N>ATQQQLTCNly", hang_59);
 parse_test!(ne "[dehydro]^-5[Glycan:HexSHHHH1HH@E3333333fx][d   [de@exSHH^HH1HH@ET6H13333333fx][HexGG ][dehydro]^-2[Glycan:HexSHHHH1HH@E3333333fx][d   [dehydro]^-______________________________2\\H\\H", hang_60);
 parse_test!(ne "[Formula:FMTcNu:PHRXRwW2ec|lmZzeqokjzkrTp]-", hang_61);
+parse_test!(ne "[iTRAQ5glex]-EM[Oxidation]EVNES[Phospho]PEK[iTRAQ4plex]-[Methyl]", hang_62);
