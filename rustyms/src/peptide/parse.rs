@@ -306,7 +306,6 @@ impl CompoundPeptidoform {
                             modification,
                         ));
                     }
-                    dbg!(&ranged_unknown_position_modifications, &ambiguous_lookup);
                 }
                 (false, b'/') => {
                     // Chimeric peptide
@@ -430,7 +429,14 @@ impl CompoundPeptidoform {
             return Err(CustomError::error(
                 "Invalid peptide",
                 "Unclosed ambiguous amino acid group",
-                Context::line(None, line, 0, line.len()),
+                Context::full_line(0, line),
+            ));
+        }
+        if peptide.sequence.is_empty() {
+            return Err(CustomError::error(
+                "No amino acids found",
+                "The peptide definition is empty",
+                Context::full_line(0, line),
             ));
         }
 
