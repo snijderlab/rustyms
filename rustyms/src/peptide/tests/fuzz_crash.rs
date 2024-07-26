@@ -165,3 +165,4 @@ parse_test!(ne "<[TMT6plex]@K,C-termn:H>", fuzz_124);
 parse_test!(ne "<d><d>", fuzz_125);
 parse_test!(ne "<[TMT6plex]@K,N-term>", fuzz_126);
 parse_test!(ne "()[3][3]", fuzz_127);
+parse_test!(ne "()[Gly|lex][Hex][]KKPCPETNXJ", fuzz_128);
