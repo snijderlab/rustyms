@@ -36,3 +36,4 @@ bench = false
 # cargo afl build --release -p rustyms-fuzz
 # cargo afl fuzz -i fuzz/in -o out_pro_forma target/release/pro_forma
 # open out_pro_forma/default/crashes/* | save crashes.txt -f
+# cat out_pro_forma/default/crashes/* >> crashes.txt

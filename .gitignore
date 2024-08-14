@@ -7,6 +7,7 @@ imgt.dat
 .venv/
 docs/**/_build/
 out
+out_peaks
 out_pro_forma
 out_sloppy_pro_forma
 /rustyms/databases/*.csv
