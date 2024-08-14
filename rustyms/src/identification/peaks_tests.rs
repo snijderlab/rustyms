@@ -1,78 +1,60 @@
 #![allow(clippy::missing_panics_doc)]
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 
 use crate::{modification::SimpleModification, molecular_formula};
 
-use super::IdentifiedPeptideSource;
+use super::error::CustomError;
+use super::{IdentifiedPeptideSource, PeaksFormat};
 
 use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
 
 #[test]
 fn peaks_x() {
-    let reader = BufReader::new(DATA_X.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::X, None)
-            .unwrap()
-            .into();
-    }
+    assert_eq!(
+        open_file(BufReader::new(DATA_X.as_bytes()), &peaks::X, None).unwrap(),
+        19
+    );
 }
 
 #[test]
 fn peaks_x_plus() {
-    let reader = BufReader::new(DATA_XPLUS.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XPLUS, None)
-            .unwrap()
-            .into();
-    }
+    assert_eq!(
+        open_file(BufReader::new(DATA_XPLUS.as_bytes()), &peaks::XPLUS, None).unwrap(),
+        19
+    );
 }
 
 #[test]
 fn peaks_11() {
-    let reader = BufReader::new(DATA_11.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::XI, None)
-            .unwrap()
-            .into();
-    }
+    assert_eq!(
+        open_file(BufReader::new(DATA_11.as_bytes()), &peaks::XI, None).unwrap(),
+        19
+    );
 }
 
 #[test]
 fn peaks_11_custom_modification() {
-    let reader = BufReader::new(DATA_11_CUSTOM_MODIFICATION.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(
-            &line,
+    assert_eq!(
+        open_file(
+            BufReader::new(DATA_11_CUSTOM_MODIFICATION.as_bytes()),
             &peaks::XI,
             Some(&vec![(
                 0,
                 "oxidation".to_string(),
                 SimpleModification::Formula(molecular_formula!(O 1)),
-            )]),
+            )])
         )
-        .unwrap()
-        .into();
-    }
+        .unwrap(),
+        19
+    );
 }
 
 #[test]
 fn peaks_ab() {
-    let reader = BufReader::new(DATA_AB.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        //println!("{line}");
-        let _read: IdentifiedPeptide = PeaksData::parse_specific(&line, &peaks::AB, None)
-            .unwrap()
-            .into();
-    }
+    assert_eq!(
+        open_file(BufReader::new(DATA_AB.as_bytes()), &peaks::AB, None).unwrap(),
+        19
+    );
 }
 
 #[test]
@@ -82,6 +64,80 @@ fn full_peaks_file() {
             panic!("{}", e);
         }
     }
+}
+
+#[test]
+fn fuzz_crashes() {
+    let mut all_passing = true;
+    for entry in std::fs::read_dir("src/identification/peaks_fuzz_tests").unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let metadata = std::fs::metadata(&path).unwrap();
+        let name = path.file_name().unwrap().to_str().unwrap();
+        if metadata.is_file() && name.starts_with("crash") {
+            match std::panic::catch_unwind(|| {
+                open_file(
+                    BufReader::new(std::fs::File::open(&path).unwrap()),
+                    &peaks::XI,
+                    None,
+                )
+            }) {
+                Ok(_) => {
+                    println!("identification::peaks_tests::fuzz_crashes::{name} passed");
+                }
+                Err(err) => {
+                    all_passing = false;
+                    println!("---- identification::peaks_tests::fuzz_crashes::{name} crash report ----\n{err:#?}\n");
+                }
+            }
+        }
+    }
+    assert!(all_passing, "Some fuzz tests did not pass");
+}
+
+#[test]
+fn fuzz_hangs() {
+    let mut all_passing = true;
+    for entry in std::fs::read_dir("src/identification/peaks_fuzz_tests").unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let metadata = std::fs::metadata(&path).unwrap();
+        let name = path.file_name().unwrap().to_str().unwrap();
+        if metadata.is_file() && name.starts_with("hang") {
+            match std::panic::catch_unwind(|| {
+                open_file(
+                    BufReader::new(std::fs::File::open(&path).unwrap()),
+                    &peaks::XI,
+                    None,
+                )
+            }) {
+                Ok(_) => {
+                    println!("identification::peaks_tests::fuzz_hangs::{name} passed");
+                }
+                Err(err) => {
+                    all_passing = false;
+                    println!("---- identification::peaks_tests::fuzz_hangs::{name} crash report ----\n{err:#?}\n");
+                }
+            }
+        }
+    }
+    assert!(all_passing, "Some fuzz tests did not pass");
+}
+
+fn open_file(
+    reader: impl Read,
+    format: &PeaksFormat,
+    custom_database: Option<&super::ontologies::CustomDatabase>,
+) -> Result<usize, CustomError> {
+    let lines = parse_csv_raw(reader, b',', None)?;
+    let mut num_lines = 0;
+    for line in lines {
+        let line = line?;
+        let _read: IdentifiedPeptide =
+            PeaksData::parse_specific(&line, format, custom_database)?.into();
+        num_lines += 1;
+    }
+    Ok(num_lines)
 }
 
 const DATA_AB: &str = r"Scan,Peptide,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,Accession,PTM,local confidence (%),tag (>=0%),mode

@@ -149,7 +149,7 @@ impl<T> LinearPeptide<T> {
         self.sequence.len()
     }
 
-    /// Check if there are any amino acids in this peptide
+    /// Check if the sequence of this peptide is empty (does not contain any amino acids)
     pub fn is_empty(&self) -> bool {
         self.sequence.is_empty()
     }

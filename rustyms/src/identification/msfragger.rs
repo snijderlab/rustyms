@@ -30,7 +30,7 @@ format_family!(
     MSFraggerFormat,
     /// The data from any MSFragger file
     MSFraggerData,
-    MSFraggerVersion, [&V21], b'\t';
+    MSFraggerVersion, [&V21, &V22], b'\t';
     required {
         spectrum: MSFraggerID, |location: Location, _| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
         spectrum_file: String, |location: Location, _| Ok(location.get_string());
@@ -91,6 +91,8 @@ pub enum MSFraggerVersion {
     #[default]
     #[allow(clippy::upper_case_acronyms)]
     V21,
+    /// Version 22
+    V22,
 }
 
 impl std::fmt::Display for MSFraggerVersion {
@@ -100,6 +102,7 @@ impl std::fmt::Display for MSFraggerVersion {
             "{}",
             match self {
                 Self::V21 => "v21",
+                Self::V22 => "v22",
             }
         )
     }
@@ -122,6 +125,42 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
     hyperscore: "hyperscore",
     next_score: "nextscore",
     peptide_prophet_probability: "peptideprophet probability",
+    enzymatic_termini: "number of enzymatic termini",
+    missed_cleavages: "number of missed cleavages",
+    protein_start: "protein start",
+    protein_end: "protein end",
+    intensity: "intensity",
+    assigned_modifications: "assigned modifications",
+    purity: "purity",
+    is_unique: "is unique",
+    protein: "protein",
+    protein_id: "protein id",
+    entry_name: "entry name",
+    gene: "gene",
+    protein_description: "protein description",
+    mapped_genes: "mapped genes",
+    mapped_proteins: "mapped proteins",
+    condition: Some("condition"),
+    group: Some("group"),
+};
+
+/// v22
+pub const V22: MSFraggerFormat = MSFraggerFormat {
+    version: MSFraggerVersion::V22,
+    spectrum: "spectrum",
+    spectrum_file: "spectrum file",
+    peptide: "modified peptide",
+    extended_peptide: "extended peptide",
+    z: "charge",
+    rt: "retention",
+    experimental_mass: "observed mass",
+    calibrated_experimental_mass: "calibrated observed mass",
+    experimental_mz: "observed m/z",
+    calibrated_experimental_mz: "calibrated observed m/z",
+    expectation: "expectation",
+    hyperscore: "hyperscore",
+    next_score: "nextscore",
+    peptide_prophet_probability: "probability",
     enzymatic_termini: "number of enzymatic termini",
     missed_cleavages: "number of missed cleavages",
     protein_start: "protein start",

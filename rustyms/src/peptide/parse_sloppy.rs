@@ -130,6 +130,13 @@ impl LinearPeptide<VerySimple> {
                 }
             }
         }
+        if peptide.is_empty() {
+            return Err(CustomError::error(
+                "Peptide sequence is empty",
+                "A peptide sequence cannot be empty",
+                Context::line(None, line, location.start, location.len()),
+            ));
+        }
         peptide.enforce_modification_rules()?;
         Ok(peptide)
     }

@@ -81,7 +81,7 @@ fn parse_annotation(
     ))
 }
 
-struct PeakAnnotation {
+pub struct PeakAnnotation {
     auxiliary: bool,
     analyte_number: Option<usize>,
     ion: IonType,

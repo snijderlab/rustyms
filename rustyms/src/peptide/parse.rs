@@ -346,7 +346,7 @@ impl CompoundPeptidoform {
                                     ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
                                         "Invalid C terminal modification",
                                         "A C terminal modification cannot be ambiguous",
-                                        Context::line(None, line, index + 1, end_index - 2 - index),
+                                        Context::line(None, line, index + 1, end_index.saturating_sub(2 + index)),
                                     )),
                             }?;
 
@@ -795,7 +795,7 @@ pub(super) fn parse_charge_state(
             })?;
         let mut offset = index + 2 + charge_len;
         let mut charge_carriers = Vec::new();
-        let mut found_charge = 0;
+        let mut found_charge: isize = 0;
 
         for set in chars[index + 2 + charge_len..end_index].split(|c| *c == b',') {
             // num
@@ -867,7 +867,15 @@ pub(super) fn parse_charge_state(
             }
 
             offset += set.len() + 1;
-            found_charge += count * charge as isize;
+            found_charge = found_charge.checked_add(count.checked_mul(charge as isize).ok_or_else(|| CustomError::error(
+                "Invalid peptide charge state",
+                "The peptide charge state is too big to store inside an isize",
+                Context::line(None, line, index, offset),
+            ))?).ok_or_else(|| CustomError::error(
+                "Invalid peptide charge state",
+                "The peptide charge state is too big to store inside an isize",
+                Context::line(None, line, index, offset),
+            ))?;
         }
         if total_charge == found_charge {
             Ok((end_index + 1, MolecularCharge::new(&charge_carriers)))

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalLocation},
     csv::{parse_csv, CsvLine},
+    error::Context,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 
@@ -260,14 +261,18 @@ impl std::str::FromStr for PeaksId {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((start, end)) = s.split_once(':') {
-            Ok(Self {
-                file: Some(start[1..].parse().map_err(|_| ())?),
-                scans: end
-                    .split(' ')
-                    .map(str::parse)
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|_| ())?,
-            })
+            if start.is_empty() || end.is_empty() {
+                Err(())
+            } else {
+                Ok(Self {
+                    file: Some(start[1..].parse().map_err(|_| ())?),
+                    scans: end
+                        .split(' ')
+                        .map(str::parse)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|_| ())?,
+                })
+            }
         } else {
             Ok(Self {
                 file: None,

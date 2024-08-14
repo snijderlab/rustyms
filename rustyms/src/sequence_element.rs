@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::{aminoacids::AminoAcid, modification::Modification};
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct SequenceElement {
     /// The aminoacid
     pub aminoacid: AminoAcid,
