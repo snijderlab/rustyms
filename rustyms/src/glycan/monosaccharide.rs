@@ -136,6 +136,8 @@ impl MonoSaccharide {
     }
 
     /// Get all unique combinations of monosaccharides within the given range of number of monosaccharides used
+    /// # Panics
+    /// If any if the composition options has more then [`isize::MAX`] sugars.
     fn composition_options(
         composition: &[(Self, isize)],
         range: std::ops::RangeInclusive<usize>,
@@ -149,7 +151,7 @@ impl MonoSaccharide {
             let mut new_options = Vec::new();
             // Always start fresh
             for n in 1..=sugar.1 as usize {
-                let new = vec![(sugar.0.clone(), n as isize)];
+                let new = vec![(sugar.0.clone(), isize::try_from(n).unwrap())];
                 if range.contains(&n) {
                     result.push(new.clone());
                 }
@@ -160,7 +162,7 @@ impl MonoSaccharide {
                 for n in 1..=sugar.1 as usize {
                     for o in &options {
                         let mut new = o.clone();
-                        new.push((sugar.0.clone(), n as isize));
+                        new.push((sugar.0.clone(), isize::try_from(n).unwrap()));
                         let size = new.iter().fold(0, |acc, (_, a)| acc + *a) as usize;
                         match size.cmp(range.end()) {
                             std::cmp::Ordering::Greater => (),             // Ignore
@@ -235,7 +237,7 @@ impl MonoSaccharide {
                 return Vec::new(); // Do not add this full glycan as diagnostic ion
             };
         if add_base {
-            result.push(base)
+            result.push(base);
         }
         result
     }

@@ -513,93 +513,93 @@ pub enum HeptoseIsomer {
 #[allow(dead_code)]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub enum GlycanSubstituent {
-    ///Am N-acetimidoyl
+    ///`Am` N-acetimidoyl
     Acetimidoyl,
-    ///Ac acetyl
+    ///`Ac` acetyl
     Acetyl,
-    ///Ala2Ac N-acetyl-D-alanyl
+    ///`Ala2Ac` N-acetyl-D-alanyl
     AcetylAlanyl,
-    ///Gln2Ac N-acetyl-glutaminyl
+    ///`Gln2Ac` N-acetyl-glutaminyl
     AcetylGlutaminyl,
-    ///A acid
+    ///`A` acid
     Acid,
-    ///Ala D-alanyl
+    ///`Ala` D-alanyl
     Alanyl,
-    ///ol alcohol
+    ///`ol` alcohol
     Alcohol,
-    ///N amino
+    ///`N` amino
     Amino,
-    ///aric ??
+    ///`aric` ??
     Aric,
-    ///Pyr 1-carboxyethylidene
+    ///`Pyr` 1-carboxyethylidene
     CargoxyEthylidene,
-    ///d Deoxy
+    ///`d` Deoxy
     Deoxy,
-    ///3,4Hb 3,4-dihydroxybutyryl
+    ///`3,4Hb` 3,4-dihydroxybutyryl
     DiHydroxyButyryl,
-    ///DiMe two methyl
+    ///`DiMe` two methyl
     DiMethyl,
-    ///AmMe2 N-(N,N-dimethyl-acetimidoyl)
+    ///`AmMe2` N-(N,N-dimethyl-acetimidoyl)
     DiMethylAcetimidoyl,
-    ///Gr2,3Me2 2,3-di-O-methyl-glyceryl
+    ///`Gr2,3Me2` 2,3-di-O-methyl-glyceryl
     DiMethylGlyceryl,
-    ///en didehydro an addition of a double bond
+    ///`en` didehydro an addition of a double bond
     Didehydro,
-    ///An element that replaces a side chain
+    ///`An` element that replaces a side chain
     Element(Element),
-    ///Etn Ethanolamine
+    ///`Etn` Ethanolamine
     Ethanolamine,
-    ///EtOH O linked ethanol
+    ///`EtOH` O linked ethanol
     EtOH,
-    ///Fo formyl
+    ///`Fo` formyl
     Formyl,
-    ///Gr glyceryl
+    ///`Gr` glyceryl
     Glyceryl,
-    ///Gc glycolyl
+    ///`Gc` glycolyl
     Glycolyl,
-    ///Gly glycyl
+    ///`Gly` glycyl
     Glycyl,
-    ///4Hb 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
+    ///`4Hb` 4-hydroxybutyryl, 3RHb (R)-3-hydroxybutyryl, 3SHb (S)-3-hydroxybutyryl
     HydroxyButyryl,
-    ///HydroxyMethyl
+    ///`HydroxyMethyl`
     HydroxyMethyl,
-    ///Lac
+    ///`Lac`
     Lac,
-    ///Lt lactyl
+    ///`Lt` lactyl
     Lactyl,
-    ///Me methyl
+    ///`Me` methyl
     Methyl,
-    ///AmMe N-(N-methyl-acetimidoyl)
+    ///`AmMe` N-(N-methyl-acetimidoyl)
     MethylAcetimidoyl,
     ///5Glu2Me N-methyl-5-glutamyl
     MethylGlutamyl,
-    ///NAc N-acetyl
+    ///`NAc` N-acetyl
     NAcetyl,
-    ///N2DiMe N linked double methyl
+    ///`N2DiMe` N linked double methyl
     NDiMe,
-    ///NFo N linked formyl
+    ///`NFo` N linked formyl
     NFo,
-    ///NGc N linked glycolyl
+    ///`NGc` N linked glycolyl
     NGlycolyl,
-    ///carboxyethyl used in Mur
+    ///`carboxyethyl` used in Mur
     OCarboxyEthyl,
-    ///PCho phosphate linked choline
+    ///`PCho` phosphate linked choline
     PCholine,
-    ///P phosphate
+    ///`P` phosphate
     Phosphate,
-    ///Py pyruvyl
+    ///`Py` pyruvyl
     Pyruvyl,
-    ///Suc ??
+    ///`Suc` ??
     Suc,
-    ///S sulfate
+    ///`S` sulfate
     Sulfate,
-    ///Tau tauryl
+    ///`Tau` tauryl
     Tauryl,
-    ///ulo ??
+    ///`ulo` ??
     Ulo,
-    ///ulof ??
+    ///`ulof` ??
     Ulof,
-    ///water H2O
+    ///`water` H2O
     Water,
 }
 

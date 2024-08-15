@@ -109,7 +109,7 @@ impl MolecularFormula {
             n if n.is_ascii_alphabetic() => {
                 last_name.push(n as char);
                 if last_name_index == -1 {
-                    last_name_index = index as isize;
+                    last_name_index = isize::try_from(index).unwrap();
                 }
                 index += 1;
             }

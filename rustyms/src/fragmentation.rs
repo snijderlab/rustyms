@@ -1,4 +1,4 @@
-pub(crate) trait Fragments {
+pub trait Fragments {
     type Model;
     type Fragment;
     type AdditionalInfo;

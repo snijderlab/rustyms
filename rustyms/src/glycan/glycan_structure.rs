@@ -171,7 +171,8 @@ impl GlycanStructure {
     }
 
     /// Get the composition of a `GlycanStructure`. The result is normalised (sorted and deduplicated).
-    /// Panics if one monosaccharide species has occurrence outside the range of [`isize::MIN`] to [`isize::MAX`].
+    /// # Panics
+    /// If one monosaccharide species has occurrence outside the range of [`isize::MIN`] to [`isize::MAX`].
     pub fn composition(&self) -> Vec<(MonoSaccharide, isize)> {
         let composition = self.composition_inner();
         MonoSaccharide::simplify_composition(composition)

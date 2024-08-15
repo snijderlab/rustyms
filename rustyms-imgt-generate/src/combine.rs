@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use itertools::Itertools;
-use rustyms::align::Alignment;
 use rustyms::system::{dalton, Mass};
 use rustyms::ExtremelySimple;
 use rustyms::LinearPeptide;
@@ -64,7 +63,7 @@ pub fn combine(
     // Save temp seqs in final data structure
     for (species, entry) in deduped_temp {
         if species == Species::HomoSapiens
-            && entry.name.gene == GeneType::C(Some(Constant::M))
+            && entry.name.kind == GeneType::C(Some(Constant::M))
             && entry.name.chain == ChainType::Heavy
         {
             println!("{}", entry);

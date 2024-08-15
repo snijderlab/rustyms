@@ -7,7 +7,7 @@ use super::species::Species;
 
 /// A selection of germlines from a single species.
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct Germlines {
+pub struct Germlines {
     pub(crate) species: Species,
     pub(crate) h: Chain,
     pub(crate) k: Chain,
@@ -51,6 +51,20 @@ impl<'a> IntoIterator for &'a Germlines {
     }
 }
 
+impl Germlines {
+    fn iter(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = (ChainType, &Chain)> + ExactSizeIterator + '_ {
+        [
+            (ChainType::Heavy, &self.h),
+            (ChainType::LightKappa, &self.k),
+            (ChainType::LightLambda, &self.l),
+            (ChainType::Iota, &self.i),
+        ]
+        .into_iter()
+    }
+}
+
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 #[cfg(feature = "rayon")]
@@ -69,17 +83,28 @@ impl<'a> IntoParallelIterator for &'a Germlines {
     }
 }
 
+/// The intermediate representation for a chain
 #[derive(Serialize, Deserialize, Default, Debug)]
-pub(crate) struct Chain {
+pub struct Chain {
+    /// All V/variable germlines
     pub variable: Vec<Germline>,
+    /// All J/joining germlines
     pub joining: Vec<Germline>,
+    /// All C/constant germlines
     pub c: Vec<Germline>,
+    /// All A constant germlines
     pub a: Vec<Germline>,
+    /// All D constant germlines
     pub d: Vec<Germline>,
+    /// All E constant germlines
     pub e: Vec<Germline>,
+    /// All G constant germlines
     pub g: Vec<Germline>,
+    /// All M constant germlines
     pub m: Vec<Germline>,
+    /// All O constant germlines
     pub o: Vec<Germline>,
+    /// All T constant germlines
     pub t: Vec<Germline>,
 }
 
@@ -87,7 +112,7 @@ impl Chain {
     /// # Panics
     /// It panics when it inserts an allele it has already placed (has to be filtered and ranked before)
     pub(crate) fn insert(&mut self, mut germline: Germline) {
-        let db = match &germline.name.gene {
+        let db = match &germline.name.kind {
             GeneType::V => &mut self.variable,
             GeneType::J => &mut self.joining,
             GeneType::C(None) => &mut self.c,
@@ -196,6 +221,26 @@ impl<'a> IntoIterator for &'a Chain {
     }
 }
 
+impl Chain {
+    fn iter(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = (GeneType, &[Germline])> + ExactSizeIterator + '_ {
+        [
+            (GeneType::V, self.variable.as_slice()),
+            (GeneType::J, self.joining.as_slice()),
+            (GeneType::C(None), self.c.as_slice()),
+            (GeneType::C(Some(Constant::A)), self.a.as_slice()),
+            (GeneType::C(Some(Constant::D)), self.d.as_slice()),
+            (GeneType::C(Some(Constant::E)), self.e.as_slice()),
+            (GeneType::C(Some(Constant::G)), self.g.as_slice()),
+            (GeneType::C(Some(Constant::M)), self.m.as_slice()),
+            (GeneType::C(Some(Constant::O)), self.o.as_slice()),
+            (GeneType::C(Some(Constant::T)), self.t.as_slice()),
+        ]
+        .into_iter()
+    }
+}
+
 #[cfg(feature = "rayon")]
 impl<'a> IntoParallelIterator for &'a Chain {
     type Iter = rayon::array::IntoIter<(GeneType, &'a [Germline]), 10>;
@@ -218,9 +263,12 @@ impl<'a> IntoParallelIterator for &'a Chain {
     }
 }
 
+/// Intermediate representation for germline
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct Germline {
+pub struct Germline {
+    /// The name for the germline
     pub name: Gene,
+    /// All alleles
     pub alleles: Vec<(usize, AnnotatedSequence)>,
 }
 
@@ -230,6 +278,12 @@ impl<'a> IntoIterator for &'a Germline {
 
     fn into_iter(self) -> Self::IntoIter {
         self.alleles.iter()
+    }
+}
+
+impl Germline {
+    fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+        self.into_iter()
     }
 }
 
@@ -243,8 +297,10 @@ impl<'a> IntoParallelIterator for &'a Germline {
     }
 }
 
+/// Intermediate representation for annotated sequence
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub(crate) struct AnnotatedSequence {
+pub struct AnnotatedSequence {
+    /// The sequence
     pub sequence: LinearPeptide<ExtremelySimple>,
     /// The different regions in the sequence, defined by their name and length
     pub regions: Vec<(Region, usize)>,
@@ -253,6 +309,7 @@ pub(crate) struct AnnotatedSequence {
 }
 
 impl AnnotatedSequence {
+    /// Create a new annotated sequence
     pub fn new(
         sequence: LinearPeptide<ExtremelySimple>,
         regions: Vec<(Region, usize)>,
@@ -273,7 +330,7 @@ pub struct Gene {
     /// The chain of this gene (heavy/kappa etc)
     pub chain: ChainType,
     /// The kind of gene (V/J/C)
-    pub gene: GeneType,
+    pub kind: GeneType,
     /// If present the additional number _IGHV_ **(I)**
     pub number: Option<usize>,
     /// The family indicators _IGHV_ **-1D**
@@ -292,7 +349,7 @@ impl Display for Gene {
             f,
             "IG{}{}{}{}",
             self.chain,
-            self.gene,
+            self.kind,
             self.number
                 .as_ref()
                 .map_or_else(String::new, |n| format!("({})", to_roman(*n))),
@@ -425,7 +482,7 @@ impl Gene {
             Ok((
                 Self {
                     chain,
-                    gene,
+                    kind: gene,
                     number,
                     family,
                 },

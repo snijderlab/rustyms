@@ -152,7 +152,7 @@ pub enum AlleleSelection {
 }
 
 impl AlleleSelection {
-    const fn take_num(&self) -> usize {
+    const fn take_num(self) -> usize {
         match self {
             Self::First => 1,
             Self::All => usize::MAX,
@@ -169,7 +169,7 @@ pub struct Allele<'a> {
     /// The gene where this is the sequence for, eg `IGHV3-23`
     pub gene: std::borrow::Cow<'a, Gene>,
     /// The allele number, in IMGT this follows the name, eg `*01` is the allele in `IGHV3-23*01`
-    pub allele: usize,
+    pub number: usize,
     /// The actual sequence, the sequences present in the database are pure amino acids, no modifications are to be expected
     pub sequence: &'a LinearPeptide<ExtremelySimple>,
     /// The regions in the sequence, every region has an annotation and a length, all lengths together are the same length as the full sequence
@@ -181,12 +181,12 @@ pub struct Allele<'a> {
 impl<'a> Allele<'a> {
     /// Get the IMGT name for this allele
     pub fn name(&self) -> String {
-        format!("{}*{:02}", self.gene, self.allele)
+        format!("{}*{:02}", self.gene, self.number)
     }
 
     /// Get the biologists name for this allele with fancy non ASCII characters
     pub fn fancy_name(&self) -> String {
-        format!("{}*{:02}", self.gene.to_fancy_string(), self.allele)
+        format!("{}*{:02}", self.gene.to_fancy_string(), self.number)
     }
 
     /// Get the region for a specific index into the sequence, None if outside range,
@@ -220,7 +220,7 @@ impl<'a> From<(Species, &'a Gene, usize, &'a AnnotatedSequence)> for Allele<'a> 
         Self {
             species: value.0,
             gene: std::borrow::Cow::Borrowed(value.1),
-            allele: value.2,
+            number: value.2,
             sequence: &value.3.sequence,
             regions: &value.3.regions,
             annotations: &value.3.annotations,
@@ -229,6 +229,7 @@ impl<'a> From<(Species, &'a Gene, usize, &'a AnnotatedSequence)> for Allele<'a> 
 }
 
 impl Germlines {
+    /// Find a specific germline.
     pub fn find(&self, species: Species, gene: Gene, allele: Option<usize>) -> Option<Allele<'_>> {
         let chain = match gene.chain {
             ChainType::Heavy => &self.h,
@@ -236,7 +237,7 @@ impl Germlines {
             ChainType::LightLambda => &self.l,
             ChainType::Iota => &self.i,
         };
-        let genes = match gene.gene {
+        let genes = match gene.kind {
             GeneType::V => &chain.variable,
             GeneType::J => &chain.joining,
             GeneType::C(None) => &chain.c,
@@ -260,7 +261,7 @@ impl Germlines {
             .map(move |(a, seq)| Allele {
                 species,
                 gene: std::borrow::Cow::Owned(gene),
-                allele: *a,
+                number: *a,
                 sequence: &seq.sequence,
                 regions: &seq.regions,
                 annotations: &seq.annotations,

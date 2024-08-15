@@ -114,6 +114,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
+    #[allow(clippy::too_many_arguments)]
     pub fn formulas(
         &self,
         selected_ambiguous: &[usize],
@@ -156,7 +157,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    #[allow(clippy::filter_map_bool_then)] // has side effects
+    #[allow(clippy::filter_map_bool_then, clippy::too_many_arguments)] // has side effects
     pub fn formulas_greedy(
         &self,
         placed: &mut [bool],

@@ -219,6 +219,7 @@ impl PeptidePosition {
         self.sequence_index == SequencePosition::CTerm
     }
     /// Flip to the other series (N->C and C->N)
+    #[must_use]
     pub const fn flip_terminal(self) -> Self {
         Self {
             sequence_index: self.sequence_index,

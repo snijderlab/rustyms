@@ -519,6 +519,7 @@ impl Location {
 }
 
 #[test]
+#[allow(clippy::missing_panics_doc)]
 fn location_all() {
     let all = Model::all();
     let ions_n0 = all.ions(PeptidePosition::n(crate::SequencePosition::default(), 2));

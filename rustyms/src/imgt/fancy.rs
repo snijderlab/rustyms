@@ -19,7 +19,7 @@ impl FancyDisplay for Gene {
             f,
             "Ig{}{}{}{}",
             self.chain.to_fancy_string(),
-            self.gene.to_fancy_string(),
+            self.kind.to_fancy_string(),
             self.number
                 .as_ref()
                 .map_or_else(String::new, |n| format!("({})", to_roman(*n))),

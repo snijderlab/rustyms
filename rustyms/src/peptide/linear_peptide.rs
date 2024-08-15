@@ -373,6 +373,7 @@ impl<T> LinearPeptide<T> {
     /// It always contains at least one pattern.
     /// The global isotope modifications are NOT applied.
     /// Additionally it also returns all peptides present as cross-link.
+    #[allow(clippy::too_many_arguments)]
     fn ambiguous_patterns(
         &self,
         range: impl RangeBounds<usize>,
@@ -760,6 +761,7 @@ impl<T> LinearPeptide<T> {
 
     /// Generate all potential masses for the given stretch of amino acids alongside all peptides seen as part of a cross-link.
     /// Applies ambiguous aminoacids and modifications, and neutral losses (if allowed in the model).
+    #[allow(clippy::too_many_arguments)]
     fn all_masses(
         &self,
         range: impl RangeBounds<usize> + Clone,
