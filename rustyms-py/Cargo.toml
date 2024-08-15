@@ -9,6 +9,6 @@ name = "rustyms_py"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.22.0"
+pyo3 = { workspace = true }
 rustyms = { path = "../rustyms" }
-ordered-float = { version = "4.2", features = ["serde"] }
+ordered-float = { workspace = true, features = ["serde"] }

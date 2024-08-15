@@ -8,18 +8,23 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 , accessing the [IMGT germline database](imgt), and [reading identified peptide files](identification).
 
 ## Library features
- - Read pro forma sequences ('level 2-ProForma + mass spectrum compliant + glycans compliant', with the intention to fully support the whole spec)
- - Generate theoretical fragments with control over the fragmentation model from any supported pro forma peptide
+
+ - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences ('level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
+ - Generate theoretical fragments with control over the fragmentation model from any supported ProForma peptidoform/proteoform
    - Generate fragments from satellite ions (w, d, and v)
    - Generate glycan fragments
    - Generate theoretical fragments for modifications of unknown position
    - Generate theoretical fragments for chimeric spectra
  - Read mgf files
  - Match spectra to the generated fragments
- - Extensive use of `uom` for compile time unit checking
- - Align peptides based on mass (algorithm will be tweaked extensively over time) (see `Stitch` for more information, but the algorithm has been improved)
+ - [Align peptides based on mass](https://pubs.acs.org/doi/10.1021/acs.jproteome.4c00188)
+ - Fast access to the IMGT database of antibody germlines
+ - Reading of multiple identified peptide file formats (both _de novo_ and database matching)
+ - Exhaustively fuzz tested for reliability (using [cargo-afl](https://crates.io/crates/cargo-afl))
+ - Extensive use of [uom](https://docs.rs/uom/latest/uom/) for compile time unit checking
 
 ## Example usage
+
 ```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
 # let raw_file_path = "data/annotated_example.mgf";
@@ -36,6 +41,7 @@ let fdr = annotated.fdr(&fragments, &model);
 assert!(fdr.sigma() < 2.0);
 # Ok(()) }
 ```
+
 ```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
 // Check how this peptide compares to a similar peptide (using `align`)
@@ -53,6 +59,7 @@ assert_eq!(stats.mass_similar, 6); // All positions are mass similar
 ```
 
 ## Compilation features
+
 Rustyms ties together multiple smaller modules into one cohesive structure.
 It has multiple features which allow you to slim it down if needed (all are enabled by default).
 * `identification` - gives access to methods reading many different identified peptide formats.

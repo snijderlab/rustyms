@@ -6,6 +6,7 @@
 A peptide fragmentation matching library for rust. Split into multiple smaller modules to help keep things organised.
 
 ## Features
+
  - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences ('level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
  - Generate theoretical fragments with control over the fragmentation model from any supported ProForma peptidoform/proteoform
    - Generate fragments from satellite ions (w, d, and v)
@@ -14,10 +15,11 @@ A peptide fragmentation matching library for rust. Split into multiple smaller m
    - Generate theoretical fragments for chimeric spectra
  - Read mgf files
  - Match spectra to the generated fragments
- - Extensive use of `uom` for compile time unit checking
- - Align peptides based on mass
+ - [Align peptides based on mass](https://pubs.acs.org/doi/10.1021/acs.jproteome.4c00188)
  - Fast access to the IMGT database of antibody germlines
  - Reading of multiple identified peptide file formats (both _de novo_ and database matching)
+ - Exhaustively fuzz tested for reliability (using [cargo-afl](https://crates.io/crates/cargo-afl))
+ - Extensive use of [uom](https://docs.rs/uom/latest/uom/) for compile time unit checking
 
 ## Python bindings
 

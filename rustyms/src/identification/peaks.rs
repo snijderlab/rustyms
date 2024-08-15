@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalLocation},
     csv::{parse_csv, CsvLine},
-    error::Context,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 

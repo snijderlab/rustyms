@@ -7,11 +7,12 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use pyo3::{exceptions::PyValueError, types::PyType};
 
-use rustyms::peptide_complexity::Linked;
 use rustyms::{Chemical, MultiChemical};
+use rustyms::{Linked, SequencePosition};
 
 /// Mass mode enum.
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq, Eq)]
 enum MassMode {
     Monoisotopic,
     Average,
@@ -72,6 +73,7 @@ impl Element {
     /// -------
     /// float | None
     ///
+    #[pyo3(signature = (isotope=None))]
     fn mass(&self, isotope: Option<u16>) -> Option<f64> {
         self.0
             .mass(isotope.and_then(NonZeroU16::new))
@@ -89,6 +91,7 @@ impl Element {
     /// -------
     /// float
     ///
+    #[pyo3(signature = (isotope=None))]
     fn average_weight(&self, isotope: Option<u16>) -> Option<f64> {
         self.0
             .average_weight(isotope.and_then(NonZeroU16::new))
@@ -134,7 +137,7 @@ impl MolecularFormula {
             .iter()
             .map(|(e, i, n)| (e.0, (*i).and_then(NonZeroU16::new), *n))
             .collect::<Vec<_>>();
-        let formula = rustyms::MolecularFormula::new(elements.as_slice())
+        let formula = rustyms::MolecularFormula::new(elements.as_slice(), &[])
             .ok_or_else(|| PyValueError::new_err("Invalid isotopes"))?;
         Ok(MolecularFormula(formula))
     }
@@ -159,7 +162,7 @@ impl MolecularFormula {
     ///
     #[classmethod]
     fn from_pro_forma(_cls: &PyType, proforma: &str) -> PyResult<Self> {
-        rustyms::MolecularFormula::from_pro_forma(proforma)
+        rustyms::MolecularFormula::from_pro_forma(proforma, .., false, false)
             .map(MolecularFormula)
             .map_err(|e| PyValueError::new_err(format!("Invalid ProForma string: {}", e)))
     }
@@ -176,7 +179,7 @@ impl MolecularFormula {
     ///
     #[classmethod]
     fn from_psi_mod(_cls: &PyType, psi_mod: &str) -> PyResult<Self> {
-        rustyms::MolecularFormula::from_psi_mod(psi_mod)
+        rustyms::MolecularFormula::from_psi_mod(psi_mod, ..)
             .map(MolecularFormula)
             .map_err(|e| PyValueError::new_err(format!("Invalid PSI-MOD string: {}", e)))
     }
@@ -335,6 +338,15 @@ impl MolecularFormula {
     fn hill_notation_html(&self) -> String {
         self.0.hill_notation_html()
     }
+
+    /// Get information on all sources of ambiguity and multiplicity in formulas.
+    ///
+    /// Returns
+    /// -------
+    /// list[str]
+    fn ambiguous_labels(&self) -> Vec<String> {
+        self.0.labels().iter().map(|a| format!("{a:?}")).collect()
+    }
 }
 
 /// A selection of ions that together define the charge of a peptide.
@@ -447,7 +459,7 @@ impl AminoAcid {
     ///
     fn formulas(&self) -> Vec<MolecularFormula> {
         self.0
-            .formulas()
+            .formulas(SequencePosition::default(), 0)
             .iter()
             .map(|f| MolecularFormula(f.clone()))
             .collect()
@@ -462,7 +474,13 @@ impl AminoAcid {
     /// List[MolecularFormula]
     ///
     fn formula(&self) -> MolecularFormula {
-        MolecularFormula(self.0.formulas().first().unwrap().clone())
+        MolecularFormula(
+            self.0
+                .formulas(SequencePosition::default(), 0)
+                .first()
+                .unwrap()
+                .clone(),
+        )
     }
 
     /// Monoisotopic mass(es) of the amino acid.
@@ -475,7 +493,7 @@ impl AminoAcid {
     ///
     fn monoisotopic_masses(&self) -> Vec<f64> {
         self.0
-            .formulas()
+            .formulas(SequencePosition::default(), 0)
             .iter()
             .map(|f| f.monoisotopic_mass().value)
             .collect()
@@ -490,13 +508,77 @@ impl AminoAcid {
     /// float
     ///
     fn monoisotopic_mass(&self) -> f64 {
-        self.0.formulas().first().unwrap().monoisotopic_mass().value
+        self.0
+            .formulas(SequencePosition::default(), 0)
+            .first()
+            .unwrap()
+            .monoisotopic_mass()
+            .value
     }
 }
 
 impl std::fmt::Display for AminoAcid {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+/// Simple amino acid modification.
+///
+/// Parameters
+/// ----------
+/// name : str
+///   The name of the modification. Any simple modification as allowed in Pro Forma (no ambiguous or cross-linked modifications).
+///
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct SimpleModification(rustyms::modification::SimpleModification);
+
+#[pymethods]
+impl SimpleModification {
+    #[new]
+    fn new(name: &str) -> PyResult<Self> {
+        match rustyms::modification::SimpleModification::try_from(
+            name,
+            0..name.len(),
+            &mut vec![],
+            &mut vec![],
+            None,
+        ) {
+            Ok(modification) => Ok(SimpleModification(modification.defined().unwrap())),
+            Err(_) => Err(PyValueError::new_err("Invalid modification")),
+        }
+    }
+
+    fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Modification('{}')", self.0)
+    }
+
+    /// Molecular formula of the modification.
+    ///
+    /// Returns
+    /// -------
+    /// MolecularFormula
+    ///
+    fn formula(&self) -> MolecularFormula {
+        MolecularFormula(self.0.formula(SequencePosition::default(), 0))
+    }
+
+    /// Monoisotopic mass of the modification.
+    ///
+    /// Returns
+    /// -------
+    /// float
+    ///
+    fn monoisotopic_mass(&self) -> f64 {
+        self.0
+            .formula(SequencePosition::default(), 0)
+            .monoisotopic_mass()
+            .value
     }
 }
 
@@ -513,14 +595,6 @@ pub struct Modification(rustyms::Modification);
 
 #[pymethods]
 impl Modification {
-    #[new]
-    fn new(name: &str) -> PyResult<Self> {
-        match rustyms::Modification::try_from(name, 0..name.len(), &mut vec![]) {
-            Ok(modification) => Ok(Modification(modification.defined().unwrap())),
-            Err(_) => Err(PyValueError::new_err("Invalid modification")),
-        }
-    }
-
     fn __str__(&self) -> String {
         self.0.to_string()
     }
@@ -558,10 +632,12 @@ impl Modification {
 ///     The id to compare be able to find the other locations where this modifications can be placed.
 /// modification : Modification
 ///     The modification itself.
+/// group : String
+///     The name of this ambiguous modification.
+/// preferred : bool | false
+///     Indicates if this is the preferred location for this modification.
 /// localisation_score : float | None
 ///     If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot.
-/// group : tuple[str, bool] | None
-///     If this is a named group contain the name and track if this is the preferred location or not.
 ///
 #[pyclass]
 #[derive(Debug)]
@@ -570,30 +646,31 @@ pub struct AmbiguousModification(rustyms::modification::AmbiguousModification);
 #[pymethods]
 impl AmbiguousModification {
     #[new]
+    #[pyo3(signature = (id, modification, group, preferred=false, localisation_score=None))]
     fn new(
         id: usize,
-        modification: Modification,
+        modification: SimpleModification,
+        group: String,
+        preferred: bool,
         localisation_score: Option<f64>,
-        group: Option<(String, bool)>,
     ) -> Self {
         AmbiguousModification(rustyms::modification::AmbiguousModification {
             id,
             modification: modification.0,
             localisation_score: localisation_score.map(OrderedFloat),
             group,
+            preferred,
         })
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "AmbiguousModification(id={}, modification={}, localisation_score={}, group={:?})",
+            "AmbiguousModification(id={}, modification={}, localisation_score={}, group={}, preferred={})",
             self.0.id,
             self.0.modification,
             self.0.localisation_score.unwrap_or_default(),
-            match &self.0.group {
-                Some((s, b)) => format!("({:?}, {:?})", s, b),
-                None => String::new(),
-            }
+            self.0.group,
+            self.0.preferred,
         )
     }
 
@@ -615,8 +692,8 @@ impl AmbiguousModification {
     /// Modification
     ///
     #[getter]
-    fn modification(&self) -> Modification {
-        Modification(self.0.modification.clone())
+    fn modification(&self) -> SimpleModification {
+        SimpleModification(self.0.modification.clone())
     }
 
     /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot.
@@ -630,15 +707,26 @@ impl AmbiguousModification {
         self.0.localisation_score.map(|x| x.into_inner())
     }
 
-    /// If this is a named group contain the name and track if this is the preferred location or not.
+    /// The group name of the modification.
     ///
     /// Returns
     /// -------
-    /// tuple[str, bool] | None
+    /// str
     ///
     #[getter]
-    fn group(&self) -> Option<(String, bool)> {
-        self.0.group.as_ref().map(|(s, b)| (s.to_string(), *b))
+    fn group(&self) -> String {
+        self.0.group.clone()
+    }
+
+    /// Indicates if this is the preferred location for this ambiguous modification.
+    ///
+    /// Returns
+    /// -------
+    /// bool
+    ///
+    #[getter]
+    fn preferred(&self) -> bool {
+        self.0.preferred
     }
 }
 
@@ -651,13 +739,12 @@ pub struct Fragment(rustyms::Fragment);
 impl Fragment {
     fn __repr__(&self) -> String {
         format!(
-            "Fragment(formula='{:?}', charge={}, ion='{}', peptide_index={}, neutral_loss='{:?}', label='{}')",
+            "Fragment(formula='{:?}', charge={}, ion='{}', peptide_index={}, neutral_loss='{:?}')",
             self.formula(),
             self.charge(),
-            self.ion(),
+            self.ion().0.to_string(),
             self.peptide_index(),
             self.neutral_loss(),
-            self.label()
         )
     }
 
@@ -690,8 +777,8 @@ impl Fragment {
     /// str
     ///
     #[getter]
-    fn ion(&self) -> String {
-        self.0.ion.to_string() // TODO: Return as exposed Fragment type
+    fn ion(&self) -> FragmentType {
+        FragmentType(self.0.ion.clone())
     }
 
     /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching crate::ComplexPeptide struct.
@@ -715,18 +802,11 @@ impl Fragment {
     fn neutral_loss(&self) -> Option<String> {
         self.0.neutral_loss.as_ref().map(|nl| nl.to_string())
     }
-
-    /// Additional description for humans.
-    ///
-    /// Returns
-    /// -------
-    /// str
-    ///
-    #[getter]
-    fn label(&self) -> String {
-        self.0.label.clone()
-    }
 }
+
+/// All types of fragments.
+#[pyclass]
+pub struct FragmentType(rustyms::fragment::FragmentType);
 
 /// One block in a sequence meaning an amino acid and its accompanying modifications.
 #[pyclass]
@@ -842,7 +922,8 @@ impl SequenceElement {
 }
 
 /// Fragmentation model enum.
-#[pyclass]
+#[pyclass(eq, eq_int)]
+#[derive(PartialEq, Eq)]
 enum FragmentationModel {
     All,
     CidHcd,
@@ -860,6 +941,28 @@ fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
     }
 }
 
+/// A compound peptidoform with all data as provided by ProForma 2.0.
+///
+/// Parameters
+/// ----------
+/// proforma : str
+///     The ProForma string.
+///
+#[pyclass]
+#[derive(Clone)]
+pub struct CompoundPeptidoform(rustyms::CompoundPeptidoform);
+
+/// A peptidoform with all data as provided by ProForma 2.0.
+///
+/// Parameters
+/// ----------
+/// proforma : str
+///     The ProForma string.
+///
+#[pyclass]
+#[derive(Clone)]
+pub struct Peptidoform(rustyms::Peptidoform);
+
 /// A peptide with all data as provided by ProForma 2.0.
 ///
 /// Parameters
@@ -876,7 +979,7 @@ impl LinearPeptide {
     /// Create a new peptide from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Self {
-        LinearPeptide(rustyms::LinearPeptide::pro_forma(proforma).unwrap())
+        LinearPeptide(rustyms::LinearPeptide::pro_forma(proforma, None).unwrap())
     }
 
     fn __str__(&self) -> String {
@@ -898,11 +1001,11 @@ impl LinearPeptide {
     /// list[Modification]
     ///
     #[getter]
-    fn labile(&self) -> Vec<Modification> {
+    fn labile(&self) -> Vec<SimpleModification> {
         self.0
             .labile
             .iter()
-            .map(|x| Modification(x.clone()))
+            .map(|x| SimpleModification(x.clone()))
             .collect()
     }
 
@@ -976,7 +1079,7 @@ impl LinearPeptide {
         self.0
             .charge_carriers
             .clone()
-            .map(|c| c.formula().charge().value)
+            .map(|c| c.formula(SequencePosition::default(), 0).charge().value)
     }
 
     /// The adduct ions, if specified.
@@ -1319,7 +1422,7 @@ impl RawSpectrum {
     ///
     /// Parameters
     /// ----------
-    /// peptide : LinearPeptide
+    /// peptide : CompoundPeptide
     ///     The peptide to annotate the spectrum with.
     /// model : FragmentationModel
     ///     The model to use for the fragmentation.
@@ -1339,7 +1442,7 @@ impl RawSpectrum {
     #[pyo3(signature = (peptide, model, mode=&MassMode::Monoisotopic))]
     fn annotate(
         &self,
-        peptide: LinearPeptide,
+        peptide: CompoundPeptidoform,
         model: &FragmentationModel,
         mode: &MassMode,
     ) -> PyResult<AnnotatedSpectrum> {
@@ -1452,20 +1555,24 @@ impl AnnotatedSpectrum {
 #[pymodule]
 #[pyo3(name = "rustyms")]
 fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<MassMode>()?;
-    m.add_class::<Element>()?;
-    m.add_class::<MolecularFormula>()?;
-    m.add_class::<MolecularCharge>()?;
-    m.add_class::<AminoAcid>()?;
-    m.add_class::<Modification>()?;
     m.add_class::<AmbiguousModification>()?;
-    m.add_class::<Fragment>()?;
-    m.add_class::<SequenceElement>()?;
-    m.add_class::<FragmentationModel>()?;
-    m.add_class::<LinearPeptide>()?;
-    m.add_class::<RawPeak>()?;
+    m.add_class::<AminoAcid>()?;
     m.add_class::<AnnotatedPeak>()?;
-    m.add_class::<RawSpectrum>()?;
     m.add_class::<AnnotatedSpectrum>()?;
+    m.add_class::<CompoundPeptidoform>()?;
+    m.add_class::<Element>()?;
+    m.add_class::<Fragment>()?;
+    m.add_class::<FragmentationModel>()?;
+    m.add_class::<FragmentType>()?;
+    m.add_class::<LinearPeptide>()?;
+    m.add_class::<MassMode>()?;
+    m.add_class::<Modification>()?;
+    m.add_class::<MolecularCharge>()?;
+    m.add_class::<MolecularFormula>()?;
+    m.add_class::<Peptidoform>()?;
+    m.add_class::<RawPeak>()?;
+    m.add_class::<RawSpectrum>()?;
+    m.add_class::<SequenceElement>()?;
+    m.add_class::<SimpleModification>()?;
     Ok(())
 }

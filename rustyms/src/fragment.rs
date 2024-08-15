@@ -36,8 +36,6 @@ pub struct Fragment {
     pub peptide_index: usize,
     /// Any neutral losses applied
     pub neutral_loss: Option<NeutralLoss>,
-    // All cycles this fragment contains as determined by the cross-links and peptides involved
-    // pub cycles: Vec<(Vec<usize>, Vec<CrossLinkName>)>,
 }
 
 impl Fragment {

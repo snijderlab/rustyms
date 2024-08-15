@@ -124,6 +124,9 @@ fn fuzz_hangs() {
     assert!(all_passing, "Some fuzz tests did not pass");
 }
 
+/// Open a Peaks file from the given reader.
+/// # Errors
+/// If any part of the process errors.
 fn open_file(
     reader: impl Read,
     format: &PeaksFormat,
