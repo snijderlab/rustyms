@@ -15,11 +15,12 @@ use itertools::Itertools;
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(feature = "imgt")]
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
-    species: Option<HashSet<Species>>,
-    chains: Option<HashSet<ChainType>>,
+    species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
+    chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     allele: AlleleSelection,
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -40,8 +41,8 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
                     prev += last.1.start_b() + last.1.len_b();
                     (
                         sequence.sub_peptide(prev..),
-                        Some([last.0.species].into()),
-                        Some([last.0.gene.chain].into()),
+                        Some(std::iter::once(last.0.species).collect()),
+                        Some(std::iter::once(last.0.gene.chain).collect()),
                     )
                 },
             );
@@ -54,7 +55,7 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
             Selection {
                 species: use_species,
                 chains: use_chains,
-                allele: allele.clone(),
+                allele,
                 genes: Some([gene.0].into()),
             }
             .germlines()
@@ -82,11 +83,12 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(all(feature = "rayon", feature = "imgt"))]
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Send + Sync>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
-    species: Option<HashSet<Species>>,
-    chains: Option<HashSet<ChainType>>,
+    species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
+    chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     allele: AlleleSelection,
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -109,8 +111,8 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
                     prev += last.1.start_b() + last.1.len_b();
                     (
                         sequence.sub_peptide(prev..),
-                        Some([last.0.species].into()),
-                        Some([last.0.gene.chain].into()),
+                        Some(std::iter::once(last.0.species).collect()),
+                        Some(std::iter::once(last.0.gene.chain).collect()),
                     )
                 },
             );
@@ -123,7 +125,7 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
             Selection {
                 species: use_species,
                 chains: use_chains,
-                allele: allele.clone(),
+                allele,
                 genes: Some([gene.0].into()),
             }
             .par_germlines()

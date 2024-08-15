@@ -19,21 +19,21 @@ pub fn get_germline(
 
 /// The selection rules for iterating over a selection of germlines.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Selection {
+pub struct Selection<S1: std::hash::BuildHasher, S2: std::hash::BuildHasher> {
     /// The species you want, None allows all, otherwise only the species specified will be returned
-    pub species: Option<HashSet<Species>>,
+    pub species: Option<HashSet<Species, S1>>,
     /// The chain of genes you want, None allows all, otherwise only the chains specified will be returned
-    pub chains: Option<HashSet<ChainType>>,
+    pub chains: Option<HashSet<ChainType, S2>>,
     /// The kind of genes you want, None allows all, otherwise only the genes specified will be returned
     pub genes: Option<HashSet<GeneType>>,
     /// The way of handling alleles you want
     pub allele: AlleleSelection,
 }
 
-impl Selection {
+impl<S1: std::hash::BuildHasher, S2: std::hash::BuildHasher> Selection<S1, S2> {
     /// Builder pattern method to add a species selection, will replace any previously set species selection
     #[must_use]
-    pub fn species(self, species: impl Into<HashSet<Species>>) -> Self {
+    pub fn species(self, species: impl Into<HashSet<Species, S1>>) -> Self {
         Self {
             species: Some(species.into()),
             ..self
@@ -42,7 +42,7 @@ impl Selection {
 
     /// Builder pattern method to add a chain selection, will replace any previously set chain selection
     #[must_use]
-    pub fn chain(self, chains: impl Into<HashSet<ChainType>>) -> Self {
+    pub fn chain(self, chains: impl Into<HashSet<ChainType, S2>>) -> Self {
         Self {
             chains: Some(chains.into()),
             ..self
@@ -63,7 +63,13 @@ impl Selection {
     pub fn allele(self, allele: AlleleSelection) -> Self {
         Self { allele, ..self }
     }
+}
 
+impl<
+        S1: std::hash::BuildHasher + Clone + Send + Sync,
+        S2: std::hash::BuildHasher + Clone + Send + Sync,
+    > Selection<S1, S2>
+{
     /// Get the selected alleles
     pub fn germlines(self) -> impl Iterator<Item = Allele<'static>> {
         super::all_germlines()
@@ -124,7 +130,7 @@ fn contains_gene(s: &HashSet<GeneType>, gene: GeneType) -> bool {
     s.contains(&gene) || matches!(gene, GeneType::C(_)) && s.contains(&GeneType::C(None))
 }
 
-impl Default for Selection {
+impl<S1: std::hash::BuildHasher, S2: std::hash::BuildHasher> Default for Selection<S1, S2> {
     /// Get a default selection, which gives all kinds and genes but only returns the first allele
     fn default() -> Self {
         Self {
@@ -137,7 +143,7 @@ impl Default for Selection {
 }
 
 /// The allele handling strategy
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum AlleleSelection {
     /// Return all alleles
     All,

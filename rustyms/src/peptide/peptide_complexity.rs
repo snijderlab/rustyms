@@ -30,6 +30,7 @@ pub struct Simple;
 /// A [`LinearPeptide`] that does not have any of the following:
 /// * Ambiguous modifications
 /// * Ambiguous amino acid sequence `(?AA)`
+///
 /// On top of the outlawed features in [`Simple`].
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
@@ -38,6 +39,7 @@ pub struct VerySimple;
 
 /// A [`LinearPeptide`] that does not have any of the following:
 /// * Ambiguous amino acids (B/Z)
+///
 /// On top of the outlawed features in [`VerySimple`].
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
