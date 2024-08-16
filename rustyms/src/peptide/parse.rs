@@ -41,8 +41,7 @@ impl LinearPeptide<Linked> {
         value: &str,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Self, CustomError> {
-        let complex = CompoundPeptidoform::pro_forma(value, custom_database)?;
-        complex
+        CompoundPeptidoform::pro_forma(value, custom_database)?
             .singular()
             .ok_or_else(|| {
                 CustomError::error(
@@ -67,12 +66,35 @@ impl LinearPeptide<Linked> {
     }
 }
 
-impl CompoundPeptidoform {
-    /// [Pro Forma specification](https://github.com/HUPO-PSI/ProForma)
-    /// Supports a subset of the specification (see `proforma_grammar.md` for an overview of what is supported).
+impl Peptidoform {
+    /// Parse a peptidoform in the [Pro Forma specification](https://github.com/HUPO-PSI/ProForma).
     ///
     /// # Errors
-    /// It fails when the string is not a valid Pro Forma string or if it uses currently unsupported Pro Forma features.
+    /// It fails when the string is not a valid Pro Forma string. Or when the string has multiple peptidoforms.
+    #[allow(clippy::too_many_lines)]
+    pub fn pro_forma(
+        value: &str,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<Self, CustomError> {
+        CompoundPeptidoform::pro_forma(value, custom_database)?
+            .singular()
+            .ok_or_else(|| {
+                CustomError::error(
+                    "Complex peptide found",
+                    "A linear peptide was expected but a chimeric peptide was found.",
+                    crate::error::Context::Show {
+                        line: value.to_string(),
+                    },
+                )
+            })
+    }
+}
+
+impl CompoundPeptidoform {
+    /// Parse a compound peptidoform in the [Pro Forma specification](https://github.com/HUPO-PSI/ProForma).
+    ///
+    /// # Errors
+    /// It fails when the string is not a valid Pro Forma string.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(
         value: &str,

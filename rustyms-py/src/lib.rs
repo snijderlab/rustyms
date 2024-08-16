@@ -161,7 +161,7 @@ impl MolecularFormula {
     /// MolecularFormula
     ///
     #[classmethod]
-    fn from_pro_forma(_cls: &PyType, proforma: &str) -> PyResult<Self> {
+    fn from_pro_forma(_cls: &Bound<'_, PyType>, proforma: &str) -> PyResult<Self> {
         rustyms::MolecularFormula::from_pro_forma(proforma, .., false, false)
             .map(MolecularFormula)
             .map_err(|e| PyValueError::new_err(format!("Invalid ProForma string: {}", e)))
@@ -178,7 +178,7 @@ impl MolecularFormula {
     /// MolecularFormula
     ///
     #[classmethod]
-    fn from_psi_mod(_cls: &PyType, psi_mod: &str) -> PyResult<Self> {
+    fn from_psi_mod(_cls: &Bound<'_, PyType>, psi_mod: &str) -> PyResult<Self> {
         rustyms::MolecularFormula::from_psi_mod(psi_mod, ..)
             .map(MolecularFormula)
             .map_err(|e| PyValueError::new_err(format!("Invalid PSI-MOD string: {}", e)))
@@ -400,7 +400,7 @@ impl MolecularCharge {
     /// MolecularCharge
     ///
     #[classmethod]
-    fn proton(_cls: &PyType, charge: i32) -> Self {
+    fn proton(_cls: &Bound<'_, PyType>, charge: i32) -> Self {
         MolecularCharge(rustyms::MolecularCharge::proton(charge as isize))
     }
 
@@ -869,56 +869,6 @@ impl SequenceElement {
     fn ambiguous(&self) -> Option<usize> {
         self.0.ambiguous
     }
-
-    /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
-    ///
-    /// Parameters
-    /// ----------
-    /// selected_ambiguous : int
-    ///
-    /// Returns
-    /// -------
-    /// List[MolecularFormula]
-    ///
-    fn formulas(&self, selected_ambiguous: usize) -> Vec<MolecularFormula> {
-        self.0
-            .formulas(&[selected_ambiguous])
-            .iter()
-            .map(|f| MolecularFormula(f.clone()))
-            .collect()
-    }
-
-    /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    ///
-    /// Parameters
-    /// ----------
-    /// placed : bool
-    ///
-    /// Returns
-    /// -------
-    /// List[MolecularFormula]
-    ///
-    fn formula_greedy(&self, placed: bool) -> Vec<MolecularFormula> {
-        self.0
-            .formulas_greedy(&mut [placed])
-            .iter()
-            .map(|f| MolecularFormula(f.clone()))
-            .collect()
-    }
-
-    /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
-    ///
-    /// Returns
-    /// -------
-    /// List[MolecularFormula]
-    ///
-    fn formula_all(&self) -> Vec<MolecularFormula> {
-        self.0
-            .formulas_all()
-            .iter()
-            .map(|f| MolecularFormula(f.clone()))
-            .collect()
-    }
 }
 
 /// Fragmentation model enum.
@@ -952,6 +902,69 @@ fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
 #[derive(Clone)]
 pub struct CompoundPeptidoform(rustyms::CompoundPeptidoform);
 
+#[pymethods]
+impl CompoundPeptidoform {
+    /// Create a new peptide from a ProForma string.
+    #[new]
+    fn new(proforma: &str) -> Result<Self,CustomError> {
+        rustyms::CompoundPeptidoform::pro_forma(proforma, None).map(CompoundPeptidoform).map_err(CustomError)
+    }
+    
+    /// Get all peptidoforms making up this compound peptidoform.
+    ///
+    /// Returns
+    /// -------
+    /// List[Peptidoform]
+    ///
+    #[getter]
+    fn peptidoforms(&self) -> Vec<Peptidoform> {
+        self.0.peptidoforms().into_iter().map(|p| Peptidoform(p.clone())).collect()
+    }
+    
+    /// Generate the theoretical fragments for this compound peptidoform, with the given maximal charge of the fragments, 
+    /// and the given model. With the global isotope modifications applied.
+    ///
+    /// Parameters
+    /// ----------
+    /// max_charge : int
+    ///     The maximal charge of the fragments.
+    /// model : FragmentationModel
+    ///     The model to use for the fragmentation.
+    ///
+    /// Returns
+    /// -------
+    /// list[Fragment]
+    ///   The theoretical fragments.
+    ///
+    fn generate_theoretical_fragments(
+        &self,
+        max_charge: usize,
+        model: &FragmentationModel,
+    ) -> PyResult<Vec<Fragment>> {
+        Ok(self
+            .0
+            .generate_theoretical_fragments(
+                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
+                &match_model(model)?,
+            )
+            .iter()
+            .map(|f| Fragment(f.clone()))
+            .collect())
+    }
+    
+    fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("CompoundPeptidoform({})", self.0)
+    }
+
+    fn __len__(&self) -> usize {
+        self.0.peptidoforms().len()
+    }
+}
+
 /// A peptidoform with all data as provided by ProForma 2.0.
 ///
 /// Parameters
@@ -962,6 +975,71 @@ pub struct CompoundPeptidoform(rustyms::CompoundPeptidoform);
 #[pyclass]
 #[derive(Clone)]
 pub struct Peptidoform(rustyms::Peptidoform);
+
+
+#[pymethods]
+impl Peptidoform {
+    /// Create a new peptide from a ProForma string. Panics 
+    #[new]
+    fn new(proforma: &str) -> Result<Self, CustomError> {
+        rustyms::Peptidoform::pro_forma(proforma, None).map(Peptidoform).map_err(CustomError)
+    }
+    
+    /// Get all peptides making up this peptidoform.
+    ///
+    /// Returns
+    /// -------
+    /// List[LinearPeptide]
+    ///
+    #[getter]
+    fn peptides(&self) -> Vec<LinearPeptide> {
+        self.0.peptides().into_iter().map(|p| LinearPeptide(p.clone())).collect()
+    }
+    
+    /// Generate the theoretical fragments for this compound peptidoform, with the given maximal charge of the fragments, 
+    /// and the given model. With the global isotope modifications applied.
+    ///
+    /// Parameters
+    /// ----------
+    /// max_charge : int
+    ///     The maximal charge of the fragments.
+    /// model : FragmentationModel
+    ///     The model to use for the fragmentation.
+    ///
+    /// Returns
+    /// -------
+    /// list[Fragment]
+    ///   The theoretical fragments.
+    ///
+    fn generate_theoretical_fragments(
+        &self,
+        max_charge: usize,
+        model: &FragmentationModel,
+    ) -> PyResult<Vec<Fragment>> {
+        Ok(self
+            .0
+            .generate_theoretical_fragments(
+                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
+                &match_model(model)?,
+                0
+            )
+            .iter()
+            .map(|f| Fragment(f.clone()))
+            .collect())
+    }
+    
+    fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Peptidoform({})", self.0)
+    }
+
+    fn __len__(&self) -> usize {
+        self.0.peptides().len()
+    }
+}
 
 /// A peptide with all data as provided by ProForma 2.0.
 ///
@@ -978,8 +1056,8 @@ pub struct LinearPeptide(rustyms::LinearPeptide<Linked>);
 impl LinearPeptide {
     /// Create a new peptide from a ProForma string.
     #[new]
-    fn new(proforma: &str) -> Self {
-        LinearPeptide(rustyms::LinearPeptide::pro_forma(proforma, None).unwrap())
+    fn new(proforma: &str) -> Result<Self,CustomError> {
+        rustyms::LinearPeptide::pro_forma(proforma, None).map(LinearPeptide).map_err(CustomError)
     }
 
     fn __str__(&self) -> String {
@@ -1106,14 +1184,10 @@ impl LinearPeptide {
     ///
     /// Returns
     /// -------
-    /// List[MolecularFormula]
+    /// List[MolecularFormula] | None
     ///
-    fn formula(&self) -> Vec<MolecularFormula> {
-        self.0
-            .formulas()
-            .iter()
-            .map(|f| MolecularFormula(f.clone()))
-            .collect()
+    fn formula(&self) -> Option<Vec<MolecularFormula>> {
+        self.0.clone().linear().map(|p| p.formulas().to_vec().into_iter().map(|f| MolecularFormula(f)).collect())
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
@@ -1127,19 +1201,18 @@ impl LinearPeptide {
     ///
     /// Returns
     /// -------
-    /// list[Fragment]
+    /// list[Fragment] | None
     ///   The theoretical fragments.
     ///
     fn generate_theoretical_fragments(
         &self,
         max_charge: usize,
         model: &FragmentationModel,
-    ) -> PyResult<Vec<Fragment>> {
-        Ok(self
-            .0
-            .generate_theoretical_fragments(
+    ) -> Option<Vec<Fragment>> {
+        self.0.clone().linear().map(|p|
+            p.generate_theoretical_fragments(
                 rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
-                &match_model(model)?,
+                &match_model(model).unwrap(),
             )
             .iter()
             .map(|f| Fragment(f.clone()))
@@ -1554,12 +1627,13 @@ impl AnnotatedSpectrum {
 /// Python bindings to the rustyms library.
 #[pymodule]
 #[pyo3(name = "rustyms")]
-fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
+fn rustyms_py03(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AmbiguousModification>()?;
     m.add_class::<AminoAcid>()?;
     m.add_class::<AnnotatedPeak>()?;
     m.add_class::<AnnotatedSpectrum>()?;
     m.add_class::<CompoundPeptidoform>()?;
+    m.add_class::<CustomError>()?;
     m.add_class::<Element>()?;
     m.add_class::<Fragment>()?;
     m.add_class::<FragmentationModel>()?;
@@ -1576,3 +1650,23 @@ fn rustyms_py03(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SimpleModification>()?;
     Ok(())
 }
+
+/// Anerror withcontext where it originated
+#[pyclass]
+#[derive(Debug)]
+pub struct CustomError(rustyms::error::CustomError);
+
+impl std::error::Error for CustomError {}
+
+impl std::fmt::Display for CustomError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",self.0)
+    }
+}
+
+impl std::convert::From<CustomError> for PyErr {
+      fn from(value: CustomError) ->Self {
+          PyValueError::new_err(value)
+      }
+}
+
