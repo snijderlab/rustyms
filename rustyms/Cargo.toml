@@ -16,7 +16,7 @@ include = [
     "build.rs",
     "benches/**/*",
 ]
-rust-version = "1.70.0"
+rust-version = "1.75.0"
 
 [dependencies]
 bincode = { workspace = true }
@@ -36,7 +36,7 @@ rand = { workspace = true, optional = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }
 itertools = { workspace = true }
-ordered-float = { version = "4.2", features = ["serde"] }
+ordered-float = { workspace = true, features = ["serde"] }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
