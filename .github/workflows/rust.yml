@@ -29,7 +29,7 @@ jobs:
         cargo build -p rustyms --no-default-features --features rayon
   
   fmt:
-    runs-ons: ubuntu-latest
+    runs-on: ubuntu-latest
     
     needs: build
     steps:
@@ -38,7 +38,7 @@ jobs:
       run: cargo fmt --check
       
   clippy:
-    runs-ons: ubuntu-latest
+    runs-on: ubuntu-latest
     
     needs: build
     steps:
@@ -47,7 +47,7 @@ jobs:
       run: cargo clippy
       
   test:
-    runs-ons: ubuntu-latest
+    runs-on: ubuntu-latest
     
     needs: build
     steps:
