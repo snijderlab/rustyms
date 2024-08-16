@@ -16,19 +16,42 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build -p rustyms
-    - name: Run fmt
-      run: cargo fmt --check
-    - name: Run clippy
-      run: cargo clippy
-    - name: Run tests
-      run: cargo test
+    - name: Check
+      run: cargo check
     - name: Build all features
       run: |
         cargo build -p rustyms --no-default-features
+        cargo build -p rustyms --no-default-features --features align
         cargo build -p rustyms --no-default-features --features identification
         cargo build -p rustyms --no-default-features --features imgt
-        cargo build -p rustyms --no-default-features --features align
+        cargo build -p rustyms --no-default-features --features isotopes
+        cargo build -p rustyms --no-default-features --features rand
         cargo build -p rustyms --no-default-features --features rayon
+  
+  fmt:
+    runs-ons: ubuntu-latest
+    
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run fmt
+      run: cargo fmt --check
+      
+  clippy:
+    runs-ons: ubuntu-latest
+    
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run clippy
+      run: cargo clippy
+      
+  test:
+    runs-ons: ubuntu-latest
+    
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run tests
+      run: cargo test
 

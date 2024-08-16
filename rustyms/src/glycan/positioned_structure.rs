@@ -72,7 +72,8 @@ impl PositionedGlycanStructure {
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
-                                    full - self.formula(SequencePosition::default(), peptide_index) + f,
+                                    full - self.formula(SequencePosition::default(), peptide_index)
+                                        + f,
                                     Charge::zero(),
                                     peptidoform_index,
                                     peptide_index,
@@ -216,7 +217,14 @@ impl PositionedGlycanStructure {
                     }
                 })
                 .into_iter()
-                .map(|(m, b)| (m + self.sugar.formula(SequencePosition::default(), peptide_index), b))
+                .map(|(m, b)| {
+                    (
+                        m + self
+                            .sugar
+                            .formula(SequencePosition::default(), peptide_index),
+                        b,
+                    )
+                })
                 .chain(std::iter::once((
                     // add the option of it breaking here
                     MolecularFormula::default(),

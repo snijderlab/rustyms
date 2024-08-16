@@ -108,14 +108,23 @@ pub fn building_blocks(
             .flat_map(|(a, m)| {
                 #[allow(clippy::redundant_clone)] // not redundant
                 let mc = m.clone();
-                a.formulas_all(&[], &[], &mut Vec::new(), false, SequencePosition::default(), 0)
-                    .0
-                    .iter()
-                    .map(|f| {
-                        f.monoisotopic_mass() + m.formula(SequencePosition::default(), 0).monoisotopic_mass()
-                    })
-                    .map(|mass| (a.clone(), mc.clone(), mass))
-                    .collect_vec()
+                a.formulas_all(
+                    &[],
+                    &[],
+                    &mut Vec::new(),
+                    false,
+                    SequencePosition::default(),
+                    0,
+                )
+                .0
+                .iter()
+                .map(|f| {
+                    f.monoisotopic_mass()
+                        + m.formula(SequencePosition::default(), 0)
+                            .monoisotopic_mass()
+                })
+                .map(|mass| (a.clone(), mc.clone(), mass))
+                .collect_vec()
             })
             .collect_vec();
         options.sort_unstable_by(|a, b| a.2.value.total_cmp(&b.2.value));

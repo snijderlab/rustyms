@@ -179,8 +179,12 @@ impl CompoundPeptidoform {
                 Context::full_line(0, line),
             ))
         } else {
-            let peptidoform =
-                super::validate::cross_links(peptides, cross_links_found, &cross_link_lookup, line)?;
+            let peptidoform = super::validate::cross_links(
+                peptides,
+                cross_links_found,
+                &cross_link_lookup,
+                line,
+            )?;
             Ok((peptidoform, index))
         }
     }
@@ -236,26 +240,26 @@ impl CompoundPeptidoform {
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(None, line, index, 1),
                 ))?;
-            peptide.n_term = 
-                SimpleModification::try_from(
-                    line,
-                    index + 1..end_index - 1,
-                    &mut ambiguous_lookup,
-                    cross_link_lookup,
-                    custom_database,
-                )
-                .and_then(|m| 
-                    match m {
-                        ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
-                        ReturnModification::CrossLinkReferenced(id) =>
-                            {cross_link_found_positions.push((id, SequencePosition::NTerm)); Ok(None)},
-                        ReturnModification::AmbiguousPreferred(_, _) | 
-                            ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
-                                "Invalid N terminal modification",
-                                "An N terminal modification cannot be ambiguous",
-                                Context::line(None, line, index + 1, end_index - 2 - index),
-                            )),
-                    })?;
+            peptide.n_term = SimpleModification::try_from(
+                line,
+                index + 1..end_index - 1,
+                &mut ambiguous_lookup,
+                cross_link_lookup,
+                custom_database,
+            )
+            .and_then(|m| match m {
+                ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
+                ReturnModification::CrossLinkReferenced(id) => {
+                    cross_link_found_positions.push((id, SequencePosition::NTerm));
+                    Ok(None)
+                }
+                ReturnModification::AmbiguousPreferred(_, _)
+                | ReturnModification::AmbiguousReferenced(_, _) => Err(CustomError::error(
+                    "Invalid N terminal modification",
+                    "An N terminal modification cannot be ambiguous",
+                    Context::line(None, line, index + 1, end_index - 2 - index),
+                )),
+            })?;
             index = end_index + 1;
         }
 
@@ -359,12 +363,12 @@ impl CompoundPeptidoform {
                     let start_index = index +1;
                     index = end_index + 1;
                     if is_c_term {
-                        peptide.c_term = 
+                        peptide.c_term =
                             match modification {
                                 ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
                                 ReturnModification::CrossLinkReferenced(id) =>
                                     {cross_link_found_positions.push((id, SequencePosition::CTerm)); Ok(None)},
-                                ReturnModification::AmbiguousPreferred(_, _) | 
+                                ReturnModification::AmbiguousPreferred(_, _) |
                                     ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
                                         "Invalid C terminal modification",
                                         "A C terminal modification cannot be ambiguous",
@@ -483,7 +487,7 @@ impl CompoundPeptidoform {
                         )
                         )?,
                     localisation_score,
-                    group: ambiguous_lookup[id].0.clone(), 
+                    group: ambiguous_lookup[id].0.clone(),
                     preferred });
         }
         peptide.ambiguous_modifications = ambiguous_found_positions
@@ -573,7 +577,12 @@ pub(super) fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(None, line, at_index + 7, end_index - at_index - 7),
+                                    Context::line(
+                                        None,
+                                        line,
+                                        at_index + 7,
+                                        end_index - at_index - 7,
+                                    ),
                                 )
                             })?),
                             modification.clone(),
@@ -593,7 +602,12 @@ pub(super) fn global_modifications(
                                 CustomError::error(
                                     "Invalid global modification",
                                     "The location could not be read as an amino acid",
-                                    Context::line(None, line, at_index + 7, end_index - at_index - 7),
+                                    Context::line(
+                                        None,
+                                        line,
+                                        at_index + 7,
+                                        end_index - at_index - 7,
+                                    ),
                                 )
                             })?),
                             modification.clone(),
@@ -889,15 +903,21 @@ pub(super) fn parse_charge_state(
             }
 
             offset += set.len() + 1;
-            found_charge = found_charge.checked_add(count.checked_mul(charge as isize).ok_or_else(|| CustomError::error(
-                "Invalid peptide charge state",
-                "The peptide charge state is too big to store inside an isize",
-                Context::line(None, line, index, offset),
-            ))?).ok_or_else(|| CustomError::error(
-                "Invalid peptide charge state",
-                "The peptide charge state is too big to store inside an isize",
-                Context::line(None, line, index, offset),
-            ))?;
+            found_charge = found_charge
+                .checked_add(count.checked_mul(charge as isize).ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid peptide charge state",
+                        "The peptide charge state is too big to store inside an isize",
+                        Context::line(None, line, index, offset),
+                    )
+                })?)
+                .ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid peptide charge state",
+                        "The peptide charge state is too big to store inside an isize",
+                        Context::line(None, line, index, offset),
+                    )
+                })?;
         }
         if total_charge == found_charge {
             Ok((end_index + 1, MolecularCharge::new(&charge_carriers)))
