@@ -39,12 +39,19 @@ impl AnnotatedSpectrum {
                             self.base_score(&fragments, Some(peptide_index), None);
                         let positions =
                             self.score_positions(peptidoform_index, peptide_index, None);
+                        let expected_positions = fragments.iter()
+                            .filter_map(|p| {
+                                p.ion.position()
+                            })
+                            .map(|pos| pos.sequence_index)
+                            .unique().count() as u32;
                         Scores {
                             score: Score::Position {
                                 fragments: recovered_fragments,
                                 peaks,
                                 intensity: Recovered::new(intensity_annotated, total_intensity),
-                                positions: Recovered::new(positions, peptide.len() as u32),
+                                theoretical_positions: Recovered::new(positions, peptide.len() as u32),
+                                expected_positions: Recovered::new(positions, expected_positions),
                             },
                             ions: self.score_individual_ions(
                                 &fragments,
@@ -202,13 +209,20 @@ impl AnnotatedSpectrum {
                 if recovered_fragments.total > 0 {
                     let positions =
                         self.score_positions(peptidoform_index, peptide_index, Some(ion));
+                    let expected_positions = fragments.iter()
+                        .filter_map(|p| {
+                            p.ion.position()
+                        })
+                        .map(|pos| pos.sequence_index)
+                        .unique().count() as u32;
                     Some((
                         ion,
                         Score::Position {
                             fragments: recovered_fragments,
                             peaks,
                             intensity: Recovered::new(intensity_annotated, total_intensity),
-                            positions: Recovered::new(positions, peptide.len() as u32),
+                            theoretical_positions: Recovered::new(positions, peptide.len() as u32),
+                            expected_positions: Recovered::new(positions, expected_positions),
                         },
                     ))
                 } else {
@@ -288,8 +302,10 @@ pub enum Score {
         peaks: Recovered<u32>,
         /// The fraction of the total intensity that could be annotated
         intensity: Recovered<f64>,
-        /// The fraction of the total positions that has at least one fragment found
-        positions: Recovered<u32>,
+        /// The fraction of the total positions (all potisions on the peptide) that has at least one fragment found
+        theoretical_positions: Recovered<u32>,
+        /// The fraction of the total positions (all positions with fragments) that has at least one fragment found
+        expected_positions: Recovered<u32>,
     },
     /// A score for something that does not have position coverage, but instead is scored on the number of unique formulas
     UniqueFormulas {
