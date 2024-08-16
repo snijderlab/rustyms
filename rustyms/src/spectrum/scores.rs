@@ -39,18 +39,21 @@ impl AnnotatedSpectrum {
                             self.base_score(&fragments, Some(peptide_index), None);
                         let positions =
                             self.score_positions(peptidoform_index, peptide_index, None);
-                        let expected_positions = fragments.iter()
-                            .filter_map(|p| {
-                                p.ion.position()
-                            })
+                        let expected_positions = fragments
+                            .iter()
+                            .filter_map(|p| p.ion.position())
                             .map(|pos| pos.sequence_index)
-                            .unique().count() as u32;
+                            .unique()
+                            .count() as u32;
                         Scores {
                             score: Score::Position {
                                 fragments: recovered_fragments,
                                 peaks,
                                 intensity: Recovered::new(intensity_annotated, total_intensity),
-                                theoretical_positions: Recovered::new(positions, peptide.len() as u32),
+                                theoretical_positions: Recovered::new(
+                                    positions,
+                                    peptide.len() as u32,
+                                ),
                                 expected_positions: Recovered::new(positions, expected_positions),
                             },
                             ions: self.score_individual_ions(
@@ -209,12 +212,12 @@ impl AnnotatedSpectrum {
                 if recovered_fragments.total > 0 {
                     let positions =
                         self.score_positions(peptidoform_index, peptide_index, Some(ion));
-                    let expected_positions = fragments.iter()
-                        .filter_map(|p| {
-                            p.ion.position()
-                        })
+                    let expected_positions = fragments
+                        .iter()
+                        .filter_map(|p| p.ion.position())
                         .map(|pos| pos.sequence_index)
-                        .unique().count() as u32;
+                        .unique()
+                        .count() as u32;
                     Some((
                         ion,
                         Score::Position {
