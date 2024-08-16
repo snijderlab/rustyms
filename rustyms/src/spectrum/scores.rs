@@ -35,16 +35,19 @@ impl AnnotatedSpectrum {
                     .iter()
                     .enumerate()
                     .map(|(peptide_index, peptide)| {
-                        let (recovered_fragments, peaks, intensity_annotated) =
-                            self.base_score(&fragments, Some(peptide_index), None);
-                        let positions =
-                            self.score_positions(peptidoform_index, peptide_index, None);
-                        let expected_positions = fragments
-                            .iter()
-                            .filter_map(|p| p.ion.position())
-                            .map(|pos| pos.sequence_index)
-                            .unique()
-                            .count() as u32;
+                        let (recovered_fragments, peaks, intensity_annotated) = self
+                            .filtered_base_score(
+                                &fragments,
+                                Some(peptidoform_index),
+                                Some(peptide_index),
+                                None,
+                            );
+                        let (positions, expected_positions) = self.score_positions(
+                            &fragments,
+                            peptidoform_index,
+                            peptide_index,
+                            None,
+                        );
                         Scores {
                             score: Score::Position {
                                 fragments: recovered_fragments,
@@ -68,7 +71,7 @@ impl AnnotatedSpectrum {
             .collect();
         // Get the statistics for the combined peptides
         let (recovered_fragments, peaks, intensity_annotated) =
-            self.base_score(&fragments, None, None);
+            self.filtered_base_score(&fragments, None, None, None);
         let unique_formulas = self.score_unique_formulas(&fragments, None, None);
         (
             Scores {
@@ -89,9 +92,11 @@ impl AnnotatedSpectrum {
     }
 
     /// Get the base score of this spectrum
-    fn base_score(
+    /// (Fragments, peaks, intensity)
+    fn filtered_base_score(
         &self,
         fragments: &[&Fragment],
+        peptidoform_index: Option<usize>,
         peptide_index: Option<usize>,
         ion: Option<FragmentKind>,
     ) -> (Recovered<u32>, Recovered<u32>, f64) {
@@ -103,7 +108,8 @@ impl AnnotatedSpectrum {
                     .annotation
                     .iter()
                     .filter(|(a, _)| {
-                        peptide_index.map_or(true, |i| a.peptide_index == i)
+                        peptidoform_index.map_or(true, |i| a.peptidoform_index == i)
+                            && peptide_index.map_or(true, |i| a.peptide_index == i)
                             && ion.map_or(true, |kind| a.ion.kind() == kind)
                     })
                     .count() as u32;
@@ -119,7 +125,8 @@ impl AnnotatedSpectrum {
         let total_fragments = fragments
             .iter()
             .filter(|f| {
-                peptide_index.map_or(true, |i| f.peptide_index == i)
+                peptidoform_index.map_or(true, |i| f.peptidoform_index == i)
+                    && peptide_index.map_or(true, |i| f.peptide_index == i)
                     && ion.map_or(true, |kind| f.ion.kind() == kind)
             })
             .count() as u32;
@@ -133,25 +140,38 @@ impl AnnotatedSpectrum {
     /// Get the total number of positions covered
     fn score_positions(
         &self,
+        fragments: &[&Fragment],
         peptidoform_index: usize,
         peptide_index: usize,
         ion: Option<FragmentKind>,
-    ) -> u32 {
-        self.spectrum
-            .iter()
-            .flat_map(|p| {
-                p.annotation
-                    .iter()
-                    .filter(|(a, _)| {
-                        a.peptidoform_index == peptidoform_index
-                            && a.peptide_index == peptide_index
-                            && ion.map_or(true, |kind| a.ion.kind() == kind)
-                    })
-                    .filter_map(|(a, _)| a.ion.position())
-            })
-            .map(|pos| pos.sequence_index)
-            .unique()
-            .count() as u32
+    ) -> (u32, u32) {
+        (
+            self.spectrum
+                .iter()
+                .flat_map(|p| {
+                    p.annotation
+                        .iter()
+                        .filter(|(a, _)| {
+                            a.peptidoform_index == peptidoform_index
+                                && a.peptide_index == peptide_index
+                                && ion.map_or(true, |kind| a.ion.kind() == kind)
+                        })
+                        .filter_map(|(a, _)| a.ion.position())
+                })
+                .map(|pos| pos.sequence_index)
+                .unique()
+                .count() as u32,
+            fragments
+                .iter()
+                .filter(|f| {
+                    f.peptidoform_index == peptidoform_index
+                        && f.peptide_index == peptide_index
+                        && ion.map_or(true, |i| i == f.ion.kind())
+                })
+                .filter_map(|f| f.ion.position().map(|p| p.sequence_index))
+                .unique()
+                .count() as u32,
+        )
     }
 
     /// Get the amount of unique formulas recovered
@@ -206,18 +226,20 @@ impl AnnotatedSpectrum {
         .iter()
         .copied()
         .filter_map(|ion| {
-            let (recovered_fragments, peaks, intensity_annotated) =
-                self.base_score(fragments, peptide.as_ref().map(|p| p.0), Some(ion));
+            let (recovered_fragments, peaks, intensity_annotated) = self.filtered_base_score(
+                fragments,
+                peptide.as_ref().map(|p| p.0),
+                peptide.as_ref().map(|p| p.1),
+                Some(ion),
+            );
             if let Some((peptidoform_index, peptide_index, peptide)) = peptide {
                 if recovered_fragments.total > 0 {
-                    let positions =
-                        self.score_positions(peptidoform_index, peptide_index, Some(ion));
-                    let expected_positions = fragments
-                        .iter()
-                        .filter_map(|p| p.ion.position())
-                        .map(|pos| pos.sequence_index)
-                        .unique()
-                        .count() as u32;
+                    let (positions, expected_positions) = self.score_positions(
+                        fragments,
+                        peptidoform_index,
+                        peptide_index,
+                        Some(ion),
+                    );
                     Some((
                         ion,
                         Score::Position {
@@ -258,8 +280,12 @@ impl AnnotatedSpectrum {
             .iter()
             .copied()
             .filter_map(|ion| {
-                let (recovered_fragments, peaks, intensity_annotated) =
-                    self.base_score(fragments, peptide.as_ref().map(|p| p.0), Some(ion));
+                let (recovered_fragments, peaks, intensity_annotated) = self.filtered_base_score(
+                    fragments,
+                    peptide.as_ref().map(|p| p.0),
+                    peptide.as_ref().map(|p| p.1),
+                    Some(ion),
+                );
                 if recovered_fragments.total > 0 {
                     let unique_formulas = self.score_unique_formulas(
                         fragments,
