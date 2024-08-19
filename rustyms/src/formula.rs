@@ -168,7 +168,8 @@ impl std::fmt::Display for MolecularFormula {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
-        molecular_formula, AminoAcid, Fragment, MolecularFormula, MultiChemical, SequencePosition,
+        model::ChargeRange, molecular_formula, AminoAcid, Fragment, MolecularCharge,
+        MolecularFormula, MultiChemical, SequencePosition,
     };
 
     #[test]
@@ -270,6 +271,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn labels() {
         let labelled = AminoAcid::B.formulas(SequencePosition::default(), 0);
         let unlabelled: crate::Multi<MolecularFormula> =
@@ -302,6 +304,8 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &unlabelled,
             &[],
+            &MolecularCharge::proton(1),
+            ChargeRange::ONE,
         );
         let fragment_u = Fragment::generate_all(
             &unlabelled,
@@ -310,6 +314,8 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &unlabelled,
             &[],
+            &MolecularCharge::proton(1),
+            ChargeRange::ONE,
         );
         let fragment_ul = Fragment::generate_all(
             &unlabelled,
@@ -318,6 +324,8 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &labelled,
             &[],
+            &MolecularCharge::proton(1),
+            ChargeRange::ONE,
         );
         let all_fragments_labelled =
             |multi: &[Fragment]| multi.iter().all(|o| !o.formula.labels().is_empty());

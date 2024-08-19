@@ -8,10 +8,10 @@ use std::{
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use uom::num_traits::Zero;
 
 use crate::{
     glycan::MonoSaccharide,
+    model::ChargeRange,
     molecular_charge::MolecularCharge,
     system::{
         f64::{MassOverCharge, Ratio},
@@ -70,6 +70,9 @@ impl Fragment {
     }
 
     /// Generate a list of possible fragments from the list of possible preceding termini and neutral losses
+    /// # Panics
+    /// When the charge range results in a negative charge
+    #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn generate_all(
         theoretical_mass: &Multi<MolecularFormula>,
@@ -78,20 +81,25 @@ impl Fragment {
         annotation: &FragmentType,
         termini: &Multi<MolecularFormula>,
         neutral_losses: &[NeutralLoss],
+        charge_carriers: &MolecularCharge,
+        charge_range: ChargeRange,
     ) -> Vec<Self> {
+        let all_charges = charge_range
+            .charges_iter(charge_carriers.charge())
+            .flat_map(move |c| charge_carriers.options(c));
         termini
             .iter()
             .cartesian_product(theoretical_mass.iter())
-            .map(|(term, mass)| {
-                Self::new(
-                    term + mass,
-                    Charge::zero(),
-                    peptidoform_index,
-                    peptide_index,
-                    annotation.clone(),
-                )
+            .cartesian_product(all_charges)
+            .cartesian_product(std::iter::once(None).chain(neutral_losses.iter().map(Some)))
+            .map(|(((term, mass), charge), loss)| Self {
+                formula: term + mass + charge.formula(SequencePosition::default(), peptide_index),
+                charge: Charge::new::<crate::system::e>(charge.charge().value.try_into().unwrap()),
+                ion: annotation.clone(),
+                peptidoform_index,
+                peptide_index,
+                neutral_loss: loss.cloned(),
             })
-            .flat_map(|m| m.with_neutral_losses(neutral_losses))
             .collect()
     }
 
@@ -99,7 +107,7 @@ impl Fragment {
     /// # Panics
     /// If the charge is negative.
     #[must_use]
-    pub fn with_charge(&self, charge: &MolecularCharge) -> Self {
+    fn with_charge(&self, charge: &MolecularCharge) -> Self {
         let formula = charge
             .formula(SequencePosition::default(), 0)
             .with_labels(&[AmbiguousLabel::ChargeCarrier(
@@ -116,8 +124,15 @@ impl Fragment {
     }
 
     /// Create a copy of this fragment with the given charges
-    pub fn with_charges(self, charges: &[MolecularCharge]) -> impl Iterator<Item = Self> + '_ {
-        charges.iter().map(move |c| self.with_charge(c))
+    pub fn with_charge_range(
+        self,
+        charge_carriers: &MolecularCharge,
+        charge_range: ChargeRange,
+    ) -> impl Iterator<Item = Self> + '_ {
+        charge_range
+            .charges_iter(charge_carriers.charge())
+            .flat_map(move |c| charge_carriers.options(c))
+            .map(move |c| self.with_charge(&c))
     }
 
     /// Create a copy of this fragment with the given neutral loss

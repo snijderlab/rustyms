@@ -331,7 +331,7 @@ pub enum Score {
         peaks: Recovered<u32>,
         /// The fraction of the total intensity that could be annotated
         intensity: Recovered<f64>,
-        /// The fraction of the total positions (all potisions on the peptide) that has at least one fragment found
+        /// The fraction of the total positions (all positions on the peptide) that has at least one fragment found
         theoretical_positions: Recovered<u32>,
         /// The fraction of the total positions (all positions with fragments) that has at least one fragment found
         expected_positions: Recovered<u32>,

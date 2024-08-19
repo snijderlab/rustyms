@@ -48,18 +48,18 @@ impl PositionedGlycanStructure {
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
-        let single_charges = charge_carriers.all_single_charge_options();
-        let all_charges = charge_carriers.all_charge_options();
         model
             .glycan
-            .0
+            .allow_structural
             .then(|| {
                 // Get all base fragments from this node and all its children
                 let mut base_fragments = self
                     .oxonium_fragments(peptidoform_index, peptide_index, attachment)
                     .into_iter()
-                    .flat_map(|f| f.with_charges(&single_charges))
-                    .flat_map(|f| f.with_neutral_losses(&model.glycan.2))
+                    .flat_map(|f| {
+                        f.with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
+                    })
+                    .flat_map(|f| f.with_neutral_losses(&model.glycan.neutral_losses))
                     .collect_vec();
                 // Generate all Y fragments
                 base_fragments.extend(
@@ -88,14 +88,18 @@ impl PositionedGlycanStructure {
                                 )
                             })
                         })
-                        .flat_map(|f| f.with_charges(&all_charges))
-                        .flat_map(|f| f.with_neutral_losses(&model.glycan.2)),
+                        .flat_map(|f| {
+                            f.with_charge_range(charge_carriers, model.glycan.other_charge_range)
+                        })
+                        .flat_map(|f| f.with_neutral_losses(&model.glycan.neutral_losses)),
                 );
                 // Generate all diagnostic ions
                 base_fragments.extend(
                     self.diagnostic_ions(peptidoform_index, peptide_index, attachment)
                         .into_iter()
-                        .flat_map(|f| f.with_charges(&single_charges)),
+                        .flat_map(|f| {
+                            f.with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
+                        }),
                 );
                 base_fragments
             })

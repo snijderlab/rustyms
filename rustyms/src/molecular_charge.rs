@@ -30,43 +30,64 @@ impl MolecularCharge {
         }
     }
 
-    /// Generate all possible charge carrier options that have a charge of one,
-    /// used for small ions (immonium/diagnostic/glycan diagnostic) as these are
-    /// not expected to ever have a higher charge.
-    pub fn all_single_charge_options(&self) -> Vec<Self> {
-        self.charge_carriers
-            .iter()
-            .filter_map(|(n, c)| {
-                (*n > 0 && c.charge().value == 1).then_some(Self::new(&[(1, c.clone())]))
-            })
-            .collect()
-    }
+    /// Get all options resulting in this exact charge
+    pub fn options(&self, charge: Charge) -> Vec<Self> {
+        let remainder = self.charge().value % charge.value;
+        let quotient = self.charge().value / charge.value;
 
-    /// Generate all possible charge carrier options from the selection of ions for use in fragment calculations
-    pub fn all_charge_options(&self) -> Vec<Self> {
-        let mut options: Vec<Vec<(isize, MolecularFormula)>> = Vec::new();
+        let mut too_low_options: Vec<Vec<(isize, MolecularFormula)>> = Vec::new();
+        let mut options = Vec::new();
         for carrier in &self.charge_carriers {
             let mut new_options = Vec::new();
-            if options.is_empty() {
+            if too_low_options.is_empty() {
                 for n in 0..=carrier.0 {
-                    new_options.push(vec![(n, carrier.1.clone())]);
+                    let charge = n * carrier.1.charge();
+                    if charge.value < remainder {
+                        new_options.push(vec![(n, carrier.1.clone())]);
+                    }
+                    if charge.value == remainder {
+                        options.push(vec![(n, carrier.1.clone())]);
+                    }
                 }
             } else {
                 for n in 0..=carrier.0 {
-                    for o in &options {
+                    for o in &too_low_options {
                         let mut new = o.clone();
                         new.push((n, carrier.1.clone()));
+                        let full_charge = new
+                            .iter()
+                            .fold(Charge::default(), |acc, (amount, formula)| {
+                                acc + *amount * formula.charge()
+                            });
+
+                        for n in 0..=carrier.0 {
+                            let charge = n * carrier.1.charge() + full_charge;
+                            if charge.value < remainder {
+                                new_options.push(vec![(n, carrier.1.clone())]);
+                            }
+                            if charge.value == remainder {
+                                options.push(vec![(n, carrier.1.clone())]);
+                            }
+                        }
+
                         new_options.push(new);
                     }
                 }
             }
-            options = new_options;
+            too_low_options = new_options;
         }
-        // Ignore the case where no charge carriers are present at all and combine the cases into single molecular formulas
+
         options
             .into_iter()
-            .filter(|o| o.iter().map(|o| o.0).sum::<isize>() != 0)
-            .map(|charge_carriers| Self { charge_carriers })
+            .map(|charge_carriers| {
+                let mut charge_carriers = charge_carriers;
+                charge_carriers.extend(
+                    std::iter::repeat(self.charge_carriers.clone())
+                        .take(quotient as usize)
+                        .flatten(),
+                );
+                Self { charge_carriers }.simplified()
+            })
             .collect()
     }
 
@@ -77,6 +98,29 @@ impl MolecularCharge {
             .fold(Charge::default(), |acc, (amount, formula)| {
                 acc + *amount * formula.charge()
             })
+    }
+
+    // The elements will be sorted on ion and deduplicated
+    #[must_use]
+    fn simplified(mut self) -> Self {
+        self.charge_carriers.retain(|el| el.0 != 0);
+        self.charge_carriers.sort_by(|a, b| a.1.cmp(&b.1));
+        // Deduplicate
+        let mut max = self.charge_carriers.len().saturating_sub(1);
+        let mut index = 0;
+        while index < max {
+            let this = &self.charge_carriers[index];
+            let next = &self.charge_carriers[index + 1];
+            if this.1 == next.1 {
+                self.charge_carriers[index].0 += next.0;
+                self.charge_carriers.remove(index + 1);
+                max = max.saturating_sub(1);
+            } else {
+                index += 1;
+            }
+        }
+        self.charge_carriers.retain(|el| el.0 != 0);
+        self
     }
 }
 
@@ -139,7 +183,7 @@ mod tests {
     #[test]
     fn simple_charge_options() {
         let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1))]);
-        let options = mc.all_charge_options();
+        let options = mc.options(crate::system::isize::Charge::new::<crate::system::e>(1));
         assert_eq!(options.len(), 1);
         assert_eq!(
             options[0].formula(SequencePosition::default(), 0),

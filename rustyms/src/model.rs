@@ -6,46 +6,108 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::PeptidePosition,
-    helper_functions::RangeExtension,
-    system::{f64::MassOverCharge, mz},
+    system::{e, f64::MassOverCharge, isize::Charge, mz},
     NeutralLoss, Tolerance,
 };
 
+/// Control what charges are allowed for an ion series. Defined as an inclusive range.
+/// Any charge above the precursor charge will result in the quotient time the precursor
+/// charge carriers + all options for the remainder within the limits of the precursor
+/// charge carriers.
+#[non_exhaustive]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ChargeRange {
+    /// Start point
+    start: ChargePoint,
+    /// End point (inclusive)
+    end: ChargePoint,
+}
+
+impl ChargeRange {
+    /// Get all possible charges for the given precursor charge.
+    pub fn charges(&self, precursor: Charge) -> RangeInclusive<Charge> {
+        self.start.to_absolute(precursor)..=self.end.to_absolute(precursor)
+    }
+
+    /// Get all possible charges for the given precursor charge.
+    pub fn charges_iter(
+        &self,
+        precursor: Charge,
+    ) -> impl DoubleEndedIterator<Item = Charge> + Clone {
+        (self.start.to_absolute(precursor).value..=self.end.to_absolute(precursor).value)
+            .map(Charge::new::<e>)
+    }
+
+    /// Solely single charged
+    pub const ONE: Self = Self {
+        start: ChargePoint::Absolute(1),
+        end: ChargePoint::Absolute(1),
+    };
+    /// Only the exact precursor charge
+    pub const PRECURSOR: Self = Self {
+        start: ChargePoint::Relative(0),
+        end: ChargePoint::Relative(0),
+    };
+    /// Range from 1 to the precursor
+    pub const ONE_TO_PRECURSOR: Self = Self {
+        start: ChargePoint::Absolute(1),
+        end: ChargePoint::Relative(0),
+    };
+}
+
+/// A reference point for charge range definition.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum ChargePoint {
+    /// Relative to the precursor, with the given offset.
+    Relative(isize),
+    /// Absolute charge.
+    Absolute(isize),
+}
+
+impl ChargePoint {
+    /// Get the absolute charge of this charge point given a precursor charge
+    fn to_absolute(self, precursor: Charge) -> Charge {
+        match self {
+            Self::Absolute(a) => Charge::new::<e>(a),
+            Self::Relative(r) => Charge::new::<e>(precursor.value + r),
+        }
+    }
+}
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Model {
     /// a series ions
-    pub a: (Location, Vec<NeutralLoss>),
+    pub a: PrimaryIonSeries,
     /// b series ions
-    pub b: (Location, Vec<NeutralLoss>),
+    pub b: PrimaryIonSeries,
     /// c series ions
-    pub c: (Location, Vec<NeutralLoss>),
+    pub c: PrimaryIonSeries,
     /// d series ions (side chain fragmentation from a)
-    pub d: (Location, Vec<NeutralLoss>),
+    pub d: PrimaryIonSeries,
     /// v series ions (full side chain broken off)
-    pub v: (Location, Vec<NeutralLoss>),
+    pub v: PrimaryIonSeries,
     /// w series ions (side chain fragmentation from z)
-    pub w: (Location, Vec<NeutralLoss>),
+    pub w: PrimaryIonSeries,
     /// x series ions
-    pub x: (Location, Vec<NeutralLoss>),
+    pub x: PrimaryIonSeries,
     /// y series ions
-    pub y: (Location, Vec<NeutralLoss>),
+    pub y: PrimaryIonSeries,
     /// z series ions
-    pub z: (Location, Vec<NeutralLoss>),
+    pub z: PrimaryIonSeries,
     /// precursor ions
-    pub precursor: Vec<NeutralLoss>,
+    pub precursor: (Vec<NeutralLoss>, ChargeRange),
     /// immonium ions
-    pub immonium: bool,
-    /// m ions, loss of the amino acid side chain from the precursor
+    pub immonium: (bool, ChargeRange),
+    /// m ions, loss of the amino acid side chain from the precursor (follows precursor charge)
     pub m: bool,
     /// If the neutral losses specific for modifications should be generated
     pub modification_specific_neutral_losses: bool,
-    /// If the diagnostic ions specific for modifications should be generated
-    pub modification_specific_diagnostic_ions: bool,
-    /// (allow structural fragments, allow compositional fragments (of this number of mono saccharides (inclusive range)), the allowed neutral losses)
-    pub glycan: (bool, (usize, usize), Vec<NeutralLoss>),
+    /// If the diagnostic ions specific for modifications should be generated with the allowed charge range
+    pub modification_specific_diagnostic_ions: (bool, ChargeRange),
+    /// Glycan fragmentation
+    pub glycan: GlycanModel,
     /// Allow any MS cleavable cross-link to be cleaved
     pub allow_cross_link_cleavage: bool,
     /// The matching tolerance
@@ -54,33 +116,153 @@ pub struct Model {
     pub mz_range: RangeInclusive<MassOverCharge>,
 }
 
+/// The settings for any primary ion series
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub struct PrimaryIonSeries {
+    /// Which locations are assumed to lead to fragmentation
+    pub location: Location,
+    /// The allowed neutral losses
+    pub neutral_losses: Vec<NeutralLoss>,
+    /// The allowed charges
+    pub charge_range: ChargeRange,
+}
+
+impl PrimaryIonSeries {
+    /// Replace the location
+    #[must_use]
+    pub fn location(self, location: Location) -> Self {
+        Self { location, ..self }
+    }
+    /// Replace the neutral losses
+    #[must_use]
+    pub fn neutral_losses(self, neutral_losses: Vec<NeutralLoss>) -> Self {
+        Self {
+            neutral_losses,
+            ..self
+        }
+    }
+    /// Replace the charge range
+    #[must_use]
+    pub fn charge_range(self, charge_range: ChargeRange) -> Self {
+        Self {
+            charge_range,
+            ..self
+        }
+    }
+}
+
+impl std::default::Default for PrimaryIonSeries {
+    fn default() -> Self {
+        Self {
+            location: Location::All,
+            neutral_losses: Vec::new(),
+            charge_range: ChargeRange::ONE_TO_PRECURSOR,
+        }
+    }
+}
+
+/// The settings for glycan fragmentation
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub struct GlycanModel {
+    /// Allows fragments from glycans with defined structures (ie GNO modifications)
+    pub allow_structural: bool,
+    /// Allows fragments from glycans where only the composition is known (ie `Glycan:Hex1`).
+    /// This allows any fragment containing any number of monosaccharides within this range.
+    pub compositional_range: RangeInclusive<usize>,
+    /// The allowed neutral losses
+    pub neutral_losses: Vec<NeutralLoss>,
+    /// The allowed charges for oxonium ions (B, internal fragments etc)
+    pub oxonium_charge_range: ChargeRange,
+    /// The allowed charges for other glycan fragments (Y)
+    pub other_charge_range: ChargeRange,
+}
+
+impl GlycanModel {
+    /// Sets the status of glycan fragments from structural modifications
+    #[must_use]
+    pub fn allow_structural(self, allow_structural: bool) -> Self {
+        Self {
+            allow_structural,
+            ..self
+        }
+    }
+    /// Set the range of monosaccharides tha can result in composition fragments, see [`Self::compositional_range`].
+    #[must_use]
+    pub fn compositional_range(self, compositional_range: RangeInclusive<usize>) -> Self {
+        Self {
+            compositional_range,
+            ..self
+        }
+    }
+    /// Replace the neutral losses
+    #[must_use]
+    pub fn neutral_losses(self, neutral_losses: Vec<NeutralLoss>) -> Self {
+        Self {
+            neutral_losses,
+            ..self
+        }
+    }
+    /// Replace the charge range for oxonium ions (B, internal fragments etc)
+    #[must_use]
+    pub fn oxonium_charge_range(self, oxonium_charge_range: ChargeRange) -> Self {
+        Self {
+            oxonium_charge_range,
+            ..self
+        }
+    }
+    /// Replace the charge range for other glycan ions (Y etc)
+    #[must_use]
+    pub fn other_charge_range(self, other_charge_range: ChargeRange) -> Self {
+        Self {
+            other_charge_range,
+            ..self
+        }
+    }
+    /// Default set for models that allow glycan fragmentation
+    pub const ALLOW: Self = Self {
+        allow_structural: true,
+        compositional_range: 1..=3,
+        neutral_losses: Vec::new(),
+        oxonium_charge_range: ChargeRange::ONE,
+        other_charge_range: ChargeRange::ONE_TO_PRECURSOR,
+    };
+    /// Default set for models that disallow glycan fragmentation
+    pub const DISALLOW: Self = Self {
+        allow_structural: false,
+        compositional_range: 0..=0,
+        neutral_losses: Vec::new(),
+        oxonium_charge_range: ChargeRange::ONE,
+        other_charge_range: ChargeRange::ONE_TO_PRECURSOR,
+    };
+}
+
 /// A struct to handle all possible fragments that could be generated on a single location
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 #[non_exhaustive]
 pub struct PossibleIons<'a> {
     /// a series ions
-    pub a: (bool, &'a [NeutralLoss]),
+    pub a: (bool, &'a [NeutralLoss], ChargeRange),
     /// b series ions
-    pub b: (bool, &'a [NeutralLoss]),
+    pub b: (bool, &'a [NeutralLoss], ChargeRange),
     /// c series ions
-    pub c: (bool, &'a [NeutralLoss]),
+    pub c: (bool, &'a [NeutralLoss], ChargeRange),
     /// d series ions (side chain fragmentation from a)
-    pub d: (bool, &'a [NeutralLoss]),
+    pub d: (bool, &'a [NeutralLoss], ChargeRange),
     /// v series ions (full side chain broken off)
-    pub v: (bool, &'a [NeutralLoss]),
+    pub v: (bool, &'a [NeutralLoss], ChargeRange),
     /// w series ions (side chain fragmentation from z)
-    pub w: (bool, &'a [NeutralLoss]),
+    pub w: (bool, &'a [NeutralLoss], ChargeRange),
     /// x series ions
-    pub x: (bool, &'a [NeutralLoss]),
+    pub x: (bool, &'a [NeutralLoss], ChargeRange),
     /// y series ions
-    pub y: (bool, &'a [NeutralLoss]),
+    pub y: (bool, &'a [NeutralLoss], ChargeRange),
     /// z series ions
-    pub z: (bool, &'a [NeutralLoss]),
+    pub z: (bool, &'a [NeutralLoss], ChargeRange),
     /// precursor ions
-    pub precursor: &'a [NeutralLoss],
+    pub precursor: (&'a [NeutralLoss], ChargeRange),
     /// immonium
-    pub immonium: bool,
+    pub immonium: (bool, ChargeRange),
 }
 
 impl<'a> PossibleIons<'a> {
@@ -95,96 +277,74 @@ impl<'a> PossibleIons<'a> {
             + usize::from(self.x.0) * (self.x.1.len() + 1)
             + usize::from(self.y.0) * (self.y.1.len() + 1)
             + usize::from(self.z.0) * 2 * (self.z.1.len() + 1)
-            + self.precursor.len()
+            + self.precursor.0.len()
             + 1
     }
 }
 
 /// Builder style methods
 impl Model {
-    /// Set a to the given location and overwrite the neutral losses
+    /// Set a
     #[must_use]
-    pub fn a(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            a: (location, neutral_loss),
-            ..self
-        }
+    pub fn a(self, a: PrimaryIonSeries) -> Self {
+        Self { a, ..self }
     }
-    /// Set b to the given location and overwrite the neutral losses
+    /// Set b
     #[must_use]
-    pub fn b(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            b: (location, neutral_loss),
-            ..self
-        }
+    pub fn b(self, b: PrimaryIonSeries) -> Self {
+        Self { b, ..self }
     }
-    /// Set c to the given location and overwrite the neutral losses
+    /// Set c
     #[must_use]
-    pub fn c(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            c: (location, neutral_loss),
-            ..self
-        }
+    pub fn c(self, c: PrimaryIonSeries) -> Self {
+        Self { c, ..self }
     }
-    /// Set d to the given location and overwrite the neutral losses
+    /// Set d
     #[must_use]
-    pub fn d(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            d: (location, neutral_loss),
-            ..self
-        }
+    pub fn d(self, d: PrimaryIonSeries) -> Self {
+        Self { d, ..self }
     }
-    /// Set v to the given location and overwrite the neutral losses
+    /// Set v
     #[must_use]
-    pub fn v(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            v: (location, neutral_loss),
-            ..self
-        }
+    pub fn v(self, v: PrimaryIonSeries) -> Self {
+        Self { v, ..self }
     }
-    /// Set w to the given location and overwrite the neutral losses
+    /// Set w
     #[must_use]
-    pub fn w(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            w: (location, neutral_loss),
-            ..self
-        }
+    pub fn w(self, w: PrimaryIonSeries) -> Self {
+        Self { w, ..self }
     }
-    /// Set x to the given location and overwrite the neutral losses
+    /// Set x
     #[must_use]
-    pub fn x(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            x: (location, neutral_loss),
-            ..self
-        }
+    pub fn x(self, x: PrimaryIonSeries) -> Self {
+        Self { x, ..self }
     }
-    /// Set y to the given location and overwrite the neutral losses
+    /// Set y
     #[must_use]
-    pub fn y(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            y: (location, neutral_loss),
-            ..self
-        }
+    pub fn y(self, y: PrimaryIonSeries) -> Self {
+        Self { y, ..self }
     }
-    /// Set z to the given location and overwrite the neutral losses
+    /// Set z
     #[must_use]
-    pub fn z(self, location: Location, neutral_loss: Vec<NeutralLoss>) -> Self {
-        Self {
-            z: (location, neutral_loss),
-            ..self
-        }
+    pub fn z(self, z: PrimaryIonSeries) -> Self {
+        Self { z, ..self }
+    }
+    /// Set glycan
+    #[must_use]
+    pub fn glycan(self, glycan: GlycanModel) -> Self {
+        Self { glycan, ..self }
     }
     /// Overwrite the precursor neutral losses
     #[must_use]
-    pub fn precursor(self, neutral_loss: Vec<NeutralLoss>) -> Self {
+    pub fn precursor(self, neutral_loss: Vec<NeutralLoss>, charges: ChargeRange) -> Self {
         Self {
-            precursor: neutral_loss,
+            precursor: (neutral_loss, charges),
             ..self
         }
     }
     /// Set immonium
     #[must_use]
-    pub fn immonium(self, state: bool) -> Self {
+    pub fn immonium(self, state: (bool, ChargeRange)) -> Self {
         Self {
             immonium: state,
             ..self
@@ -205,29 +365,9 @@ impl Model {
     }
     /// Set modification specific diagnostic ions
     #[must_use]
-    pub fn modification_specific_diagnostic_ions(self, state: bool) -> Self {
+    pub fn modification_specific_diagnostic_ions(self, state: (bool, ChargeRange)) -> Self {
         Self {
             modification_specific_diagnostic_ions: state,
-            ..self
-        }
-    }
-    /// Set glycans, `None` makes no fragments, `Some(_)` makes fragments, with the given neutral losses
-    #[must_use]
-    pub fn glycan(
-        self,
-        allow_structural: bool,
-        allow_compositional: std::ops::RangeInclusive<usize>,
-        neutral_losses: Vec<NeutralLoss>,
-    ) -> Self {
-        Self {
-            glycan: (
-                allow_structural,
-                (
-                    allow_compositional.start_index(),
-                    allow_compositional.end_index(usize::MAX),
-                ),
-                neutral_losses,
-            ),
             ..self
         }
     }
@@ -259,16 +399,52 @@ impl Model {
     pub fn ions(&self, position: PeptidePosition) -> PossibleIons {
         let c_position = position.flip_terminal();
         PossibleIons {
-            a: (self.a.0.possible(position), self.a.1.as_slice()),
-            b: (self.b.0.possible(position), self.b.1.as_slice()),
-            c: (self.c.0.possible(position), self.c.1.as_slice()),
-            d: (self.d.0.possible(position), self.d.1.as_slice()),
-            v: (self.v.0.possible(c_position), self.v.1.as_slice()),
-            w: (self.w.0.possible(c_position), self.w.1.as_slice()),
-            x: (self.x.0.possible(c_position), self.x.1.as_slice()),
-            y: (self.y.0.possible(c_position), self.y.1.as_slice()),
-            z: (self.z.0.possible(c_position), self.z.1.as_slice()),
-            precursor: self.precursor.as_slice(),
+            a: (
+                self.a.location.possible(position),
+                self.a.neutral_losses.as_slice(),
+                self.a.charge_range,
+            ),
+            b: (
+                self.b.location.possible(position),
+                self.b.neutral_losses.as_slice(),
+                self.b.charge_range,
+            ),
+            c: (
+                self.c.location.possible(position),
+                self.c.neutral_losses.as_slice(),
+                self.c.charge_range,
+            ),
+            d: (
+                self.d.location.possible(position),
+                self.d.neutral_losses.as_slice(),
+                self.d.charge_range,
+            ),
+            v: (
+                self.v.location.possible(c_position),
+                self.v.neutral_losses.as_slice(),
+                self.v.charge_range,
+            ),
+            w: (
+                self.w.location.possible(c_position),
+                self.w.neutral_losses.as_slice(),
+                self.w.charge_range,
+            ),
+            x: (
+                self.x.location.possible(c_position),
+                self.x.neutral_losses.as_slice(),
+                self.x.charge_range,
+            ),
+            y: (
+                self.y.location.possible(c_position),
+                self.y.neutral_losses.as_slice(),
+                self.y.charge_range,
+            ),
+            z: (
+                self.z.location.possible(c_position),
+                self.z.neutral_losses.as_slice(),
+                self.z.charge_range,
+            ),
+            precursor: (self.precursor.0.as_slice(), self.precursor.1),
             immonium: self.immonium,
         }
     }
@@ -276,52 +452,34 @@ impl Model {
     /// Generate all possible fragments
     pub fn all() -> Self {
         Self {
-            a: (
-                Location::All,
+            a: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            b: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            c: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            d: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            v: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            w: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            x: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            y: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            z: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            precursor: (
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                ChargeRange::PRECURSOR,
             ),
-            b: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            c: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            d: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            v: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            w: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            x: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            y: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            z: (
-                Location::All,
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            immonium: true,
+            immonium: (true, ChargeRange::ONE),
             m: true,
             modification_specific_neutral_losses: true,
-            modification_specific_diagnostic_ions: true,
-            glycan: (
-                true,
-                (1, 3),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::ALLOW
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
@@ -331,21 +489,21 @@ impl Model {
     /// Generate no fragments (except for precursor)
     pub fn none() -> Self {
         Self {
-            a: (Location::None, vec![]),
-            b: (Location::None, vec![]),
-            c: (Location::None, vec![]),
-            d: (Location::None, vec![]),
-            v: (Location::None, vec![]),
-            w: (Location::None, vec![]),
-            x: (Location::None, vec![]),
-            y: (Location::None, vec![]),
-            z: (Location::None, vec![]),
-            precursor: vec![],
-            immonium: false,
+            a: PrimaryIonSeries::default().location(Location::None),
+            b: PrimaryIonSeries::default().location(Location::None),
+            c: PrimaryIonSeries::default().location(Location::None),
+            d: PrimaryIonSeries::default().location(Location::None),
+            v: PrimaryIonSeries::default().location(Location::None),
+            w: PrimaryIonSeries::default().location(Location::None),
+            x: PrimaryIonSeries::default().location(Location::None),
+            y: PrimaryIonSeries::default().location(Location::None),
+            z: PrimaryIonSeries::default().location(Location::None),
+            precursor: (vec![], ChargeRange::PRECURSOR),
+            immonium: (false, ChargeRange::ONE),
             m: false,
             modification_specific_neutral_losses: false,
-            modification_specific_diagnostic_ions: false,
-            glycan: (false, (0, 0), Vec::new()),
+            modification_specific_diagnostic_ions: (false, ChargeRange::ONE),
+            glycan: GlycanModel::DISALLOW,
             allow_cross_link_cleavage: false,
             tolerance: Tolerance::new_ppm(20.0),
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
@@ -355,40 +513,33 @@ impl Model {
     /// electron-transfer/higher-energy collisional dissociation
     pub fn ethcd() -> Self {
         Self {
-            a: (Location::None, Vec::new()),
-            b: (
-                Location::SkipC(1),
+            a: PrimaryIonSeries::default().location(Location::None),
+            b: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            c: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            d: PrimaryIonSeries::default().location(Location::None),
+            v: PrimaryIonSeries::default().location(Location::None),
+            w: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            x: PrimaryIonSeries::default().location(Location::None),
+            y: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            z: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            precursor: (
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                ChargeRange {
+                    start: ChargePoint::Relative(-2),
+                    end: ChargePoint::Relative(0),
+                },
             ),
-            c: (
-                Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            d: (Location::None, Vec::new()),
-            v: (Location::None, Vec::new()),
-            w: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            x: (Location::None, Vec::new()),
-            y: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            z: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            immonium: false,
+            immonium: (false, ChargeRange::ONE),
             m: false,
             modification_specific_neutral_losses: true,
-            modification_specific_diagnostic_ions: true,
-            glycan: (
-                true,
-                (1, 3),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::ALLOW
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
@@ -398,33 +549,30 @@ impl Model {
     /// CID Hcd
     pub fn cid_hcd() -> Self {
         Self {
-            a: (
-                Location::TakeN { skip: 1, take: 1 },
+            a: PrimaryIonSeries::default()
+                .location(Location::TakeN { skip: 1, take: 1 })
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            b: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            c: PrimaryIonSeries::default().location(Location::None),
+            d: PrimaryIonSeries::default()
+                .location(Location::TakeN { skip: 1, take: 1 })
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            v: PrimaryIonSeries::default().location(Location::None),
+            w: PrimaryIonSeries::default().location(Location::None),
+            x: PrimaryIonSeries::default().location(Location::None),
+            y: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            z: PrimaryIonSeries::default().location(Location::None),
+            precursor: (
                 vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                ChargeRange::PRECURSOR,
             ),
-            b: (
-                Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            c: (Location::None, Vec::new()),
-            d: (
-                Location::TakeN { skip: 1, take: 1 },
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            v: (Location::None, Vec::new()),
-            w: (Location::None, Vec::new()),
-            x: (Location::None, Vec::new()),
-            y: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            z: (Location::None, Vec::new()),
-            precursor: vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            immonium: false,
+            immonium: (false, ChargeRange::ONE),
             m: false,
             modification_specific_neutral_losses: true,
-            modification_specific_diagnostic_ions: true,
-            glycan: (false, (0, 0), Vec::new()),
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::DISALLOW,
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
@@ -434,36 +582,36 @@ impl Model {
     /// ETD
     pub fn etd() -> Self {
         Self {
-            a: (Location::None, Vec::new()),
-            b: (Location::None, Vec::new()),
-            c: (
-                Location::SkipC(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+            a: PrimaryIonSeries::default().location(Location::None),
+            b: PrimaryIonSeries::default().location(Location::None),
+            c: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            d: PrimaryIonSeries::default().location(Location::None),
+            v: PrimaryIonSeries::default().location(Location::None),
+            w: PrimaryIonSeries::default().location(Location::None), // TODO: Are w ions also formed here?
+            x: PrimaryIonSeries::default().location(Location::None),
+            y: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            z: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            precursor: (
+                vec![
+                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 1 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                    NeutralLoss::Loss(molecular_formula!(C 1 H 1 O 2)),
+                    NeutralLoss::Loss(molecular_formula!(C 2 H 3 O 2)),
+                ],
+                ChargeRange {
+                    start: ChargePoint::Relative(-2),
+                    end: ChargePoint::Relative(0),
+                },
             ),
-            d: (Location::None, Vec::new()),
-            v: (Location::None, Vec::new()),
-            w: (Location::None, Vec::new()), // TODO: Are w ions also formed here?
-            x: (Location::None, Vec::new()),
-            y: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            z: (
-                Location::SkipN(1),
-                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
-            ),
-            precursor: vec![
-                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
-                NeutralLoss::Loss(molecular_formula!(H 1 O 1)),
-                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
-                NeutralLoss::Loss(molecular_formula!(C 1 H 1 O 2)),
-                NeutralLoss::Loss(molecular_formula!(C 2 H 3 O 2)),
-            ],
-            immonium: false,
+            immonium: (false, ChargeRange::ONE),
             m: false,
             modification_specific_neutral_losses: true,
-            modification_specific_diagnostic_ions: true,
-            glycan: (false, (0, 0), Vec::new()),
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::DISALLOW,
             allow_cross_link_cleavage: true,
             tolerance: Tolerance::new_ppm(20.0),
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
@@ -519,7 +667,7 @@ impl Location {
 }
 
 #[test]
-#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_panics_doc, clippy::similar_names)]
 fn location_all() {
     let all = Model::all();
     let ions_n0 = all.ions(PeptidePosition::n(crate::SequencePosition::default(), 2));

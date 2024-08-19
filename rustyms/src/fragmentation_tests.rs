@@ -31,15 +31,13 @@ fn triple_a() {
         (74.036231, "z·+1"),
         (232.129183, "precursor"),
     ];
-    let model = Model {
-        a: (Location::SkipC(1), vec![]),
-        b: (Location::SkipC(1), vec![]),
-        c: (Location::SkipC(1), vec![]),
-        x: (Location::SkipN(1), vec![]),
-        y: (Location::SkipN(1), vec![]),
-        z: (Location::SkipN(1), vec![]),
-        ..Model::none()
-    };
+    let model = Model::none()
+        .a(PrimaryIonSeries::default())
+        .b(PrimaryIonSeries::default())
+        .c(PrimaryIonSeries::default())
+        .x(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .z(PrimaryIonSeries::default());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("AAA", None)
@@ -80,15 +78,13 @@ fn with_modifications() {
         (150.034512, "z·1"),
         (419.159491, "precursor"),
     ];
-    let model = Model {
-        a: (Location::SkipC(1), vec![]),
-        b: (Location::SkipC(1), vec![]),
-        c: (Location::SkipC(1), vec![]),
-        x: (Location::SkipN(1), vec![]),
-        y: (Location::SkipN(1), vec![]),
-        z: (Location::SkipN(1), vec![]),
-        ..Model::none()
-    };
+    let model = Model::none()
+        .a(PrimaryIonSeries::default())
+        .b(PrimaryIonSeries::default())
+        .c(PrimaryIonSeries::default())
+        .x(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .z(PrimaryIonSeries::default());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("[Gln->pyro-Glu]-QAAM[Oxidation]", None).unwrap(),
@@ -109,11 +105,9 @@ fn with_possible_modifications() {
         (166.053236, "M2-y1"),
         (297.093720, "precursor"),
     ];
-    let model = Model {
-        b: (Location::All, vec![]),
-        y: (Location::All, vec![]),
-        ..Model::none()
-    };
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
@@ -143,10 +137,7 @@ fn higher_charges() {
         (147.058660, "a2+1"),
         (62.424038, "precursor"),
     ];
-    let model = Model {
-        a: (Location::SkipC(1), vec![]),
-        ..Model::none()
-    };
+    let model = Model::none().a(PrimaryIonSeries::default());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("ACD", None)
@@ -299,15 +290,13 @@ fn all_aminoacids() {
         (102.067531, "z·1"),
         (2395.132183, "precursor"),
     ];
-    let model = Model {
-        a: (Location::SkipC(1), vec![]),
-        b: (Location::SkipC(1), vec![]),
-        c: (Location::SkipC(1), vec![]),
-        x: (Location::SkipN(1), vec![]),
-        y: (Location::SkipN(1), vec![]),
-        z: (Location::SkipN(1), vec![]),
-        ..Model::none()
-    };
+    let model = Model::none()
+        .a(PrimaryIonSeries::default())
+        .b(PrimaryIonSeries::default())
+        .c(PrimaryIonSeries::default())
+        .x(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .z(PrimaryIonSeries::default());
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV", None)
@@ -338,7 +327,7 @@ fn glycan_fragmentation() {
         (2882.47169015166, "N"),
         (2679.39232015166, "Base"),
     ];
-    let model = Model::none().glycan(true, 0..=0, Vec::new());
+    let model = Model::none().glycan(GlycanModel::ALLOW);
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
@@ -395,8 +384,8 @@ fn intra_link() {
         CompoundPeptidoform::pro_forma("K[C:DSSO#XL1]GK[#XL1]FLK", Some(&custom_dsso_database()))
             .unwrap();
     let model = Model::none()
-        .b(Location::All, Vec::new())
-        .y(Location::All, Vec::new())
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
         .allow_cross_link_cleavage(true);
     test(theoretical_fragments, peptide, &model, 2, true);
 }

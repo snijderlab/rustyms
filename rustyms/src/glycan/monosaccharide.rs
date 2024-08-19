@@ -82,10 +82,8 @@ impl MonoSaccharide {
             return Vec::new();
         }
         let mut fragments = Vec::new();
-        let single_charges = charge_carriers.all_single_charge_options();
-        let all_charges = charge_carriers.all_charge_options();
         let compositions =
-            Self::composition_options(composition, model.glycan.1 .0..=model.glycan.1 .1);
+            Self::composition_options(composition, model.glycan.compositional_range.clone());
 
         // Generate compositional B and Y ions
         for composition in compositions {
@@ -101,8 +99,8 @@ impl MonoSaccharide {
                     peptide_index,
                     FragmentType::OxoniumComposition(composition.clone(), attachment),
                 )
-                .with_charges(&single_charges)
-                .flat_map(|o| o.with_neutral_losses(&model.glycan.2)),
+                .with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
+                .flat_map(|o| o.with_neutral_losses(&model.glycan.neutral_losses)),
             );
             fragments.extend(full_formula.to_vec().iter().flat_map(|base| {
                 Fragment::new(
@@ -112,8 +110,8 @@ impl MonoSaccharide {
                     peptide_index,
                     FragmentType::YComposition(composition.clone(), attachment),
                 )
-                .with_charges(&all_charges)
-                .flat_map(|o| o.with_neutral_losses(&model.glycan.2))
+                .with_charge_range(charge_carriers, model.glycan.other_charge_range)
+                .flat_map(|o| o.with_neutral_losses(&model.glycan.neutral_losses))
             }));
         }
 
@@ -128,7 +126,9 @@ impl MonoSaccharide {
                         false,
                     )
                     .into_iter()
-                    .flat_map(|d| d.with_charges(&single_charges)),
+                    .flat_map(|d| {
+                        d.with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
+                    }),
             );
         }
 

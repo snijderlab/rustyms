@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -352,6 +351,8 @@ impl AminoAcid {
                 &FragmentType::a(n_pos),
                 n_term,
                 ions.a.1,
+                charge_carriers,
+                ions.a.2,
             ));
         }
         if ions.b.0 && allow_side.0 {
@@ -363,6 +364,8 @@ impl AminoAcid {
                 &FragmentType::b(n_pos),
                 n_term,
                 ions.b.1,
+                charge_carriers,
+                ions.b.2,
             ));
         }
         if ions.c.0 && allow_side.0 {
@@ -374,6 +377,8 @@ impl AminoAcid {
                 &FragmentType::c(n_pos),
                 n_term,
                 ions.c.1,
+                charge_carriers,
+                ions.c.2,
             ));
         }
         if ions.d.0 && allow_side.0 {
@@ -387,6 +392,8 @@ impl AminoAcid {
                 &FragmentType::d(n_pos),
                 n_term,
                 ions.d.1,
+                charge_carriers,
+                ions.d.2,
             ));
         }
         if ions.v.0 && allow_side.1 {
@@ -397,6 +404,8 @@ impl AminoAcid {
                 &FragmentType::v(c_pos),
                 c_term,
                 ions.v.1,
+                charge_carriers,
+                ions.v.2,
             ));
         }
         if ions.w.0 && allow_side.1 {
@@ -410,6 +419,8 @@ impl AminoAcid {
                 &FragmentType::w(c_pos),
                 c_term,
                 ions.w.1,
+                charge_carriers,
+                ions.w.2,
             ));
         }
         if ions.x.0 && allow_side.1 {
@@ -421,6 +432,8 @@ impl AminoAcid {
                 &FragmentType::x(c_pos),
                 c_term,
                 ions.x.1,
+                charge_carriers,
+                ions.x.2,
             ));
         }
         if ions.y.0 && allow_side.1 {
@@ -432,6 +445,8 @@ impl AminoAcid {
                 &FragmentType::y(c_pos),
                 c_term,
                 ions.y.1,
+                charge_carriers,
+                ions.y.2,
             ));
         }
         if ions.z.0 && allow_side.1 {
@@ -443,6 +458,8 @@ impl AminoAcid {
                 &FragmentType::z(c_pos),
                 c_term,
                 ions.z.1,
+                charge_carriers,
+                ions.z.2,
             ));
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
@@ -452,19 +469,14 @@ impl AminoAcid {
                 &FragmentType::z·(c_pos),
                 c_term,
                 ions.z.1,
+                charge_carriers,
+                ions.z.2,
             ));
         }
-        let charge_options = charge_carriers.all_charge_options();
-        let mut charged = Vec::with_capacity(base_fragments.len() * charge_options.len());
-        for (base, charge) in base_fragments
-            .iter()
-            .cartesian_product(charge_options.iter())
-        {
-            charged.push(base.with_charge(charge));
-        }
+
         // Immonium ions will only be generated with charge 1
-        if ions.immonium {
-            let options = Fragment::generate_all(
+        if ions.immonium.0 {
+            base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(C 1 O 1))),
                 peptidoform_index,
@@ -472,15 +484,11 @@ impl AminoAcid {
                 &FragmentType::immonium(n_pos, self),
                 &Multi::default(),
                 self.immonium_losses().as_slice(),
-            );
-            let single_charges = charge_carriers.all_single_charge_options();
-            charged.extend(
-                options
-                    .into_iter()
-                    .flat_map(|o| o.with_charges(&single_charges)),
-            );
+                charge_carriers,
+                ions.immonium.1,
+            ));
         }
-        charged
+        base_fragments
     }
 
     pub const fn char(self) -> char {

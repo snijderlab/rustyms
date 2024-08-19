@@ -1,7 +1,7 @@
 use std::num::NonZeroU16;
 
 use crate::{
-    model::Location,
+    model::PrimaryIonSeries,
     modification::{self, ModificationId, SimpleModification},
     peptide::{
         parse::{global_modifications, parse_charge_state},
@@ -458,10 +458,7 @@ fn parse_xl_inter() {
 #[test]
 fn dimeric_peptide() {
     // Only generate a single series, easier to reason about
-    let test_model = Model {
-        a: (Location::SkipN(1), Vec::new()),
-        ..Model::none()
-    };
+    let test_model = Model::none().a(PrimaryIonSeries::default());
 
     // With two different sequences
     let dimeric = CompoundPeptidoform::pro_forma("AA+CC", None).unwrap();
