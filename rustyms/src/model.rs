@@ -26,7 +26,8 @@ pub struct ChargeRange {
 impl ChargeRange {
     /// Get all possible charges for the given precursor charge.
     pub fn charges(&self, precursor: Charge) -> RangeInclusive<Charge> {
-        self.start.to_absolute(precursor)..=self.end.to_absolute(precursor)
+        Charge::new::<e>(self.start.to_absolute(precursor).value.max(1))
+            ..=self.end.to_absolute(precursor)
     }
 
     /// Get all possible charges for the given precursor charge.
@@ -34,7 +35,7 @@ impl ChargeRange {
         &self,
         precursor: Charge,
     ) -> impl DoubleEndedIterator<Item = Charge> + Clone {
-        (self.start.to_absolute(precursor).value..=self.end.to_absolute(precursor).value)
+        (self.start.to_absolute(precursor).value.max(1)..=self.end.to_absolute(precursor).value)
             .map(Charge::new::<e>)
     }
 

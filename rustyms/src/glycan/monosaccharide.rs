@@ -2,8 +2,9 @@
 
 use crate::{
     fragment::{DiagnosticPosition, Fragment, FragmentType},
+    molecular_charge::CachedCharge,
     system::usize::Charge,
-    AminoAcid, Model, MolecularCharge, Multi, NeutralLoss,
+    AminoAcid, Model, Multi, NeutralLoss,
 };
 
 include!("../shared/glycan.rs");
@@ -73,7 +74,7 @@ impl MonoSaccharide {
         model: &Model,
         peptidoform_index: usize,
         peptide_index: usize,
-        charge_carriers: &MolecularCharge,
+        charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {

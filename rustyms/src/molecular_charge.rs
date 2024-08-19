@@ -1,5 +1,60 @@
-use crate::{system::isize::Charge, Chemical, Element, MolecularFormula, SequencePosition};
+use std::{collections::HashMap, hash::Hash};
+
+use crate::{
+    model::ChargeRange, system::isize::Charge, Chemical, Element, MolecularFormula,
+    SequencePosition,
+};
 use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CachedCharge {
+    charge: MolecularCharge,
+    options: HashMap<Charge, Vec<MolecularCharge>>,
+    number: Charge,
+}
+
+impl CachedCharge {
+    pub fn charge(&self) -> Charge {
+        self.number
+    }
+
+    /// Get all options resulting in this exact charge
+    pub fn options(&mut self, charge: Charge) -> &[MolecularCharge] {
+        self.options
+            .entry(charge)
+            .or_insert_with(|| self.charge.options(charge))
+    }
+
+    /// Get all options
+    pub fn range(&mut self, range: ChargeRange) -> Vec<MolecularCharge> {
+        let mut options = Vec::new();
+        for c in range.charges_iter(self.charge()) {
+            options.extend_from_slice(self.options(c));
+        }
+        options
+    }
+}
+
+impl From<MolecularCharge> for CachedCharge {
+    fn from(value: MolecularCharge) -> Self {
+        let n = value.charge();
+        Self {
+            charge: value,
+            options: HashMap::new(),
+            number: n,
+        }
+    }
+}
+
+impl From<&MolecularCharge> for CachedCharge {
+    fn from(value: &MolecularCharge) -> Self {
+        Self {
+            charge: value.clone(),
+            options: HashMap::new(),
+            number: value.charge(),
+        }
+    }
+}
 
 /// A selection of ions that together define the charge of a peptide
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
@@ -31,21 +86,23 @@ impl MolecularCharge {
     }
 
     /// Get all options resulting in this exact charge
+    /// # Panics
+    /// If the charge is not at least 1.
     pub fn options(&self, charge: Charge) -> Vec<Self> {
-        let remainder = self.charge().value % charge.value;
-        let quotient = self.charge().value / charge.value;
+        assert!(charge.value > 0);
+        let remainder = self.charge().value.rem_euclid(charge.value);
+        let quotient = self.charge().value.div_euclid(charge.value).max(0);
 
         let mut too_low_options: Vec<Vec<(isize, MolecularFormula)>> = Vec::new();
         let mut options = Vec::new();
         for carrier in &self.charge_carriers {
-            let mut new_options = Vec::new();
+            let mut new_too_low_options = Vec::new();
             if too_low_options.is_empty() {
                 for n in 0..=carrier.0 {
                     let charge = n * carrier.1.charge();
                     if charge.value < remainder {
-                        new_options.push(vec![(n, carrier.1.clone())]);
-                    }
-                    if charge.value == remainder {
+                        new_too_low_options.push(vec![(n, carrier.1.clone())]);
+                    } else if charge.value == remainder {
                         options.push(vec![(n, carrier.1.clone())]);
                     }
                 }
@@ -60,21 +117,16 @@ impl MolecularCharge {
                                 acc + *amount * formula.charge()
                             });
 
-                        for n in 0..=carrier.0 {
-                            let charge = n * carrier.1.charge() + full_charge;
-                            if charge.value < remainder {
-                                new_options.push(vec![(n, carrier.1.clone())]);
-                            }
-                            if charge.value == remainder {
-                                options.push(vec![(n, carrier.1.clone())]);
-                            }
+                        let charge = n * carrier.1.charge() + full_charge;
+                        if charge.value < remainder {
+                            new_too_low_options.push(new);
+                        } else if charge.value == remainder {
+                            options.push(new);
                         }
-
-                        new_options.push(new);
                     }
                 }
             }
-            too_low_options = new_options;
+            too_low_options = new_too_low_options;
         }
 
         options

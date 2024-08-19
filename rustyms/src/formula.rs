@@ -304,7 +304,7 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &unlabelled,
             &[],
-            &MolecularCharge::proton(1),
+            &mut MolecularCharge::proton(1).into(),
             ChargeRange::ONE,
         );
         let fragment_u = Fragment::generate_all(
@@ -314,7 +314,7 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &unlabelled,
             &[],
-            &MolecularCharge::proton(1),
+            &mut MolecularCharge::proton(1).into(),
             ChargeRange::ONE,
         );
         let fragment_ul = Fragment::generate_all(
@@ -324,7 +324,7 @@ mod tests {
             &crate::fragment::FragmentType::precursor,
             &labelled,
             &[],
-            &MolecularCharge::proton(1),
+            &mut MolecularCharge::proton(1).into(),
             ChargeRange::ONE,
         );
         let all_fragments_labelled =

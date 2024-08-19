@@ -7,7 +7,7 @@ use crate::{
     modification::{
         CrossLinkName, GnoComposition, LinkerSpecificity, Modification, SimpleModification,
     },
-    molecular_charge::MolecularCharge,
+    molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
     placement_rule::PlacementRule,
     system::usize::Charge,
@@ -489,7 +489,11 @@ impl<T> LinearPeptide<T> {
             isize::try_from(max_charge.value)
                 .expect("Charge of the precursor cannot be higher then isize::MAX"),
         );
-        let charge_carriers = self.charge_carriers.as_ref().unwrap_or(&default_charge);
+        let mut charge_carriers: CachedCharge = self
+            .charge_carriers
+            .as_ref()
+            .unwrap_or(&default_charge)
+            .into();
 
         let mut output = Vec::with_capacity(20 * self.sequence.len() + 75); // Empirically derived required size of the buffer (Derived from Hecklib)
         for sequence_index in 0..self.sequence.len() {
@@ -554,7 +558,7 @@ impl<T> LinearPeptide<T> {
                 &n_term,
                 &c_term,
                 &modifications_total,
-                charge_carriers,
+                &mut charge_carriers,
                 SequencePosition::Index(sequence_index),
                 self.sequence.len(),
                 &model.ions(position),
@@ -596,7 +600,7 @@ impl<T> LinearPeptide<T> {
                                     ),
                                     &Multi::default(),
                                     &[],
-                                    charge_carriers,
+                                    &mut charge_carriers,
                                     model.precursor.1,
                                 )
                             })
@@ -638,7 +642,7 @@ impl<T> LinearPeptide<T> {
             &FragmentType::precursor,
             &Multi::default(),
             &precursor_neutral_losses,
-            charge_carriers,
+            &mut charge_carriers,
             model.precursor.1,
         ));
 
@@ -668,7 +672,7 @@ impl<T> LinearPeptide<T> {
                                 model,
                                 peptidoform_index,
                                 peptide_index,
-                                charge_carriers,
+                                &mut charge_carriers,
                                 &full_formula,
                                 Some(attachment),
                             ),
@@ -686,7 +690,7 @@ impl<T> LinearPeptide<T> {
                                 model,
                                 peptidoform_index,
                                 peptide_index,
-                                charge_carriers,
+                                &mut charge_carriers,
                                 &full_formula,
                                 Some(attachment),
                             ),
@@ -699,7 +703,7 @@ impl<T> LinearPeptide<T> {
                         model,
                         peptidoform_index,
                         peptide_index,
-                        charge_carriers,
+                        &mut charge_carriers,
                         &full_formula,
                         Some(attachment),
                     ));
@@ -709,20 +713,22 @@ impl<T> LinearPeptide<T> {
 
         if model.modification_specific_diagnostic_ions.0 {
             // Add all modification diagnostic ions
-            output.extend(self.diagnostic_ions().into_iter().flat_map(|(dia, pos)| {
-                Fragment {
-                    formula: dia.0,
-                    charge: Charge::default(),
-                    ion: FragmentType::diagnostic(pos),
-                    peptidoform_index,
-                    peptide_index,
-                    neutral_loss: None,
-                }
-                .with_charge_range(
-                    charge_carriers,
-                    model.modification_specific_diagnostic_ions.1,
-                )
-            }));
+            for (dia, pos) in self.diagnostic_ions() {
+                output.extend(
+                    Fragment {
+                        formula: dia.0,
+                        charge: Charge::default(),
+                        ion: FragmentType::diagnostic(pos),
+                        peptidoform_index,
+                        peptide_index,
+                        neutral_loss: None,
+                    }
+                    .with_charge_range(
+                        &mut charge_carriers,
+                        model.modification_specific_diagnostic_ions.1,
+                    ),
+                );
+            }
         }
 
         // Add labile glycan fragments
@@ -734,7 +740,7 @@ impl<T> LinearPeptide<T> {
                         model,
                         peptidoform_index,
                         peptide_index,
-                        charge_carriers,
+                        &mut charge_carriers,
                         &full_formula,
                         None,
                     ));
@@ -749,7 +755,7 @@ impl<T> LinearPeptide<T> {
                                 model,
                                 peptidoform_index,
                                 peptide_index,
-                                charge_carriers,
+                                &mut charge_carriers,
                                 &full_formula,
                                 None,
                             ),

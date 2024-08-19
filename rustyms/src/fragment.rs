@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     glycan::MonoSaccharide,
     model::ChargeRange,
-    molecular_charge::MolecularCharge,
+    molecular_charge::{CachedCharge, MolecularCharge},
     system::{
         f64::{MassOverCharge, Ratio},
         usize::Charge,
@@ -81,16 +81,13 @@ impl Fragment {
         annotation: &FragmentType,
         termini: &Multi<MolecularFormula>,
         neutral_losses: &[NeutralLoss],
-        charge_carriers: &MolecularCharge,
+        charge_carriers: &mut CachedCharge,
         charge_range: ChargeRange,
     ) -> Vec<Self> {
-        let all_charges = charge_range
-            .charges_iter(charge_carriers.charge())
-            .flat_map(move |c| charge_carriers.options(c));
         termini
             .iter()
             .cartesian_product(theoretical_mass.iter())
-            .cartesian_product(all_charges)
+            .cartesian_product(charge_carriers.range(charge_range))
             .cartesian_product(std::iter::once(None).chain(neutral_losses.iter().map(Some)))
             .map(|(((term, mass), charge), loss)| Self {
                 formula: term + mass + charge.formula(SequencePosition::default(), peptide_index),
@@ -126,12 +123,12 @@ impl Fragment {
     /// Create a copy of this fragment with the given charges
     pub fn with_charge_range(
         self,
-        charge_carriers: &MolecularCharge,
+        charge_carriers: &mut CachedCharge,
         charge_range: ChargeRange,
-    ) -> impl Iterator<Item = Self> + '_ {
-        charge_range
-            .charges_iter(charge_carriers.charge())
-            .flat_map(move |c| charge_carriers.options(c))
+    ) -> impl Iterator<Item = Self> {
+        charge_carriers
+            .range(charge_range)
+            .into_iter()
             .map(move |c| self.with_charge(&c))
     }
 

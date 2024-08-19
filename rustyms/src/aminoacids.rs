@@ -4,7 +4,7 @@ use crate::{
     formula::MolecularFormula,
     fragment::{Fragment, FragmentType, PeptidePosition},
     model::*,
-    molecular_charge::MolecularCharge,
+    molecular_charge::CachedCharge,
     Multi, MultiChemical, NeutralLoss, SequencePosition,
 };
 
@@ -331,7 +331,7 @@ impl AminoAcid {
         n_term: &Multi<MolecularFormula>,
         c_term: &Multi<MolecularFormula>,
         modifications: &Multi<MolecularFormula>,
-        charge_carriers: &MolecularCharge,
+        charge_carriers: &mut CachedCharge,
         sequence_index: SequencePosition,
         sequence_length: usize,
         ions: &PossibleIons,

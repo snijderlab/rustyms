@@ -8,7 +8,7 @@ use super::MonoSaccharide;
 use crate::{
     formula::{Chemical, MolecularFormula},
     fragment::{Fragment, FragmentType, GlycanBreakPos, GlycanPosition},
-    molecular_charge::MolecularCharge,
+    molecular_charge::CachedCharge,
     system::usize::Charge,
     AminoAcid, Model, Multi, SequencePosition,
 };
@@ -44,7 +44,7 @@ impl PositionedGlycanStructure {
         model: &Model,
         peptidoform_index: usize,
         peptide_index: usize,
-        charge_carriers: &MolecularCharge,
+        charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
