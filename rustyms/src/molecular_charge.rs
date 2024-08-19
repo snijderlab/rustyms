@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 
 use crate::{
     model::ChargeRange, system::isize::Charge, Chemical, Element, MolecularFormula,
@@ -90,8 +90,9 @@ impl MolecularCharge {
     /// If the charge is not at least 1.
     pub fn options(&self, charge: Charge) -> Vec<Self> {
         assert!(charge.value > 0);
-        let remainder = self.charge().value.rem_euclid(charge.value);
-        let quotient = self.charge().value.div_euclid(charge.value).max(0);
+        let own_charge = self.charge();
+        let remainder = charge.value.rem_euclid(own_charge.value);
+        let quotient = charge.value.div_euclid(own_charge.value).max(0);
 
         let mut too_low_options: Vec<Vec<(isize, MolecularFormula)>> = Vec::new();
         let mut options = Vec::new();
@@ -100,10 +101,10 @@ impl MolecularCharge {
             if too_low_options.is_empty() {
                 for n in 0..=carrier.0 {
                     let charge = n * carrier.1.charge();
-                    if charge.value < remainder {
-                        new_too_low_options.push(vec![(n, carrier.1.clone())]);
-                    } else if charge.value == remainder {
-                        options.push(vec![(n, carrier.1.clone())]);
+                    match charge.value.cmp(&remainder) {
+                        Ordering::Less => new_too_low_options.push(vec![(n, carrier.1.clone())]),
+                        Ordering::Equal => options.push(vec![(n, carrier.1.clone())]),
+                        Ordering::Greater => (),
                     }
                 }
             } else {
@@ -118,10 +119,10 @@ impl MolecularCharge {
                             });
 
                         let charge = n * carrier.1.charge() + full_charge;
-                        if charge.value < remainder {
-                            new_too_low_options.push(new);
-                        } else if charge.value == remainder {
-                            options.push(new);
+                        match charge.value.cmp(&remainder) {
+                            Ordering::Less => new_too_low_options.push(new),
+                            Ordering::Equal => options.push(new),
+                            Ordering::Greater => (),
                         }
                     }
                 }
