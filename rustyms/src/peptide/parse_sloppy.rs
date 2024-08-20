@@ -151,8 +151,9 @@ impl Modification {
         position: Option<&SequenceElement>,
     ) -> Option<SimpleModification> {
         match line[location.clone()].to_lowercase().as_str() {
-            "o" => Ontology::Unimod.find_id(35, None),  // oxidation
-            "cam" => Ontology::Unimod.find_id(4, None), // carbamidomethyl
+            "o" => Ontology::Unimod.find_id(35, None),    // oxidation
+            "cam" => Ontology::Unimod.find_id(4, None),   // carbamidomethyl
+            "nem" => Ontology::Unimod.find_id(108, None), // Nethylmaleimide
             "pyro-glu" => Ontology::Unimod.find_id(
                 if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
                     27
@@ -187,8 +188,8 @@ impl Modification {
                             .ok()
                     })
                     .or_else(|| {
-                        // Common sloppy naming: `modification (AAs)`
-                        Regex::new(r"(.*)\s*\([a-zA-Z]+\)")
+                        // Common sloppy naming: `modification (AAs)` also accepts `modification (Protein N-term)`
+                        Regex::new(r"(.*)\s*\([- a-zA-Z]+\)")
                             .unwrap()
                             .captures(&line[location])
                             .and_then(|capture| {

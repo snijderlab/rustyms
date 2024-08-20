@@ -78,7 +78,7 @@ impl MetaData {
             Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
                 Some(*scan)
             }
-            Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(*scan_number),
+            Self::MaxQuant(MaxQuantData { scan_number, .. }) => scan_number.first().copied(),
             Self::Sage(SageData { scan_nr, .. }) => Some(scan_nr.2),
             Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(spectrum.scan.0),
             Self::Fasta(_) | Self::None => None,

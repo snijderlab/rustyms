@@ -1,56 +1,93 @@
 #![allow(clippy::missing_panics_doc)]
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 
-use super::{maxquant, IdentifiedPeptide, IdentifiedPeptideSource, MaxQuantData};
+use super::error::CustomError;
+use super::{maxquant, IdentifiedPeptide, IdentifiedPeptideSource, MaxQuantData, MaxQuantFormat};
 
 use super::csv::parse_csv_raw;
 
 #[test]
 fn maxquant_msms() {
-    let reader = BufReader::new(MAXQUANT_MSMS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = MaxQuantData::parse_specific(&line, &maxquant::MSMS, None)
-            .unwrap()
-            .into();
-    }
+    assert_eq!(
+        open_file(
+            BufReader::new(MAXQUANT_MSMS.as_bytes()),
+            &maxquant::MSMS,
+            None
+        )
+        .unwrap(),
+        19
+    );
 }
+
 #[test]
 fn maxquant_msms_scans() {
-    let reader = BufReader::new(MAXQUANT_MSMS_SCANS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::MSMS_SCANS, None)
-                .unwrap()
-                .into();
-    }
+    assert_eq!(
+        open_file(
+            BufReader::new(MAXQUANT_MSMS_SCANS.as_bytes()),
+            &maxquant::MSMS_SCANS,
+            None
+        )
+        .unwrap(),
+        19
+    );
 }
+
 #[test]
 fn maxquant_novo_msms_scans() {
-    let reader = BufReader::new(MAXQUANT_NOVO_MSMS_SCANS.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS, None)
-                .unwrap()
-                .into();
-    }
+    assert_eq!(
+        open_file(
+            BufReader::new(MAXQUANT_NOVO_MSMS_SCANS.as_bytes()),
+            &maxquant::NOVO_MSMS_SCANS,
+            None
+        )
+        .unwrap(),
+        19
+    );
 }
+
 #[test]
 fn maxquant_novo_msms_scans_new() {
-    let reader = BufReader::new(MAXQUANT_NOVO_MSMS_SCANS_NEW.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
+    assert_eq!(
+        open_file(
+            BufReader::new(MAXQUANT_NOVO_MSMS_SCANS_NEW.as_bytes()),
+            &maxquant::NOVO_MSMS_SCANS,
+            None
+        )
+        .unwrap(),
+        19
+    );
+}
+
+#[test]
+fn maxquant_silac() {
+    assert_eq!(
+        open_file(
+            BufReader::new(MAXQUANT_SILAC.as_bytes()),
+            &maxquant::SILAC,
+            None
+        )
+        .unwrap(),
+        19
+    );
+}
+
+/// Open a MaxQuant file from the given reader.
+/// # Errors
+/// If any part of the process errors.
+fn open_file(
+    reader: impl Read,
+    format: &MaxQuantFormat,
+    custom_database: Option<&super::ontologies::CustomDatabase>,
+) -> Result<usize, CustomError> {
+    let lines = parse_csv_raw(reader, b'\t', None)?;
+    let mut num_lines = 0;
+    for line in lines {
+        let line = line?;
         let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, &maxquant::NOVO_MSMS_SCANS, None)
-                .unwrap()
-                .into();
+            MaxQuantData::parse_specific(&line, format, custom_database)?.into();
+        num_lines += 1;
     }
+    Ok(num_lines)
 }
 
 const MAXQUANT_MSMS: &str = "Raw file	Scan number	Scan index	Sequence	Length	Missed cleavages	Modifications	Modified sequence	Oxidation (M) Probabilities	oxidation(w) Probabilities	Oxidation (M) Score diffs	oxidation(w) Score diffs	Gln->pyro-Glu	Glu->pyro-Glu	Oxidation (M)	oxidation(w)	Proteins	Charge	Fragmentation	Mass analyzer	Type	Scan event number	Isotope index	m/z	Mass	Mass error [ppm]	Mass error [Da]	Simple mass error [ppm]	Retention time	PEP	Score	Delta score	Score diff	Localization prob	Combinatorics	PIF	Fraction of total spectrum	Base peak fraction	Precursor full scan number	Precursor Intensity	Precursor apex fraction	Precursor apex offset	Precursor apex offset time	Matches	Intensities	Mass deviations [Da]	Mass deviations [ppm]	Masses	Number of matches	Intensity coverage	Peak coverage	Unfragmented precursor intensity	Unfragmented precursor fraction	Neutral loss level	ETD identification type	Reverse	All scores	All sequences	All modified sequences	MS3 scan numbers	Reporter PIF	Reporter fraction	id	Protein group IDs	Peptide ID	Mod. peptide ID	Evidence ID	Oxidation (M) site IDs	oxidation(w) site IDs	Mass deficit
@@ -136,3 +173,24 @@ Peng2021_Herceptin_tryp	2890	15.001	NaN	60557	150	0	6034.2	0.563				-1	LQGEIAHVK
 Peng2021_Herceptin_tryp	2892	15.013	NaN	272060	150	0	10832	0.563				-1		0	85	1026.4445385508618	3076.3117862527856	3	1027.1146240234375	MULTI	ETHCD	FTMS	0	0	0	2891	345832.96875	0.2821288695332418	3	-0.022924423217773438	1				NaN	NaN				{D|N(Deamidation (NQ))}A	2	-1				15.662	0	0	0.50912	0	0	2307.8609328365733	579.3620699518186	2887.223002788392	0	0	0	0	0	0	0	0	0.4247425010840047			{D|N(Deamidation (NQ))}A	0.50912	-		28	+	NaN	NaN	89243.9	NaN	16	2874	2891
 Peng2021_Herceptin_tryp	3223	16.722	NaN	17198000	150	0	1491600	0.564				-1		0	197	382.2204605038279	1143.6395521116838	3	382.2206115722656	MULTI	ETHCD	FTMS	0	0	0	3222	190723056	0.41476852216237636	-1	0.0050983428955078125	1				NaN	NaN				YQQKPGKAPK	10	-1			+	113.26	0	0	9.9039	9.9039	98.033	0	0	0	40.86721247813779	20.036134084268156	20.036134084268156	9.179751216704588	2	2.486346736360778	1.0457574905606752	0	1.4604093769761874			YQQKPGKAPK;YQ[AG]KPGKAPK;YQQKP[KQ]PK;YQQKK[PG]APK;YQQKK[QP]PK;Y[AG]QKPGKAPK;YQ[AG]KP[KQ]PK;YQQK[{I|L}V][HT]K;YQ[AG]KK[PG]APK;YQQKPGKK[PA]	9.9039;9.1012;8.8051;8.7154;8.2748;8.1868;7.9986;7.9645;7.9127;7.904	-;-;-;-;-;-;-;-;-;-		20178	+	NaN	NaN	4338578	NaN	17	3204	3222
 Peng2021_Herceptin_tryp	3224	16.731	NaN	13449000	35	0	807970	0.363				-1	ALVFVDNHDNQR	12	501	476.90101572458514	1427.6812177739555	3	476.90185546875	MULTI	CID	FTMS	0	0	0	3222	7877181.5	0.32541819426270824	-1	0.0050983428955078125	2	Deamidation (NQ)	_ALVFVDNHDN(Deamidation (NQ))QR_	CON__Q3MHH8	0.26538908928332583	23.155714642610686				{I|L}{D|N(Deamidation (NQ))}NVNHKPSNTK	12	-1				146.43	0	0	10.256	0	0	61.99602626060216	0	61.99602626060216	0	80.95983742624236	0	0	2	0	0	2.2376954943324545	3.05902924611682			{I|L}{D|N(Deamidation (NQ))}NVNHKPSNTK	10.256	-		167870	+	NaN	NaN	3435191	NaN	18	3204	3222";
+
+const MAXQUANT_SILAC: &str = "Sequence	Length	K Count	R Count	Modifications	Modified sequence	Carbamidomethyl (C) Probabilities	NEM Probabilities	Oxidation (M) Probabilities	Carbamidomethyl (C) Score Diffs	NEM Score Diffs	Oxidation (M) Score Diffs	Acetyl (Protein N-term)	Carbamidomethyl (C)	NEM	Oxidation (M)	Missed cleavages	Proteins	Leading proteins	Leading razor protein	Gene names	Protein names	Type	Labeling State	Raw file	Experiment	MS/MS m/z	Charge	m/z	Mass	Uncalibrated - Calibrated m/z [ppm]	Uncalibrated - Calibrated m/z [Da]	Mass error [ppm]	Mass error [Da]	Uncalibrated mass error [ppm]	Uncalibrated mass error [Da]	Max intensity m/z 0	Max intensity m/z 1	Retention time	Retention length	Calibrated retention time	Calibrated retention time start	Calibrated retention time finish	Retention time calibration	Match time difference	Match m/z difference	Match q-value	Match score	Number of data points	Number of scans	Number of isotopic peaks	PIF	Fraction of total spectrum	Base peak fraction	PEP	MS/MS count	MS/MS scan number	MS/MS scan numbers	MS3 scan numbers	Score	Delta score	Combinatorics	Ratio H/L	Ratio H/L normalized	Ratio H/L shift	Intensity	Intensity L	Intensity H	Reverse	Potential contaminant	id	Protein group IDs	Peptide ID	Mod. peptide ID	MS/MS IDs	Best MS/MS	Carbamidomethyl (C) site IDs	NEM site IDs	Oxidation (M) site IDs	Taxonomy IDs	Taxonomy names	Mass deficit	Theor. isotope correlation	Isotope correlation	Time correlation
+AAAAAAVGPGAGGAGSAVPGGAGPCATVSVFPGAR	35	0	1	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAAAVGPGAGGAGSAVPGGAGPC(Carbamidomethyl (C))ATVSVFPGAR_	AAAAAAVGPGAGGAGSAVPGGAGPC(1)ATVSVFPGAR			AAAAAAVGPGAGGAGSAVPGGAGPC(52)ATVSVFPGAR			1	1	0	0	0	Q86X55	Q86X55	Q86X55	CARM1	Histone-arginine methyltransferase CARM1	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	984.4912109375	3	983.826039	2948.45629	NaN	NaN	-1.1278	-0.0011095	NaN	NaN	NaN	NaN	37.209	0.15495	37.246	37.137	37.292	0.037453								0	0	0	1.252E-05	1	42275	42275		51.9	40.645	1	1.2986	1.1129	0	41203000	30702000	10501000			0	1723	0	0	0	0	4677					0.0599979585881556			
+AAAAAAVGPGAGGAGSAVPGGAGPCATVSVFPGAR	35	0	1	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAAAVGPGAGGAGSAVPGGAGPC(Carbamidomethyl (C))ATVSVFPGAR_	AAAAAAVGPGAGGAGSAVPGGAGPC(1)ATVSVFPGAR			AAAAAAVGPGAGGAGSAVPGGAGPC(46)ATVSVFPGAR			1	1	0	0	0	Q86X55	Q86X55	Q86X55	CARM1	Histone-arginine methyltransferase CARM1	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_3L	3L	983.826904296875	3	983.826039	2948.45629	NaN	NaN	-0.043596	-4.2891E-05	NaN	NaN	NaN	NaN	37.18	0.16776	37.187	37.086	37.254	0.00774								0	0	0	0.0010182	2	41582	41509;41582		46.149	38.652	1	0.63379	0.71963	0	33916000	31452000	2463500			1	1723	0	0	1;2	2	4677					0.0599979585881556			
+AAAAECDVVMAATEPELLDDQEAK	24	1	0	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAEC(Carbamidomethyl (C))DVVMAATEPELLDDQEAK_	AAAAEC(1)DVVMAATEPELLDDQEAK			AAAAEC(150)DVVMAATEPELLDDQEAK			1	1	0	0	0	Q99615	Q99615	Q99615	DNAJC7	DnaJ homolog subfamily C member 7	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_1H	1H	864.3967895507812	3	863.728009	2588.1622	-0.63499	-0.00054846	-0.18674	-0.00016129	-0.82173	-0.00070975	864.397299440235	866.3973555350774	43.135	0.25949	43.135	43	43.26	0					423	47	14	0	0	0	4.3535000000000003E-29	4	49980	49820;49822;49980;49994		146.6	146.6	1	0.81248	0.84241	0	895110000	413870000	481240000			2	2091	1	1	3;4;5;6	5	5431					-0.06835578745904058	0.9792858	0.95722574	0.98833406
+AAAAECDVVMAATEPELLDDQEAK	24	1	0	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAEC(Carbamidomethyl (C))DVVMAATEPELLDDQEAK_	AAAAEC(1)DVVMAATEPELLDDQEAK			AAAAEC(120)DVVMAATEPELLDDQEAK			1	1	0	0	0	Q99615	Q99615	Q99615	DNAJC7	DnaJ homolog subfamily C member 7	MSMS	1	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	1299.096069335938	2	1295.08838	2588.1622	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	43.124	1	43.167	42.667	43.667	0.042629								0	0	0	4.9809E-17	1	50477	50477		115.82	87.183	1									3	2091	1	1	7	7	5431					-0.06835578745904058			
+AAAAECDVVMAATEPELLDDQEAK	24	1	0	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAEC(Carbamidomethyl (C))DVVMAATEPELLDDQEAK_	AAAAEC(1)DVVMAATEPELLDDQEAK			AAAAEC(110)DVVMAATEPELLDDQEAK			1	1	0	0	0	Q99615	Q99615	Q99615	DNAJC7	DnaJ homolog subfamily C member 7	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_3L	3L	867.7368774414062	3	863.728009	2588.1622	0.13009	0.00011237	-0.39152	-0.00033816	-0.26142	-0.0002258	864.0623859572274	866.7337122073088	43.101	0.26624	43.109	42.98	43.247	0.0075607					390	49	11	0	0	0	9.3911E-14	4	49348	49258;49276;49348;49452		105.79	97.604	1	0.49863	0.6219	0	870080000	548230000	321850000			4	2091	1	1	8;9;10;11	10	5431					-0.06835578745904058	0.99756473	0.9775378	0.98704356
+AAAAECDVVMAATEPELLDDQEAK	24	1	0	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAEC(Carbamidomethyl (C))DVVMAATEPELLDDQEAK_	AAAAEC(1)DVVMAATEPELLDDQEAK			AAAAEC(120)DVVMAATEPELLDDQEAK			1	1	0	0	0	Q99615	Q99615	Q99615	DNAJC7	DnaJ homolog subfamily C member 7	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_4L	4L	866.397705078125	3	863.728009	2588.1622	0.057747	4.9878E-05	-0.24842	-0.00021456	-0.19067	-0.00016469	864.0627464556183	866.7336471749006	43.129	0.2677	43.1	42.971	43.239	-0.028801					449	49	14	0	0	0	2.6339E-17	3	50035	49997;50035;50218		116.35	112.38	1	0.53194	0.64098	0	892660000	520170000	372490000			5	2091	1	1	12;13;14	13	5431					-0.06835578745904058	0.9840865	0.93412495	0.98507833
+AAAAECDVVMAATEPELLDDQEAK	24	1	0	Acetyl (Protein N-term),Carbamidomethyl (C)	_(Acetyl (Protein N-term))AAAAEC(Carbamidomethyl (C))DVVMAATEPELLDDQEAK_							1	1	0	0	0	Q99615	Q99615	Q99615	DNAJC7	DnaJ homolog subfamily C member 7	MULTI-MATCH-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H		3	863.728009	2588.1622	0.15049	0.00012998	0.88914	0.00076797	1.0396	0.00089795	864.0635036872925	867.0667820019896	43.121	0.40585	43.164	42.882	43.288	0.042629	0.036876	0.0028739	NaN	146.6	111	19	10	NaN	NaN	NaN	NaN	0				NaN	NaN	0	0.97454	0.75162	0	396910000	167520000	229390000			6	2091	1	1			5431					-0.06835578745904058	0.9052026	0.7470819	0.98216444
+AAAGELQEDSGLCVLAR	17	0	1	Carbamidomethyl (C)	_AAAGELQEDSGLC(Carbamidomethyl (C))VLAR_	AAAGELQEDSGLC(1)VLAR			AAAGELQEDSGLC(120)VLAR			0	1	0	0	0	Q96C19	Q96C19	Q96C19	EFHD2	EF-hand domain-containing protein D2	ISO-MSMS	1	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_1H	1H	885.9425659179688	2	880.4358	1758.85705	NaN	NaN	1.216	0.0010706	NaN	NaN	NaN	NaN	31.062	0.13632	31.062	30.986	31.122	0								0	0	0	3.3709E-08	1	33563	33563		124.38	105.63	1	1.1028	1.0798	0	59546000	10308000	49238000			7	1976	2	2	15	15	5196					0.007973275442054728			
+AAAGELQEDSGLCVLAR	17	0	1	Carbamidomethyl (C)	_AAAGELQEDSGLC(Carbamidomethyl (C))VLAR_	AAAGELQEDSGLC(1)VLAR			AAAGELQEDSGLC(150)VLAR			0	1	0	0	0	Q96C19	Q96C19	Q96C19	EFHD2	EF-hand domain-containing protein D2	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_1H	1H	880.4378662109375	2	880.4358	1758.85705	NaN	NaN	2.3824	0.0020976	NaN	NaN	NaN	NaN	31.062	0.15343	31.062	30.986	31.139	0								0	0	0	4.1384E-18	1	33568	33568		153.63	120.22	1	1.0504	1.0282	0	58578000	49118000	9459400			8	1976	2	2	16	16	5196					0.007973275442054728			
+AAAGELQEDSGLCVLAR	17	0	1	Carbamidomethyl (C)	_AAAGELQEDSGLC(Carbamidomethyl (C))VLAR_	AAAGELQEDSGLC(1)VLAR			AAAGELQEDSGLC(190)VLAR			0	1	0	0	0	Q96C19	Q96C19	Q96C19	EFHD2	EF-hand domain-containing protein D2	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	880.93701171875	2	880.4358	1758.85705	NaN	NaN	1.4704	0.0012946	NaN	NaN	NaN	NaN	31.025	0.20426	31.056	30.941	31.145	0.030951								0	0	0	9.9727E-34	1	33667	33667		193.23	149.93	1	1.2284	0.94823	0	222380000	182080000	40299000			9	1976	2	2	17	17	5196					0.007973275442054728			
+AAAGELQEDSGLCVLAR	17	0	1	Carbamidomethyl (C)	_AAAGELQEDSGLC(Carbamidomethyl (C))VLAR_	AAAGELQEDSGLC(1)VLAR			AAAGELQEDSGLC(160)VLAR			0	1	0	0	0	Q96C19	Q96C19	Q96C19	EFHD2	EF-hand domain-containing protein D2	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_3L	3L	880.4379272460938	2	880.4358	1758.85705	-0.55893	-0.0004921	1.2957	0.0011408	0.73678	0.00064869	880.4377886211744	885.4394837697027	31.019	0.15361	31.025	30.949	31.102	0.0064545					38	8	6	0	0	0	3.6393E-21	2	33076	33076;33109		158.42	142.16	1	0.45146	0.53669	0	101040000	68420000	32617000			10	1976	2	2	18;19	18	5196					0.007973275442054728	0.9860144	0.9626761	0.9672731
+AAAGELQEDSGLCVLAR	17	0	1	Carbamidomethyl (C)	_AAAGELQEDSGLC(Carbamidomethyl (C))VLAR_	AAAGELQEDSGLC(1)VLAR			AAAGELQEDSGLC(160)VLAR			0	1	0	0	0	Q96C19	Q96C19	Q96C19	EFHD2	EF-hand domain-containing protein D2	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_4L	4L	880.9375610351562	2	880.4358	1758.85705	-0.053245	-4.6879E-05	1.0659	0.00093849	1.0127	0.00089161	880.4374703295418	885.4410200265721	31.052	0.1711	31.026	30.931	31.102	-0.025961					31	9	5	0	0	0	4.1539999999999996E-22	2	33832	33832;33860		161.99	145.73	1	0.59892	0.65417	0	101190000	57855000	43335000			11	1976	2	2	20;21	20	5196					0.007973275442054728	0.9687632	0.9260208	0.92050904
+AAAGGLAMLTSMRPTLCSR	19	0	2	Carbamidomethyl (C)	_AAAGGLAMLTSMRPTLC(Carbamidomethyl (C))SR_	AAAGGLAMLTSMRPTLC(1)SR			AAAGGLAMLTSMRPTLC(71)SR			0	1	0	0	0	Q9H3U1	Q9H3U1	Q9H3U1	UNC45A	Protein unc-45 homolog A	MULTI-MSMS		20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_1H	1H	655.3345947265625	3	655.333995	1962.98016	0.22614	0.00014819	-0.79732	-0.00052251	-0.57118	-0.00037431	655.3348541600152	662.0062408998527	35.166	0.18781	35.166	35.057	35.245	0					30	10	5	0	0	0	4.7146E-06	1	39193	39193		70.942	61.154	1	0.76427	0.77784	0	68930000	47574000	21355000			12	2235	3	3	22	22	5724					0.03718544399453094	0.9709616	0.89091	0.73409986
+AAAGGLAMLTSMRPTLCSR	19	0	2	Carbamidomethyl (C)	_AAAGGLAMLTSMRPTLC(Carbamidomethyl (C))SR_	AAAGGLAMLTSMRPTLC(1)SR			AAAGGLAMLTSMRPTLC(47)SR			0	1	0	0	0	Q9H3U1	Q9H3U1	Q9H3U1	UNC45A	Protein unc-45 homolog A	ISO-MSMS	1	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	662.3395385742188	3	655.333995	1962.98016	NaN	NaN	-2.0059	-0.0013146	NaN	NaN	NaN	NaN	35.115	0.13616	35.15	35.096	35.232	0.035202								0	0	0	0.0041264	2	39452	39349;39452		47.09	37.56	1	1.3823	1.2947	0	90767000	11152000	79615000			13	2235	3	3	23;24	24	5724					0.03718544399453094			
+AAAGGLAMLTSMRPTLCSR	19	0	2	Carbamidomethyl (C)	_AAAGGLAMLTSMRPTLC(Carbamidomethyl (C))SR_	AAAGGLAMLTSMRPTLC(1)SR			AAAGGLAMLTSMRPTLC(62)SR			0	1	0	0	0	Q9H3U1	Q9H3U1	Q9H3U1	UNC45A	Protein unc-45 homolog A	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	655.3341064453125	3	655.333995	1962.98016	NaN	NaN	0.087673	5.7455E-05	NaN	NaN	NaN	NaN	35.127	0.17039	35.163	35.079	35.249	0.035198								0	0	0	0.00036308	1	39386	39386		62.203	51.735	1	1.1373	1.0652	0	77364000	60786000	16578000			14	2235	3	3	25	25	5724					0.03718544399453094			
+AAAGGLAMLTSMRPTLCSR	19	0	2	Carbamidomethyl (C)	_AAAGGLAMLTSMRPTLC(Carbamidomethyl (C))SR_	AAAGGLAMLTSMRPTLC(1)SR			AAAGGLAMLTSMRPTLC(54)SR			0	1	0	0	0	Q9H3U1	Q9H3U1	Q9H3U1	UNC45A	Protein unc-45 homolog A	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_3L	3L	655.3347778320312	3	655.333995	1962.98016	NaN	NaN	-0.78542	-0.00051472	NaN	NaN	NaN	NaN	35.118	0.17038	35.125	35.036	35.206	0.0071106								0	0	0	0.00081684	1	38674	38674		54.288	44.092	1	0.72292	0.78508	0	50456000	44188000	6268100			15	2235	3	3	26	26	5724					0.03718544399453094			
+AAAGGLAMLTSMRPTLCSR	19	0	2	Carbamidomethyl (C)	_AAAGGLAMLTSMRPTLC(Carbamidomethyl (C))SR_	AAAGGLAMLTSMRPTLC(1)SR			AAAGGLAMLTSMRPTLC(73)SR			0	1	0	0	0	Q9H3U1	Q9H3U1	Q9H3U1	UNC45A	Protein unc-45 homolog A	ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_4L	4L	655.3331298828125	3	655.333995	1962.98016	NaN	NaN	-0.4585	-0.00030047	NaN	NaN	NaN	NaN	35.158	0.18807	35.133	35.014	35.202	-0.02557								0	0	0	2.5876E-05	2	39443	39432;39443		72.819	56.392	1	0.76397	0.80266	0	57474000	49180000	8294500			16	2235	3	3	27;28	28	5724					0.03718544399453094			
+AAALCNACELSGK	13	1	0	Carbamidomethyl (C),NEM	_AAALC(NEM)NAC(Carbamidomethyl (C))ELSGK_	AAALC(0.019)NAC(0.981)ELSGK	AAALC(0.981)NAC(0.019)ELSGK		AAALC(-17)NAC(17)ELSGK	AAALC(17)NAC(-17)ELSGK		0	1	1	0	0	Q7Z392	Q7Z392	Q7Z392	TRAPPC11	Trafficking protein particle complex subunit 11	MSMS	1	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_2H	2H	720.8419799804688	2	716.831594	1431.64863	NaN	NaN	NaN	NaN	NaN	NaN	NaN	NaN	26.89	1	26.917	26.417	27.417	0.027546								0	0	0	0.01341	1	27968	27968		51.927	38.573	2									17	1682	4	4	29	29	4579	981				-0.049923725737471614			
+AAANFFSASCVPCADQSSFPK	21	1	0	Carbamidomethyl (C),NEM	_AAANFFSASC(Carbamidomethyl (C))VPC(NEM)ADQSSFPK_	AAANFFSASC(0.992)VPC(0.008)ADQSSFPK	AAANFFSASC(0.008)VPC(0.992)ADQSSFPK		AAANFFSASC(21)VPC(-21)ADQSSFPK	AAANFFSASC(-21)VPC(21)ADQSSFPK		0	1	1	0	0	CON__Q29443;CON__Q0IIK2	CON__Q29443	CON__Q29443			ISO-MSMS	0	20240503_EX1_UM3_Neder016_SA_EXT00_ssABE_LPS_4L	4L	1165.51513671875	2	1165.51445	2329.01435	NaN	NaN	0.18336	0.00021371	NaN	NaN	NaN	NaN	37.455	0.18769	37.429	37.325	37.513	-0.0256								0	0	0	0.00030365	1	42622	42622		59.306	47.866	2	NaN	NaN	0	5430200	5430200	0		+	18	49	5	5	30	30	152;153	38;39				-0.09699380698566529			";
