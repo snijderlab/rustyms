@@ -85,7 +85,7 @@ format_family!(
         oxidation_m_score_differences: String, |location: Location, _| Ok(location.get_string());
         peak_coverage: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         peptide_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        precursor: Option<usize>, |location: Location, _| location.ignore("-1").parse::<usize>(NUMBER_ERROR);
+        precursor: usize, |location: Location, _| location.ignore("-1").parse::<usize>(NUMBER_ERROR);
         precursor_intensity: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         precursor_apex_function: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         precursor_apex_offset: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
