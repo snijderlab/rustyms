@@ -90,7 +90,10 @@ impl Fragment {
             .cartesian_product(charge_carriers.range(charge_range))
             .cartesian_product(std::iter::once(None).chain(neutral_losses.iter().map(Some)))
             .map(|(((term, mass), charge), loss)| Self {
-                formula: term + mass + charge.formula(SequencePosition::default(), peptide_index),
+                formula: term
+                    + mass
+                    + charge.formula(SequencePosition::default(), peptide_index)
+                    + loss.unwrap_or(&NeutralLoss::Gain(MolecularFormula::default())),
                 charge: Charge::new::<crate::system::e>(charge.charge().value.try_into().unwrap()),
                 ion: annotation.clone(),
                 peptidoform_index,
