@@ -14,7 +14,7 @@ pub struct CustomError {
     /// A longer description of the error, presented below the context to give more information and helpful feedback
     long_description: String,
     /// Possible suggestion(s) for the indicated text
-    suggestions: Vec<String>,
+    pub(crate) suggestions: Vec<String>,
     /// The context, in the most general sense this produces output which leads the user to the right place in the code or file
     context: Context,
     /// Underlying errors

@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -45,8 +47,6 @@ impl LinearPeptide<VerySimple> {
             ));
         }
         let mut peptide = Self::default();
-        let mut ambiguous_lookup = Vec::new();
-        let mut cross_link_lookup = Vec::new();
         let chars: &[u8] = line[location.clone()].as_bytes();
         let mut index = 0;
 
@@ -69,37 +69,12 @@ impl LinearPeptide<VerySimple> {
                                     Context::line(None, line, location.start + index, 1),
                                 )
                             })?;
-                    let modification = SimpleModification::try_from(
+                    let modification = Modification::sloppy_modification(
                         line,
                         location.start + index + 1..location.start + end_index,
-                        &mut ambiguous_lookup,
-                        &mut cross_link_lookup,
+                        peptide.sequence.last(),
                         custom_database,
                     )
-                    .map(|m| {
-                        m.defined().ok_or_else(|| {
-                            CustomError::error(
-                                "Invalid modification",
-                                "A modification in the sloppy peptide format cannot be ambiguous",
-                                Context::line(
-                                    None,
-                                    line,
-                                    location.start + index + 1,
-                                    end_index - 1 - index,
-                                ),
-                            )
-                        })
-                    })
-                    .flat_err()
-                    .map_err(|err| {
-                        Modification::sloppy_modification(
-                            line,
-                            location.start + index + 1..location.start + end_index,
-                            peptide.sequence.last(),
-                        )
-                        .ok_or(err)
-                    })
-                    .flat_err()
                     .map(Modification::Simple)?;
                     index = end_index + 1;
 
@@ -142,18 +117,80 @@ impl LinearPeptide<VerySimple> {
     }
 }
 
+static SLOPPY_MOD_OPAIR_REGEX: OnceLock<Regex> = OnceLock::new();
+static SLOPPY_MOD_ON_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl Modification {
     /// Parse a modification defined by sloppy names
+    /// # Errors
+    /// If the name is not in Unimod, PSI-MOD, the custom database, or the predefined list of common trivial names.
+    /// Or if this is the case when the modification follows a known structure (eg `mod (AAs)`).
     #[allow(clippy::missing_panics_doc)]
     pub fn sloppy_modification(
         line: &str,
         location: std::ops::Range<usize>,
         position: Option<&SequenceElement>,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<SimpleModification, CustomError> {
+        let full_context = Context::line(None, line, location.start, location.len());
+        let name = &line[location];
+
+        Self::find_name(name, position, custom_database)
+            .or_else( || {
+                match name.trim().to_lowercase().split_once(':') {
+                    Some(("u", tail)) => Ontology::Unimod.find_name(tail, None),
+                    Some(("m", tail)) => Ontology::Psimod.find_name(tail, None),
+                    Some(("c", tail)) => Ontology::Custom.find_name(tail, custom_database),
+                    _ => None
+                }
+            })
+            .or_else(|| {SLOPPY_MOD_OPAIR_REGEX.get_or_init(|| {Regex::new(r"[^:]+:(.*) on [A-Z]").unwrap()})
+                .captures(name)
+                .and_then(|capture| {
+                    Self::find_name(&capture[1], position, custom_database)
+                        .ok_or_else(|| {
+                            parse_named_counter(
+                                &capture[1].to_ascii_lowercase(),
+                                glycan_parse_list(),
+                                false,
+                            )
+                            .map(SimpleModification::Glycan)
+                        })
+                        .flat_err()
+                        .ok()
+                })
+                .or_else(|| {
+                    // Common sloppy naming: `modification (AAs)` also accepts `modification (Protein N-term)`
+                    SLOPPY_MOD_ON_REGEX.get_or_init(|| {Regex::new(r"(.*)\s*\([- a-zA-Z]+\)").unwrap()})
+                        .captures(name)
+                        .and_then(|capture| {
+                            Self::find_name(&capture[1], position, custom_database)
+                        })
+                })
+            }).ok_or_else(|| {
+                CustomError::error(
+                    "Could not interpret modification",
+                    "Modifications have to be defined as a number, Unimod, or PSI-MOD name, if this is a custom modification make sure to add it to the database",
+                    full_context,
+                ).with_suggestions(
+                    Ontology::find_closest_many(
+                        &[Ontology::Unimod, Ontology::Psimod],
+                        &name.trim().to_lowercase(),
+                        custom_database).suggestions)
+            })
+    }
+
+    fn find_name(
+        name: &str,
+        position: Option<&SequenceElement>,
+        custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
-        match line[location.clone()].to_lowercase().as_str() {
+        let name = name.trim().to_lowercase();
+        match name.as_str() {
             "o" => Ontology::Unimod.find_id(35, None),    // oxidation
             "cam" => Ontology::Unimod.find_id(4, None),   // carbamidomethyl
             "nem" => Ontology::Unimod.find_id(108, None), // Nethylmaleimide
+            "deamidation" => Ontology::Unimod.find_id(7, None), // deamidation
             "pyro-glu" => Ontology::Unimod.find_id(
                 if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
                     27
@@ -162,54 +199,11 @@ impl Modification {
                 },
                 None,
             ), // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
-            _ => {
-                // Try to detect the Opair format
-                Regex::new(r"[^:]+:(.*) on [A-Z]")
-                    .unwrap()
-                    .captures(&line[location.clone()])
-                    .and_then(|capture| {
-                        Ontology::Unimod
-                            .find_name(&capture[1], None)
-                            .ok_or_else(|| {
-                                parse_named_counter(
-                                    &capture[1].to_ascii_lowercase(),
-                                    glycan_parse_list(),
-                                    false,
-                                )
-                                .map(SimpleModification::Glycan)
-                            })
-                            .flat_err()
-                            .or_else(|_| {
-                                match &capture[1] {
-                                    "Deamidation" => Ok(Ontology::Unimod.find_id(7, None).unwrap()), // deamidated
-                                    _ => Err(()),
-                                }
-                            })
-                            .ok()
-                    })
-                    .or_else(|| {
-                        // Common sloppy naming: `modification (AAs)` also accepts `modification (Protein N-term)`
-                        Regex::new(r"(.*)\s*\([- a-zA-Z]+\)")
-                            .unwrap()
-                            .captures(&line[location])
-                            .and_then(|capture| {
-                                Ontology::Unimod
-                                    .find_name(capture[1].trim(), None)
-                                    .or_else(|| {
-                                        match capture[1].trim() {
-                                            "Deamidation" => {
-                                                Some(Ontology::Unimod.find_id(7, None).unwrap())
-                                            } // deamidated
-                                            _ => None,
-                                        }
-                                    })
-                            })
-                    })
-            }
+            _ => crate::peptide::parse_modification::numerical_mod(&name)
+                .ok()
+                .or_else(|| Ontology::Unimod.find_name(&name, custom_database))
+                .or_else(|| Ontology::Psimod.find_name(&name, custom_database))
+                .or_else(|| Ontology::Custom.find_name(&name, custom_database)),
         }
-    }
-
-    pub(super) fn sloppy_modification_internal(line: &str) -> Option<SimpleModification> {
-        Self::sloppy_modification(line, 0..line.len(), None)
     }
 }

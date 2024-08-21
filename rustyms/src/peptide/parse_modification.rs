@@ -69,7 +69,7 @@ impl SimpleModification {
     }
 }
 
-static SLOPPY_MOD_REGEX: OnceLock<Regex> = OnceLock::new();
+static MOD_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
@@ -83,7 +83,7 @@ fn parse_single_modification(
     custom_database: Option<&CustomDatabase>,
 ) -> Result<Option<ReturnModification>, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
-    let regex = SLOPPY_MOD_REGEX.get_or_init(|| {
+    let regex = MOD_REGEX.get_or_init(|| {
         Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap()
     });
     if let Some(groups) = regex.captures(full_modification) {
@@ -442,7 +442,7 @@ pub enum GlobalModification {
 
 /// # Errors
 /// It returns an error when the text is not numerical
-fn numerical_mod(text: &str) -> Result<SimpleModification, String> {
+pub(super) fn numerical_mod(text: &str) -> Result<SimpleModification, String> {
     text.parse().map_or_else(
         |_| Err("Invalid number".to_string()),
         |n| Ok(SimpleModification::Mass(Mass::new::<dalton>(n).into())),

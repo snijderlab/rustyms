@@ -259,6 +259,7 @@ pub trait OptionalLocation<'a> {
     fn apply(self, f: impl FnOnce(Location<'a>) -> Location<'a>) -> Option<Location<'a>>;
     type ArrayIter: Iterator<Item = Location<'a>>;
     fn array(self, sep: char) -> Self::ArrayIter;
+    fn ignore(self, pattern: &str) -> Option<Location<'a>>;
 }
 
 impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
@@ -289,5 +290,8 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     type ArrayIter = std::vec::IntoIter<Location<'a>>;
     fn array(self, sep: char) -> Self::ArrayIter {
         self.map(|l| l.array(sep)).unwrap_or_default()
+    }
+    fn ignore(self, pattern: &str) -> Option<Location<'a>> {
+        self.and_then(|s| s.ignore(pattern))
     }
 }

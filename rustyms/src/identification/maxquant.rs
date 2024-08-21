@@ -69,7 +69,7 @@ format_family!(
         intensity_l: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
         intensity: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
         isotope_index: isize, |location: Location, _| location.or_empty().parse::<isize>(NUMBER_ERROR);
-        labeling_state: bool, |location: Location, _| location.or_empty().parse::<u8>(BOOL_ERROR).map(|n| n.map(|n| n != 0));
+        labeling_state: bool, |location: Location, _| location.or_empty().ignore("-1").parse::<u8>(BOOL_ERROR).map(|n| n.map(|n| n != 0));
         localisation_probability: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         mass_analyser: String, |location: Location, _| Ok(location.get_string());
         mass_error_da: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
@@ -343,62 +343,62 @@ pub const SILAC: MaxQuantFormat = MaxQuantFormat {
     version: MaxQuantVersion::Silac,
     all_modified_sequences: None,
     base_peak_intensity: None,
-    carbamidomethyl_c_probabilities: Some("carbamidomethyl (c) probabilities"), //
-    carbamidomethyl_c_score_differences: Some("carbamidomethyl (c) score diffs"), //
+    carbamidomethyl_c_probabilities: Some("carbamidomethyl (c) probabilities"),
+    carbamidomethyl_c_score_differences: Some("carbamidomethyl (c) score diffs"),
     collision_energy: None,
-    delta_score: Some("delta score"), //
+    delta_score: Some("delta score"),
     dn_c_mass: None,
     dn_combined_score: None,
     dn_missing_mass: None,
     dn_n_mass: None,
     dn_sequence: None,
     evidence_id: None,
-    experiment: Some("experiment"), //
+    experiment: Some("experiment"),
     fragmentation: None,
-    genes: Some("gene names"),    //
-    id: Some("id"),               //
-    intensity: Some("intensity"), //
+    genes: Some("gene names"),
+    id: Some("id"),
+    intensity: Some("intensity"),
     intensity_coverage: None,
-    intensity_h: Some("intensity h"), //
-    intensity_l: Some("intensity l"), //
+    intensity_h: Some("intensity h"),
+    intensity_l: Some("intensity l"),
     isotope_index: None,
-    labeling_state: Some("labeling state"), //
+    labeling_state: Some("labeling state"),
     localisation_probability: None,
     mass_analyser: None,
-    mass_error_da: Some("mass error [da]"),   //
-    mass_error_ppm: Some("mass error [ppm]"), //
-    mass: Some("mass"),                       //
+    mass_error_da: Some("mass error [da]"),
+    mass_error_ppm: Some("mass error [ppm]"),
+    mass: Some("mass"),
     missed_cleavages: None,
-    modifications: "modifications",                 //
-    modified_peptide_id: Some("mod. peptide id"),   //
-    mz: Some("m/z"),                                //
-    nem_probabilities: Some("nem probabilities"),   //
-    nem_score_differences: Some("nem score diffs"), //
+    modifications: "modifications",
+    modified_peptide_id: Some("mod. peptide id"),
+    mz: Some("m/z"),
+    nem_probabilities: Some("nem probabilities"),
+    nem_score_differences: Some("nem score diffs"),
     number_of_matches: None,
-    oxidation_m_probabilities: Some("oxidation (m) probabilities"), //
-    oxidation_m_score_differences: Some("oxidation (m) score diffs"), //
+    oxidation_m_probabilities: Some("oxidation (m) probabilities"),
+    oxidation_m_score_differences: Some("oxidation (m) score diffs"),
     peak_coverage: None,
-    pep: "pep",                     //
-    peptide_id: Some("peptide id"), //
-    peptide: "modified sequence",   //
+    pep: "pep",
+    peptide_id: Some("peptide id"),
+    peptide: "modified sequence",
     precursor_apex_function: None,
     precursor_apex_offset_time: None,
     precursor_apex_offset: None,
     precursor_intensity: None,
     precursor: None,
-    protein_group_ids: Some("protein group ids"), //
-    proteins: "proteins",                         //
-    ration_h_l: Some("ratio h/l"),                //
-    ration_h_l_normalised: Some("ratio h/l normalized"), //
-    raw_file: "raw file",                         //
-    retention_time: Some("retention time"),       //
+    protein_group_ids: Some("protein group ids"),
+    proteins: "proteins",
+    ration_h_l: Some("ratio h/l"),
+    ration_h_l_normalised: Some("ratio h/l normalized"),
+    raw_file: "raw file",
+    retention_time: Some("retention time"),
     scan_event_number: None,
     scan_index: None,
-    scan_number: "ms/ms scan numbers", //
+    scan_number: "ms/ms scan numbers",
     score_diff: None,
-    score: "score", //
+    score: "score",
     simple_mass_error_ppm: None,
     total_ion_current: None,
-    ty: "type",  //
-    z: "charge", //
+    ty: "type",
+    z: "charge",
 };
