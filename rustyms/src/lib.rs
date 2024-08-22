@@ -84,7 +84,7 @@ pub use crate::peptide::{
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::sequence_position::*;
-pub use crate::spectrum::{AnnotatedSpectrum, Fragments, RawSpectrum};
+pub use crate::spectrum::{AnnotatableSpectrum, AnnotatedSpectrum, RawSpectrum};
 pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;
 pub use fragment::Fragment;

@@ -7,7 +7,7 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use pyo3::{exceptions::PyValueError, types::PyType};
 
-use rustyms::{Chemical, MultiChemical};
+use rustyms::{AnnotatableSpectrum, Chemical, MultiChemical};
 use rustyms::{Linked, SequencePosition};
 
 /// Mass mode enum.
@@ -742,7 +742,7 @@ impl Fragment {
             "Fragment(formula='{:?}', charge={}, ion='{}', peptide_index={}, neutral_loss='{:?}')",
             self.formula(),
             self.charge(),
-            self.ion().0.to_string(),
+            self.ion().0,
             self.peptide_index(),
             self.neutral_loss(),
         )
@@ -922,7 +922,7 @@ impl CompoundPeptidoform {
     fn peptidoforms(&self) -> Vec<Peptidoform> {
         self.0
             .peptidoforms()
-            .into_iter()
+            .iter()
             .map(|p| Peptidoform(p.clone()))
             .collect()
     }
@@ -1002,7 +1002,7 @@ impl Peptidoform {
     fn peptides(&self) -> Vec<LinearPeptide> {
         self.0
             .peptides()
-            .into_iter()
+            .iter()
             .map(|p| LinearPeptide(p.clone()))
             .collect()
     }
@@ -1202,9 +1202,8 @@ impl LinearPeptide {
     fn formula(&self) -> Option<Vec<MolecularFormula>> {
         self.0.clone().linear().map(|p| {
             p.formulas()
-                .to_vec()
-                .into_iter()
-                .map(|f| MolecularFormula(f))
+                .iter()
+                .map(|f| MolecularFormula(f.clone()))
                 .collect()
         })
     }
@@ -1399,28 +1398,28 @@ impl RawSpectrum {
     /// RawSpectrum
     ///
     #[new]
+    #[pyo3(signature = (title, num_scans, mz_array, intensity_array, rt=None, precursor_charge=None, precursor_mass=None))]
     fn new(
         title: &str,
         num_scans: u64,
-        rt: f64,
-        precursor_charge: usize,
-        precursor_mass: f64,
         mz_array: Vec<f64>,
         intensity_array: Vec<f64>,
+        rt: Option<f64>,
+        precursor_charge: Option<usize>,
+        precursor_mass: Option<f64>,
     ) -> Self {
         let mut spectrum = rustyms::RawSpectrum::default();
         spectrum.title = title.to_string();
         spectrum.num_scans = num_scans;
-        spectrum.rt = rustyms::system::Time::new::<rustyms::system::s>(rt);
+        spectrum.rt = rt.map(rustyms::system::Time::new::<rustyms::system::s>);
         spectrum.charge =
-            rustyms::system::usize::Charge::new::<rustyms::system::e>(precursor_charge);
-        spectrum.mass = rustyms::system::Mass::new::<rustyms::system::dalton>(precursor_mass);
+            precursor_charge.map(rustyms::system::usize::Charge::new::<rustyms::system::e>);
+        spectrum.mass = precursor_mass.map(rustyms::system::Mass::new::<rustyms::system::dalton>);
 
         let peaks = mz_array
             .into_iter()
             .zip(intensity_array)
             .map(|(mz, i)| rustyms::spectrum::RawPeak {
-                charge: rustyms::system::usize::Charge::new::<rustyms::system::e>(1),
                 mz: rustyms::system::MassOverCharge::new::<rustyms::system::mz>(mz),
                 intensity: OrderedFloat(i),
             })
@@ -1435,9 +1434,9 @@ impl RawSpectrum {
             "RawSpectrum(title='{}', num_scans={}, rt={}, charge={}, mass={}, spectrum=[{}])",
             self.title(),
             self.num_scans(),
-            self.rt(),
-            self.charge(),
-            self.mass(),
+            self.rt().map_or("None".to_string(), |v| v.to_string()),
+            self.charge().map_or("None".to_string(), |v| v.to_string()),
+            self.mass().map_or("None".to_string(), |v| v.to_string()),
             self.spectrum()
                 .iter()
                 .map(|x| x.to_string())
@@ -1472,11 +1471,11 @@ impl RawSpectrum {
     ///
     /// Returns
     /// -------
-    /// float
+    /// float | None
     ///
     #[getter]
-    fn rt(&self) -> f64 {
-        self.0.rt.value
+    fn rt(&self) -> Option<f64> {
+        self.0.rt.map(|v| v.value)
     }
 
     /// The found precursor charge.
@@ -1485,19 +1484,19 @@ impl RawSpectrum {
     /// -------
     /// float
     #[getter]
-    fn charge(&self) -> usize {
-        self.0.charge.value
+    fn charge(&self) -> Option<usize> {
+        self.0.charge.map(|v| v.value)
     }
 
-    /// The found precursor mass.
+    /// The found precursor mass in Daltons.
     ///
     /// Returns
     /// -------
     /// float
     ///
     #[getter]
-    fn mass(&self) -> f64 {
-        self.0.mass.value
+    fn mass(&self) -> Option<f64> {
+        self.0.mass.map(|v| v.get::<rustyms::system::dalton>())
     }
 
     /// The peaks of which this spectrum consists.
@@ -1540,11 +1539,14 @@ impl RawSpectrum {
         mode: &MassMode,
     ) -> PyResult<AnnotatedSpectrum> {
         let rusty_model = match_model(model)?;
-        let fragments = peptide
-            .0
-            .generate_theoretical_fragments(self.0.charge, &rusty_model);
+        let fragments = peptide.0.generate_theoretical_fragments(
+            self.0
+                .charge
+                .unwrap_or(rustyms::system::usize::Charge::new::<rustyms::system::e>(1)),
+            &rusty_model,
+        );
         Ok(AnnotatedSpectrum(self.0.annotate(
-            rustyms::CompoundPeptidoform::from(peptide.0),
+            peptide.0,
             &fragments,
             &rusty_model,
             match mode {
@@ -1567,9 +1569,9 @@ impl AnnotatedSpectrum {
             "AnnotatedSpectrum(title='{}', num_scans={}, rt={}, charge={}, mass={}, spectrum=[{}])",
             self.title(),
             self.num_scans(),
-            self.rt(),
-            self.charge(),
-            self.mass(),
+            self.rt().map_or("None".to_string(), |v| v.to_string()),
+            self.charge().map_or("None".to_string(), |v| v.to_string()),
+            self.mass().map_or("None".to_string(), |v| v.to_string()),
             self.spectrum()
                 .iter()
                 .map(|x| x.to_string())
@@ -1607,8 +1609,8 @@ impl AnnotatedSpectrum {
     /// float
     ///
     #[getter]
-    fn rt(&self) -> f64 {
-        self.0.rt.value
+    fn rt(&self) -> Option<f64> {
+        self.0.rt.map(|v| v.value)
     }
 
     /// The found precursor charge.
@@ -1617,19 +1619,19 @@ impl AnnotatedSpectrum {
     /// -------
     /// float
     #[getter]
-    fn charge(&self) -> usize {
-        self.0.charge.value
+    fn charge(&self) -> Option<usize> {
+        self.0.charge.map(|v| v.value)
     }
 
-    /// The found precursor mass.
+    /// The found precursor mass in Daltons.
     ///
     /// Returns
     /// -------
     /// float
     ///
     #[getter]
-    fn mass(&self) -> f64 {
-        self.0.mass.value
+    fn mass(&self) -> Option<f64> {
+        self.0.mass.map(|v| v.get::<rustyms::system::dalton>())
     }
 
     /// The peaks of which this spectrum consists.

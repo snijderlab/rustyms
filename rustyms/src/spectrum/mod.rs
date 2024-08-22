@@ -12,8 +12,6 @@ mod scores;
 pub use annotated::*;
 pub use fdr::*;
 pub use fragmentation::*;
-#[cfg(feature = "mzdata")]
-pub use mzdata::*;
 pub use peaks::*;
 pub use raw::*;
 pub use scores::*;

@@ -7,15 +7,13 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    fragment::Fragment,
+    spectrum::{AnnotatableSpectrum, AnnotatedPeak, PeakSpectrum},
     system::{
         f64::{Mass, MassOverCharge, Ratio, Time},
         usize::Charge,
     },
-    AnnotatedSpectrum, CompoundPeptidoform, MassMode, Model, Tolerance, WithinTolerance,
+    AnnotatedSpectrum, CompoundPeptidoform, Tolerance, WithinTolerance,
 };
-
-use super::{AnnotatedPeak, Fragments, PeakSpectrum};
 
 /// A raw spectrum (meaning not annotated yet)
 #[derive(Default, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
@@ -115,7 +113,7 @@ impl RawSpectrum {
     }
 }
 
-impl Fragments for RawSpectrum {
+impl AnnotatableSpectrum for RawSpectrum {
     type Tolerance = Tolerance<MassOverCharge>;
 
     fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum {

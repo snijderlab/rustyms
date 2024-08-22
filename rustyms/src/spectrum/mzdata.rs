@@ -1,10 +1,12 @@
 use mzdata::{prelude::*, spectrum::RefPeakDataLevel};
 
-use crate::{system::MassOverCharge, CompoundPeptidoform};
+use crate::{
+    spectrum::{AnnotatableSpectrum, AnnotatedPeak, AnnotatedSpectrum},
+    system::MassOverCharge,
+    CompoundPeptidoform,
+};
 
-use super::{AnnotatedPeak, AnnotatedSpectrum, Fragments};
-
-impl<S: SpectrumLike> Fragments for S {
+impl<S: SpectrumLike> AnnotatableSpectrum for S {
     type Tolerance = Tolerance;
 
     fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum {
@@ -52,7 +54,7 @@ impl From<crate::Tolerance<MassOverCharge>> for Tolerance {
     fn from(value: crate::Tolerance<MassOverCharge>) -> Self {
         match value {
             crate::Tolerance::Absolute(value) => {
-                Self::Da(value.get::<crate::system::mass_over_charge::mz>()) // TODO: Ask is this is actually Th or Da
+                Self::Da(value.get::<crate::system::mz>()) // TODO: Ask is this is actually Th or Da
             }
             crate::Tolerance::Relative(value) => {
                 Self::PPM(value.get::<crate::system::ratio::ppm>())
