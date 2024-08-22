@@ -86,18 +86,20 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
                 match key {
                     "PEPMASS" => match value.split_once(' ') {
                         None => {
-                            current.mass = Mass::new::<dalton>(value.parse().map_err(|_| {
-                                base_error.with_long_description(format!(
-                                    "Not a number {key} for PEPMASS"
-                                ))
-                            })?);
+                            current.mass =
+                                Some(Mass::new::<dalton>(value.parse().map_err(|_| {
+                                    base_error.with_long_description(format!(
+                                        "Not a number {key} for PEPMASS"
+                                    ))
+                                })?));
                         }
                         Some((mass, intensity)) => {
-                            current.mass = Mass::new::<dalton>(mass.parse().map_err(|_| {
-                                base_error.with_long_description(format!(
-                                    "Not a number {key} for PEPMASS"
-                                ))
-                            })?);
+                            current.mass =
+                                Some(Mass::new::<dalton>(mass.parse().map_err(|_| {
+                                    base_error.with_long_description(format!(
+                                        "Not a number {key} for PEPMASS"
+                                    ))
+                                })?));
                             current.intensity = Some(intensity.parse().map_err(|_| {
                                 base_error.with_long_description(format!(
                                     "Not a number {key} for PEPMASS"
@@ -106,20 +108,20 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
                         }
                     },
                     "CHARGE" => {
-                        current.charge = parse_charge(value).map_err(|()| {
+                        current.charge = Some(parse_charge(value).map_err(|()| {
                             base_error
                                 .with_long_description(format!("Not a number {key} for CHARGE"))
-                        })?;
+                        })?);
                     }
                     "RT" => {
-                        current.rt = Time::new::<s>(value.parse().map_err(|_| {
+                        current.rt = Some(Time::new::<s>(value.parse().map_err(|_| {
                             base_error.with_long_description(format!("Not a number {key} for RT"))
-                        })?);
+                        })?));
                     }
                     "RTINSECONDS" => {
-                        current.rt = Time::new::<s>(value.parse().map_err(|_| {
+                        current.rt = Some(Time::new::<s>(value.parse().map_err(|_| {
                             base_error.with_long_description(format!("Not a number {key} for RT"))
-                        })?);
+                        })?));
                     }
                     "TITLE" => parse_title(value, &mut current),
                     "SEQUENCE" => current.sequence = Some(value.to_owned()),
@@ -141,7 +143,6 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
                 let mut peak = RawPeak {
                     mz: MassOverCharge::zero(),
                     intensity: OrderedFloat(0.0),
-                    charge: Charge::new::<e>(1),
                 };
                 if split.len() < 2 {
                     return Err(base_error.with_long_description("Not enough columns"));
@@ -154,7 +155,7 @@ pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomE
                         .with_long_description(format!("Not a number {} for INTENSITY", split[1]))
                 })?;
                 if split.len() >= 3 {
-                    peak.charge = parse_charge(split[2]).map_err(|()| {
+                    _ = parse_charge(split[2]).map_err(|()| {
                         base_error
                             .with_long_description(format!("Not a number {} for CHARGE", split[2]))
                     })?;

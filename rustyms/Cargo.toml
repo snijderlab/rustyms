@@ -22,15 +22,16 @@ rust-version = "1.75.0"
 bincode = { workspace = true }
 flate2 = { workspace = true }
 itertools = { workspace = true }
+mzdata = { workspace = true, optional = true }
+ndarray = { workspace = true, optional = true }
 ordered-float = { workspace = true, features = ["serde"] }
 probability = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 similar = { workspace = true }
 uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
-ndarray = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
 
 [build-dependencies]
 bincode = { workspace = true }
@@ -38,16 +39,24 @@ flate2 = { workspace = true }
 itertools = { workspace = true }
 ordered-float = { workspace = true, features = ["serde"] }
 regex = { workspace = true }
+roxmltree = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
-roxmltree = { workspace = true }
 
 [dev-dependencies]
 iai-callgrind = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
-default = ["imgt", "align", "identification", "rayon", "isotopes", "rand"]
+default = [
+    "imgt",
+    "align",
+    "identification",
+    "rayon",
+    "isotopes",
+    "rand",
+    "mzdata",
+]
 imgt = []
 align = []
 identification = []

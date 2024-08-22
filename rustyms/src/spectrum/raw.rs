@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use uom::num_traits::Zero;
 
 use crate::{
     fragment::Fragment,
@@ -13,24 +12,24 @@ use crate::{
         f64::{Mass, MassOverCharge, Ratio, Time},
         usize::Charge,
     },
-    AnnotatedSpectrum, CompoundPeptidoform, MassMode, Model, WithinTolerance,
+    AnnotatedSpectrum, CompoundPeptidoform, MassMode, Model, Tolerance, WithinTolerance,
 };
 
-use super::{AnnotatedPeak, PeakSpectrum};
+use super::{AnnotatedPeak, Fragments, PeakSpectrum};
 
 /// A raw spectrum (meaning not annotated yet)
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct RawSpectrum {
     /// The title (as used in MGF)
     pub title: String,
     /// The number of scans
     pub num_scans: u64,
     /// The retention time
-    pub rt: Time,
+    pub rt: Option<Time>,
     /// The found precursor charge
-    pub charge: Charge,
+    pub charge: Option<Charge>,
     /// The found precursor mass
-    pub mass: Mass,
+    pub mass: Option<Mass>,
     /// The found precursor intensity
     pub intensity: Option<f64>,
     /// The peaks of which this spectrum consists
@@ -114,19 +113,13 @@ impl RawSpectrum {
 
         self.spectrum = new_spectrum;
     }
+}
 
-    /// Annotate this spectrum with the given peptide and given fragments see [`crate::ComplexPeptide::generate_theoretical_fragments`].
-    ///
-    /// # Panics
-    /// If any fragment does not have a defined m/z
-    pub fn annotate(
-        &self,
-        peptide: CompoundPeptidoform,
-        theoretical_fragments: &[Fragment],
-        model: &Model,
-        mode: MassMode,
-    ) -> AnnotatedSpectrum {
-        let mut annotated = AnnotatedSpectrum {
+impl Fragments for RawSpectrum {
+    type Tolerance = Tolerance<MassOverCharge>;
+
+    fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum {
+        AnnotatedSpectrum {
             title: self.title.clone(),
             num_scans: self.num_scans,
             rt: self.rt,
@@ -138,40 +131,27 @@ impl RawSpectrum {
                 .iter()
                 .map(AnnotatedPeak::background)
                 .collect(),
-        };
+        }
+    }
 
-        for fragment in theoretical_fragments {
-            // Determine fragment mz and see if it is within the model range.
-            let mz = fragment.mz(mode);
-            if !model.mz_range.contains(&mz) {
-                continue;
-            }
+    fn search(&self, query: MassOverCharge, tolerance: Self::Tolerance) -> Option<usize> {
+        let index = self
+            .spectrum
+            .binary_search_by(|p| p.mz.value.total_cmp(&query.value))
+            .unwrap_or_else(|i| i);
 
-            // Get the index of the element closest to this value (spectrum is defined to always be sorted)
-            let index = self
-                .spectrum
-                .binary_search_by(|p| p.mz.value.total_cmp(&mz.value))
-                .unwrap_or_else(|i| i);
-
-            // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
-            let mut closest = (0, f64::INFINITY);
-            for i in
-                if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1)
-            {
-                let ppm = self.spectrum[i].ppm(mz).value;
-                if ppm < closest.1 {
-                    closest = (i, ppm);
-                }
-            }
-
-            if model.tolerance.within(&self.spectrum[closest.0].mz, &mz) {
-                annotated.spectrum[closest.0]
-                    .annotation
-                    .push((fragment.clone(), Vec::new()));
+        // Check index-1, index and index+1 (if existing) to find the one with the lowest ppm
+        let mut closest = (0, f64::INFINITY);
+        for i in if index == 0 { 0 } else { index - 1 }..=(index + 1).min(self.spectrum.len() - 1) {
+            let ppm = self.spectrum[i].ppm(query).value;
+            if ppm < closest.1 {
+                closest = (i, ppm);
             }
         }
 
-        annotated
+        tolerance
+            .within(&self.spectrum[closest.0].mz, &query)
+            .then_some(closest.0)
     }
 }
 
@@ -243,30 +223,6 @@ impl PeakSpectrum for RawSpectrum {
     }
 }
 
-impl Default for RawSpectrum {
-    fn default() -> Self {
-        Self {
-            title: String::new(),
-            num_scans: 0,
-            rt: Time::zero(),
-            charge: Charge::new::<crate::system::e>(1),
-            mass: Mass::zero(),
-            spectrum: Vec::new(),
-            intensity: None,
-            sequence: None,
-            raw_file: None,
-            raw_scan_number: None,
-            raw_index: None,
-            sample: None,
-            period: None,
-            cycle: None,
-            experiment: None,
-            controller_type: None,
-            controller_number: None,
-        }
-    }
-}
-
 /// A raw peak
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RawPeak {
@@ -274,8 +230,6 @@ pub struct RawPeak {
     pub mz: MassOverCharge,
     /// The intensity of this peak
     pub intensity: OrderedFloat<f64>,
-    /// The charge of this peak
-    pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
 }
 
 impl PartialOrd for RawPeak {
@@ -296,7 +250,6 @@ impl PartialEq for RawPeak {
     fn eq(&self, other: &Self) -> bool {
         self.mz.value.total_cmp(&other.mz.value) == Ordering::Equal
             && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
-            && self.charge.value.cmp(&other.charge.value) == Ordering::Equal
     }
 }
 

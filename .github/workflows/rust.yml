@@ -27,6 +27,7 @@ jobs:
         cargo build -p rustyms --no-default-features --features isotopes
         cargo build -p rustyms --no-default-features --features rand
         cargo build -p rustyms --no-default-features --features rayon
+        cargo build -p rustyms --no-default-features --features mzdata
   
   fmt:
     runs-on: ubuntu-latest

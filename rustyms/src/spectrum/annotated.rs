@@ -24,11 +24,11 @@ pub struct AnnotatedSpectrum {
     /// The number of scans
     pub num_scans: u64,
     /// The retention time
-    pub rt: Time,
+    pub rt: Option<Time>,
     /// The found precursor charge
-    pub charge: Charge,
+    pub charge: Option<Charge>,
     /// The found precursor mass
-    pub mass: Mass,
+    pub mass: Option<Mass>,
     /// The peptide with which this spectrum was annotated
     pub peptide: CompoundPeptidoform,
     /// The spectrum
@@ -119,8 +119,6 @@ pub struct AnnotatedPeak {
     pub experimental_mz: MassOverCharge,
     /// The experimental intensity
     pub intensity: OrderedFloat<f64>,
-    /// The charge
-    pub charge: Charge, // TODO: Is this item needed? (mgf has it, not used in rustyms)
     /// The annotation, if present
     pub annotation: Vec<(Fragment, Vec<MatchedIsotopeDistribution>)>,
     /// Any annotation as isotope from a given fragment
@@ -133,7 +131,6 @@ impl AnnotatedPeak {
         Self {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
-            charge: peak.charge,
             annotation: vec![(annotation, Vec::new())],
             isotope_annotation: Vec::new(),
         }
@@ -144,7 +141,6 @@ impl AnnotatedPeak {
         Self {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
-            charge: peak.charge,
             annotation: Vec::new(),
             isotope_annotation: Vec::new(),
         }
@@ -174,7 +170,6 @@ impl PartialEq for AnnotatedPeak {
             .total_cmp(&other.experimental_mz.value)
             == Ordering::Equal
             && self.intensity.total_cmp(&other.intensity) == Ordering::Equal
-            && self.charge.value.cmp(&other.charge.value) == Ordering::Equal
             && self.annotation == other.annotation
     }
 }
