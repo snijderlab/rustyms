@@ -91,7 +91,7 @@ impl AnnotatedSpectrum {
                 let mut closest = (0, Ratio::new::<crate::system::ratio::ppm>(f64::INFINITY));
                 #[allow(clippy::needless_range_loop)] // I like this better
                 for i in if index == 0 { 0 } else { index - 1 }
-                    ..=(index + 1).min(self.spectrum.len() - 1)
+                    ..=(index + 1).min(self.spectrum.len().saturating_sub(1))
                 {
                     let ppm = peaks[i].ppm(*mass);
                     if ppm < closest.1 {
