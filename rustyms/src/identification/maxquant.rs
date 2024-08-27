@@ -105,7 +105,6 @@ format_family!(
 impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
-            peptide: value.peptide.clone().unwrap_or_default(), // TODO: what to do with empty sequences
             local_confidence: None,
             score: Some(value.score),
             metadata: MetaData::MaxQuant(value),

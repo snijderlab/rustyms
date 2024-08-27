@@ -71,7 +71,6 @@ format_family!(
 impl From<PeaksData> for IdentifiedPeptide {
     fn from(value: PeaksData) -> Self {
         Self {
-            peptide: value.peptide.clone(),
             local_confidence: Some(value.local_confidence.clone()),
             score: Some(value.de_novo_score.unwrap_or(value.alc)),
             metadata: MetaData::Peaks(value),

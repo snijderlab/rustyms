@@ -76,7 +76,6 @@ format_family!(
 impl From<MSFraggerData> for IdentifiedPeptide {
     fn from(value: MSFraggerData) -> Self {
         Self {
-            peptide: value.peptide.clone().unwrap_or_default(),
             local_confidence: None,
             score: Some(value.hyperscore),
             metadata: MetaData::MSFragger(value),

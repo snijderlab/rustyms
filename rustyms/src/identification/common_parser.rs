@@ -291,7 +291,7 @@ impl<'a> OptionalLocation<'a> for Option<Location<'a>> {
     fn array(self, sep: char) -> Self::ArrayIter {
         self.map(|l| l.array(sep)).unwrap_or_default()
     }
-    fn ignore(self, pattern: &str) -> Option<Location<'a>> {
+    fn ignore(self, pattern: &str) -> Self {
         self.and_then(|s| s.ignore(pattern))
     }
 }

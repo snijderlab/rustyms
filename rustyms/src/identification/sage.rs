@@ -75,7 +75,6 @@ format_family!(
 impl From<SageData> for IdentifiedPeptide {
     fn from(value: SageData) -> Self {
         Self {
-            peptide: value.peptide.clone(),
             local_confidence: None,
             score: Some(value.sage_discriminant_score.clamp(-1.0, 1.0)),
             metadata: MetaData::Sage(value),

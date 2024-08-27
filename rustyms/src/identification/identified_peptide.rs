@@ -14,8 +14,6 @@ use crate::LinearPeptide;
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
-    /// The peptide sequence
-    pub peptide: LinearPeptide<VerySimple>,
     /// The local confidence of this peptide (same length as the peptide)
     pub local_confidence: Option<Vec<f64>>,
     /// The score -1.0..=1.0 if available in the original format
@@ -47,6 +45,20 @@ pub enum MetaData {
 }
 
 impl MetaData {
+    /// Get the peptide
+    pub const fn peptide(&self) -> Option<&LinearPeptide<VerySimple>> {
+        match self {
+            Self::Peaks(PeaksData { peptide, .. })
+            | Self::Novor(NovorData { peptide, .. })
+            | Self::Opair(OpairData { peptide, .. })
+            | Self::Sage(SageData { peptide, .. })
+            | Self::Fasta(FastaData { peptide, .. }) => Some(peptide),
+            Self::MSFragger(MSFraggerData { peptide, .. })
+            | Self::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
+            Self::None => None,
+        }
+    }
+
     /// The charge of the precursor, if known
     pub const fn charge(&self) -> Option<Charge> {
         match self {
@@ -68,19 +80,18 @@ impl MetaData {
         }
     }
 
-    /// The scan number of the spectrum for this identified peptide, if known.
-    // TODO: Allow multiple scan numbers to be returned, but think about merging spectra then as well
-    pub fn scan_number(&self) -> Option<usize> {
+    /// The scan numbers of the spectrum for this identified peptide, if known.
+    pub fn scan_number(&self) -> Option<Vec<usize>> {
         match self {
             Self::Peaks(PeaksData { scan, .. }) => {
-                scan.first().and_then(|i| i.scans.first().copied())
+                Some(scan.iter().flat_map(|i| &i.scans).copied().collect())
             }
             Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
-                Some(*scan)
+                Some(vec![*scan])
             }
-            Self::MaxQuant(MaxQuantData { scan_number, .. }) => scan_number.first().copied(),
-            Self::Sage(SageData { scan_nr, .. }) => Some(scan_nr.2),
-            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(spectrum.scan.0),
+            Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
+            Self::Sage(SageData { scan_nr, .. }) => Some(vec![scan_nr.2]),
+            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
             Self::Fasta(_) | Self::None => None,
         }
     }
