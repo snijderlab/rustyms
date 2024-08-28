@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::{
     error::CustomError,
     ontologies::CustomDatabase,
@@ -30,7 +32,7 @@ format_family!(
         psm_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.very_simple().unwrap());
         proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
-        filename: String, |location: Location, _| Ok(location.get_string());
+        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan_nr: (usize,usize,usize), |location: Location, _|
         location.parse_regex(
             &Regex::new("controllerType=(\\d+) controllerNumber=(\\d+) scan=(\\d+)").unwrap(),
@@ -88,7 +90,7 @@ pub const VERSION_0_14: SageFormat = SageFormat {
     psm_id: "psm_id",
     peptide: "peptide",
     proteins: "proteins",
-    filename: "filename",
+    raw_file: "filename",
     scan_nr: "scannr",
     rank: "rank",
     decoy: "label",

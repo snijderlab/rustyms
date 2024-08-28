@@ -1,15 +1,15 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
-use super::fasta::FastaData;
-use super::novor::NovorData;
-use super::opair::OpairData;
-use super::peaks::PeaksData;
-use super::{MSFraggerData, MaxQuantData, SageData};
-use crate::error::CustomError;
-use crate::ontologies::CustomDatabase;
-use crate::peptide::VerySimple;
-use crate::system::usize::Charge;
-use crate::LinearPeptide;
+use super::{
+    fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, MSFraggerData,
+    MaxQuantData, SageData,
+};
+use crate::{
+    error::CustomError, ontologies::CustomDatabase, peptide::VerySimple, system::usize::Charge,
+    system::Time, LinearPeptide,
+};
 
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -76,7 +76,20 @@ impl MetaData {
     pub fn mode(&self) -> Option<&str> {
         match self {
             Self::Peaks(PeaksData { mode, .. }) => Some(mode),
+            Self::MaxQuant(MaxQuantData { fragmentation, .. }) => fragmentation.as_deref(),
             _ => None,
+        }
+    }
+
+    /// The retention time, if known
+    pub fn retention_time(&self) -> Option<Time> {
+        match self {
+            Self::Peaks(PeaksData { rt, .. })
+            | Self::Opair(OpairData { rt, .. })
+            | Self::Sage(SageData { rt, .. })
+            | Self::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
+            Self::MaxQuant(MaxQuantData { rt, .. }) | Self::Novor(NovorData { rt, .. }) => *rt,
+            Self::Fasta(_) | Self::None => None,
         }
     }
 
@@ -96,17 +109,27 @@ impl MetaData {
         }
     }
 
-    /// Get the file name for the rawfile
-    pub fn raw_file(&self) -> Option<&str> {
+    /// Get the file name for the raw file
+    pub fn raw_file(&self) -> Option<&Path> {
         match self {
-            Self::Peaks(PeaksData { source_file, .. }) => source_file.as_ref().map(String::as_str),
-            Self::Opair(OpairData { file_name, .. }) => Some(file_name),
-            Self::MaxQuant(MaxQuantData { raw_file, .. }) => Some(raw_file),
-            Self::Sage(SageData { filename, .. }) => Some(filename),
+            Self::Peaks(PeaksData { raw_file, .. }) => raw_file.as_deref(),
+            Self::Opair(OpairData { raw_file, .. })
+            | Self::MaxQuant(MaxQuantData { raw_file, .. })
+            | Self::Sage(SageData { raw_file, .. }) => Some(raw_file),
             Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
             Self::Novor(_) | Self::Fasta(_) | Self::None => None,
         }
     }
+}
+
+/// A spectrum identifier
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub enum Id {
+    /// An index, 0-based, into the raw file
+    Index(usize),
+    /// A native ID which can be in many formats see [mzdata](https://docs.rs/mzdata/latest/mzdata/meta/enum.NativeSpectrumIdentifierFormatTerm.html)
+    /// for more information.
+    NativeID(String),
 }
 
 /// The required methods for any source of identified peptides
@@ -136,7 +159,7 @@ where
     /// Parse a source of multiple peptides automatically determining the format to use by the first item
     /// # Errors
     /// When the source is not a valid peptide
-    fn parse_many<I: Iterator<Item = Self::Source>>(
+    fn parse_many<I: Iterator<Item = Result<Self::Source, CustomError>>>(
         iter: I,
         custom_database: Option<&CustomDatabase>,
     ) -> IdentifiedPeptideIter<Self, I> {
@@ -159,22 +182,22 @@ where
 pub type BoxedIdentifiedPeptideIter<'lifetime, T> = IdentifiedPeptideIter<
     'lifetime,
     T,
-    Box<dyn Iterator<Item = <T as IdentifiedPeptideSource>::Source>>,
+    Box<dyn Iterator<Item = Result<<T as IdentifiedPeptideSource>::Source, CustomError>>>,
 >;
 
 /// An iterator returning parsed identified peptides
 pub struct IdentifiedPeptideIter<
     'lifetime,
     R: IdentifiedPeptideSource,
-    I: Iterator<Item = R::Source>,
+    I: Iterator<Item = Result<R::Source, CustomError>>,
 > {
     iter: Box<I>,
     format: Option<R::Format>,
     custom_database: Option<&'lifetime CustomDatabase>,
 }
 
-impl<'lifetime, R: IdentifiedPeptideSource, I: Iterator<Item = R::Source>> Iterator
-    for IdentifiedPeptideIter<'lifetime, R, I>
+impl<'lifetime, R: IdentifiedPeptideSource, I: Iterator<Item = Result<R::Source, CustomError>>>
+    Iterator for IdentifiedPeptideIter<'lifetime, R, I>
 where
     R::Format: 'static,
 {
@@ -183,12 +206,12 @@ where
         if let Some(format) = &self.format {
             self.iter
                 .next()
-                .map(|source| R::parse_specific(&source, format, self.custom_database))
+                .map(|source| R::parse_specific(&source?, format, self.custom_database))
         } else {
             match self
                 .iter
                 .next()
-                .map(|source| R::parse(&source, self.custom_database))
+                .map(|source| R::parse(&source?, self.custom_database))
             {
                 None => None,
                 Some(Ok((pep, format))) => {

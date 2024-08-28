@@ -10,9 +10,9 @@ use crate::{
     molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
     placement_rule::PlacementRule,
-    system::usize::Charge,
+    system::{dalton, usize::Charge, Mass},
     Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical, NeutralLoss,
-    Protease, SequenceElement, SequencePosition,
+    Protease, SequenceElement, SequencePosition, Tolerance, WithinTolerance,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -973,6 +973,59 @@ impl<T> LinearPeptide<T> {
             write!(f, "/{c}")?;
         }
         Ok(())
+    }
+
+    /// Look at the provided modifications and see if they match any modification on this peptide with
+    /// more information and replace those. Replaces any mass modification within 0.1 Da or any precise
+    /// matching formula with the provided modifications.
+    pub(crate) fn inject_modifications(&mut self, modifications: &[SimpleModification]) {
+        let replace_simple =
+            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
+                SimpleModification::Mass(mass) => Tolerance::Absolute(Mass::new::<dalton>(0.1))
+                    .within(
+                        &mass.into_inner(),
+                        &provided
+                            .formula(SequencePosition::default(), 0)
+                            .monoisotopic_mass(),
+                    ),
+                SimpleModification::Formula(formula) => {
+                    *formula == provided.formula(SequencePosition::default(), 0)
+                }
+                _ => false,
+            };
+        let possibly_replace_simple = |in_place: &SimpleModification| {
+            for provided in modifications {
+                if replace_simple(in_place, provided) {
+                    return provided.clone();
+                }
+            }
+            in_place.clone()
+        };
+        let replace = |in_place: &Modification, provided: &SimpleModification| match in_place {
+            Modification::Simple(simple) => replace_simple(simple, provided),
+            Modification::CrossLink { .. } => false,
+        };
+        let possibly_replace = |in_place: &Modification| {
+            for provided in modifications {
+                if replace(in_place, provided) {
+                    return Modification::Simple(provided.clone());
+                }
+            }
+            in_place.clone()
+        };
+        self.n_term = self.n_term.as_ref().map(possibly_replace);
+        self.c_term = self.c_term.as_ref().map(possibly_replace);
+        for position in &mut self.sequence {
+            for m in &mut position.modifications {
+                *m = possibly_replace(m);
+            }
+            for m in &mut position.possible_modifications {
+                m.modification = possibly_replace_simple(&m.modification);
+            }
+        }
+        for m in &mut self.labile {
+            *m = possibly_replace_simple(m);
+        }
     }
 }
 

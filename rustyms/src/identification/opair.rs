@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use super::{
     common_parser::Location,
     csv::{parse_csv, CsvLine},
@@ -23,7 +25,7 @@ format_family!(
     OpairData,
     OpairVersion, [&O_PAIR], b'\t';
     required {
-        file_name: String, |location: Location, _| Ok(location.get_string());
+        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         precursor_scan_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -219,7 +221,7 @@ impl std::fmt::Display for OpairVersion {
 /// The only supported format for Opair data
 pub const O_PAIR: OpairFormat = OpairFormat {
     version: OpairVersion::Opair,
-    file_name: "file name",
+    raw_file: "file name",
     scan: "scan number",
     rt: "scan retention time",
     precursor_scan_number: "precursor scan number",

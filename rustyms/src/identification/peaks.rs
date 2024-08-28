@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     error::CustomError,
@@ -14,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalLocation},
     csv::{parse_csv, CsvLine},
-    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
+    modification::SimpleModification,
+    BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData, Modification,
 };
 
 static NUMBER_ERROR: (&str, &str) = (
@@ -29,7 +33,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&OLD, &X, &XPLUS, &AB, &XI], b',';
+    PeaksVersion, [&X, &OLD, &XPLUS, &AB, &XI], b',';
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -48,7 +52,12 @@ format_family!(
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         area: Option<f64>, |location: Location, _| location.or_empty().parse(NUMBER_ERROR);
         ppm: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        ptm: String, |location: Location, _| Ok(location.get_string());
+        ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
+            location.or_empty().array(';').map(|v| {
+                let v = v.trim();
+                Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
+            }
+            ).collect::<Result<Vec<_>,_>>();
         local_confidence: Vec<f64>, |location: Location, _| location
                 .array(' ')
                 .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
@@ -58,7 +67,7 @@ format_family!(
     }
     optional {
         fraction: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
-        source_file: String, |location: Location, _| Ok(Some(location.get_string()));
+        raw_file: PathBuf, |location: Location, _| Ok(Some(Path::new(&location.get_string()).to_owned()));
         feature: PeaksId, |location: Location, _| location.or_empty().parse(ID_ERROR);
         de_novo_score: f64, |location: Location, _| location
                 .parse::<f64>(NUMBER_ERROR)
@@ -69,7 +78,10 @@ format_family!(
 );
 
 impl From<PeaksData> for IdentifiedPeptide {
-    fn from(value: PeaksData) -> Self {
+    fn from(mut value: PeaksData) -> Self {
+        // Add the meaningful modifications to replace mass modifications
+        value.peptide.inject_modifications(&value.ptm);
+
         Self {
             local_confidence: Some(value.local_confidence.clone()),
             score: Some(value.de_novo_score.unwrap_or(value.alc)),
@@ -97,7 +109,7 @@ pub const OLD: PeaksFormat = PeaksFormat {
     mode: "mode",
     length: "length",
     fraction: None,
-    source_file: None,
+    raw_file: None,
     feature: None,
     de_novo_score: None,
     predicted_rt: None,
@@ -122,7 +134,7 @@ pub const X: PeaksFormat = PeaksFormat {
     mode: "mode",
     length: "length",
     fraction: Some("fraction"),
-    source_file: Some("source file"),
+    raw_file: Some("source file"),
     feature: Some("feature"),
     de_novo_score: None,
     predicted_rt: None,
@@ -147,7 +159,7 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     mode: "mode",
     length: "length",
     fraction: Some("fraction"),
-    source_file: Some("source file"),
+    raw_file: Some("source file"),
     feature: Some("feature"),
     de_novo_score: Some("denovo score"),
     predicted_rt: Some("predict rt"),
@@ -172,7 +184,7 @@ pub const XI: PeaksFormat = PeaksFormat {
     mode: "mode",
     length: "length",
     fraction: None,
-    source_file: None,
+    raw_file: Some("source file"),
     feature: Some("feature"),
     de_novo_score: None,
     predicted_rt: None,
@@ -197,7 +209,7 @@ pub const AB: PeaksFormat = PeaksFormat {
     mode: "mode",
     length: "length",
     fraction: None,
-    source_file: None,
+    raw_file: None,
     feature: None,
     de_novo_score: None,
     predicted_rt: None,

@@ -61,8 +61,8 @@ macro_rules! format_family {
                 custom_database: Option<&crate::ontologies::CustomDatabase>,
             ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError> {
                 parse_csv(path, $separator, None).map(|lines| {
-                    Self::parse_many::<Box<dyn Iterator<Item = Self::Source>>>(Box::new(
-                        lines.map(Result::unwrap),
+                    Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(Box::new(
+                        lines,
                     ), custom_database)
                 })
             }
@@ -231,6 +231,18 @@ impl<'a> Location<'a> {
             self.full_line(),
             self.location.clone(),
         )
+    }
+
+    pub fn trim(&self) -> Self {
+        let start_trim = self.as_str().trim_start().len();
+        let end_trim = self.as_str().trim_end().len();
+        let length = self.as_str().len();
+
+        Self {
+            line: self.line,
+            location: self.location.start + (length - start_trim)
+                ..self.location.end - (length - end_trim),
+        }
     }
 
     pub fn apply(self, f: impl FnOnce(Self) -> Self) -> Self {

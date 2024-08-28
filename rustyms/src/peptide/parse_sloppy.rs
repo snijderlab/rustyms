@@ -119,6 +119,7 @@ impl LinearPeptide<VerySimple> {
 
 static SLOPPY_MOD_OPAIR_REGEX: OnceLock<Regex> = OnceLock::new();
 static SLOPPY_MOD_ON_REGEX: OnceLock<Regex> = OnceLock::new();
+static SLOPPY_MOD_NUMERIC_END_REGEX: OnceLock<Regex> = OnceLock::new();
 
 impl Modification {
     /// Parse a modification defined by sloppy names
@@ -144,10 +145,11 @@ impl Modification {
                     _ => None
                 }
             })
-            .or_else(|| {SLOPPY_MOD_OPAIR_REGEX.get_or_init(|| {Regex::new(r"[^:]+:(.*) on [A-Z]").unwrap()})
+            .or_else(|| {SLOPPY_MOD_OPAIR_REGEX.get_or_init(|| {Regex::new(r"(?:[^:]+:)?(.*) (?:(?:on)|(?:from)) ([A-Z])").unwrap()})
                 .captures(name)
                 .and_then(|capture| {
-                    Self::find_name(&capture[1], position, custom_database)
+                    let pos = capture[2].chars().next().and_then(|a| AminoAcid::try_from(a).ok().map(|a| SequenceElement::new(a, None)));
+                    Self::find_name(&capture[1], position.or(pos.as_ref()), custom_database)
                         .ok_or_else(|| {
                             parse_named_counter(
                                 &capture[1].to_ascii_lowercase(),
@@ -161,7 +163,15 @@ impl Modification {
                 })
                 .or_else(|| {
                     // Common sloppy naming: `modification (AAs)` also accepts `modification (Protein N-term)`
-                    SLOPPY_MOD_ON_REGEX.get_or_init(|| {Regex::new(r"(.*)\s*\([- a-zA-Z]+\)").unwrap()})
+                    SLOPPY_MOD_ON_REGEX.get_or_init(|| {Regex::new(r"(.*)\s*\([- @a-zA-Z]+\)").unwrap()})
+                        .captures(name)
+                        .and_then(|capture| {
+                            Self::find_name(&capture[1], position, custom_database)
+                        })
+                })
+                .or_else(|| {
+                    // Common sloppy naming: `modification1`
+                    SLOPPY_MOD_NUMERIC_END_REGEX.get_or_init(|| {Regex::new(r"(.*)\d+").unwrap()})
                         .captures(name)
                         .and_then(|capture| {
                             Self::find_name(&capture[1], position, custom_database)
@@ -187,8 +197,8 @@ impl Modification {
     ) -> Option<SimpleModification> {
         let name = name.trim().to_lowercase();
         match name.as_str() {
-            "o" => Ontology::Unimod.find_id(35, None),    // oxidation
-            "cam" => Ontology::Unimod.find_id(4, None),   // carbamidomethyl
+            "o" => Ontology::Unimod.find_id(35, None), // oxidation
+            "cam" | "carbamidomethylation" => Ontology::Unimod.find_id(4, None), // carbamidomethyl
             "nem" => Ontology::Unimod.find_id(108, None), // Nethylmaleimide
             "deamidation" => Ontology::Unimod.find_id(7, None), // deamidation
             "pyro-glu" => Ontology::Unimod.find_id(

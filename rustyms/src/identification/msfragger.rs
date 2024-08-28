@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 //Spectrum	Spectrum.File	Peptide	Modified sequence	Extended.Peptide	Prev.AA	Next.AA	Peptide.Length	Charge	Retention	Observed.Mass	Calibrated.Observed.Mass	Observed.M.Z	Calibrated.Observed.M.Z	Calculated.Peptide.Mass	Calculated.M.Z	Delta.Mass	Expectation	Hyperscore	Nextscore	PeptideProphet.Probability	Number.of.Enzymatic.Termini	Number.of.Missed.Cleavages	Protein.Start	Protein.End	Intensity	Assigned.Modifications	Observed.Modifications	Purity	Is.Unique	Protein	Protein.ID	Entry.Name	Gene	Protein.Description	Mapped.Genes	Mapped.Proteins	condition	group
 use crate::{
     error::{Context, CustomError},
@@ -183,7 +185,7 @@ pub const V22: MSFraggerFormat = MSFraggerFormat {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub struct MSFraggerID {
     /// The file, if defined
-    pub file: String,
+    pub file: PathBuf,
     /// The scan number triplet
     pub scan: (usize, usize, usize),
 }
@@ -193,7 +195,10 @@ impl std::fmt::Display for MSFraggerID {
         write!(
             f,
             "{}.{}.{}.{}",
-            self.file, self.scan.0, self.scan.1, self.scan.2,
+            self.file.to_string_lossy(),
+            self.scan.0,
+            self.scan.1,
+            self.scan.2,
         )
     }
 }
@@ -204,7 +209,7 @@ impl std::str::FromStr for MSFraggerID {
         let split = s.rsplitn(4, '.').collect_vec();
         if split.len() == 4 {
             Ok(Self {
-                file: split[3].to_string(),
+                file: Path::new(&split[3]).to_owned(),
                 scan: (
                     split[2].parse().map_err(|err| {
                         CustomError::error(

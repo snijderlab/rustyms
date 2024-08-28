@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
@@ -30,7 +32,7 @@ format_family!(
     MaxQuantData,
     MaxQuantVersion, [&MSMS, &MSMS_SCANS, &NOVO_MSMS_SCANS, &SILAC], b'\t';
     required {
-        raw_file: String, |location: Location, _| Ok(location.get_string());
+        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan_number: Vec<usize>, |location: Location, _| location.or_empty().array(';').map(|s| s.parse(NUMBER_ERROR)).collect::<Result<Vec<usize>, CustomError>>();
         modifications: String, |location: Location, _| Ok(location.get_string());
         proteins: String, |location: Location, _| Ok(location.get_string());
@@ -93,7 +95,7 @@ format_family!(
         protein_group_ids: Vec<usize>, |location: Location, _| location.array(';').map(|p| p.parse::<usize>(NUMBER_ERROR)).collect::<Result<Vec<_>,_>>();
         ration_h_l_normalised: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
         ration_h_l: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
-        retention_time: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         scan_event_number: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         scan_index: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         score_diff: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
@@ -195,7 +197,7 @@ pub const MSMS: MaxQuantFormat = MaxQuantFormat {
     ration_h_l_normalised: None,
     ration_h_l: None,
     raw_file: "raw file",
-    retention_time: Some("retention time"),
+    rt: Some("retention time"),
     scan_event_number: Some("scan event number"),
     scan_index: Some("scan index"),
     scan_number: "scan number",
@@ -260,7 +262,7 @@ pub const MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     ration_h_l_normalised: None,
     ration_h_l: None,
     raw_file: "raw file",
-    retention_time: Some("retention time"),
+    rt: Some("retention time"),
     scan_event_number: Some("scan event number"),
     scan_index: Some("scan index"),
     scan_number: "scan number",
@@ -325,7 +327,7 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     ration_h_l_normalised: None,
     ration_h_l: None,
     raw_file: "raw file",
-    retention_time: Some("retention time"),
+    rt: Some("retention time"),
     scan_event_number: Some("scan event number"),
     scan_index: Some("scan index"),
     scan_number: "scan number",
@@ -390,7 +392,7 @@ pub const SILAC: MaxQuantFormat = MaxQuantFormat {
     ration_h_l: Some("ratio h/l"),
     ration_h_l_normalised: Some("ratio h/l normalized"),
     raw_file: "raw file",
-    retention_time: Some("retention time"),
+    rt: Some("retention time"),
     scan_event_number: None,
     scan_index: None,
     scan_number: "ms/ms scan numbers",
