@@ -9,17 +9,18 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 
 ## Library features
 
- - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences ('level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
- - Generate theoretical fragments with control over the fragmentation model from any supported ProForma peptidoform/proteoform
+ - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences (complete specification supported: 'level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
+ - Generate theoretical fragments with control over the fragmentation model from any ProForma peptidoform/proteoform
    - Generate fragments from satellite ions (w, d, and v)
    - Generate glycan fragments
    - Generate theoretical fragments for modifications of unknown position
    - Generate theoretical fragments for chimeric spectra
- - Read mgf files
+   - Generate theoretical fragments for cross-links (also disulfides)
+ - Integrated with [mzdata](https://crates.io/crates/mzdata) for reading raw data file
  - Match spectra to the generated fragments
  - [Align peptides based on mass](https://pubs.acs.org/doi/10.1021/acs.jproteome.4c00188)
  - Fast access to the IMGT database of antibody germlines
- - Reading of multiple identified peptide file formats (both _de novo_ and database matching)
+ - Reading of multiple identified peptide file formats (Fasta, MaxQuant, MSFragger, Novor, OPair, Peaks, and Sage)
  - Exhaustively fuzz tested for reliability (using [cargo-afl](https://crates.io/crates/cargo-afl))
  - Extensive use of [uom](https://docs.rs/uom/latest/uom/) for compile time unit checking
 

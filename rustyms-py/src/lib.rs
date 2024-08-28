@@ -740,7 +740,7 @@ impl Fragment {
     fn __repr__(&self) -> String {
         format!(
             "Fragment(formula='{:?}', charge={}, ion='{}', peptide_index={}, neutral_loss='{:?}')",
-            self.formula(),
+            Self::formula(self),
             self.charge(),
             self.ion().0,
             self.peptide_index(),
