@@ -191,7 +191,6 @@ format_family!(
 impl From<OpairData> for IdentifiedPeptide {
     fn from(value: OpairData) -> Self {
         Self {
-            local_confidence: None,
             score: Some(value.score),
             metadata: MetaData::Opair(value),
         }

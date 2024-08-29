@@ -14,8 +14,6 @@ use crate::{
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
-    /// The local confidence of this peptide (same length as the peptide)
-    pub local_confidence: Option<Vec<f64>>,
     /// The score -1.0..=1.0 if available in the original format
     pub score: Option<f64>,
     /// The full metadata of this peptide
@@ -40,7 +38,7 @@ pub enum MetaData {
     MaxQuant(MaxQuantData),
     /// Sage metadata
     Sage(SageData),
-    /// Sage metadata
+    /// MSFragger metadata
     MSFragger(MSFraggerData),
 }
 
@@ -56,6 +54,19 @@ impl MetaData {
             Self::MSFragger(MSFraggerData { peptide, .. })
             | Self::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
             Self::None => None,
+        }
+    }
+
+    /// Get the local confidence, it is the same lengths as the peptide with a local score in 0..=1
+    pub fn local_confidence(&self) -> Option<&[f64]> {
+        match self {
+            Self::Peaks(PeaksData {
+                local_confidence, ..
+            }) => Some(local_confidence),
+            Self::Novor(NovorData {
+                local_confidence, ..
+            }) => local_confidence.as_deref(),
+            _ => None,
         }
     }
 
@@ -93,8 +104,8 @@ impl MetaData {
         }
     }
 
-    /// The scan numbers of the spectrum for this identified peptide, if known.
-    pub fn scan_number(&self) -> Option<Vec<usize>> {
+    /// The scan indices of the spectrum for this identified peptide, if known.
+    pub fn scan_indices(&self) -> Option<Vec<usize>> {
         match self {
             Self::Peaks(PeaksData { scan, .. }) => {
                 Some(scan.iter().flat_map(|i| &i.scans).copied().collect())
@@ -103,9 +114,22 @@ impl MetaData {
                 Some(vec![*scan])
             }
             Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
-            Self::Sage(SageData { scan_nr, .. }) => Some(vec![scan_nr.2]),
             Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
-            Self::Fasta(_) | Self::None => None,
+            Self::Sage(_) | Self::Fasta(_) | Self::None => None,
+        }
+    }
+
+    /// The native ids of the spectrum for this identified peptide, if known.
+    pub fn spectrum_native_ids(&self) -> Option<Vec<String>> {
+        match self {
+            Self::Sage(SageData { native_id, .. }) => Some(vec![native_id.clone()]),
+            Self::MaxQuant(_)
+            | Self::Opair(_)
+            | Self::Novor(_)
+            | Self::Peaks(_)
+            | Self::Fasta(_)
+            | Self::MSFragger(_)
+            | Self::None => None,
         }
     }
 
@@ -120,16 +144,6 @@ impl MetaData {
             Self::Novor(_) | Self::Fasta(_) | Self::None => None,
         }
     }
-}
-
-/// A spectrum identifier
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub enum Id {
-    /// An index, 0-based, into the raw file
-    Index(usize),
-    /// A native ID which can be in many formats see [mzdata](https://docs.rs/mzdata/latest/mzdata/meta/enum.NativeSpectrumIdentifierFormatTerm.html)
-    /// for more information.
-    NativeID(String),
 }
 
 /// The required methods for any source of identified peptides

@@ -83,7 +83,6 @@ impl From<PeaksData> for IdentifiedPeptide {
         value.peptide.inject_modifications(&value.ptm);
 
         Self {
-            local_confidence: Some(value.local_confidence.clone()),
             score: Some(value.de_novo_score.unwrap_or(value.alc)),
             metadata: MetaData::Peaks(value),
         }

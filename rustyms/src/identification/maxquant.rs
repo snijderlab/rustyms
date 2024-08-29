@@ -65,7 +65,7 @@ format_family!(
         experiment: String, |location: Location, _| Ok(location.get_string());
         fragmentation: String, |location: Location, _| Ok(location.get_string());
         genes: String, |location: Location, _| Ok(location.get_string());
-        id: usize,|location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         intensity_coverage: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         intensity_h: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
         intensity_l: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
@@ -107,7 +107,6 @@ format_family!(
 impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
-            local_confidence: None,
             score: Some(value.score),
             metadata: MetaData::MaxQuant(value),
         }

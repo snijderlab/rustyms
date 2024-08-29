@@ -65,7 +65,6 @@ format_family!(
 impl From<NovorData> for IdentifiedPeptide {
     fn from(value: NovorData) -> Self {
         Self {
-            local_confidence: value.local_confidence.clone(),
             score: Some(value.score.clamp(-1.0, 1.0)),
             metadata: MetaData::Novor(value),
         }
