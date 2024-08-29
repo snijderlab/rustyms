@@ -10,6 +10,8 @@ use self::{
     modification::SimpleModification, ontologies::CustomDatabase, placement_rule::PlacementRule,
 };
 
+use itertools::Itertools;
+
 #[test]
 fn triple_a() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
@@ -47,6 +49,7 @@ fn triple_a() {
         &model,
         1,
         true,
+        false,
     );
 }
 
@@ -91,6 +94,7 @@ fn with_modifications() {
         &model,
         1,
         true,
+        false,
     );
 }
 
@@ -117,6 +121,7 @@ fn with_possible_modifications() {
         &model,
         1,
         true,
+        false,
     );
 }
 
@@ -146,6 +151,7 @@ fn higher_charges() {
             .unwrap(),
         &model,
         5,
+        false,
         false,
     );
 }
@@ -306,28 +312,78 @@ fn all_aminoacids() {
         &model,
         1,
         false,
+        false,
     );
 }
 
 #[test]
-fn glycan_fragmentation() {
+fn glycan_structure_fragmentation() {
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[
-        (4593.06932015166, "N4H5S1"),
-        (4301.97390015166, "N4H5"),
-        (4139.92108015166, "N4H4"),
-        (3977.86826015166, "N4H3"),
-        (3936.84171015166, "N3H4"),
-        (3774.78889015166, "N3H3"),
-        (3612.73607015166, "N3H2"),
-        (3571.70952015166, "N2H3"),
-        (3409.65670015166, "N2H2"),
-        (3247.60388015166, "N2H1"),
-        (3085.55106015166, "N2"),
-        (2882.47169015166, "N"),
-        (2679.39232015166, "Base"),
+        (4593.06932015166, "pep+N4H5S1"),
+        (4301.97390015166, "pep+N4H5"),
+        (4139.92108015166, "pep+N4H4"),
+        (3977.86826015166, "pep+N4H3"),
+        (3936.84171015166, "pep+N3H4"),
+        (3774.78889015166, "pep+N3H3"),
+        (3612.73607015166, "pep+N3H2"),
+        (3571.70952015166, "pep+N2H3"),
+        (3409.65670015166, "pep+N2H2"),
+        (3247.60388015166, "pep+N2H1"),
+        (3085.55106015166, "pep+N2"),
+        (2882.47169015166, "pep+N"),
+        (2679.39232015166, "pep"),
+        (1914.68430008988, "B7:N4H5S1"),
+        (1711.60492757466, "B6:N3H5S1"),
+        (1508.52555505943, "B5:N2H5S1"),
+        (819.28771229837, "B4α:N1H2S1"),
+        (657.23488888309, "B3α:N1H1S1"),
+        (454.15551636786, "B2α:H1S1"),
+        (292.10269295258, "B1α:S1"),
+        (528.19229579777, "B3β:N1H2"),
+        (366.13947238249, "B2β:N1H1"),
+        (163.06009986727, "B1β:H1"),
+        (1752.63147667460, "OxY1βEnd1αB7:N4H4S1"),
+        (1623.58888358929, "OxEnd1βY1αB7:N4H5"),
+        (1549.55210415938, "OxY2βEnd1αB7/Y1βEnd1αB6:N3H4S1"),
+        (1461.53606017401, "OxY1βY1αB7/End1βY2αB7:N3H4S1"),
+        (1420.50951107406, "OxEnd1βY1αB6:N3H5"),
+        (1387.49928074410, "OxY3βEnd1αB7:N3H3S1"),
+        (1346.47273164415, "OxY1βEnd1αB5/Y2βEnd1αB6:N2H4S1"),
+        (1299.48323675873, "OxY1βY2αB7:N4H3"),
+        (
+            1258.45668765878,
+            "OxY1βY1αB6/Y2βY1αB7/End1βY2αB6/End1βY3αB7:N3H4",
+        ),
+        (1217.43013855884, "OxEnd1βY1αB5:N2H4"),
+        (1184.41990822887, "OxY3βEnd1αB6:N2H2S1"),
+        (1143.39335912893, "OxY2βEnd1αB5:N1H3S1"),
+        (
+            1096.40386424350,
+            "OxY1βY2αB6/Y1βY3αB7/Y2βY2αB7/Y3βY1αB7/End1βY4αB7:N3H3",
+        ),
+        (
+            1055.37731514356,
+            "OxY1βY1αB5/Y2βY1αB6/End1βY2αB5/End1βY3αB6:N2H4",
+        ),
+        (981.34053571365, "OxY3βEnd1αB5:N1H3S1"),
+        (934.35104082822, "OxY1βY4αB7/Y3βY2αB7:N3H2"),
+        (
+            893.32449172828,
+            "OxY1βY2αB5/Y1βY3αB6/Y2βY2αB6/Y2βY3αB7/Y3βY1αB6/End1βY4αB6:N2H3",
+        ),
+        (852.29794262833, "OxY2βY1αB5/End1βY3αB5:N1H4"),
+        (
+            731.27166831300,
+            "OxY1βY4αB6/Y2βY4αB7/Y3βY2αB6/Y3βY3αB7:N2H2",
+        ),
+        (
+            690.24511921305,
+            "OxY1βY3αB5/Y2βY2αB5/Y2βY3αB6/Y3βY1αB5/End1βY4αB5:N1H3",
+        ),
     ];
-    let model = Model::none().glycan(GlycanModel::ALLOW);
+
+    let model = Model::none().glycan(GlycanModel::DISALLOW.allow_structural(true));
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
@@ -337,6 +393,87 @@ fn glycan_fragmentation() {
         &model,
         1,
         true,
+        true,
+    );
+}
+
+#[test]
+fn glycan_composition_fragmentation() {
+    #[allow(clippy::unreadable_literal)]
+    let theoretical_fragments = &[
+        (4593.06932015166, "pep+N4H5S1"),
+        (4301.97390015166, "pep+N4H5"),
+        (4139.92108015166, "pep+N4H4"),
+        (3977.86826015166, "pep+N4H3"),
+        (3936.84171015166, "pep+N3H4"),
+        (3774.78889015166, "pep+N3H3"),
+        (3612.73607015166, "pep+N3H2"),
+        (3571.70952015166, "pep+N2H3"),
+        (3409.65670015166, "pep+N2H2"),
+        (3247.60388015166, "pep+N2H1"),
+        (3085.55106015166, "pep+N2"),
+        (2882.47169015166, "pep+N"),
+        (2679.39232015166, "pep"),
+        (1914.68430008988, "B7:N4H5S1"),
+        (1711.60492757466, "B6:N3H5S1"),
+        (1508.52555505943, "B5:N2H5S1"),
+        (819.28771229837, "B4α:N1H2S1"),
+        (657.23488888309, "B3α:N1H1S1"),
+        (454.15551636786, "B2α:H1S1"),
+        (292.10269295258, "B1α:S1"),
+        (528.19229579777, "B3β:N1H2"),
+        (366.13947238249, "B2β:N1H1"),
+        (163.06009986727, "B1β:H1"),
+        (1752.63147667460, "OxY1βEnd1αB7:N4H4S1"),
+        (1623.58888358929, "OxEnd1βY1αB7:N4H5"),
+        (1549.55210415938, "OxY2βEnd1αB7/Y1βEnd1αB6:N3H4S1"),
+        (1461.53606017401, "OxY1βY1αB7/End1βY2αB7:N3H4S1"),
+        (1420.50951107406, "OxEnd1βY1αB6:N3H5"),
+        (1387.49928074410, "OxY3βEnd1αB7:N3H3S1"),
+        (1346.47273164415, "OxY1βEnd1αB5/Y2βEnd1αB6:N2H4S1"),
+        (1299.48323675873, "OxY1βY2αB7:N4H3"),
+        (
+            1258.45668765878,
+            "OxY1βY1αB6/Y2βY1αB7/End1βY2αB6/End1βY3αB7:N3H4",
+        ),
+        (1217.43013855884, "OxEnd1βY1αB5:N2H4"),
+        (1184.41990822887, "OxY3βEnd1αB6:N2H2S1"),
+        (1143.39335912893, "OxY2βEnd1αB5:N1H3S1"),
+        (
+            1096.40386424350,
+            "OxY1βY2αB6/Y1βY3αB7/Y2βY2αB7/Y3βY1αB7/End1βY4αB7:N3H3",
+        ),
+        (
+            1055.37731514356,
+            "OxY1βY1αB5/Y2βY1αB6/End1βY2αB5/End1βY3αB6:N2H4",
+        ),
+        (981.34053571365, "OxY3βEnd1αB5:N1H3S1"),
+        (934.35104082822, "OxY1βY4αB7/Y3βY2αB7:N3H2"),
+        (
+            893.32449172828,
+            "OxY1βY2αB5/Y1βY3αB6/Y2βY2αB6/Y2βY3αB7/Y3βY1αB6/End1βY4αB6:N2H3",
+        ),
+        (852.29794262833, "OxY2βY1αB5/End1βY3αB5:N1H4"),
+        (
+            731.27166831300,
+            "OxY1βY4αB6/Y2βY4αB7/Y3βY2αB6/Y3βY3αB7:N2H2",
+        ),
+        (
+            690.24511921305,
+            "OxY1βY3αB5/Y2βY2αB5/Y2βY3αB6/Y3βY1αB5/End1βY4αB5:N1H3",
+        ),
+    ];
+    let model = Model::none().glycan(GlycanModel::DISALLOW.compositional_range(0..=10));
+    test(
+        theoretical_fragments,
+        LinearPeptide::pro_forma("MVSHHN[Glycan:N4H5S1]LTTGATLINEQWLLTTAK", None)
+            .unwrap()
+            .linear()
+            .unwrap(),
+        &model,
+        1,
+        true,
+        false,
     );
 }
 
@@ -387,7 +524,7 @@ fn intra_link() {
         .b(PrimaryIonSeries::default())
         .y(PrimaryIonSeries::default())
         .allow_cross_link_cleavage(true);
-    test(theoretical_fragments, peptide, &model, 2, true);
+    test(theoretical_fragments, peptide, &model, 2, true, false);
 }
 
 fn test(
@@ -396,6 +533,7 @@ fn test(
     model: &Model,
     charge: usize,
     allow_left_over_generated: bool,
+    allow_double_theoretical: bool,
 ) {
     let mut calculated_fragments = peptide
         .into()
@@ -404,25 +542,30 @@ fn test(
     let mut this_found;
     for goal in theoretical_fragments {
         this_found = false;
-        for fragment in 0..calculated_fragments.len() {
-            if calculated_fragments[fragment]
+        let mut index = 0;
+        while index < calculated_fragments.len() {
+            if calculated_fragments[index]
                 .mz(MassMode::Monoisotopic)
                 .ppm(MassOverCharge::new::<crate::system::mz>(goal.0))
                 < Ratio::new::<ppm>(20.0)
             {
                 println!(
                     "Match: {}@{} with {}",
-                    goal.1, goal.0, calculated_fragments[fragment]
+                    goal.1, goal.0, calculated_fragments[index]
                 );
-                calculated_fragments.remove(fragment);
+                calculated_fragments.remove(index);
+                index = index.saturating_sub(1);
                 this_found = true;
-                break;
+                if !allow_double_theoretical {
+                    break;
+                };
             }
+            index += 1;
         }
         found.push(this_found);
     }
 
-    for left in &calculated_fragments {
+    for left in calculated_fragments.iter().sorted_by(|a, b| b.cmp(a)) {
         println!(
             "Excess fragments: {left} (labels: {:?})",
             left.formula.labels()

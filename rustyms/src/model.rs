@@ -222,7 +222,7 @@ impl GlycanModel {
     /// Default set for models that allow glycan fragmentation
     pub const ALLOW: Self = Self {
         allow_structural: true,
-        compositional_range: 1..=3,
+        compositional_range: 1..=10,
         neutral_losses: Vec::new(),
         oxonium_charge_range: ChargeRange::ONE,
         other_charge_range: ChargeRange::ONE_TO_PRECURSOR,
