@@ -12,12 +12,14 @@ use std::{
 
 use crate::{
     glycan::{GlycanStructure, MonoSaccharide},
+    molecular_charge::CachedCharge,
     ontologies::CustomDatabase,
     peptide::Linked,
     placement_rule::PlacementRule,
     system::{Mass, OrderedMass},
-    AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, NeutralLoss,
-    SequenceElement, SequencePosition, Tolerance, WithinTolerance,
+    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, Model,
+    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition, Tolerance,
+    WithinTolerance,
 };
 
 include!("shared/modification.rs");
@@ -445,6 +447,30 @@ impl Modification {
                 s.is_possible(seq, position)
             })
     }
+
+    /// Generate theoretical fragments for side chains (glycans)
+    pub(crate) fn generate_theoretical_fragments(
+        &self,
+        model: &Model,
+        peptidoform_index: usize,
+        peptide_index: usize,
+        charge_carriers: &mut CachedCharge,
+        full_formula: &Multi<MolecularFormula>,
+        attachment: Option<(AminoAcid, usize)>,
+    ) -> Vec<Fragment> {
+        if let Self::Simple(simple) = self {
+            simple.generate_theoretical_fragments(
+                model,
+                peptidoform_index,
+                peptide_index,
+                charge_carriers,
+                full_formula,
+                attachment,
+            )
+        } else {
+            Vec::new()
+        }
+    }
 }
 
 impl SimpleModification {
@@ -523,6 +549,55 @@ impl SimpleModification {
                 )
             }
             m => ModificationSearchResult::Single(m.clone()),
+        }
+    }
+
+    /// Generate theoretical fragments for side chains (glycans)
+    pub(crate) fn generate_theoretical_fragments(
+        &self,
+        model: &Model,
+        peptidoform_index: usize,
+        peptide_index: usize,
+        charge_carriers: &mut CachedCharge,
+        full_formula: &Multi<MolecularFormula>,
+        attachment: Option<(AminoAcid, usize)>,
+    ) -> Vec<Fragment> {
+        if let Self::GlycanStructure(glycan) = self {
+            glycan
+                .clone()
+                .determine_positions()
+                .generate_theoretical_fragments(
+                    model,
+                    peptidoform_index,
+                    peptide_index,
+                    charge_carriers,
+                    full_formula,
+                    attachment,
+                )
+        } else if let Self::Gno(GnoComposition::Structure(glycan), _) = self {
+            glycan
+                .clone()
+                .determine_positions()
+                .generate_theoretical_fragments(
+                    model,
+                    peptidoform_index,
+                    peptide_index,
+                    charge_carriers,
+                    full_formula,
+                    attachment,
+                )
+        } else if let Self::Glycan(composition) = self {
+            MonoSaccharide::theoretical_fragments(
+                composition,
+                model,
+                peptidoform_index,
+                peptide_index,
+                charge_carriers,
+                full_formula,
+                attachment,
+            )
+        } else {
+            Vec::new()
         }
     }
 }

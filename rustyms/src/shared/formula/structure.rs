@@ -24,7 +24,6 @@ pub struct MolecularFormula {
 }
 
 /// Keep track of what ambiguous option is used
-// TODO: Maybe also use the labelling system to keep track of which modification neutral loss is applied?
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum AmbiguousLabel {
     /// A ambiguous amino acid, with the actual amino acid used tracked

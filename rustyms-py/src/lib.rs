@@ -345,7 +345,7 @@ impl MolecularFormula {
     /// -------
     /// list[str]
     fn ambiguous_labels(&self) -> Vec<String> {
-        self.0.labels().iter().map(|a| format!("{a:?}")).collect()
+        self.0.labels().iter().map(|a| a.to_string()).collect()
     }
 }
 

@@ -661,53 +661,24 @@ impl<T> LinearPeptide<T> {
         for (sequence_index, position) in self.sequence.iter().enumerate() {
             let attachment = (position.aminoacid, sequence_index);
             for modification in &position.modifications {
-                if let Modification::Simple(SimpleModification::GlycanStructure(glycan)) =
-                    modification
-                {
-                    output.extend(
-                        glycan
-                            .clone()
-                            .determine_positions()
-                            .generate_theoretical_fragments(
-                                model,
-                                peptidoform_index,
-                                peptide_index,
-                                &mut charge_carriers,
-                                &full_formula,
-                                Some(attachment),
-                            ),
-                    );
-                } else if let Modification::Simple(SimpleModification::Gno(
-                    GnoComposition::Structure(glycan),
-                    _,
-                )) = modification
-                {
-                    output.extend(
-                        glycan
-                            .clone()
-                            .determine_positions()
-                            .generate_theoretical_fragments(
-                                model,
-                                peptidoform_index,
-                                peptide_index,
-                                &mut charge_carriers,
-                                &full_formula,
-                                Some(attachment),
-                            ),
-                    );
-                } else if let Modification::Simple(SimpleModification::Glycan(composition)) =
-                    modification
-                {
-                    output.extend(MonoSaccharide::theoretical_fragments(
-                        composition,
-                        model,
-                        peptidoform_index,
-                        peptide_index,
-                        &mut charge_carriers,
-                        &full_formula,
-                        Some(attachment),
-                    ));
-                }
+                output.extend(modification.generate_theoretical_fragments(
+                    model,
+                    peptidoform_index,
+                    peptide_index,
+                    &mut charge_carriers,
+                    &full_formula,
+                    Some(attachment),
+                ));
+            }
+            for modification in &position.possible_modifications {
+                output.extend(modification.modification.generate_theoretical_fragments(
+                    model,
+                    peptidoform_index,
+                    peptide_index,
+                    &mut charge_carriers,
+                    &full_formula,
+                    Some(attachment),
+                ));
             }
         }
 

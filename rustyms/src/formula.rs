@@ -125,6 +125,28 @@ impl MolecularFormula {
     }
 }
 
+impl std::fmt::Display for AmbiguousLabel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AminoAcid {
+                option,
+                sequence_index,
+                peptide_index,
+            } => write!(f, "{option}@p{peptide_index}i{sequence_index}"),
+            Self::Modification {
+                id,
+                sequence_index,
+                peptide_index,
+            } => write!(f, "#{id}@p{peptide_index}i{sequence_index}"),
+            Self::ChargeCarrier(formula) => write!(f, "[{}]", formula.hill_notation()),
+            Self::CrossLinkBound(name) => write!(f, "intact{name}"),
+            Self::CrossLinkBroken(name, formula) => {
+                write!(f, "broken{name}@{}", formula.hill_notation())
+            }
+        }
+    }
+}
+
 #[allow(clippy::missing_panics_doc)] // Cannot panic
 fn to_subscript_num(input: isize) -> String {
     let text = input.to_string();

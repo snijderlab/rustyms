@@ -567,8 +567,8 @@ fn test(
 
     for left in calculated_fragments.iter().sorted_by(|a, b| b.cmp(a)) {
         println!(
-            "Excess fragments: {left} (labels: {:?})",
-            left.formula.labels()
+            "Excess fragments: {left} (labels: {})",
+            left.formula.labels().iter().join(",")
         );
     }
     let not_found: Vec<usize> = found
