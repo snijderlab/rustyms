@@ -31,15 +31,15 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 # let raw_file_path = "data/annotated_example.mgf";
 // Open some data and see if the given peptide is a valid match
 use rustyms::{*, system::{usize::Charge, e}};
-let peptide = CompoundPeptidoform::pro_forma("Q[Gln->pyro-Glu]VQEVSERTHGGNFD", None)?;
+let peptide = CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QVQEVSERTHGGNFD", None)?;
 let spectrum = rawfile::mgf::open(raw_file_path)?;
 let model = Model::ethcd();
 let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2), &model);
 let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
-let fdr = annotated.fdr(&fragments, &model);
+let (fdr, _) = annotated.fdr(&fragments, &model, MassMode::Monoisotopic);
 // This is the incorrect sequence for this spectrum so the FDR will indicate this
-# dbg!(&fdr, fdr.sigma(), fdr.fdr(), fdr.score());
-assert!(fdr.sigma() < 2.0);
+# dbg!(&fdr, fdr.peaks_sigma(), fdr.peaks_fdr(), fdr.peaks_score());
+assert!(fdr.peaks_sigma() > 2.0);
 # Ok(()) }
 ```
 
@@ -48,8 +48,8 @@ assert!(fdr.sigma() < 2.0);
 // Check how this peptide compares to a similar peptide (using `align`)
 // (same sequence, repeated for easy reference)
 use rustyms::{*, align::*};
-let first_peptide = LinearPeptide::pro_forma("Q[Gln->pyro-Glu]VQEVS", None)?.simple().unwrap();
-let second_peptide = LinearPeptide::pro_forma("E[Glu->pyro-Glu]VQVES", None)?.simple().unwrap();
+let first_peptide = LinearPeptide::pro_forma("IVQEVS", None)?.simple().unwrap();
+let second_peptide = LinearPeptide::pro_forma("LEVQVES", None)?.simple().unwrap();
 let alignment = align::<4, Simple, Simple>(&first_peptide, &second_peptide,
                  matrix::BLOSUM62, Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 # dbg!(&alignment);

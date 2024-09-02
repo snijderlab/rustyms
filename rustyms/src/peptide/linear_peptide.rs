@@ -473,7 +473,7 @@ impl<T> LinearPeptide<T> {
             .chain(
                 // If there is any modification that can be placed outside of this range allow an empty formula
                 std::iter::repeat(MolecularFormula::default())
-                    .take(dbg!(usize::from(any_ambiguous_outside_range))),
+                    .take(usize::from(any_ambiguous_outside_range)),
             )
             .collect::<Multi<MolecularFormula>>();
         (formulas * all_ambiguous_options, seen)
