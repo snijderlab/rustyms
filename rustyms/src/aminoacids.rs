@@ -337,12 +337,13 @@ impl AminoAcid {
         ions: &PossibleIons,
         peptidoform_index: usize,
         peptide_index: usize,
-        allow_side: (bool, bool),
+        allow_terminal: (bool, bool),
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
         let n_pos = PeptidePosition::n(sequence_index, sequence_length);
         let c_pos = PeptidePosition::c(sequence_index, sequence_length);
-        if ions.a.0 && allow_side.0 {
+
+        if ions.a.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 1 C 1 O 1))),
@@ -355,7 +356,7 @@ impl AminoAcid {
                 ions.a.2,
             ));
         }
-        if ions.b.0 && allow_side.0 {
+        if ions.b.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 1))),
@@ -368,7 +369,7 @@ impl AminoAcid {
                 ions.b.2,
             ));
         }
-        if ions.c.0 && allow_side.0 {
+        if ions.c.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(H 2 N 1))),
@@ -381,7 +382,7 @@ impl AminoAcid {
                 ions.c.2,
             ));
         }
-        if ions.d.0 && allow_side.0 {
+        if ions.d.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments(sequence_index, peptide_index)
                     * modifications
@@ -396,7 +397,7 @@ impl AminoAcid {
                 ions.d.2,
             ));
         }
-        if ions.v.0 && allow_side.1 {
+        if ions.v.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &molecular_formula!(H 3 C 2 N 1 O 1).into(),
                 peptidoform_index,
@@ -408,7 +409,7 @@ impl AminoAcid {
                 ions.v.2,
             ));
         }
-        if ions.w.0 && allow_side.1 {
+        if ions.w.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments(sequence_index, peptide_index)
                     * modifications
@@ -423,7 +424,7 @@ impl AminoAcid {
                 ions.w.2,
             ));
         }
-        if ions.x.0 && allow_side.1 {
+        if ions.x.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
@@ -436,7 +437,7 @@ impl AminoAcid {
                 ions.x.2,
             ));
         }
-        if ions.y.0 && allow_side.1 {
+        if ions.y.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(H 1))),
@@ -449,7 +450,7 @@ impl AminoAcid {
                 ions.y.2,
             ));
         }
-        if ions.z.0 && allow_side.1 {
+        if ions.z.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 2 N 1))),
@@ -474,8 +475,7 @@ impl AminoAcid {
             ));
         }
 
-        // Immonium ions will only be generated with charge 1
-        if ions.immonium.0 {
+        if ions.immonium.0 && allow_terminal.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &(self.formulas(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(C 1 O 1))),

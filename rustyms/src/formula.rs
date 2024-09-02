@@ -137,7 +137,7 @@ impl std::fmt::Display for AmbiguousLabel {
                 id,
                 sequence_index,
                 peptide_index,
-            } => write!(f, "#{id}@p{peptide_index}i{sequence_index}"),
+            } => write!(f, "{}{id}@p{peptide_index}i{sequence_index}", "#"),
             Self::ChargeCarrier(formula) => write!(f, "[{}]", formula.hill_notation()),
             Self::CrossLinkBound(name) => write!(f, "intact{name}"),
             Self::CrossLinkBroken(name, formula) => {

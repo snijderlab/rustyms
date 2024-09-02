@@ -71,7 +71,8 @@ impl SequenceElement {
             };
             write!(
                 f,
-                "#{}{}]",
+                "{}{}{}]",
+                "#",
                 m.group,
                 m.localisation_score
                     .map(|v| format!("({v})"))
@@ -82,7 +83,7 @@ impl SequenceElement {
     }
 
     /// The base constant molecular formula
-    fn base_formula(
+    pub(crate) fn base_formula(
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],

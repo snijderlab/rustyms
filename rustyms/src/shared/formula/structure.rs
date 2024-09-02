@@ -167,6 +167,13 @@ impl MolecularFormula {
         self
     }
 
+    /// Add the following label to this formula
+    #[allow(dead_code)]
+    pub(crate) fn with_label(mut self, label: AmbiguousLabel) -> Self {
+        self.labels.push(label);
+        self
+    }
+
     /// The labels of sources of ambiguity/multiplicity
     pub fn labels(&self) -> &[AmbiguousLabel] {
         &self.labels

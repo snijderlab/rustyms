@@ -11,8 +11,9 @@ use crate::{
     peptide::*,
     placement_rule::PlacementRule,
     system::{dalton, usize::Charge, Mass},
-    Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical, NeutralLoss,
-    Protease, SequenceElement, SequencePosition, Tolerance, WithinTolerance,
+    AmbiguousLabel, Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi,
+    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition, Tolerance,
+    WithinTolerance,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -378,8 +379,7 @@ impl<T> LinearPeptide<T> {
     fn ambiguous_patterns(
         &self,
         range: impl RangeBounds<usize>,
-        aa_range: impl RangeBounds<usize>,
-        index: usize,
+        aa_range: impl RangeBounds<usize> + Clone,
         base: &Multi<MolecularFormula>,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
@@ -387,90 +387,96 @@ impl<T> LinearPeptide<T> {
         allow_ms_cleavable: bool,
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let result = self
-            .ambiguous_modifications
+        // Calculate all formulas for the selected AA range without any ambiguous modifications
+        let (formulas, seen) = self.sequence[(
+            aa_range.start_bound().cloned(),
+            aa_range.end_bound().cloned(),
+        )]
             .iter()
             .enumerate()
-            .fold(vec![Vec::new()], |acc, (id, possibilities)| {
-                acc.into_iter()
-                    .flat_map(|path| {
-                        let mut path_clone = path.clone();
-                        let options = possibilities.iter().filter(|pos| range.contains(pos)).map(
-                            move |pos| {
+            .fold(
+                (base.clone(), HashSet::new()),
+                |previous_aa_formulas, (index, aa)| {
+                    let (f, s) = aa.base_formula(
+                        all_peptides,
+                        visited_peptides,
+                        applied_cross_links,
+                        allow_ms_cleavable,
+                        SequencePosition::Index(index),
+                        peptide_index,
+                    );
+                    (
+                        previous_aa_formulas.0 * f,
+                        previous_aa_formulas.1.union(&s).cloned().collect(),
+                    )
+                },
+            );
+
+        // Calculate all masses (and labels) for all possible combinations of ambiguous masses
+        let mut any_ambiguous_outside_range = false;
+        let previous_combinations = self.ambiguous_modifications.iter().enumerate().fold(
+            vec![Vec::new()],
+            |previous_combinations, (id, possibilities)| {
+                // Go over all possible locations for this ambiguous mod and add these to all previous options
+                let new_combinations = possibilities
+                    .iter()
+                    .filter(|pos| range.contains(pos))
+                    .flat_map(|pos| {
+                        // This position is a possible location, add this location for this mod to all previously known combinations
+                        previous_combinations
+                            .iter()
+                            .map(|path| {
                                 let mut new = path.clone();
                                 new.push((id, *pos));
                                 new
-                            },
-                        );
-                        options.chain(possibilities.iter().find(|pos| !range.contains(pos)).map(
-                            move |pos| {
-                                path_clone.push((id, *pos));
-                                path_clone
-                            },
-                        ))
-                    })
-                    .collect()
-            })
-            .into_iter()
-            .fold((Multi::default(), HashSet::new()), |acc, pattern| {
-                let ambiguous_local = pattern
-                    .iter()
-                    .filter_map(|(id, pos)| (*pos == index).then_some(id))
-                    .collect::<Vec<_>>();
-                let (formulas, seen) = self.sequence[(
-                    aa_range.start_bound().cloned(),
-                    aa_range.end_bound().cloned(),
-                )]
-                    .iter()
-                    .enumerate()
-                    .fold(
-                        (Multi::default(), HashSet::new()),
-                        |acc, (index, aa)| {
-                            let (f, s) = aa.formulas(
-                                &pattern
-                                    .clone()
-                                    .iter()
-                                    .copied()
-                                    .filter_map(|(id, pos)| (pos == index).then_some(id))
-                                    .collect_vec(),
-                                all_peptides,
-                                visited_peptides,
-                                applied_cross_links,
-                                allow_ms_cleavable,
-                                SequencePosition::Index(index),
-                                peptide_index,
-                            );
-                            (acc.0 * f, acc.1.union(&s).cloned().collect())
-                        },
-                    );
-                (
-                    acc.0
-                        * base
-                        * formulas
-                            .iter()
-                            .map(move |m| {
-                                self.sequence[index]
-                                    .possible_modifications
-                                    .iter()
-                                    .filter(|&am| ambiguous_local.contains(&&am.id))
-                                    .map(|f| {
-                                        f.formula(
-                                            crate::SequencePosition::Index(index),
-                                            peptide_index,
-                                        )
-                                    })
-                                    .sum::<MolecularFormula>()
-                                    + m
                             })
-                            .collect::<Multi<MolecularFormula>>(),
-                    acc.1.union(&seen).cloned().collect(),
-                )
-            });
-        if result.0.is_empty() {
-            (base.clone(), HashSet::new())
-        } else {
-            result
-        }
+                            .collect_vec()
+                    })
+                    .collect_vec();
+                // Check if there is a way of placing this mod outside of the range
+                any_ambiguous_outside_range |= possibilities
+                    .iter()
+                    .find(|pos| !range.contains(pos))
+                    .map_or(false, |_| true);
+                // If no location is possible for this modification keep all known combinations
+                if new_combinations.is_empty() {
+                    previous_combinations
+                } else {
+                    new_combinations
+                }
+                // Returns a list of all combinations of ambiguous modifications that can go together
+            },
+        );
+        let all_ambiguous_options = previous_combinations
+            .into_iter()
+            .map(|current_selected_ambiguous| {
+                // Determine the formula for all selected ambiguous modifications and create the labels
+                current_selected_ambiguous
+                    .iter()
+                    .copied()
+                    .filter_map(|(id, pos)| {
+                        self.sequence[pos]
+                            .possible_modifications
+                            .iter()
+                            .find(|m| m.id == id)
+                            .map(|m| {
+                                m.formula(crate::SequencePosition::Index(pos), peptide_index)
+                                    .with_label(AmbiguousLabel::Modification {
+                                        id,
+                                        sequence_index: crate::SequencePosition::Index(pos),
+                                        peptide_index,
+                                    })
+                            })
+                    })
+                    .sum::<MolecularFormula>()
+            })
+            .chain(
+                // If there is any modification that can be placed outside of this range allow an empty formula
+                std::iter::repeat(MolecularFormula::default())
+                    .take(dbg!(usize::from(any_ambiguous_outside_range))),
+            )
+            .collect::<Multi<MolecularFormula>>();
+        (formulas * all_ambiguous_options, seen)
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -503,7 +509,6 @@ impl<T> LinearPeptide<T> {
             let (n_term, n_term_seen) = self.all_masses(
                 ..=sequence_index,
                 ..sequence_index,
-                sequence_index,
                 &self.get_n_term(
                     all_peptides,
                     &visited_peptides,
@@ -521,7 +526,6 @@ impl<T> LinearPeptide<T> {
             let (c_term, c_term_seen) = self.all_masses(
                 sequence_index..,
                 sequence_index + 1..,
-                sequence_index,
                 &self.get_c_term(
                     all_peptides,
                     &visited_peptides,
@@ -745,8 +749,7 @@ impl<T> LinearPeptide<T> {
     fn all_masses(
         &self,
         range: impl RangeBounds<usize> + Clone,
-        aa_range: impl RangeBounds<usize>,
-        index: usize,
+        aa_range: impl RangeBounds<usize> + Clone,
         base: &Multi<MolecularFormula>,
         apply_neutral_losses: bool,
         all_peptides: &[LinearPeptide<Linked>],
@@ -758,7 +761,6 @@ impl<T> LinearPeptide<T> {
         let (ambiguous_mods_masses, seen) = self.ambiguous_patterns(
             range.clone(),
             aa_range,
-            index,
             base,
             all_peptides,
             visited_peptides,
@@ -914,7 +916,7 @@ impl<T> LinearPeptide<T> {
                     .unwrap();
                 write!(f, "[")?;
                 m.modification.display(f, specification_compliant)?;
-                write!(f, "#{}]", m.group)?;
+                write!(f, "{}{}]", "#", m.group)?;
                 any_ambiguous = true;
             }
         }

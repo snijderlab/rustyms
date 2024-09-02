@@ -103,11 +103,18 @@ fn with_possible_modifications() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: 15.99491@1 and separately 15.99491@2
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[
+        // From other tool:
+        (132.047761, "M2-b1"),
         (148.042671, "M1-b1"),
         (150.058326, "M1-y1"),
-        (132.047761, "M2-b1"),
         (166.053236, "M2-y1"),
         (297.093720, "precursor"),
+        // Manual:
+        // (133.0565, "b1"),
+        // (149.0514, "b1+O"),
+        // (149.0515, "y1"),
+        // (165.0464, "y1+O"),
+        // (297.0949, "precursor"),
     ];
     let model = Model::none()
         .b(PrimaryIonSeries::default())
@@ -535,9 +542,9 @@ fn test(
     allow_left_over_generated: bool,
     allow_double_theoretical: bool,
 ) {
-    let mut calculated_fragments = peptide
-        .into()
-        .generate_theoretical_fragments(Charge::new::<crate::system::e>(charge), model);
+    let peptide = peptide.into();
+    let mut calculated_fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(charge), model);
     let mut found = Vec::new();
     let mut this_found;
     for goal in theoretical_fragments {
@@ -550,8 +557,15 @@ fn test(
                 < Ratio::new::<ppm>(20.0)
             {
                 println!(
-                    "Match: {}@{} with {}",
-                    goal.1, goal.0, calculated_fragments[index]
+                    "Match: {}@{} with {} (labels: {})",
+                    goal.1,
+                    goal.0,
+                    calculated_fragments[index],
+                    calculated_fragments[index]
+                        .formula
+                        .labels()
+                        .iter()
+                        .join(",")
                 );
                 calculated_fragments.remove(index);
                 index = index.saturating_sub(1);
