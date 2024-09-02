@@ -413,7 +413,6 @@ impl<T> LinearPeptide<T> {
             );
 
         // Calculate all masses (and labels) for all possible combinations of ambiguous masses
-        let mut any_ambiguous_outside_range = false;
         let previous_combinations = self.ambiguous_modifications.iter().enumerate().fold(
             vec![Vec::new()],
             |previous_combinations, (id, possibilities)| {
@@ -423,21 +422,23 @@ impl<T> LinearPeptide<T> {
                     .filter(|pos| range.contains(pos))
                     .flat_map(|pos| {
                         // This position is a possible location, add this location for this mod to all previously known combinations
-                        previous_combinations
+                        let mut new_combinations = previous_combinations
                             .iter()
                             .map(|path| {
                                 let mut new = path.clone();
-                                new.push((id, *pos));
+                                new.push(Some((id, *pos)));
                                 new
                             })
-                            .collect_vec()
+                            .collect_vec();
+                        // If there is an option to place this mod outside of this range allow that as well
+                        // by copying all previous options without any alteration
+                        if possibilities.iter().any(|pos| !range.contains(pos)) {
+                            new_combinations.extend_from_slice(&previous_combinations);
+                        }
+                        new_combinations
                     })
                     .collect_vec();
-                // Check if there is a way of placing this mod outside of the range
-                any_ambiguous_outside_range |= possibilities
-                    .iter()
-                    .find(|pos| !range.contains(pos))
-                    .map_or(false, |_| true);
+
                 // If no location is possible for this modification keep all known combinations
                 if new_combinations.is_empty() {
                     previous_combinations
@@ -454,28 +455,28 @@ impl<T> LinearPeptide<T> {
                 current_selected_ambiguous
                     .iter()
                     .copied()
-                    .filter_map(|(id, pos)| {
-                        self.sequence[pos]
-                            .possible_modifications
-                            .iter()
-                            .find(|m| m.id == id)
-                            .map(|m| {
-                                m.formula(crate::SequencePosition::Index(pos), peptide_index)
-                                    .with_label(AmbiguousLabel::Modification {
-                                        id,
-                                        sequence_index: crate::SequencePosition::Index(pos),
-                                        peptide_index,
-                                    })
-                            })
+                    .filter_map(|position| {
+                        if let Some((id, pos)) = position {
+                            self.sequence[pos]
+                                .possible_modifications
+                                .iter()
+                                .find(|m| m.id == id)
+                                .map(|m| {
+                                    m.formula(crate::SequencePosition::Index(pos), peptide_index)
+                                        .with_label(AmbiguousLabel::Modification {
+                                            id,
+                                            sequence_index: crate::SequencePosition::Index(pos),
+                                            peptide_index,
+                                        })
+                                })
+                        } else {
+                            Some(MolecularFormula::default())
+                        }
                     })
                     .sum::<MolecularFormula>()
             })
-            .chain(
-                // If there is any modification that can be placed outside of this range allow an empty formula
-                std::iter::repeat(MolecularFormula::default())
-                    .take(usize::from(any_ambiguous_outside_range)),
-            )
             .collect::<Multi<MolecularFormula>>();
+        dbg!(&all_ambiguous_options);
         (formulas * all_ambiguous_options, seen)
     }
 

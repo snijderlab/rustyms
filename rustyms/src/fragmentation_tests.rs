@@ -103,18 +103,11 @@ fn with_possible_modifications() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: 15.99491@1 and separately 15.99491@2
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[
-        // From other tool:
         (132.047761, "M2-b1"),
         (148.042671, "M1-b1"),
         (150.058326, "M1-y1"),
         (166.053236, "M2-y1"),
         (297.093720, "precursor"),
-        // Manual:
-        // (133.0565, "b1"),
-        // (149.0514, "b1+O"),
-        // (149.0515, "y1"),
-        // (165.0464, "y1+O"),
-        // (297.0949, "precursor"),
     ];
     let model = Model::none()
         .b(PrimaryIonSeries::default())
@@ -122,6 +115,35 @@ fn with_possible_modifications() {
     test(
         theoretical_fragments,
         LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
+            .unwrap()
+            .linear()
+            .unwrap(),
+        &model,
+        1,
+        true,
+        false,
+    );
+}
+
+#[test]
+fn with_double_possible_modifications() {
+    // Manual addition over previous example
+    #[allow(clippy::unreadable_literal)]
+    let theoretical_fragments = &[
+        (132.047761, "b1"),
+        (148.042671, "b1+O"),
+        (164.038, "b1+O+O"),
+        (150.058326, "y1"),
+        (166.053236, "y1+O"),
+        (182.048, "y1+O+O"),
+        (313.089, "precursor"),
+    ];
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default());
+    test(
+        theoretical_fragments,
+        LinearPeptide::pro_forma("M[Oxidation#a1][Oxidation#a2]M[#a1][#a2]", None)
             .unwrap()
             .linear()
             .unwrap(),
@@ -531,7 +553,21 @@ fn intra_link() {
         .b(PrimaryIonSeries::default())
         .y(PrimaryIonSeries::default())
         .allow_cross_link_cleavage(true);
-    test(theoretical_fragments, peptide, &model, 2, true, false);
+    test(
+        theoretical_fragments,
+        peptide.clone(),
+        &model,
+        2,
+        true,
+        false,
+    );
+    let fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
+    let doubly_annotated = dbg!(fragments
+        .iter()
+        .filter(|f| f.formula.labels().len() > 2)
+        .collect_vec());
+    assert_eq!(doubly_annotated.len(), 0);
 }
 
 fn test(
