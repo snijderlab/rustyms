@@ -5,7 +5,8 @@ use std::{collections::HashSet, fmt::Write};
 use crate::{
     error::{Context, CustomError},
     modification::{
-        AmbiguousModification, CrossLinkName, LinkerSpecificity, RulePossible, SimpleModification,
+        AmbiguousModification, CrossLinkName, LinkerSpecificity, Ontology, RulePossible,
+        SimpleModification,
     },
     peptide::Linked,
     placement_rule::PlacementRule,
@@ -256,12 +257,73 @@ impl SequenceElement {
     ) -> Result<(), CustomError> {
         for modification in &self.modifications {
             if modification.is_possible(self, position) == RulePossible::No {
+                let rules = match modification.simple() {
+                    Some(SimpleModification::Database { specificities, .. }) => specificities
+                        .iter()
+                        .flat_map(|set| &set.0)
+                        .map(|rule| match rule {
+                            PlacementRule::AminoAcid(aa, pos) => {
+                                format!("{}@{pos}", aa.iter().join(""))
+                            }
+                            PlacementRule::Terminal(pos) => pos.to_string(),
+                            PlacementRule::Anywhere => "Anywhere".to_string(),
+                            PlacementRule::PsiModification(index, pos) => {
+                                format!(
+                                    "{}@{pos}",
+                                    Ontology::Psimod.find_id(*index, None).unwrap_or_else(|| {
+                                        panic!(
+                            "Invalid PsiMod placement rule, non existing modification {index}"
+                        )
+                                    })
+                                )
+                            }
+                        })
+                        .collect_vec(),
+                    Some(SimpleModification::Linker { specificities, .. }) => specificities
+                        .iter()
+                        .flat_map(|set| match set {
+                            LinkerSpecificity::Symmetric(rules, _, _) => rules.clone(),
+                            LinkerSpecificity::Asymmetric((rules_a, rules_b), _, _) => rules_a
+                                .iter()
+                                .cloned()
+                                .chain(rules_b.iter().cloned())
+                                .collect_vec(),
+                        })
+                        .map(|rule| match rule {
+                            PlacementRule::AminoAcid(aa, pos) => {
+                                format!("{}@{pos}", aa.iter().join(""))
+                            }
+                            PlacementRule::Terminal(pos) => pos.to_string(),
+                            PlacementRule::Anywhere => "Anywhere".to_string(),
+                            PlacementRule::PsiModification(index, pos) => {
+                                format!(
+                                    "{}@{pos}",
+                                    Ontology::Psimod.find_id(index, None).unwrap_or_else(|| {
+                                        panic!(
+                        "Invalid PsiMod placement rule, non existing modification {index}"
+                    )
+                                    })
+                                )
+                            }
+                        })
+                        .collect_vec(),
+                    _ => Vec::new(),
+                };
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
                     format!(
-                        "Modification {modification} is not allowed on aminoacid {} index {}",
-                        self.aminoacid.char(),
-                        position,
+                        "Modification {modification} is not allowed on {}{}",
+                        match position {
+                            SequencePosition::NTerm => "the N-terminus".to_string(),
+                            SequencePosition::CTerm => "the C-terminus".to_string(),
+                            SequencePosition::Index(index) =>
+                                format!("the side chain of {} at index {index}", self.aminoacid),
+                        },
+                        if rules.is_empty() {
+                            String::new()
+                        } else {
+                            format!(", this modification is only allowed at the following locations: {}", rules.join(", "))
+                        }
                     ),
                     Context::none(),
                 ));
