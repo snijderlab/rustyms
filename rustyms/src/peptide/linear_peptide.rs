@@ -476,7 +476,6 @@ impl<T> LinearPeptide<T> {
                     .sum::<MolecularFormula>()
             })
             .collect::<Multi<MolecularFormula>>();
-        dbg!(&all_ambiguous_options);
         (formulas * all_ambiguous_options, seen)
     }
 
