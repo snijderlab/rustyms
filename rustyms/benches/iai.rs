@@ -3,7 +3,7 @@ use std::hint::black_box;
 use rustyms::align::*;
 use rustyms::system::dalton;
 use rustyms::system::Mass;
-use rustyms::Simple;
+use rustyms::SimpleLinear;
 use rustyms::*;
 
 use iai_callgrind::{
@@ -11,7 +11,7 @@ use iai_callgrind::{
 };
 
 #[inline(never)]
-fn setup(a: &str, b: &str) -> (LinearPeptide<Simple>, LinearPeptide<Simple>) {
+fn setup(a: &str, b: &str) -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
     let _force_elements_init = black_box(AminoAcid::A.formulas(SequencePosition::default(), 0));
     (
         LinearPeptide::pro_forma(a, None).unwrap().simple().unwrap(),
@@ -20,20 +20,20 @@ fn setup(a: &str, b: &str) -> (LinearPeptide<Simple>, LinearPeptide<Simple>) {
 }
 
 #[inline(never)]
-fn setup_simple() -> (LinearPeptide<Simple>, LinearPeptide<Simple>) {
+fn setup_simple() -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
     setup("ANAGRS", "AGGQRS")
 }
 
 #[inline(never)]
-fn setup_igha() -> (LinearPeptide<Simple>, LinearPeptide<Simple>) {
+fn setup_igha() -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
     setup("ASPTSPKVFPLSLDSTPQDGNVVVACLVQGFFPQEPLSVTWSESGQNVTARNFPPSQDASGDLYTTSSQLTLPATQCPDGKSVTCHVKHYTNSSQDVTVPCRVPPPPPCCHPRLSLHRPALEDLLLGSEANLTCTLTGLRDASGATFTWTPSSGKSAVQGPPERDLCGCYSVSSVLPGCAQPWNHGETFTCTAAHPELKTPLTANITKSGNTFRPEVHLLPPPSEELALNELVTLTCLARGFSPKDVLVRWLQGSQELPREKYLTWASRQEPSQGTTTYAVTSILRVAAEDWKKGETFSCMVGHEALPLAFTQKTIDRMAGSCCVADWQMPPPYVVLDLPQETLEEETPGANLWPTTITFLTLFLLSLFYSTALTVTSVRGPSGKREGPQY", "ASPTSPKVFPLSLCSTQPDGNVVIACLVQGFFPQEPLSVTWSESGQGVTARNFPPSQDASGDLYTTSSQLTLPATQCLAGKSVTCHVKHYTNPSQDVTVPCPVPSTPPTPSPSTPPTPSPSCCHPRLSLHRPALEDLLLGSEANLTCTLTGLRDASGVTFTWTPSSGKSAVQGPPERDLCGCYSVSSVLPGCAEPWNHGKTFTCTAAYPESKTPLTATLSKSGNTFRPEVHLLPPPSEELALNELVTLTCLARGFSPKDVLVRWLQGSQELPREKYLTWASRQEPSQGTTTFAVTSILRVAAEDWKKGDTFSCMVGHEALPLAFTQKTIDRLADWQMPPPYVVLDLPQETLEEETPGANLWPTTITFLTLFLLSLFYSTALTVTSVRGPSGNREGPQY")
 }
 
 #[library_benchmark]
 #[bench::simple_1(setup_simple())]
 #[bench::igha_1(setup_igha())]
-pub fn align_1(setup: (LinearPeptide<Simple>, LinearPeptide<Simple>)) {
-    align::<1, Simple, Simple>(
+pub fn align_1(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+    align::<1, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
         matrix::BLOSUM62,
@@ -50,8 +50,8 @@ pub fn align_1(setup: (LinearPeptide<Simple>, LinearPeptide<Simple>)) {
 #[bench::ambiguous_b(setup("ANQRS", "ABQRS"))]
 #[bench::ambiguous_ab(setup("ANZRS", "ABQRS"))]
 // #[bench::igha_8(setup_igha(Some(8)))]
-pub fn align_4(setup: (LinearPeptide<Simple>, LinearPeptide<Simple>)) {
-    align::<4, Simple, Simple>(
+pub fn align_4(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+    align::<4, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
         matrix::BLOSUM62,
@@ -63,8 +63,8 @@ pub fn align_4(setup: (LinearPeptide<Simple>, LinearPeptide<Simple>)) {
 #[library_benchmark]
 #[bench::simple_unbounded(setup_simple())]
 // #[bench::igha_8(setup_igha(Some(8)))]
-pub fn align_unbounded(setup: (LinearPeptide<Simple>, LinearPeptide<Simple>)) {
-    align::<{ u16::MAX }, Simple, Simple>(
+pub fn align_unbounded(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+    align::<{ u16::MAX }, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
         matrix::BLOSUM62,

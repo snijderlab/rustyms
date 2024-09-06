@@ -38,13 +38,13 @@ impl Protease {
     }
 
     /// All locations in the given sequence where this protease could cut
-    pub fn match_locations(&self, sequence: &[SequenceElement]) -> Vec<usize> {
+    pub fn match_locations<T>(&self, sequence: &[SequenceElement<T>]) -> Vec<usize> {
         (self.n_term.len()..sequence.len() - self.c_term.len())
             .filter(|i| self.matches_at(&sequence[i - self.n_term.len()..i + self.c_term.len()]))
             .collect_vec()
     }
 
-    fn matches_at(&self, slice: &[SequenceElement]) -> bool {
+    fn matches_at<T>(&self, slice: &[SequenceElement<T>]) -> bool {
         debug_assert!(slice.len() == self.n_term.len() + self.c_term.len());
         'positions: for (actual, pattern) in slice
             .iter()
@@ -52,7 +52,7 @@ impl Protease {
         {
             if let Some(pattern) = pattern {
                 for option in pattern {
-                    if option.canonical_identical(actual.aminoacid) {
+                    if option.canonical_identical(actual.aminoacid.aminoacid()) {
                         continue 'positions;
                     }
                 }

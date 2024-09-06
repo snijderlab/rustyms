@@ -1,6 +1,6 @@
 use crate::{
     error::{Context, CustomError},
-    peptide::VerySimple,
+    peptide::SemiAmbiguous,
     CompoundPeptidoform, LinearPeptide, SequenceElement,
 };
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ use super::{IdentifiedPeptide, MetaData};
 pub struct FastaData {
     pub id: String,
     pub full_header: String,
-    pub peptide: LinearPeptide<VerySimple>,
+    pub peptide: LinearPeptide<SemiAmbiguous>,
 }
 
 impl FastaData {
@@ -36,7 +36,7 @@ impl FastaData {
         let reader = BufReader::new(file);
         let mut sequences = Vec::new();
         let mut last_header = None;
-        let mut last_sequence: Vec<SequenceElement> = Vec::new();
+        let mut last_sequence: Vec<SequenceElement<SemiAmbiguous>> = Vec::new();
 
         for (line_number, line) in reader.lines().enumerate() {
             let line = line.map_err(|_| {
@@ -68,9 +68,8 @@ impl FastaData {
                     .singular()
                     .expect("A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform")
                     .very_simple()
-                    .expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well")
-                    .sequence;
-                last_sequence.extend(parsed);
+                    .expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well");
+                last_sequence.extend(parsed.sequence().iter().cloned());
             }
         }
         if let Some((id, full_header)) = last_header {

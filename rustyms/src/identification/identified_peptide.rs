@@ -7,7 +7,7 @@ use super::{
     MaxQuantData, SageData,
 };
 use crate::{
-    error::CustomError, ontologies::CustomDatabase, peptide::VerySimple, system::usize::Charge,
+    error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
     system::Time, LinearPeptide,
 };
 
@@ -44,7 +44,7 @@ pub enum MetaData {
 
 impl MetaData {
     /// Get the peptide
-    pub const fn peptide(&self) -> Option<&LinearPeptide<VerySimple>> {
+    pub const fn peptide(&self) -> Option<&LinearPeptide<SemiAmbiguous>> {
         match self {
             Self::Peaks(PeaksData { peptide, .. })
             | Self::Novor(NovorData { peptide, .. })

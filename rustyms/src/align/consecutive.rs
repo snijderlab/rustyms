@@ -1,7 +1,7 @@
 use crate::{
     align::*,
     imgt::*,
-    peptide::{ExtremelySimple, Simple},
+    peptide::{SimpleLinear, UnAmbiguous},
     system::Mass,
     *,
 };
@@ -16,7 +16,7 @@ use itertools::Itertools;
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(feature = "imgt")]
 #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
-pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
+pub fn consecutive_align<const STEPS: u16, A: Into<SimpleLinear> + Clone + Eq>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
@@ -25,11 +25,11 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
-) -> Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, A>)>> {
+) -> Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> {
     assert!(genes.len() >= 2);
     assert!(return_number != 0);
 
-    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, A>)>> =
+    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> =
         Vec::with_capacity(genes.len());
 
     let mut prev = 0;
@@ -60,7 +60,7 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
             }
             .germlines()
             .map(|seq| {
-                let alignment = align::<STEPS, ExtremelySimple, A>(
+                let alignment = align::<STEPS, UnAmbiguous, A>(
                     seq.sequence,
                     &left_sequence,
                     matrix,
@@ -84,7 +84,7 @@ pub fn consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq>(
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(all(feature = "rayon", feature = "imgt"))]
 #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
-pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Send + Sync>(
+pub fn par_consecutive_align<const STEPS: u16, A: Into<SimpleLinear> + Clone + Eq + Send + Sync>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
@@ -93,13 +93,13 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
     tolerance: Tolerance<Mass>,
     matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     return_number: usize,
-) -> Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, A>)>> {
+) -> Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> {
     use rayon::iter::ParallelIterator;
 
     assert!(genes.len() >= 2);
     assert!(return_number != 0);
 
-    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, ExtremelySimple, A>)>> =
+    let mut output: Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> =
         Vec::with_capacity(genes.len());
 
     let mut prev = 0;
@@ -130,7 +130,7 @@ pub fn par_consecutive_align<const STEPS: u16, A: Into<Simple> + Clone + Eq + Se
             }
             .par_germlines()
             .map(|seq| {
-                let alignment = align::<STEPS, ExtremelySimple, A>(
+                let alignment = align::<STEPS, UnAmbiguous, A>(
                     seq.sequence,
                     &left_sequence,
                     matrix,

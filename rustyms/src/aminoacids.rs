@@ -10,61 +10,7 @@ use crate::{
 
 include!("shared/aminoacid.rs");
 
-#[allow(non_upper_case_globals, missing_docs)]
 impl AminoAcid {
-    pub const A: Self = Self::Alanine;
-    pub const B: Self = Self::AmbiguousAsparagine;
-    pub const C: Self = Self::Cysteine;
-    pub const D: Self = Self::AsparticAcid;
-    pub const E: Self = Self::GlutamicAcid;
-    pub const F: Self = Self::Phenylalanine;
-    pub const G: Self = Self::Glycine;
-    pub const H: Self = Self::Histidine;
-    pub const I: Self = Self::Isoleucine;
-    pub const J: Self = Self::AmbiguousLeucine;
-    pub const K: Self = Self::Lysine;
-    pub const L: Self = Self::Leucine;
-    pub const M: Self = Self::Methionine;
-    pub const N: Self = Self::Asparagine;
-    pub const O: Self = Self::Pyrrolysine;
-    pub const P: Self = Self::Proline;
-    pub const Q: Self = Self::Glutamine;
-    pub const R: Self = Self::Arginine;
-    pub const S: Self = Self::Serine;
-    pub const T: Self = Self::Threonine;
-    pub const U: Self = Self::Selenocysteine;
-    pub const V: Self = Self::Valine;
-    pub const W: Self = Self::Tryptophan;
-    pub const X: Self = Self::Unknown;
-    pub const Y: Self = Self::Tyrosine;
-    pub const Z: Self = Self::AmbiguousGlutamine;
-    pub const Ala: Self = Self::Alanine;
-    pub const Cys: Self = Self::Cysteine;
-    pub const Asn: Self = Self::Asparagine;
-    pub const Asp: Self = Self::AsparticAcid;
-    pub const Asx: Self = Self::AmbiguousAsparagine;
-    pub const Glu: Self = Self::GlutamicAcid;
-    pub const Phe: Self = Self::Phenylalanine;
-    pub const Gly: Self = Self::Glycine;
-    pub const His: Self = Self::Histidine;
-    pub const Ile: Self = Self::Isoleucine;
-    pub const Xle: Self = Self::AmbiguousLeucine;
-    pub const Lys: Self = Self::Lysine;
-    pub const Leu: Self = Self::Leucine;
-    pub const Met: Self = Self::Methionine;
-    pub const Pyl: Self = Self::Pyrrolysine;
-    pub const Pro: Self = Self::Proline;
-    pub const Gln: Self = Self::Glutamine;
-    pub const Glx: Self = Self::AmbiguousGlutamine;
-    pub const Arg: Self = Self::Arginine;
-    pub const Ser: Self = Self::Serine;
-    pub const Thr: Self = Self::Threonine;
-    pub const Sec: Self = Self::Selenocysteine;
-    pub const Val: Self = Self::Valine;
-    pub const Trp: Self = Self::Tryptophan;
-    pub const Tyr: Self = Self::Tyrosine;
-    pub const Xaa: Self = Self::Unknown;
-
     /// All amino acids with a unique mass (no I/L in favour of J, no B, no Z, and no X)
     pub const UNIQUE_MASS_AMINO_ACIDS: &'static [Self] = &[
         Self::Glycine,
@@ -117,7 +63,7 @@ impl AminoAcid {
     // TODO: Take side chain mutations into account (maybe define pyrrolysine as a mutation)
     /// # Panics
     /// When the sequence index is terminal.
-    pub fn satellite_ion_fragments(
+    pub(crate) fn satellite_ion_fragments(
         self,
         sequence_index: SequencePosition,
         peptide_index: usize,
@@ -326,7 +272,7 @@ impl AminoAcid {
     }
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
-    pub fn fragments(
+    pub(crate) fn fragments(
         self,
         n_term: &Multi<MolecularFormula>,
         c_term: &Multi<MolecularFormula>,
@@ -491,7 +437,7 @@ impl AminoAcid {
         base_fragments
     }
 
-    pub const fn char(self) -> char {
+    pub(crate) const fn char(self) -> char {
         match self {
             Self::Alanine => 'A',
             Self::AmbiguousAsparagine => 'B',
@@ -523,17 +469,17 @@ impl AminoAcid {
     }
 
     /// Check if two amino acids are considered identical. X is identical to anything, J to IL, B to ND, Z to EQ.
-    pub fn canonical_identical(self, rhs: Self) -> bool {
+    pub(crate) fn canonical_identical(self, rhs: Self) -> bool {
         match (self, rhs) {
             (a, b) if a == b => true,
-            (Self::X, _)
-            | (_, Self::X)
-            | (Self::J, Self::L | Self::I)
-            | (Self::L | Self::I, Self::J)
-            | (Self::B, Self::N | Self::D)
-            | (Self::N | Self::D, Self::B)
-            | (Self::Z, Self::Q | Self::E)
-            | (Self::Q | Self::E, Self::Z) => true,
+            (Self::Unknown, _)
+            | (_, Self::Unknown)
+            | (Self::AmbiguousLeucine, Self::Leucine | Self::Isoleucine)
+            | (Self::Leucine | Self::Isoleucine, Self::AmbiguousLeucine)
+            | (Self::AmbiguousAsparagine, Self::Asparagine | Self::AsparticAcid)
+            | (Self::Asparagine | Self::AsparticAcid, Self::AmbiguousAsparagine)
+            | (Self::AmbiguousGlutamine, Self::Glutamine | Self::GlutamicAcid)
+            | (Self::Glutamine | Self::GlutamicAcid, Self::AmbiguousGlutamine) => true,
             _ => false,
         }
     }
@@ -556,9 +502,10 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala = AminoAcid::A.formulas(SequencePosition::default(), 0)[0].average_weight();
+        let weight_ala =
+            AminoAcid::Alanine.formulas(SequencePosition::default(), 0)[0].average_weight();
         let mass_ala =
-            AminoAcid::Ala.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
+            AminoAcid::Alanine.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -566,9 +513,10 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys = AminoAcid::K.formulas(SequencePosition::default(), 0)[0].average_weight();
+        let weight_lys =
+            AminoAcid::Lysine.formulas(SequencePosition::default(), 0)[0].average_weight();
         let mass_lys =
-            AminoAcid::Lys.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
+            AminoAcid::Lysine.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);

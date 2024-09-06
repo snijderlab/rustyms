@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     error::CustomError,
     ontologies::CustomDatabase,
-    peptide::VerySimple,
+    peptide::SemiAmbiguous,
     system::{usize::Charge, Mass, Ratio, Time},
     LinearPeptide,
 };
@@ -47,7 +47,7 @@ format_family!(
         ms2_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         native_id: String, |location: Location, _|Ok(location.get_string());
         peptide_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.very_simple().unwrap());
+        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.very_simple().unwrap());
         poisson: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         posterior_error: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         precursor_ppm: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);

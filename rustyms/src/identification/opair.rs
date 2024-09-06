@@ -8,7 +8,7 @@ use super::{
 use crate::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
-    peptide::{SloppyParsingParameters, VerySimple},
+    peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     AminoAcid, LinearPeptide,
 };
@@ -115,7 +115,7 @@ format_family!(
                 ))
             },
         );
-        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

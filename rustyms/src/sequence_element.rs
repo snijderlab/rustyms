@@ -1,47 +1,104 @@
 #![warn(dead_code)]
 
-use std::{collections::HashSet, fmt::Write};
+use std::{collections::HashSet, fmt::Write, marker::PhantomData};
 
 use crate::{
     error::{Context, CustomError},
     modification::{
-        AmbiguousModification, CrossLinkName, LinkerSpecificity, Ontology, RulePossible,
-        SimpleModification,
+        AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, Ontology,
+        RulePossible, SimpleModification,
     },
     peptide::Linked,
     placement_rule::PlacementRule,
-    AmbiguousLabel, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
-    SequencePosition,
+    AmbiguousLabel, CheckedAminoAcid, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula,
+    Multi, MultiChemical, SequencePosition,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::{aminoacids::AminoAcid, modification::Modification};
-
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
-#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub struct SequenceElement {
+#[derive(Default, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub struct SequenceElement<T> {
     /// The aminoacid
-    pub aminoacid: AminoAcid,
+    pub aminoacid: CheckedAminoAcid<T>,
     /// All present modifications
     pub modifications: Vec<Modification>,
     /// All ambiguous modifications (could be placed here or on another position)
     pub possible_modifications: Vec<AmbiguousModification>,
     /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in pro forma
     pub ambiguous: Option<usize>,
+    /// The marker indicating which level of complexity this sequence element uses as higher bound
+    marker: PhantomData<T>,
 }
 
-impl SequenceElement {
+impl<T> Clone for SequenceElement<T> {
+    fn clone(&self) -> Self {
+        Self {
+            aminoacid: self.aminoacid,
+            modifications: self.modifications.clone(),
+            possible_modifications: self.possible_modifications.clone(),
+            ambiguous: self.ambiguous,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<T> PartialEq for SequenceElement<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.aminoacid == other.aminoacid
+            && self.modifications == other.modifications
+            && self.possible_modifications == other.possible_modifications
+            && self.ambiguous == other.ambiguous
+    }
+}
+
+impl<T> std::hash::Hash for SequenceElement<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.aminoacid.hash(state);
+        self.modifications.hash(state);
+        self.possible_modifications.hash(state);
+        self.ambiguous.hash(state);
+    }
+}
+
+impl<T> Eq for SequenceElement<T> {}
+
+impl<T> SequenceElement<T> {
+    /// Mark this sequence element as the following complexity level, the level is not validated
+    pub(super) fn mark<M>(self) -> SequenceElement<M> {
+        SequenceElement {
+            aminoacid: self.aminoacid.mark::<M>(),
+            modifications: self.modifications,
+            possible_modifications: self.possible_modifications,
+            ambiguous: self.ambiguous,
+            marker: PhantomData,
+        }
+    }
+
     /// Create a new aminoacid without any modifications
-    pub const fn new(aminoacid: AminoAcid, ambiguous: Option<usize>) -> Self {
+    pub const fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<usize>) -> Self {
         Self {
             aminoacid,
             modifications: Vec::new(),
             possible_modifications: Vec::new(),
             ambiguous,
+            marker: PhantomData,
         }
     }
 
+    /// Add a modification to this sequence element
+    pub fn with_simple_modification(mut self, modification: SimpleModification) -> Self {
+        self.modifications.push(Modification::Simple(modification));
+        self
+    }
+
+    /// Add a modification to this sequence element
+    pub fn add_simple_modification(&mut self, modification: SimpleModification) {
+        self.modifications.push(Modification::Simple(modification));
+    }
+}
+
+impl<T> SequenceElement<T> {
     /// # Errors
     /// If the underlying formatter errors.
     pub(crate) fn display(
@@ -117,7 +174,7 @@ impl SequenceElement {
 
     /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
     #[allow(clippy::too_many_arguments)]
-    pub fn formulas(
+    pub(crate) fn formulas(
         &self,
         selected_ambiguous: &[usize],
         all_peptides: &[LinearPeptide<Linked>],
@@ -160,7 +217,7 @@ impl SequenceElement {
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
     #[allow(clippy::filter_map_bool_then, clippy::too_many_arguments)] // has side effects
-    pub fn formulas_greedy(
+    pub(crate) fn formulas_greedy(
         &self,
         placed: &mut [bool],
         all_peptides: &[LinearPeptide<Linked>],
@@ -195,7 +252,7 @@ impl SequenceElement {
     }
 
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
-    pub fn formulas_all(
+    pub(crate) fn formulas_all(
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
@@ -225,7 +282,7 @@ impl SequenceElement {
 
     /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
     /// If you have 2 options for amino acid mass (B or Z) and 2 ambiguous modifications that gives you 8 total options for the mass. (2 AA * 2 amb1 * 2 amb2)
-    pub fn formulas_all_options(
+    pub(crate) fn formulas_all_options(
         &self,
         all_peptides: &[LinearPeptide<Linked>],
         visited_peptides: &[usize],
@@ -372,9 +429,9 @@ impl SequenceElement {
     }
 }
 
-impl<T> From<T> for SequenceElement
+impl<C, T> From<T> for SequenceElement<C>
 where
-    T: Into<AminoAcid>,
+    T: Into<CheckedAminoAcid<C>>,
 {
     fn from(value: T) -> Self {
         Self::new(value.into(), None)

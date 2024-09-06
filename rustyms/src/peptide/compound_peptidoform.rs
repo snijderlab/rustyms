@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     peptide::Linked, system::usize::Charge, Fragment, LinearPeptide, Model, MolecularFormula,
-    Multi, MultiChemical, Peptidoform, SequenceElement, SequencePosition,
+    Multi, MultiChemical, Peptidoform, SequencePosition,
 };
 
 /// A single pro forma entry, can contain multiple peptidoforms
@@ -72,7 +72,7 @@ impl CompoundPeptidoform {
             .peptidoforms()
             .iter()
             .flat_map(Peptidoform::peptides)
-            .map(|p| &p.global)
+            .map(|p| p.get_global())
             .tuple_windows()
             .all(|(a, b)| a == b);
         assert!(global_equal, "Not all global isotope modifications on all peptides on this compound peptidoform are identical");
@@ -82,7 +82,7 @@ impl CompoundPeptidoform {
             .iter()
             .flat_map(Peptidoform::peptides)
             .next()
-            .map_or(&empty, |p| &p.global);
+            .map_or(empty.as_slice(), |p| p.get_global());
         for (element, isotope) in global {
             write!(
                 f,
@@ -116,14 +116,5 @@ where
 {
     fn from(value: Item) -> Self {
         Self(vec![Peptidoform(vec![value.into()])])
-    }
-}
-
-impl<Item> FromIterator<Item> for CompoundPeptidoform
-where
-    Item: Into<SequenceElement>,
-{
-    fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
-        Self(vec![Peptidoform(vec![LinearPeptide::from(iter)])])
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    peptide::Simple, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
+    peptide::SimpleLinear, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
     SequenceElement, SequencePosition, Tolerance, WithinTolerance,
 };
 
@@ -18,7 +18,12 @@ use super::{
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 /// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<'lifetime, const STEPS: u16, A: Into<Simple> + Clone, B: Into<Simple> + Clone>(
+pub fn align<
+    'lifetime,
+    const STEPS: u16,
+    A: Into<SimpleLinear> + Clone,
+    B: Into<SimpleLinear> + Clone,
+>(
     seq_a: &'lifetime LinearPeptide<A>,
     seq_b: &'lifetime LinearPeptide<B>,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -261,7 +266,7 @@ fn score(
 
 /// Get the masses of all sequence elements
 fn calculate_masses<const STEPS: u16>(
-    sequence: &LinearPeptide<impl Into<Simple>>,
+    sequence: &LinearPeptide<impl Into<SimpleLinear>>,
 ) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
     // dbg!(&array, format!("{sequence}"));

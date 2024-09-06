@@ -5,7 +5,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, InvertResult},
     ontologies::CustomDatabase,
-    peptide::{SloppyParsingParameters, VerySimple},
+    peptide::{SloppyParsingParameters, SemiAmbiguous},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
@@ -36,7 +36,7 @@ format_family!(
     required {
         spectrum: MSFraggerID, |location: Location, _| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
         spectrum_file: String, |location: Location, _| Ok(location.get_string());
-        peptide: Option<LinearPeptide<VerySimple>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

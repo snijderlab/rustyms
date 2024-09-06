@@ -3,8 +3,8 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::system::{dalton, Mass};
-use rustyms::ExtremelySimple;
 use rustyms::LinearPeptide;
+use rustyms::UnAmbiguous;
 
 use crate::imgt_gene::IMGTGene;
 use crate::structs::DataItem;
@@ -196,7 +196,7 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(first_allele) = first_allele {
-                    let alignment = rustyms::align::align::<1, ExtremelySimple, ExtremelySimple>(
+                    let alignment = rustyms::align::align::<1, UnAmbiguous, UnAmbiguous>(
                         first_allele,
                         &seq.sequence,
                         rustyms::align::matrix::BLOSUM90,
@@ -212,7 +212,7 @@ impl std::fmt::Display for TemporaryGermline {
                     )?;
                 }
                 if let Some(reference) = reference {
-                    let alignment = rustyms::align::align::<1, ExtremelySimple, ExtremelySimple>(
+                    let alignment = rustyms::align::align::<1, UnAmbiguous, UnAmbiguous>(
                         reference,
                         &seq.sequence,
                         rustyms::align::matrix::BLOSUM90,
@@ -286,7 +286,7 @@ impl std::fmt::Display for TemporaryGermline {
 #[derive(Debug, PartialEq, Eq)]
 struct TemporarySequence {
     acc: Vec<String>,
-    sequence: LinearPeptide<ExtremelySimple>,
+    sequence: LinearPeptide<UnAmbiguous>,
     regions: HashMap<Vec<(crate::shared::Region, usize)>, Vec<usize>>,
     annotations: HashMap<Vec<(Annotation, usize)>, Vec<usize>>,
     dna: HashMap<String, Vec<usize>>,

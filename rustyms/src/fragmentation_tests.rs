@@ -513,7 +513,7 @@ fn custom_dsso_database() -> CustomDatabase {
         SimpleModification::Linker {
             specificities: vec![modification::LinkerSpecificity::Symmetric(
                 vec![PlacementRule::AminoAcid(
-                    vec![AminoAcid::K],
+                    vec![AminoAcid::Lysine],
                     placement_rule::Position::Anywhere,
                 )],
                 vec![(
