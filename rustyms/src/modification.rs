@@ -610,7 +610,7 @@ impl SimpleModification {
     }
 }
 
-/// The result of a modification search, see [`Modification::search`].
+/// The result of a modification search, see [`SimpleModification::search`].
 pub enum ModificationSearchResult {
     /// The modification was already defined
     Single(SimpleModification),

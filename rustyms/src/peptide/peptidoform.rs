@@ -7,7 +7,8 @@ use crate::{
     modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
     peptide::Linked,
     system::usize::Charge,
-    Fragment, LinearPeptide, Model, MolecularFormula, Multi, MultiChemical, SequencePosition,
+    Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, MultiChemical,
+    SequencePosition,
 };
 /// A single peptidoform, can contain multiple linear peptides
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
@@ -72,6 +73,14 @@ impl Peptidoform {
     /// Get all peptides making up this `Peptidoform`
     pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         &self.0
+    }
+
+    /// Set the charge carriers
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn set_charge_carriers(&mut self, charge_carriers: Option<MolecularCharge>) {
+        for peptide in &mut self.0 {
+            peptide.set_charge_carriers(charge_carriers.clone());
+        }
     }
 
     /// Add a cross-link to this peptidoform and check if it is placed according to its placement rules.
@@ -191,7 +200,7 @@ impl Peptidoform {
             let global_equal = self
                 .peptides()
                 .iter()
-                .map(|p| p.get_global())
+                .map(LinearPeptide::get_global)
                 .tuple_windows()
                 .all(|(a, b)| a == b);
             assert!(global_equal, "Not all global isotope modifications on all peptides on this peptidoform are identical");

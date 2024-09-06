@@ -810,7 +810,7 @@ pub struct FragmentType(rustyms::fragment::FragmentType);
 
 /// One block in a sequence meaning an amino acid and its accompanying modifications.
 #[pyclass]
-pub struct SequenceElement(rustyms::SequenceElement);
+pub struct SequenceElement(rustyms::SequenceElement<Linked>);
 
 #[pymethods]
 impl SequenceElement {
@@ -826,7 +826,7 @@ impl SequenceElement {
     ///
     #[getter]
     fn aminoacid(&self) -> AminoAcid {
-        AminoAcid(self.0.aminoacid)
+        AminoAcid(self.0.aminoacid.aminoacid())
     }
 
     /// All present modifications.
@@ -1082,7 +1082,7 @@ impl LinearPeptide {
     }
 
     fn __len__(&self) -> usize {
-        self.0.sequence.len()
+        self.0.len()
     }
 
     /// Labile modifications, which will not be found in the actual spectrum.
@@ -1094,7 +1094,7 @@ impl LinearPeptide {
     #[getter]
     fn labile(&self) -> Vec<SimpleModification> {
         self.0
-            .labile
+            .get_labile()
             .iter()
             .map(|x| SimpleModification(x.clone()))
             .collect()
@@ -1108,7 +1108,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn n_term(&self) -> Option<Modification> {
-        self.0.n_term.as_ref().map(|m| Modification(m.clone()))
+        self.0.get_n_term().map(|m| Modification(m.clone()))
     }
 
     /// C-terminal modification.
@@ -1119,7 +1119,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn c_term(&self) -> Option<Modification> {
-        self.0.c_term.as_ref().map(|m| Modification(m.clone()))
+        self.0.get_c_term().map(|m| Modification(m.clone()))
     }
 
     /// Sequence of the peptide including modifications.
@@ -1131,7 +1131,7 @@ impl LinearPeptide {
     #[getter]
     fn sequence(&self) -> Vec<SequenceElement> {
         self.0
-            .sequence
+            .sequence()
             .iter()
             .map(|x| SequenceElement(x.clone()))
             .collect()
@@ -1145,7 +1145,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn ambiguous_modifications(&self) -> Vec<Vec<usize>> {
-        self.0.ambiguous_modifications.clone()
+        self.0.get_ambiguous_modifications().to_vec()
     }
 
     /// Stripped sequence, meaning the sequence without any modifications.
@@ -1156,7 +1156,11 @@ impl LinearPeptide {
     ///
     #[getter]
     fn stripped_sequence(&self) -> String {
-        self.0.sequence.iter().map(|x| x.aminoacid.char()).collect()
+        self.0
+            .sequence()
+            .iter()
+            .map(|x| x.aminoacid.char())
+            .collect()
     }
 
     /// The precursor charge of the peptide.
@@ -1168,19 +1172,21 @@ impl LinearPeptide {
     #[getter]
     fn charge(&self) -> Option<isize> {
         self.0
-            .charge_carriers
-            .clone()
+            .get_charge_carriers()
             .map(|c| c.formula(SequencePosition::default(), 0).charge().value)
     }
 
     /// The adduct ions, if specified.
+    ///
+    /// Returns
+    /// -------
+    /// MolecularCharge | None
+    ///
     #[getter]
-    fn charge_carriers(&self) -> Vec<MolecularCharge> {
+    fn charge_carriers(&self) -> Option<MolecularCharge> {
         self.0
-            .charge_carriers
-            .iter()
+            .get_charge_carriers()
             .map(|c| MolecularCharge(c.clone()))
-            .collect()
     }
 
     /// Get a copy of the peptide with its sequence reversed.
@@ -1200,7 +1206,7 @@ impl LinearPeptide {
     /// List[MolecularFormula] | None
     ///
     fn formula(&self) -> Option<Vec<MolecularFormula>> {
-        self.0.clone().linear().map(|p| {
+        self.0.clone().into_linear().map(|p| {
             p.formulas()
                 .iter()
                 .map(|f| MolecularFormula(f.clone()))
@@ -1227,7 +1233,7 @@ impl LinearPeptide {
         max_charge: usize,
         model: &FragmentationModel,
     ) -> Option<Vec<Fragment>> {
-        self.0.clone().linear().map(|p| {
+        self.0.clone().into_linear().map(|p| {
             p.generate_theoretical_fragments(
                 rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
                 &match_model(model).unwrap(),

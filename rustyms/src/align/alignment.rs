@@ -20,8 +20,8 @@ use crate::Multi;
 use crate::SequencePosition;
 
 /// An alignment of two reads. It has either a reference to the two sequences to prevent overzealous use of memory, or if needed use [`Self::to_owned`] to get a variant that clones the sequences and so can be used in more places.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Alignment<'lifetime, A: Clone, B: Clone> {
+#[derive(Debug)]
+pub struct Alignment<'lifetime, A, B> {
     /// The first sequence
     pub(super) seq_a: Cow<'lifetime, LinearPeptide<A>>,
     /// The second sequence
@@ -40,7 +40,50 @@ pub struct Alignment<'lifetime, A: Clone, B: Clone> {
     pub(super) maximal_step: u16,
 }
 
-impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
+impl<'lifetime, A, B> Clone for Alignment<'lifetime, A, B> {
+    fn clone(&self) -> Self {
+        Self {
+            seq_a: self.seq_a.clone(),
+            seq_b: self.seq_b.clone(),
+            score: self.score,
+            path: self.path.clone(),
+            start_a: self.start_a,
+            start_b: self.start_b,
+            align_type: self.align_type,
+            maximal_step: self.maximal_step,
+        }
+    }
+}
+
+impl<'lifetime, A, B> PartialEq for Alignment<'lifetime, A, B> {
+    fn eq(&self, other: &Self) -> bool {
+        self.seq_a == other.seq_a
+            && self.seq_b == other.seq_b
+            && self.score == other.score
+            && self.path == other.path
+            && self.start_a == other.start_a
+            && self.start_b == other.start_b
+            && self.align_type == other.align_type
+            && self.maximal_step == other.maximal_step
+    }
+}
+
+impl<'lifetime, A, B> std::hash::Hash for Alignment<'lifetime, A, B> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.seq_a.hash(state);
+        self.seq_b.hash(state);
+        self.score.hash(state);
+        self.path.hash(state);
+        self.start_a.hash(state);
+        self.start_b.hash(state);
+        self.align_type.hash(state);
+        self.maximal_step.hash(state);
+    }
+}
+
+impl<'lifetime, A, B> Eq for Alignment<'lifetime, A, B> {}
+
+impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     /// Clone the referenced sequences to make an alignment that owns the sequences.
     /// This can be necessary in some context where the references cannot be guaranteed to stay as long as you need the alignment.
     #[must_use]
@@ -53,13 +96,13 @@ impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A: Eq + Clone, B: Eq + Clone> PartialOrd for Alignment<'lifetime, A, B> {
+impl<'lifetime, A, B> PartialOrd for Alignment<'lifetime, A, B> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'lifetime, A: Eq + Clone, B: Eq + Clone> Ord for Alignment<'lifetime, A, B> {
+impl<'lifetime, A, B> Ord for Alignment<'lifetime, A, B> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.score.normalised.cmp(&other.score.normalised)
     }
@@ -67,7 +110,7 @@ impl<'lifetime, A: Eq + Clone, B: Eq + Clone> Ord for Alignment<'lifetime, A, B>
 
 /// A generalised alignment with all behaviour.
 #[allow(private_bounds)] // Intended behaviour no one should build on the inner structure
-impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
+impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     /// The first sequence
     pub fn seq_a(&self) -> &LinearPeptide<A> {
         &self.seq_a
@@ -165,13 +208,13 @@ impl<'lifetime, A: Clone, B: Clone> Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lifetime, A, B> {
+impl<'lifetime, A: Into<Linear>, B: Into<Linear>> Alignment<'lifetime, A, B> {
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
     pub fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_a() && self.align_type().right.global_a() {
             self.seq_a().bare_formulas()
         } else {
-            let mut placed_a = vec![false; self.seq_a().ambiguous_modifications.len()];
+            let mut placed_a = vec![false; self.seq_a().number_of_ambiguous_modifications()];
             self.seq_a()[self.start_a()..self.start_a() + self.len_a()]
                 .iter()
                 .enumerate()
@@ -196,7 +239,7 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
         if self.align_type().left.global_b() && self.align_type().right.global_b() {
             self.seq_b().bare_formulas()
         } else {
-            let mut placed_b = vec![false; self.seq_b().ambiguous_modifications.len()];
+            let mut placed_b = vec![false; self.seq_b().number_of_ambiguous_modifications()];
             self.seq_b()[self.start_b()..self.start_b() + self.len_b()]
                 .iter()
                 .enumerate()
@@ -277,7 +320,7 @@ impl<'lifetime, A: Clone + Into<Linear>, B: Clone + Into<Linear>> Alignment<'lif
                     (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
                     (_, 0, 1) => StepType::Insertion,
                     (_, 1, 0) => StepType::Deletion,
-                    (_, 1, 1) if self.seq_a().sequence[a] == self.seq_b().sequence[b] => {
+                    (_, 1, 1) if self.seq_a().sequence()[a] == self.seq_b().sequence()[b] => {
                         StepType::Match
                     }
                     (_, 1, 1) => StepType::Mismatch,
@@ -372,19 +415,19 @@ mod tests {
         // A has an ambiguous AA, B and C have the two options, while D has a sub peptide of A.
         let a = LinearPeptide::pro_forma("AABAA", None)
             .unwrap()
-            .simple()
+            .into_simple_linear()
             .unwrap();
         let b = LinearPeptide::pro_forma("AANAA", None)
             .unwrap()
-            .simple()
+            .into_simple_linear()
             .unwrap();
         let c = LinearPeptide::pro_forma("AADAA", None)
             .unwrap()
-            .simple()
+            .into_simple_linear()
             .unwrap();
         let d = LinearPeptide::pro_forma("ADA", None)
             .unwrap()
-            .simple()
+            .into_simple_linear()
             .unwrap();
 
         assert!(
@@ -426,9 +469,10 @@ mod tests {
             .abs()
                 < f64::EPSILON
         );
-        let mass_diff_nd = (AminoAcid::N.formulas(SequencePosition::default(), 0)[0]
+        let mass_diff_nd = (AminoAcid::Asparagine.formulas(SequencePosition::default(), 0)[0]
             .monoisotopic_mass()
-            - AminoAcid::D.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass())
+            - AminoAcid::AsparticAcid.formulas(SequencePosition::default(), 0)[0]
+                .monoisotopic_mass())
         .value
         .abs();
         let mass_diff_bc = align::<1, SimpleLinear, SimpleLinear>(

@@ -79,20 +79,20 @@ impl LinearPeptide<SemiAmbiguous> {
                     .map(Modification::Simple)?;
                     index = end_index + 1;
 
-                    match peptide.sequence().last_mut() {
+                    match peptide.sequence_mut().last_mut() {
                         Some(aa) => aa.modifications.push(modification),
                         None => {
-                            peptide.n_term(Some(Modification::Simple(
+                            peptide.set_simple_n_term(Some(
                                 modification
                                     .simple()
                                     .expect("Can only put a simple modification on an N terminus.")
                                     .clone(),
-                            )));
+                            ));
                         }
                     }
                 }
                 ch => {
-                    peptide.sequence().push(SequenceElement::new(
+                    peptide.sequence_mut().push(SequenceElement::new(
                         ch.try_into().map_err(|()| {
                             CustomError::error(
                                 "Invalid amino acid",
@@ -128,10 +128,10 @@ impl Modification {
     /// If the name is not in Unimod, PSI-MOD, the custom database, or the predefined list of common trivial names.
     /// Or if this is the case when the modification follows a known structure (eg `mod (AAs)`).
     #[allow(clippy::missing_panics_doc)]
-    pub fn sloppy_modification<T>(
+    pub fn sloppy_modification(
         line: &str,
         location: std::ops::Range<usize>,
-        position: Option<&SequenceElement<T>>,
+        position: Option<&SequenceElement<SemiAmbiguous>>,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<SimpleModification, CustomError> {
         let full_context = Context::line(None, line, location.start, location.len());
@@ -150,7 +150,7 @@ impl Modification {
                 .captures(name)
                 .and_then(|capture| {
                     let pos = capture[2].chars().next().and_then(|a| AminoAcid::try_from(a).ok().map(|a| SequenceElement::new(CheckedAminoAcid::new(a), None)));
-                    Self::find_name(&capture[1], position.or(pos.as_ref()), custom_database)
+                    Self::find_name::<SemiAmbiguous>(&capture[1], position.or(pos.as_ref()), custom_database)
                         .ok_or_else(|| {
                             parse_named_counter(
                                 &capture[1].to_ascii_lowercase(),

@@ -437,7 +437,8 @@ impl AminoAcid {
         base_fragments
     }
 
-    pub(crate) const fn char(self) -> char {
+    /// Get the single letter representation of the amino acid
+    pub const fn char(self) -> char {
         match self {
             Self::Alanine => 'A',
             Self::AmbiguousAsparagine => 'B',
@@ -465,6 +466,70 @@ impl AminoAcid {
             Self::Unknown => 'X',
             Self::Tyrosine => 'Y',
             Self::AmbiguousGlutamine => 'Z',
+        }
+    }
+
+    /// Get the 3 letter code for the amino acid
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Alanine => "Ala",
+            Self::AmbiguousAsparagine => "Asx",
+            Self::Cysteine => "Cys",
+            Self::AsparticAcid => "Asp",
+            Self::GlutamicAcid => "Glu",
+            Self::Phenylalanine => "Phe",
+            Self::Glycine => "Gly",
+            Self::Histidine => "His",
+            Self::Isoleucine => "Ile",
+            Self::AmbiguousLeucine => "Xle",
+            Self::Lysine => "Lys",
+            Self::Leucine => "Leu",
+            Self::Methionine => "Met",
+            Self::Asparagine => "Asn",
+            Self::Pyrrolysine => "Pyl",
+            Self::Proline => "Pro",
+            Self::Glutamine => "Gln",
+            Self::Arginine => "Arg",
+            Self::Serine => "Ser",
+            Self::Threonine => "Thr",
+            Self::Selenocysteine => "Sec",
+            Self::Valine => "Val",
+            Self::Tryptophan => "Trp",
+            Self::Unknown => "Xaa",
+            Self::Tyrosine => "Tyr",
+            Self::AmbiguousGlutamine => "Glx",
+        }
+    }
+
+    /// Get the full name for the amino acid
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Alanine => "Alanine",
+            Self::AmbiguousAsparagine => "AmbiguousAsparagine",
+            Self::Cysteine => "Cysteine",
+            Self::AsparticAcid => "AsparticAcid",
+            Self::GlutamicAcid => "GlutamicAcid",
+            Self::Phenylalanine => "Phenylalanine",
+            Self::Glycine => "Glycine",
+            Self::Histidine => "Histidine",
+            Self::Isoleucine => "Isoleucine",
+            Self::AmbiguousLeucine => "AmbiguousLeucine",
+            Self::Lysine => "Lysine",
+            Self::Leucine => "Leucine",
+            Self::Methionine => "Methionine",
+            Self::Asparagine => "Asparagine",
+            Self::Pyrrolysine => "Pyrrolysine",
+            Self::Proline => "Proline",
+            Self::Glutamine => "Glutamine",
+            Self::Arginine => "Arginine",
+            Self::Serine => "Serine",
+            Self::Threonine => "Threonine",
+            Self::Selenocysteine => "Selenocysteine",
+            Self::Valine => "Valine",
+            Self::Tryptophan => "Tryptophan",
+            Self::Unknown => "Unknown",
+            Self::Tyrosine => "Tyrosine",
+            Self::AmbiguousGlutamine => "AmbiguousGlutamine",
         }
     }
 

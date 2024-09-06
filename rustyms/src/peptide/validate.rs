@@ -4,23 +4,22 @@ use std::collections::HashMap;
 use crate::{
     error::{Context, CustomError},
     modification::{AmbiguousModification, CrossLinkName, SimpleModification},
-    placement_rule::Position,
-    LinearPeptide, Linked, Modification, Peptidoform, SequencePosition,
+    LinearPeptide, Modification, Peptidoform, SequencePosition,
 };
 
-use super::GlobalModification;
+use super::{GlobalModification, Linear};
 
 /// Validate all cross links
 /// # Errors
 /// If there is a cross link with more then 2 locations. Or if there never is a definition for this cross link.
 /// Or if there are peptides that cannot be reached from the first peptide.
 pub fn cross_links(
-    peptides: Vec<LinearPeptide<Linked>>,
+    peptides: Vec<LinearPeptide<Linear>>,
     cross_links_found: HashMap<usize, Vec<(usize, SequencePosition)>>,
     cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
 ) -> Result<Peptidoform, CustomError> {
-    let mut peptidoform = Peptidoform(peptides);
+    let mut peptidoform = Peptidoform(peptides.into_iter().map(Into::into).collect());
     for (id, locations) in cross_links_found {
         let definition = &cross_link_lookup[id];
         if let Some(linker) = &definition.1 {
@@ -30,7 +29,7 @@ pub fn cross_links(
                     format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0),
                     Context::full_line(0, line),
                 ))},
-                1 => (), // TODO: assumed that the modification is already placed so this works out fine (it is not)
+                1 => unreachable!("Assumed that the modification is already placed so this works out fine"), 
                 2 => {
                     if !peptidoform.add_cross_link(locations[0], locations[1], linker.clone(), definition.0.clone()) {
                         return Err(CustomError::error(
@@ -98,7 +97,7 @@ pub fn cross_links(
     Ok(peptidoform)
 }
 
-impl LinearPeptide<Linked> {
+impl LinearPeptide<Linear> {
     /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false
     #[must_use]
     pub(super) fn apply_global_modifications(
@@ -108,29 +107,19 @@ impl LinearPeptide<Linked> {
         for modification in global_modifications {
             match modification {
                 GlobalModification::Fixed(pos, aa, modification) => {
-                    for (_, seq) in
-                        self.sequence_mut()
-                            .iter_mut()
-                            .enumerate()
-                            .filter(|(index, seq)| {
-                                pos.is_possible(SequencePosition::Index(*index))
-                                    && aa.map_or(true, |aa| aa == seq.aminoacid.aminoacid())
-                                    && modification
-                                        .is_possible(seq, SequencePosition::Index(*index))
-                                        .possible()
-                            })
-                    {
-                        match pos {
-                            Position::Anywhere => {
-                                seq.add_simple_modification(modification.clone());
-                            }
-                            Position::AnyNTerm | Position::ProteinNTerm => {
-                                self.n_term(Some(Modification::Simple(modification.clone())));
-                            }
-                            Position::AnyCTerm | Position::ProteinCTerm => {
-                                self.c_term(Some(Modification::Simple(modification.clone())));
-                            }
-                        }
+                    let positions = self
+                        .iter(..)
+                        .filter(|(position, seq)| {
+                            pos.is_possible(position.sequence_index)
+                                && aa.map_or(true, |aa| aa == seq.aminoacid.aminoacid())
+                                && modification
+                                    .is_possible(seq, position.sequence_index)
+                                    .possible()
+                        })
+                        .map(|(position, _)| position)
+                        .collect_vec();
+                    for position in positions {
+                        self.add_simple_modification(position.sequence_index, modification.clone());
                     }
                 }
                 GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {
@@ -158,19 +147,21 @@ impl LinearPeptide<Linked> {
                         .is_possible(&self.sequence()[*i], SequencePosition::Index(*i))
                         .possible()
                 })
+                .map(|p| (p, None))
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
             }
             self.add_ambiguous_modification(
-                AmbiguousModification {
+                &AmbiguousModification {
                     id,
                     modification: modification.clone(),
                     localisation_score: None,
                     group: format!("u{unknown_mod_index}"),
                     preferred: false,
                 },
-                positions,
+                &positions,
+                None,
             );
         }
         Ok(())
@@ -197,19 +188,21 @@ impl LinearPeptide<Linked> {
                         .possible()
                         .then_some(i)
                 })
+                .map(|p| (p, None))
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position on a range cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
             }
             self.add_ambiguous_modification(
-                AmbiguousModification {
+                &AmbiguousModification {
                     id: start_ambiguous_index,
                     modification: modification.clone(),
                     localisation_score: None,
                     group: format!("u{start_ambiguous_group_id}"),
                     preferred: false,
                 },
-                positions,
+                &positions,
+                None,
             );
             start_ambiguous_index += 1;
             start_ambiguous_group_id += 1;

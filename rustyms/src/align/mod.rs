@@ -76,7 +76,7 @@ mod tests {
     fn linear(aa: &str) -> LinearPeptide<SimpleLinear> {
         LinearPeptide::pro_forma(aa, None)
             .unwrap()
-            .simple()
+            .into_simple_linear()
             .unwrap()
     }
 

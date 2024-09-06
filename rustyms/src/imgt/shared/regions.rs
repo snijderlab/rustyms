@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{UnAmbiguous, LinearPeptide};
+use crate::{LinearPeptide, UnAmbiguous};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
@@ -458,16 +458,13 @@ impl Gene {
                 .map_err(|()| format!("Invalid gene: `{}`", &s[3..4]))?;
             let mut start = 4;
             let number = if s.len() > 4 && &s[4..5] == "(" {
-                let end = s[5..].find(')').ok_or(format!(
-                    "Invalid gene number `{}` out of `{}`",
-                    &s[4..],
-                    s
-                ))?;
+                let end = s[5..]
+                    .find(')')
+                    .ok_or_else(|| format!("Invalid gene number `{}` out of `{}`", &s[4..], s))?;
                 start += end + 2;
-                Some(from_roman(&s[5..5 + end]).ok_or(format!(
-                    "Invalid roman numeral (or too big) `{}`",
-                    &s[5..5 + end]
-                ))?)
+                Some(from_roman(&s[5..5 + end]).ok_or_else(|| {
+                    format!("Invalid roman numeral (or too big) `{}`", &s[5..5 + end])
+                })?)
             } else {
                 None
             };
