@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    checked_aminoacid::CheckedAminoAcid,
     error::{Context, CustomError},
     glycan::glycan_parse_list,
     helper_functions::{end_of_enclosure, parse_named_counter, ResultExtensions},
@@ -22,7 +23,7 @@ pub struct SloppyParsingParameters {
     pub ignore_prefix_lowercase_n: bool,
 }
 
-impl LinearPeptide<VerySimple> {
+impl LinearPeptide<SemiAmbiguous> {
     /// Read sloppy pro forma like sequences. Defined by the use of square or round braces to indicate
     /// modifications and missing any particular method of defining the N or C terminal modifications.
     /// Additionally any underscores will be ignored both on the ends and inside the sequence.
@@ -72,26 +73,26 @@ impl LinearPeptide<VerySimple> {
                     let modification = Modification::sloppy_modification(
                         line,
                         location.start + index + 1..location.start + end_index,
-                        peptide.sequence.last(),
+                        peptide.sequence().last(),
                         custom_database,
                     )
                     .map(Modification::Simple)?;
                     index = end_index + 1;
 
-                    match peptide.sequence.last_mut() {
+                    match peptide.sequence().last_mut() {
                         Some(aa) => aa.modifications.push(modification),
                         None => {
-                            peptide.n_term = Some(Modification::Simple(
+                            peptide.n_term(Some(Modification::Simple(
                                 modification
                                     .simple()
                                     .expect("Can only put a simple modification on an N terminus.")
                                     .clone(),
-                            ));
+                            )));
                         }
                     }
                 }
                 ch => {
-                    peptide.sequence.push(SequenceElement::new(
+                    peptide.sequence().push(SequenceElement::new(
                         ch.try_into().map_err(|()| {
                             CustomError::error(
                                 "Invalid amino acid",
@@ -127,10 +128,10 @@ impl Modification {
     /// If the name is not in Unimod, PSI-MOD, the custom database, or the predefined list of common trivial names.
     /// Or if this is the case when the modification follows a known structure (eg `mod (AAs)`).
     #[allow(clippy::missing_panics_doc)]
-    pub fn sloppy_modification(
+    pub fn sloppy_modification<T>(
         line: &str,
         location: std::ops::Range<usize>,
-        position: Option<&SequenceElement>,
+        position: Option<&SequenceElement<T>>,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<SimpleModification, CustomError> {
         let full_context = Context::line(None, line, location.start, location.len());
@@ -148,7 +149,7 @@ impl Modification {
             .or_else(|| {SLOPPY_MOD_OPAIR_REGEX.get_or_init(|| {Regex::new(r"(?:[^:]+:)?(.*) (?:(?:on)|(?:from)) ([A-Z])").unwrap()})
                 .captures(name)
                 .and_then(|capture| {
-                    let pos = capture[2].chars().next().and_then(|a| AminoAcid::try_from(a).ok().map(|a| SequenceElement::new(a, None)));
+                    let pos = capture[2].chars().next().and_then(|a| AminoAcid::try_from(a).ok().map(|a| SequenceElement::new(CheckedAminoAcid::new(a), None)));
                     Self::find_name(&capture[1], position.or(pos.as_ref()), custom_database)
                         .ok_or_else(|| {
                             parse_named_counter(
@@ -190,9 +191,9 @@ impl Modification {
             })
     }
 
-    fn find_name(
+    fn find_name<T>(
         name: &str,
-        position: Option<&SequenceElement>,
+        position: Option<&SequenceElement<T>>,
         custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
         let name = name.trim().to_lowercase();
@@ -202,7 +203,7 @@ impl Modification {
             "nem" => Ontology::Unimod.find_id(108, None), // Nethylmaleimide
             "deamidation" => Ontology::Unimod.find_id(7, None), // deamidation
             "pyro-glu" => Ontology::Unimod.find_id(
-                if position.is_some_and(|p| p.aminoacid == AminoAcid::E) {
+                if position.is_some_and(|p| p.aminoacid.aminoacid() == AminoAcid::GlutamicAcid) {
                     27
                 } else {
                     28

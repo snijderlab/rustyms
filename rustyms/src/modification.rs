@@ -133,7 +133,11 @@ impl SimpleModification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> RulePossible {
+    pub fn is_possible<T>(
+        &self,
+        seq: &SequenceElement<T>,
+        position: SequencePosition,
+    ) -> RulePossible {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
@@ -441,7 +445,11 @@ impl Modification {
     }
 
     /// Check to see if this modification can be placed on the specified element
-    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> RulePossible {
+    pub fn is_possible<T>(
+        &self,
+        seq: &SequenceElement<T>,
+        position: SequencePosition,
+    ) -> RulePossible {
         self.simple()
             .map_or(RulePossible::Symmetric(HashSet::new()), |s| {
                 s.is_possible(seq, position)

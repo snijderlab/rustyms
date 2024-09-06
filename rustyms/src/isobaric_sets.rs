@@ -3,17 +3,19 @@ use std::cmp::Ordering;
 use itertools::Itertools;
 
 use crate::{
+    checked_aminoacid::CheckedAminoAcid,
     modification::{Modification, SimpleModification},
-    peptide::Simple,
+    peptide::SimpleLinear,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, SequenceElement, SequencePosition, Tolerance,
+    AminoAcid, Chemical, LinearPeptide, SemiAmbiguous, SequenceElement, SequencePosition,
+    Tolerance,
 };
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
-pub type BuildingBlocks = Vec<(SequenceElement, Mass)>;
+pub type BuildingBlocks = Vec<(SequenceElement<SemiAmbiguous>, Mass)>;
 /// A list of all combinations of terminal modifications and their accompanying amino acid
-pub type TerminalBuildingBlocks = Vec<(SequenceElement, SimpleModification, Mass)>;
+pub type TerminalBuildingBlocks = Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>;
 /// Get the possible building blocks for sequences based on the given modifications.
 /// Useful for any automated sequence generation, like isobaric set generation or de novo sequencing.
 /// The result is for each location (N term, center, C term) the list of all possible building blocks with its mass, sorted on mass.
@@ -31,7 +33,7 @@ pub fn building_blocks(
     /// Enforce the placement rules of predefined modifications.
     fn can_be_placed(
         modification: &SimpleModification,
-        seq: &SequenceElement,
+        seq: &SequenceElement<SemiAmbiguous>,
         position: SequencePosition,
     ) -> bool {
         if let SimpleModification::Database { specificities, .. } = modification {
@@ -91,7 +93,12 @@ pub fn building_blocks(
                                     rules.iter().flat_map(position).collect_vec()
                                 })
                                 .unique()
-                                .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                                .map(|a| {
+                                    (
+                                        SequenceElement::new(CheckedAminoAcid::new(a), None),
+                                        modification.clone(),
+                                    )
+                                })
                                 .collect_vec()
                         } else {
                             Vec::new()
@@ -100,7 +107,12 @@ pub fn building_blocks(
                     |rule| {
                         position(rule)
                             .into_iter()
-                            .map(|a| (SequenceElement::new(a, None), modification.clone()))
+                            .map(|a| {
+                                (
+                                    SequenceElement::new(CheckedAminoAcid::new(a), None),
+                                    modification.clone(),
+                                )
+                            })
                             .collect_vec()
                     },
                 )
@@ -132,7 +144,7 @@ pub fn building_blocks(
     }
 
     let generate = |position| {
-        let mut options: Vec<(SequenceElement, Mass)> = amino_acids
+        let mut options: Vec<(SequenceElement<SemiAmbiguous>, Mass)> = amino_acids
             .iter()
             .flat_map(|aa| {
                 let mut options = Vec::new();
@@ -141,19 +153,28 @@ pub fn building_blocks(
                         .iter()
                         .filter(|&m| {
                             m.1.as_ref().map_or_else(
-                                || can_be_placed(&m.0, &SequenceElement::new(*aa, None), position),
-                                |rule| rule.is_possible(&SequenceElement::new(*aa, None), position),
+                                || {
+                                    can_be_placed(
+                                        &m.0,
+                                        &SequenceElement::new(aa.into(), None),
+                                        position,
+                                    )
+                                },
+                                |rule| {
+                                    rule.is_possible(
+                                        &SequenceElement::new(aa.into(), None),
+                                        position,
+                                    )
+                                },
                             )
                         })
-                        .map(|m| SequenceElement {
-                            aminoacid: *aa,
-                            ambiguous: None,
-                            modifications: vec![Modification::Simple(m.0.clone())],
-                            possible_modifications: Vec::new(),
+                        .map(|m| {
+                            SequenceElement::new(aa.into(), None)
+                                .with_simple_modification(m.0.clone())
                         }),
                 );
                 if options.is_empty() {
-                    vec![SequenceElement::new(*aa, None)]
+                    vec![SequenceElement::new(aa.into(), None)]
                 } else {
                     options
                 }
@@ -172,12 +193,7 @@ pub fn building_blocks(
                         .map(|m| {
                             let mut modifications = seq.modifications.clone();
                             modifications.push(Modification::Simple(m.0.clone()));
-                            SequenceElement {
-                                aminoacid: seq.aminoacid,
-                                ambiguous: None,
-                                modifications,
-                                possible_modifications: Vec::new(),
-                            }
+                            SequenceElement::new(seq.aminoacid, None)
                         }),
                 );
                 options
@@ -215,7 +231,7 @@ pub fn find_isobaric_sets(
     amino_acids: &[AminoAcid],
     fixed: &[(SimpleModification, Option<PlacementRule>)],
     variable: &[(SimpleModification, Option<PlacementRule>)],
-    base: Option<&LinearPeptide<Simple>>,
+    base: Option<&LinearPeptide<SimpleLinear>>,
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
     let base_mass = base
@@ -236,13 +252,13 @@ pub fn find_isobaric_sets(
 /// Iteratively generate isobaric sets based on the given settings.
 #[derive(Debug)]
 pub struct IsobaricSetIterator {
-    n_term: Vec<(SequenceElement, SimpleModification, Mass)>,
-    c_term: Vec<(SequenceElement, SimpleModification, Mass)>,
-    center: Vec<(SequenceElement, Mass)>,
+    n_term: Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>,
+    c_term: Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>,
+    center: Vec<(SequenceElement<SemiAmbiguous>, Mass)>,
     sizes: (Mass, Mass),
     bounds: (Mass, Mass),
     state: (Option<usize>, Option<usize>, Vec<usize>),
-    base: Option<LinearPeptide<Simple>>,
+    base: Option<LinearPeptide<SimpleLinear>>,
 }
 
 impl IsobaricSetIterator {
@@ -250,11 +266,11 @@ impl IsobaricSetIterator {
     /// # Panics
     /// If there is not at least one element in the `center` list.
     fn new(
-        n_term: Vec<(SequenceElement, SimpleModification, Mass)>,
-        c_term: Vec<(SequenceElement, SimpleModification, Mass)>,
-        center: Vec<(SequenceElement, Mass)>,
+        n_term: Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>,
+        c_term: Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>,
+        center: Vec<(SequenceElement<SemiAmbiguous>, Mass)>,
         bounds: (Mass, Mass),
-        base: Option<&LinearPeptide<Simple>>,
+        base: Option<&LinearPeptide<SimpleLinear>>,
     ) -> Self {
         let sizes = (center.first().unwrap().1, center.last().unwrap().1);
         let mut iter = Self {
@@ -297,7 +313,7 @@ impl IsobaricSetIterator {
 
     /// # Panics
     /// If the base sequence is empty.
-    fn peptide(&self) -> LinearPeptide<Simple> {
+    fn peptide(&self) -> LinearPeptide<SimpleLinear> {
         let mut sequence = Vec::with_capacity(
             self.base
                 .as_ref()
@@ -310,38 +326,38 @@ impl IsobaricSetIterator {
         if let Some((b, _)) = self
             .base
             .as_ref()
-            .and_then(|b| b.n_term.as_ref().map(|n| (b, n)))
+            .and_then(|b| b.get_n_term().map(|n| (b, n.clone())))
         {
-            sequence.push(b.sequence[0].clone());
+            sequence.push(b.sequence()[0].clone());
         } else if let Some(n) = self.state.0.map(|i| self.n_term[i].clone()) {
-            sequence.push(n.0);
+            sequence.push(n.0.into());
         }
         if let Some(base) = &self.base {
-            let n = usize::from(base.n_term.is_some());
-            let c = usize::from(base.c_term.is_some());
-            sequence.extend(base.sequence[n..base.len() - n - c].iter().cloned());
+            let n = usize::from(base.get_n_term().is_some());
+            let c = usize::from(base.get_c_term().is_some());
+            sequence.extend(base.sequence()[n..base.len() - n - c].iter().cloned());
         }
         sequence.extend(
             self.state
                 .2
                 .iter()
                 .copied()
-                .map(|i| self.center[i].0.clone()),
+                .map(|i| self.center[i].0.clone().into()),
         );
         if let Some((b, _)) = self
             .base
             .as_ref()
-            .and_then(|b| b.c_term.as_ref().map(|c| (b, c)))
+            .and_then(|b| b.get_c_term().map(|c| (b, c.clone())))
         {
-            sequence.push(b.sequence.last().unwrap().clone());
+            sequence.push(b.sequence().last().unwrap().clone());
         } else if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
-            sequence.push(c.0);
+            sequence.push(c.0.into());
         }
         LinearPeptide::new(sequence)
             .n_term(
                 self.base
                     .as_ref()
-                    .and_then(|b| b.n_term.clone())
+                    .and_then(|b| b.get_n_term().cloned())
                     .or_else(|| {
                         self.state
                             .0
@@ -351,7 +367,7 @@ impl IsobaricSetIterator {
             .c_term(
                 self.base
                     .as_ref()
-                    .and_then(|b| b.c_term.clone())
+                    .and_then(|b| b.get_c_term().cloned())
                     .or_else(|| {
                         self.state
                             .1
@@ -370,7 +386,7 @@ impl IsobaricSetIterator {
 }
 
 impl Iterator for IsobaricSetIterator {
-    type Item = LinearPeptide<Simple>;
+    type Item = LinearPeptide<SimpleLinear>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // N terminal loop
@@ -446,7 +462,7 @@ impl Iterator for IsobaricSetIterator {
                     }
                     self.state.1 = Some(c + 1);
                 } else if self.c_term.is_empty()
-                    || self.base.as_ref().is_some_and(|b| b.c_term.is_some())
+                    || self.base.as_ref().is_some_and(|b| b.get_c_term().is_some())
                 {
                     // If the base piece has a defined C term mod do not try possible C term mods in the isobaric generation
                     break;
@@ -462,7 +478,7 @@ impl Iterator for IsobaricSetIterator {
                 }
                 self.state.0 = Some(n + 1);
             } else if self.n_term.is_empty()
-                || self.base.as_ref().is_some_and(|b| b.n_term.is_some())
+                || self.base.as_ref().is_some_and(|b| b.get_n_term().is_some())
             {
                 // If the base piece has a defined N term mod do not try possible N term mods in the isobaric generation
                 break;
@@ -484,9 +500,9 @@ mod tests {
     fn simple_isobaric_sets() {
         let pep = LinearPeptide::pro_forma("AG", None)
             .unwrap()
-            .extremely_simple()
+            .unambiguous()
             .unwrap();
-        let sets: Vec<LinearPeptide<Simple>> = find_isobaric_sets(
+        let sets: Vec<LinearPeptide<SimpleLinear>> = find_isobaric_sets(
             pep.bare_formulas()[0].monoisotopic_mass(),
             Tolerance::new_ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,

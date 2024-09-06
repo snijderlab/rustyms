@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{ExtremelySimple, LinearPeptide};
+use crate::{UnAmbiguous, LinearPeptide};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
@@ -301,7 +301,7 @@ impl<'a> IntoParallelIterator for &'a Germline {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct AnnotatedSequence {
     /// The sequence
-    pub sequence: LinearPeptide<ExtremelySimple>,
+    pub sequence: LinearPeptide<UnAmbiguous>,
     /// The different regions in the sequence, defined by their name and length
     pub regions: Vec<(Region, usize)>,
     /// 0 based locations of single amino acid annotations, overlapping with the regions defined above
@@ -311,7 +311,7 @@ pub struct AnnotatedSequence {
 impl AnnotatedSequence {
     /// Create a new annotated sequence
     pub fn new(
-        sequence: LinearPeptide<ExtremelySimple>,
+        sequence: LinearPeptide<UnAmbiguous>,
         regions: Vec<(Region, usize)>,
         mut conserved: Vec<(Annotation, usize)>,
     ) -> Self {

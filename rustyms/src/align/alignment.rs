@@ -361,7 +361,7 @@ pub struct Score {
 mod tests {
     use crate::{
         align::{align, matrix::BLOSUM62, AlignType},
-        peptide::Simple,
+        peptide::SimpleLinear,
         system::da,
         AminoAcid, LinearPeptide, MultiChemical, SequencePosition,
     };
@@ -388,7 +388,7 @@ mod tests {
             .unwrap();
 
         assert!(
-            align::<1, Simple, Simple>(
+            align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &b,
                 BLOSUM62,
@@ -401,7 +401,7 @@ mod tests {
                 < f64::EPSILON
         );
         assert!(
-            align::<1, Simple, Simple>(
+            align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &c,
                 BLOSUM62,
@@ -414,7 +414,7 @@ mod tests {
                 < f64::EPSILON
         );
         assert!(
-            align::<1, Simple, Simple>(
+            align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &d,
                 BLOSUM62,
@@ -431,7 +431,7 @@ mod tests {
             - AminoAcid::D.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass())
         .value
         .abs();
-        let mass_diff_bc = align::<1, Simple, Simple>(
+        let mass_diff_bc = align::<1, SimpleLinear, SimpleLinear>(
             &b,
             &c,
             BLOSUM62,

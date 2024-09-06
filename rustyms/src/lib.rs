@@ -37,6 +37,7 @@ pub mod csv;
 
 pub mod aminoacid_properties;
 mod aminoacids;
+mod checked_aminoacid;
 mod element;
 pub mod error;
 pub mod fragment;
@@ -78,8 +79,8 @@ pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::{
-    CompoundPeptidoform, ExtremelySimple, Linear, LinearPeptide, Linked, Peptidoform,
-    ReturnModification, Simple, SloppyParsingParameters, VerySimple,
+    CompoundPeptidoform, Linear, LinearPeptide, Linked, Peptidoform, ReturnModification,
+    SemiAmbiguous, SimpleLinear, SloppyParsingParameters, UnAmbiguous,
 };
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
@@ -87,6 +88,7 @@ pub use crate::sequence_position::*;
 pub use crate::spectrum::{AnnotatableSpectrum, AnnotatedSpectrum, RawSpectrum};
 pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;
+pub use checked_aminoacid::CheckedAminoAcid;
 pub use fragment::Fragment;
 
 #[macro_use]

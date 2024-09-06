@@ -56,15 +56,15 @@ pub mod matrix {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{peptide::Simple, LinearPeptide};
+    use crate::{peptide::SimpleLinear, LinearPeptide};
 
     use super::{AlignType, Alignment};
 
     fn align<'a, const STEPS: u16>(
-        a: &'a LinearPeptide<Simple>,
-        b: &'a LinearPeptide<Simple>,
-    ) -> Alignment<'a, Simple, Simple> {
-        super::align::<STEPS, Simple, Simple>(
+        a: &'a LinearPeptide<SimpleLinear>,
+        b: &'a LinearPeptide<SimpleLinear>,
+    ) -> Alignment<'a, SimpleLinear, SimpleLinear> {
+        super::align::<STEPS, SimpleLinear, SimpleLinear>(
             a,
             b,
             super::matrix::BLOSUM62,
@@ -73,7 +73,7 @@ mod tests {
         )
     }
 
-    fn linear(aa: &str) -> LinearPeptide<Simple> {
+    fn linear(aa: &str) -> LinearPeptide<SimpleLinear> {
         LinearPeptide::pro_forma(aa, None)
             .unwrap()
             .simple()

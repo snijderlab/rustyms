@@ -7,7 +7,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
-    peptide::{SloppyParsingParameters, VerySimple},
+    peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
@@ -37,7 +37,7 @@ format_family!(
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
-        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
                             custom_database,
@@ -55,7 +55,7 @@ format_family!(
         ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
             location.or_empty().array(';').map(|v| {
                 let v = v.trim();
-                Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
+                Modification::sloppy_modification::<SemiAmbiguous>(v.full_line(), v.location.clone(), None, custom_database)
             }
             ).collect::<Result<Vec<_>,_>>();
         local_confidence: Vec<f64>, |location: Location, _| location

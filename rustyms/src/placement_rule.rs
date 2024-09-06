@@ -14,10 +14,10 @@ include!("shared/placement_rule.rs");
 
 impl PlacementRule {
     /// Check if this rule fits with the given location
-    pub fn is_possible(&self, seq: &SequenceElement, position: SequencePosition) -> bool {
+    pub fn is_possible<T>(&self, seq: &SequenceElement<T>, position: SequencePosition) -> bool {
         match self {
             Self::AminoAcid(aa, r_pos) => {
-                aa.iter().any(|a| *a == seq.aminoacid) && r_pos.is_possible(position)
+                aa.iter().any(|a| *a == seq.aminoacid.aminoacid()) && r_pos.is_possible(position)
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
@@ -46,7 +46,11 @@ impl PlacementRule {
     }
 
     /// Check if any of the given rules are possible
-    pub fn any_possible(rules: &[Self], seq: &SequenceElement, position: SequencePosition) -> bool {
+    pub fn any_possible<T>(
+        rules: &[Self],
+        seq: &SequenceElement<T>,
+        position: SequencePosition,
+    ) -> bool {
         rules.iter().any(|r| r.is_possible(seq, position))
     }
 }
@@ -122,33 +126,24 @@ impl FromStr for Position {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
 
-    use crate::modification::RulePossible;
+    use crate::{checked_aminoacid::CheckedAminoAcid, modification::RulePossible};
 
     use super::*;
     #[test]
     fn multi_level_rule() {
         assert!(
             !PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Alanine,
-                    modifications: Vec::new(),
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
+                &SequenceElement::new(CheckedAminoAcid::Alanine, None),
                 SequencePosition::Index(0)
             ),
             "Multi level mod cannot be placed if the dependent mod is not present"
         );
+        let mut seq = SequenceElement::new(CheckedAminoAcid::Alanine, None);
+        seq.modifications
+            .push(Ontology::Psimod.find_id(30, None).unwrap().into());
         assert!(
-            PlacementRule::PsiModification(30, Position::Anywhere).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Alanine,
-                    modifications: vec![Ontology::Psimod.find_id(30, None).unwrap().into()],
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
-                SequencePosition::Index(0)
-            ),
+            PlacementRule::PsiModification(30, Position::Anywhere)
+                .is_possible(&seq, SequencePosition::Index(0)),
             "Multi level mod can be placed if the dependent mod is present"
         );
     }
@@ -156,49 +151,29 @@ mod tests {
     #[test]
     fn place_anywhere() {
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Q,
-                    modifications: Vec::new(),
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
+            PlacementRule::AminoAcid(vec![AminoAcid::Glutamine], Position::Anywhere).is_possible(
+                &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::NTerm
             ),
             "start"
         );
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Q,
-                    modifications: Vec::new(),
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
+            PlacementRule::AminoAcid(vec![AminoAcid::Glutamine], Position::Anywhere).is_possible(
+                &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::Index(2)
             ),
             "middle"
         );
         assert!(
-            PlacementRule::AminoAcid(vec![AminoAcid::Q], Position::Anywhere).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Q,
-                    modifications: Vec::new(),
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
+            PlacementRule::AminoAcid(vec![AminoAcid::Glutamine], Position::Anywhere).is_possible(
+                &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::CTerm
             ),
             "end"
         );
         assert_eq!(
             dbg!(Ontology::Unimod.find_id(7, None).unwrap()).is_possible(
-                &SequenceElement {
-                    aminoacid: AminoAcid::Q,
-                    modifications: Vec::new(),
-                    possible_modifications: Vec::new(),
-                    ambiguous: None
-                },
+                &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::CTerm
             ),
             RulePossible::Symmetric(std::collections::HashSet::from([0])),

@@ -66,17 +66,17 @@ pub fn cross_links(
 
     while let Some(index) = stack.pop() {
         found_peptides.push(index);
-        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].n_term {
+        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].get_n_term() {
             if !found_peptides.contains(peptide) && !stack.contains(peptide) {
                 stack.push(*peptide);
             }
         }
-        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].c_term {
+        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].get_c_term() {
             if !found_peptides.contains(peptide) && !stack.contains(peptide) {
                 stack.push(*peptide);
             }
         }
-        for seq in &peptidoform.0[index].sequence {
+        for seq in peptidoform.0[index].sequence() {
             for modification in &seq.modifications {
                 if let Modification::CrossLink { peptide, .. } = modification {
                     if !found_peptides.contains(peptide) && !stack.contains(peptide) {
@@ -108,28 +108,33 @@ impl LinearPeptide<Linked> {
         for modification in global_modifications {
             match modification {
                 GlobalModification::Fixed(pos, aa, modification) => {
-                    for (_, seq) in self.sequence.iter_mut().enumerate().filter(|(index, seq)| {
-                        pos.is_possible(SequencePosition::Index(*index))
-                            && aa.map_or(true, |aa| aa == seq.aminoacid)
-                            && modification
-                                .is_possible(seq, SequencePosition::Index(*index))
-                                .possible()
-                    }) {
+                    for (_, seq) in
+                        self.sequence_mut()
+                            .iter_mut()
+                            .enumerate()
+                            .filter(|(index, seq)| {
+                                pos.is_possible(SequencePosition::Index(*index))
+                                    && aa.map_or(true, |aa| aa == seq.aminoacid.aminoacid())
+                                    && modification
+                                        .is_possible(seq, SequencePosition::Index(*index))
+                                        .possible()
+                            })
+                    {
                         match pos {
                             Position::Anywhere => {
-                                seq.modifications.push(modification.clone().into());
+                                seq.add_simple_modification(modification.clone());
                             }
                             Position::AnyNTerm | Position::ProteinNTerm => {
-                                self.n_term = Some(Modification::Simple(modification.clone()));
+                                self.n_term(Some(Modification::Simple(modification.clone())));
                             }
                             Position::AnyCTerm | Position::ProteinCTerm => {
-                                self.c_term = Some(Modification::Simple(modification.clone()));
+                                self.c_term(Some(Modification::Simple(modification.clone())));
                             }
                         }
                     }
                 }
                 GlobalModification::Isotope(el, isotope) if el.is_valid(*isotope) => {
-                    self.global.push((*el, *isotope));
+                    let _ = self.add_global((*el, *isotope)); // Already validated
                 }
                 GlobalModification::Isotope(..) => return false,
             }
@@ -145,33 +150,28 @@ impl LinearPeptide<Linked> {
         unknown_position_modifications: &[SimpleModification],
     ) -> Result<(), CustomError> {
         for (unknown_mod_index, modification) in unknown_position_modifications.iter().enumerate() {
-            let id = self.ambiguous_modifications.len();
+            let id = self.get_ambiguous_modifications().len();
             let length = self.len();
             let positions = (0..length)
                 .filter(|i| {
-                    if modification
-                        .is_possible(&self.sequence[*i], SequencePosition::Index(*i))
+                    modification
+                        .is_possible(&self.sequence()[*i], SequencePosition::Index(*i))
                         .possible()
-                    {
-                        self.sequence[*i]
-                            .possible_modifications
-                            .push(AmbiguousModification {
-                                id,
-                                modification: modification.clone(),
-                                localisation_score: None,
-                                group: format!("u{unknown_mod_index}"),
-                                preferred: false,
-                            });
-                        true
-                    } else {
-                        false
-                    }
                 })
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
             }
-            self.ambiguous_modifications.push(positions);
+            self.add_ambiguous_modification(
+                AmbiguousModification {
+                    id,
+                    modification: modification.clone(),
+                    localisation_score: None,
+                    group: format!("u{unknown_mod_index}"),
+                    preferred: false,
+                },
+                positions,
+            );
         }
         Ok(())
     }
@@ -192,29 +192,25 @@ impl LinearPeptide<Linked> {
             // Side effects so the lint does not apply here
             let positions = (*start..=*end)
                 .filter_map(|i| {
-                    if modification
-                        .is_possible(&self.sequence[i], SequencePosition::Index(i))
+                    modification
+                        .is_possible(&self.sequence()[i], SequencePosition::Index(i))
                         .possible()
-                    {
-                        self.sequence[i]
-                            .possible_modifications
-                            .push(AmbiguousModification {
-                                id: start_ambiguous_index,
-                                modification: modification.clone(),
-                                localisation_score: None,
-                                group: format!("u{start_ambiguous_group_id}"),
-                                preferred: false,
-                            });
-                        Some(i)
-                    } else {
-                        None
-                    }
+                        .then_some(i)
                 })
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position on a range cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
             }
-            self.ambiguous_modifications.push(positions);
+            self.add_ambiguous_modification(
+                AmbiguousModification {
+                    id: start_ambiguous_index,
+                    modification: modification.clone(),
+                    localisation_score: None,
+                    group: format!("u{start_ambiguous_group_id}"),
+                    preferred: false,
+                },
+                positions,
+            );
             start_ambiguous_index += 1;
             start_ambiguous_group_id += 1;
         }

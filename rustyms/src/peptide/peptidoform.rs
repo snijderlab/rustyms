@@ -191,12 +191,15 @@ impl Peptidoform {
             let global_equal = self
                 .peptides()
                 .iter()
-                .map(|p| &p.global)
+                .map(|p| p.get_global())
                 .tuple_windows()
                 .all(|(a, b)| a == b);
             assert!(global_equal, "Not all global isotope modifications on all peptides on this peptidoform are identical");
             let empty = Vec::new();
-            let global = self.peptides().first().map_or(&empty, |p| &p.global);
+            let global = self
+                .peptides()
+                .first()
+                .map_or(empty.as_slice(), |p| p.get_global());
             for (element, isotope) in global {
                 write!(
                     f,

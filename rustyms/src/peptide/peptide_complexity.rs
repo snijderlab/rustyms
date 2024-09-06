@@ -2,8 +2,6 @@
 //! Used for compile time checking for incorrect use of peptides.
 use serde::{Deserialize, Serialize};
 
-use crate::LinearPeptide;
-
 /// A [`LinearPeptide`] that (potentially) is linked, either with cross-links or branches
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
@@ -21,138 +19,186 @@ pub struct Linear;
 /// * Global isotope modifications
 /// * Charge carriers, use of charged ions apart from protons
 /// * Cyclic structures: inter/intra cross-links or branches
-/// * or when the sequence is empty.
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct Simple;
+pub struct SimpleLinear;
 
 /// A [`LinearPeptide`] that does not have any of the following:
 /// * Ambiguous modifications
 /// * Ambiguous amino acid sequence `(?AA)`
 ///
-/// On top of the outlawed features in [`Simple`].
+/// On top of the outlawed features in [`SimpleLinear`].
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct VerySimple;
+pub struct SemiAmbiguous;
 
 /// A [`LinearPeptide`] that does not have any of the following:
 /// * Ambiguous amino acids (B/Z)
 ///
-/// On top of the outlawed features in [`VerySimple`].
+/// On top of the outlawed features in [`SemiAmbiguous`].
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct ExtremelySimple;
+pub struct UnAmbiguous;
 
 impl From<Linear> for Linked {
     fn from(_val: Linear) -> Self {
         Self
     }
 }
-impl From<Simple> for Linked {
-    fn from(_val: Simple) -> Self {
+impl From<SimpleLinear> for Linked {
+    fn from(_val: SimpleLinear) -> Self {
         Self
     }
 }
-impl From<VerySimple> for Linked {
-    fn from(_val: VerySimple) -> Self {
+impl From<SemiAmbiguous> for Linked {
+    fn from(_val: SemiAmbiguous) -> Self {
         Self
     }
 }
-impl From<ExtremelySimple> for Linked {
-    fn from(_val: ExtremelySimple) -> Self {
+impl From<UnAmbiguous> for Linked {
+    fn from(_val: UnAmbiguous) -> Self {
         Self
     }
 }
-impl From<Simple> for Linear {
-    fn from(_val: Simple) -> Self {
+impl From<SimpleLinear> for Linear {
+    fn from(_val: SimpleLinear) -> Self {
         Self
     }
 }
-impl From<VerySimple> for Linear {
-    fn from(_val: VerySimple) -> Self {
+impl From<SemiAmbiguous> for Linear {
+    fn from(_val: SemiAmbiguous) -> Self {
         Self
     }
 }
-impl From<ExtremelySimple> for Linear {
-    fn from(_val: ExtremelySimple) -> Self {
+impl From<UnAmbiguous> for Linear {
+    fn from(_val: UnAmbiguous) -> Self {
         Self
     }
 }
-impl From<VerySimple> for Simple {
-    fn from(_val: VerySimple) -> Self {
+impl From<SemiAmbiguous> for SimpleLinear {
+    fn from(_val: SemiAmbiguous) -> Self {
         Self
     }
 }
-impl From<ExtremelySimple> for Simple {
-    fn from(_val: ExtremelySimple) -> Self {
+impl From<UnAmbiguous> for SimpleLinear {
+    fn from(_val: UnAmbiguous) -> Self {
         Self
     }
 }
-impl From<ExtremelySimple> for VerySimple {
-    fn from(_val: ExtremelySimple) -> Self {
+impl From<UnAmbiguous> for SemiAmbiguous {
+    fn from(_val: UnAmbiguous) -> Self {
         Self
     }
 }
 
-impl<T> LinearPeptide<T> {
-    /// Try and check if this peptide is linear.
-    pub fn linear(self) -> Option<LinearPeptide<Linear>> {
-        if self
-            .sequence
-            .iter()
-            .all(|seq| seq.modifications.iter().all(|m| m.simple().is_some()))
-        {
-            Some(self.mark())
-        } else {
-            None
-        }
-    }
+/// Indicate that a peptide has at least this level of complexity, or higher
+pub trait AtLeast<T> {
+    type HighestLevel;
+}
+impl<T> AtLeast<T> for T {
+    type HighestLevel = T;
+}
+impl AtLeast<Linear> for Linked {
+    type HighestLevel = Linked;
+}
+impl AtLeast<SimpleLinear> for Linked {
+    type HighestLevel = Linked;
+}
+impl AtLeast<SemiAmbiguous> for Linked {
+    type HighestLevel = Linked;
+}
+impl AtLeast<UnAmbiguous> for Linked {
+    type HighestLevel = Linked;
+}
+impl AtLeast<SimpleLinear> for Linear {
+    type HighestLevel = Linear;
+}
+impl AtLeast<SemiAmbiguous> for Linear {
+    type HighestLevel = Linear;
+}
+impl AtLeast<UnAmbiguous> for Linear {
+    type HighestLevel = Linear;
+}
+impl AtLeast<SemiAmbiguous> for SimpleLinear {
+    type HighestLevel = SimpleLinear;
+}
+impl AtLeast<UnAmbiguous> for SimpleLinear {
+    type HighestLevel = SimpleLinear;
+}
+impl AtLeast<UnAmbiguous> for SemiAmbiguous {
+    type HighestLevel = SemiAmbiguous;
+}
 
-    /// Try and check if this peptide is simple.
-    pub fn simple(self) -> Option<LinearPeptide<Simple>> {
-        self.linear().and_then(|s| {
-            if s.labile.is_empty()
-                && s.get_global().is_empty()
-                && s.charge_carriers.is_none()
-                && !s.sequence.is_empty()
-                && !s
-                    .sequence
-                    .iter()
-                    .any(|s| s.modifications.iter().any(|m| m.simple().is_none()))
-            {
-                Some(s.mark())
-            } else {
-                None
-            }
-        })
-    }
+/// Type level max between two Peptide complexities
+pub trait HighestOf<T> {
+    type HighestLevel;
+}
 
-    /// Try and check if this peptide is very simple.
-    pub fn very_simple(self) -> Option<LinearPeptide<VerySimple>> {
-        self.simple().and_then(|s| {
-            if s.ambiguous_modifications.is_empty()
-                && !s.sequence.iter().any(|seq| seq.ambiguous.is_some())
-            {
-                Some(s.mark())
-            } else {
-                None
-            }
-        })
-    }
+impl<T> HighestOf<T> for T {
+    type HighestLevel = T;
+}
 
-    /// Try and check if this peptide is extremely simple.
-    pub fn extremely_simple(self) -> Option<LinearPeptide<ExtremelySimple>> {
-        self.very_simple().and_then(|s| {
-            if s.sequence.iter().any(|seq| {
-                seq.aminoacid == crate::AminoAcid::B || seq.aminoacid == crate::AminoAcid::Z
-            }) {
-                None
-            } else {
-                Some(s.mark())
-            }
-        })
-    }
+impl HighestOf<Linked> for Linear {
+    type HighestLevel = Linked;
+}
+impl HighestOf<Linked> for SimpleLinear {
+    type HighestLevel = Linked;
+}
+impl HighestOf<Linked> for SemiAmbiguous {
+    type HighestLevel = Linked;
+}
+impl HighestOf<Linked> for UnAmbiguous {
+    type HighestLevel = Linked;
+}
+impl HighestOf<Linear> for SimpleLinear {
+    type HighestLevel = Linear;
+}
+impl HighestOf<Linear> for SemiAmbiguous {
+    type HighestLevel = Linear;
+}
+impl HighestOf<Linear> for UnAmbiguous {
+    type HighestLevel = Linear;
+}
+impl HighestOf<SimpleLinear> for SemiAmbiguous {
+    type HighestLevel = SimpleLinear;
+}
+impl HighestOf<SimpleLinear> for UnAmbiguous {
+    type HighestLevel = SimpleLinear;
+}
+impl HighestOf<SemiAmbiguous> for UnAmbiguous {
+    type HighestLevel = SemiAmbiguous;
+}
+
+impl HighestOf<Linear> for Linked {
+    type HighestLevel = Linked;
+}
+impl HighestOf<SimpleLinear> for Linked {
+    type HighestLevel = Linked;
+}
+impl HighestOf<SemiAmbiguous> for Linked {
+    type HighestLevel = Linked;
+}
+impl HighestOf<UnAmbiguous> for Linked {
+    type HighestLevel = Linked;
+}
+impl HighestOf<SimpleLinear> for Linear {
+    type HighestLevel = Linear;
+}
+impl HighestOf<SemiAmbiguous> for Linear {
+    type HighestLevel = Linear;
+}
+impl HighestOf<UnAmbiguous> for Linear {
+    type HighestLevel = Linear;
+}
+impl HighestOf<SemiAmbiguous> for SimpleLinear {
+    type HighestLevel = SimpleLinear;
+}
+impl HighestOf<UnAmbiguous> for SimpleLinear {
+    type HighestLevel = SimpleLinear;
+}
+impl HighestOf<UnAmbiguous> for SemiAmbiguous {
+    type HighestLevel = SemiAmbiguous;
 }

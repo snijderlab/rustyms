@@ -7,7 +7,7 @@ use crate::{
     error::CustomError,
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
-    peptide::{SloppyParsingParameters, VerySimple},
+    peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
     LinearPeptide,
 };
@@ -31,7 +31,7 @@ format_family!(
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        peptide: LinearPeptide<VerySimple>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

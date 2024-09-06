@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::{Fragment, FragmentKind},
-    peptide::ExtremelySimple,
+    peptide::UnAmbiguous,
     AnnotatedSpectrum, LinearPeptide, MassMode, Model,
 };
 
@@ -81,11 +81,7 @@ impl AnnotatedSpectrum {
                     intensity: Recovered::new(intensity_annotated, total_intensity),
                     unique_formulas,
                 },
-                ions: self.score_individual_ions::<ExtremelySimple>(
-                    &fragments,
-                    None,
-                    total_intensity,
-                ),
+                ions: self.score_individual_ions::<UnAmbiguous>(&fragments, None, total_intensity),
             },
             individual_peptides,
         )
