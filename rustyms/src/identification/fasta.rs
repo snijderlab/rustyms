@@ -21,10 +21,6 @@ impl FastaData {
     /// Parse a single fasta file
     /// # Errors
     /// A custom error when it is not a valid fasta file
-    /// # Panics
-    /// It panics if the fasta file contains a [`ComplexPeptide`] instead of a [`LinearPeptide`].
-    /// This is because this function uses the build in [`ComplexPeptide::pro_forma`] to parse the
-    /// sequence. It does it per line though so if you want to misuse this fact remember that.
     pub fn parse_file(path: &str) -> Result<Vec<Self>, CustomError> {
         let file = std::fs::File::open(path).map_err(|_| {
             CustomError::error(
@@ -38,11 +34,11 @@ impl FastaData {
         let mut last_header = None;
         let mut last_sequence: Vec<SequenceElement<SemiAmbiguous>> = Vec::new();
 
-        for (line_number, line) in reader.lines().enumerate() {
+        for (line_index, line) in reader.lines().enumerate() {
             let line = line.map_err(|_| {
                 CustomError::error(
                     "Failed reading fasta file",
-                    format!("Error occurred while reading line {}", line_number + 1),
+                    format!("Error occurred while reading line {}", line_index + 1),
                     Context::show(path),
                 )
             })?;
@@ -62,13 +58,26 @@ impl FastaData {
                 last_sequence = Vec::new();
             } else {
                 let parsed = CompoundPeptidoform::pro_forma(&line, None)
-                    .map_err(|e| e.overwrite_line_number(line_number))?
+                    .map_err(|e| e.overwrite_line_number(line_index))?
                     .singular()
-                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform")
-                    .singular()
-                    .expect("A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform")
-                    .very_simple()
-                    .expect("A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well");
+                    .ok_or_else(|| 
+                        CustomError::error(
+                            "Invalid fasta sequence", 
+                            "A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform",
+                             Context::full_line(line_index, line.clone())))
+                    .and_then(|p| 
+                        p.singular().ok_or_else(|| 
+                            CustomError::error(
+                                "Invalid fasta sequence", 
+                                "A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform", 
+                                Context::full_line(line_index, line.clone())))
+                    )
+                    .and_then(|p| p.into_semi_ambiguous().ok_or_else(|| 
+                        CustomError::error(
+                            "Invalid fasta sequence", 
+                            "A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well", 
+                            Context::full_line(line_index, line.clone())))
+                    )?;
                 last_sequence.extend(parsed.sequence().iter().cloned());
             }
         }

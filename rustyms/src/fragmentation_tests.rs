@@ -44,7 +44,7 @@ fn triple_a() {
         theoretical_fragments,
         LinearPeptide::pro_forma("AAA", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,
@@ -116,7 +116,7 @@ fn with_possible_modifications() {
         theoretical_fragments,
         LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,
@@ -145,7 +145,7 @@ fn with_double_possible_modifications() {
         theoretical_fragments,
         LinearPeptide::pro_forma("M[Oxidation#a1][Oxidation#a2]M[#a1][#a2]", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,
@@ -176,7 +176,7 @@ fn higher_charges() {
         theoretical_fragments,
         LinearPeptide::pro_forma("ACD", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         5,
@@ -336,7 +336,7 @@ fn all_aminoacids() {
         theoretical_fragments,
         LinearPeptide::pro_forma("ARNDCQEGHILKMFPSTWYV", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,
@@ -417,7 +417,7 @@ fn glycan_structure_fragmentation() {
         theoretical_fragments,
         LinearPeptide::pro_forma("MVSHHN[GNO:G43728NL]LTTGATLINEQWLLTTAK", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,
@@ -497,7 +497,7 @@ fn glycan_composition_fragmentation() {
         theoretical_fragments,
         LinearPeptide::pro_forma("MVSHHN[Glycan:N4H5S1]LTTGATLINEQWLLTTAK", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap(),
         &model,
         1,

@@ -16,7 +16,7 @@ use super::{
 /// The [`AlignType`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
-/// The peptides are assumed to be simple (see [`LinearPeptide::assume_simple`]).
+/// The peptides are assumed to be simple (see [`LinearPeptide::simple`]).
 #[allow(clippy::too_many_lines)]
 pub fn align<
     'lifetime,
@@ -80,13 +80,13 @@ pub fn align<
                         Some(score_pair(
                             unsafe {
                                 (
-                                    seq_a.sequence.get_unchecked(index_a - 1),
+                                    seq_a.sequence().get_unchecked(index_a - 1),
                                     masses_a.get_unchecked([index_a - 1, 0]),
                                 )
                             },
                             unsafe {
                                 (
-                                    seq_b.sequence.get_unchecked(index_b - 1),
+                                    seq_b.sequence().get_unchecked(index_b - 1),
                                     masses_b.get_unchecked([index_b - 1, 0]),
                                 )
                             },
@@ -98,7 +98,7 @@ pub fn align<
                         score(
                             unsafe {
                                 (
-                                    seq_a.sequence.get_unchecked(
+                                    seq_a.sequence().get_unchecked(
                                         (index_a - len_a).saturating_sub(1)..index_a - 1,
                                     ),
                                     if len_a == 0 {
@@ -110,7 +110,7 @@ pub fn align<
                             },
                             unsafe {
                                 (
-                                    seq_b.sequence.get_unchecked(
+                                    seq_b.sequence().get_unchecked(
                                         (index_b - len_b).saturating_sub(1)..index_b - 1,
                                     ),
                                     if len_b == 0 {
@@ -146,11 +146,11 @@ pub fn align<
                 unsafe {
                     *matrix.get_unchecked_mut([index_a, index_b]) = score_pair(
                         (
-                            seq_a.sequence.get_unchecked(index_a - 1),
+                            seq_a.sequence().get_unchecked(index_a - 1),
                             masses_a.get_unchecked([index_a - 1, 0]),
                         ),
                         (
-                            seq_b.sequence.get_unchecked(index_b - 1),
+                            seq_b.sequence().get_unchecked(index_b - 1),
                             masses_b.get_unchecked([index_b - 1, 0]),
                         ),
                         scoring_matrix,
@@ -163,14 +163,21 @@ pub fn align<
     }
     let (absolute_score, start_a, start_b, path) = matrix.trace_path(align_type, global_highest);
 
-    let maximal_score = (seq_a.sequence
+    let maximal_score = (seq_a.sequence()
         [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
         .iter()
-        .map(|a| scoring_matrix[a.aminoacid as usize][a.aminoacid as usize] as isize)
+        .map(|a| {
+            scoring_matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
+                as isize
+        })
         .sum::<isize>()
-        + seq_b.sequence[start_b..start_b + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
+        + seq_b.sequence()
+            [start_b..start_b + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
             .iter()
-            .map(|a| scoring_matrix[a.aminoacid as usize][a.aminoacid as usize] as isize)
+            .map(|a| {
+                scoring_matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
+                    as isize
+            })
             .sum::<isize>())
         / 2;
 
@@ -191,20 +198,22 @@ pub fn align<
 }
 
 /// Score a pair of sequence elements (AA + mods)
-fn score_pair(
-    a: (&SequenceElement, &Multi<Mass>),
-    b: (&SequenceElement, &Multi<Mass>),
+fn score_pair<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
+    a: (&SequenceElement<A>, &Multi<Mass>),
+    b: (&SequenceElement<B>, &Multi<Mass>),
     alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
     score: isize,
     tolerance: Tolerance<Mass>,
 ) -> Piece {
     match (a.0 == b.0, tolerance.within(a.1, b.1)) {
         (true, true) => {
-            let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize] as isize;
+            let local = alphabet[a.0.aminoacid.aminoacid() as usize]
+                [b.0.aminoacid.aminoacid() as usize] as isize;
             Piece::new(score + local, local, MatchType::FullIdentity, 1, 1)
         }
         (true, false) => {
-            let local = alphabet[a.0.aminoacid as usize][b.0.aminoacid as usize] as isize
+            let local = alphabet[a.0.aminoacid.aminoacid() as usize]
+                [b.0.aminoacid.aminoacid() as usize] as isize
                 + MASS_MISMATCH_PENALTY;
             Piece::new(score + local, local, MatchType::IdentityMassMismatch, 1, 1)
         }
@@ -218,9 +227,9 @@ fn score_pair(
 
 /// Score two sets of aminoacids (it will only be called when at least one of a and b has len > 1)
 /// Returns none if no sensible explanation can be made
-fn score(
-    a: (&[SequenceElement], &Multi<Mass>),
-    b: (&[SequenceElement], &Multi<Mass>),
+fn score<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
+    a: (&[SequenceElement<A>], &Multi<Mass>),
+    b: (&[SequenceElement<B>], &Multi<Mass>),
     score: isize,
     tolerance: Tolerance<Mass>,
 ) -> Option<Piece> {
@@ -273,7 +282,7 @@ fn calculate_masses<const STEPS: u16>(
     for i in 0..sequence.len() {
         // dbg!(i, 0..=i.min(max_depth));
         for j in 0..=i.min(STEPS as usize) {
-            array[[i, j]] = sequence.sequence[i - j..=i]
+            array[[i, j]] = sequence.sequence()[i - j..=i]
                 .iter()
                 .map(|p| {
                     p.formulas_all(
@@ -454,15 +463,15 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::score;
-    use crate::{AminoAcid, SequencePosition};
+    use crate::{CheckedAminoAcid, SequencePosition};
     use crate::{MolecularFormula, Multi, SequenceElement};
 
     #[test]
     fn pair() {
-        let a = [SequenceElement::new(AminoAcid::N, None)];
+        let a = [SequenceElement::new(CheckedAminoAcid::N, None)];
         let b = [
-            SequenceElement::new(AminoAcid::G, None),
-            SequenceElement::new(AminoAcid::G, None),
+            SequenceElement::new(CheckedAminoAcid::G, None),
+            SequenceElement::new(CheckedAminoAcid::G, None),
         ];
         let pair = dbg!(score(
             (

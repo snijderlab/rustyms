@@ -5,7 +5,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, InvertResult},
     ontologies::CustomDatabase,
-    peptide::{SloppyParsingParameters, SemiAmbiguous},
+    peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };

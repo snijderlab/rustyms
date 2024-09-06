@@ -103,7 +103,7 @@ mod test {
     fn simple_fragments() {
         let peptide = LinearPeptide::pro_forma("WFWF", None)
             .unwrap()
-            .linear()
+            .into_linear()
             .unwrap();
         let fragments = peptide.generate_theoretical_fragments(
             system::usize::Charge::new::<system::e>(1),

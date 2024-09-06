@@ -6,9 +6,15 @@ use crate::{
     AminoAcid, Chemical, MolecularFormula, Multi, MultiChemical, SemiAmbiguous, UnAmbiguous,
 };
 
+/// A checked amino acid. This wraps an [`AminoAcid`] to keep track of the maximal complexity of
+/// the underlying amino acid. Any marked as [`SemiAmbiguous`] or higher can contain B/Z (ambiguous
+/// asparagine/glutamine) while any marked as [`UnAmbiguous`] can only contain amino acids with a
+/// single defined chemical formula.
 #[derive(Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct CheckedAminoAcid<T> {
+    /// The underlying amino acid
     aminoacid: AminoAcid,
+    /// The marker to keep track of the complexity at compile time
     marker: PhantomData<T>,
 }
 
@@ -225,21 +231,24 @@ impl CheckedAminoAcid<SemiAmbiguous> {
     };
 }
 
-impl Into<CheckedAminoAcid<SemiAmbiguous>> for AminoAcid {
-    fn into(self) -> CheckedAminoAcid<SemiAmbiguous> {
-        CheckedAminoAcid::new(self)
+impl From<AminoAcid> for CheckedAminoAcid<SemiAmbiguous> {
+    fn from(value: AminoAcid) -> Self {
+        Self::new(value)
     }
 }
 
-impl Into<CheckedAminoAcid<SemiAmbiguous>> for &AminoAcid {
-    fn into(self) -> CheckedAminoAcid<SemiAmbiguous> {
-        CheckedAminoAcid::new(*self)
+impl From<&AminoAcid> for CheckedAminoAcid<SemiAmbiguous> {
+    fn from(value: &AminoAcid) -> Self {
+        Self::new(*value)
     }
 }
 
 impl CheckedAminoAcid<SemiAmbiguous> {
-    pub fn new(aminoacid: AminoAcid) -> CheckedAminoAcid<SemiAmbiguous> {
-        CheckedAminoAcid {
+    /// Create a new checked amino acid given a plain amino acid. This defaults to [`SemiAmbiguous`]
+    /// because that is the highest level of complexity. If a [`UnAmbiguous`] is needed check
+    /// [`Self::is_unambiguous`] or any of the default unambiguous amino acids.
+    pub const fn new(aminoacid: AminoAcid) -> Self {
+        Self {
             aminoacid,
             marker: PhantomData,
         }
@@ -247,7 +256,7 @@ impl CheckedAminoAcid<SemiAmbiguous> {
 }
 
 impl<T> CheckedAminoAcid<T> {
-    pub(super) fn mark<M>(self) -> CheckedAminoAcid<M> {
+    pub(super) const fn mark<M>(self) -> CheckedAminoAcid<M> {
         CheckedAminoAcid {
             aminoacid: self.aminoacid,
             marker: PhantomData,
@@ -270,10 +279,22 @@ impl<T> CheckedAminoAcid<T> {
         self.aminoacid.canonical_identical(rhs.aminoacid)
     }
 
+    /// Get the description of the amino acid as a single character
     pub const fn char(self) -> char {
         self.aminoacid.char()
     }
 
+    /// Get the 3 letter code for the amino acid
+    pub const fn code(self) -> &'static str {
+        self.aminoacid.code()
+    }
+
+    /// Get the full name of the amino acid
+    pub const fn name(self) -> &'static str {
+        self.aminoacid.name()
+    }
+
+    /// Get the underlying (unchecked) amino acid
     pub const fn aminoacid(self) -> AminoAcid {
         self.aminoacid
     }
@@ -324,9 +345,7 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
         sequence_index: crate::SequencePosition,
         peptide_index: usize,
     ) -> Multi<MolecularFormula> {
-        if let Some(unambiguous) = self.is_unambiguous() {
-            unambiguous.formula(sequence_index, peptide_index).into()
-        } else {
+        self.is_unambiguous().map_or_else(|| {
             let crate::SequencePosition::Index(sequence_index) = sequence_index else {
                 panic!("Not allowed to call amino acid formulas with a terminal sequence index")
             };
@@ -341,9 +360,8 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
                 molecular_formula!(H 7 C 5 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptide_index})),
             ]
             .into(),
-            _ => unreachable!(),
-        }
-        }
+            _ => unreachable!(),        }
+        }, |unambiguous| unambiguous.formula(sequence_index, peptide_index).into())
     }
 }
 
@@ -351,15 +369,12 @@ impl<T> Copy for CheckedAminoAcid<T> {}
 
 impl<T> Clone for CheckedAminoAcid<T> {
     fn clone(&self) -> Self {
-        Self {
-            aminoacid: self.aminoacid,
-            marker: PhantomData,
-        }
+        *self
     }
 }
 
-impl<T> PartialEq for CheckedAminoAcid<T> {
-    fn eq(&self, other: &Self) -> bool {
+impl<A, B> PartialEq<CheckedAminoAcid<B>> for CheckedAminoAcid<A> {
+    fn eq(&self, other: &CheckedAminoAcid<B>) -> bool {
         self.aminoacid == other.aminoacid
     }
 }
@@ -384,5 +399,78 @@ impl<T> Default for CheckedAminoAcid<T> {
 impl<T> std::fmt::Display for CheckedAminoAcid<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.char())
+    }
+}
+
+impl std::str::FromStr for CheckedAminoAcid<SemiAmbiguous> {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
+impl TryFrom<&str> for CheckedAminoAcid<SemiAmbiguous> {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.is_ascii() && value.len() == 1 {
+            let ch = value.chars().next().unwrap();
+            ch.try_into()
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl TryFrom<char> for CheckedAminoAcid<SemiAmbiguous> {
+    type Error = ();
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        if value.is_ascii() {
+            let num = value as u8;
+            num.try_into()
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl TryFrom<&u8> for CheckedAminoAcid<SemiAmbiguous> {
+    type Error = ();
+    fn try_from(value: &u8) -> Result<Self, Self::Error> {
+        match value {
+            b'A' | b'a' => Ok(CheckedAminoAcid::<UnAmbiguous>::Alanine.mark()),
+            b'B' | b'b' => Ok(Self::AmbiguousAsparagine),
+            b'C' | b'c' => Ok(CheckedAminoAcid::<UnAmbiguous>::Cysteine.mark()),
+            b'D' | b'd' => Ok(CheckedAminoAcid::<UnAmbiguous>::AsparticAcid.mark()),
+            b'E' | b'e' => Ok(CheckedAminoAcid::<UnAmbiguous>::GlutamicAcid.mark()),
+            b'F' | b'f' => Ok(CheckedAminoAcid::<UnAmbiguous>::Phenylalanine.mark()),
+            b'G' | b'g' => Ok(CheckedAminoAcid::<UnAmbiguous>::Glycine.mark()),
+            b'H' | b'h' => Ok(CheckedAminoAcid::<UnAmbiguous>::Histidine.mark()),
+            b'I' | b'i' => Ok(CheckedAminoAcid::<UnAmbiguous>::Isoleucine.mark()),
+            b'J' | b'j' => Ok(CheckedAminoAcid::<UnAmbiguous>::AmbiguousLeucine.mark()),
+            b'K' | b'k' => Ok(CheckedAminoAcid::<UnAmbiguous>::Lysine.mark()),
+            b'L' | b'l' => Ok(CheckedAminoAcid::<UnAmbiguous>::Leucine.mark()),
+            b'M' | b'm' => Ok(CheckedAminoAcid::<UnAmbiguous>::Methionine.mark()),
+            b'N' | b'n' => Ok(CheckedAminoAcid::<UnAmbiguous>::Asparagine.mark()),
+            b'O' | b'o' => Ok(CheckedAminoAcid::<UnAmbiguous>::Pyrrolysine.mark()),
+            b'P' | b'p' => Ok(CheckedAminoAcid::<UnAmbiguous>::Proline.mark()),
+            b'Q' | b'q' => Ok(CheckedAminoAcid::<UnAmbiguous>::Glutamine.mark()),
+            b'R' | b'r' => Ok(CheckedAminoAcid::<UnAmbiguous>::Arginine.mark()),
+            b'S' | b's' => Ok(CheckedAminoAcid::<UnAmbiguous>::Serine.mark()),
+            b'T' | b't' => Ok(CheckedAminoAcid::<UnAmbiguous>::Threonine.mark()),
+            b'U' | b'u' => Ok(CheckedAminoAcid::<UnAmbiguous>::Selenocysteine.mark()),
+            b'V' | b'v' => Ok(CheckedAminoAcid::<UnAmbiguous>::Valine.mark()),
+            b'W' | b'w' => Ok(CheckedAminoAcid::<UnAmbiguous>::Tryptophan.mark()),
+            b'X' | b'x' => Ok(CheckedAminoAcid::<UnAmbiguous>::Unknown.mark()),
+            b'Y' | b'y' => Ok(CheckedAminoAcid::<UnAmbiguous>::Tyrosine.mark()),
+            b'Z' | b'z' => Ok(Self::AmbiguousGlutamine),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<u8> for CheckedAminoAcid<SemiAmbiguous> {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::try_from(&value)
     }
 }

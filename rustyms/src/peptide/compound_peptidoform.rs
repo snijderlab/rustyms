@@ -72,7 +72,7 @@ impl CompoundPeptidoform {
             .peptidoforms()
             .iter()
             .flat_map(Peptidoform::peptides)
-            .map(|p| p.get_global())
+            .map(LinearPeptide::get_global)
             .tuple_windows()
             .all(|(a, b)| a == b);
         assert!(global_equal, "Not all global isotope modifications on all peptides on this compound peptidoform are identical");

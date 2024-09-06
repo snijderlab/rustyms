@@ -193,7 +193,9 @@ pub fn building_blocks(
                         .map(|m| {
                             let mut modifications = seq.modifications.clone();
                             modifications.push(Modification::Simple(m.0.clone()));
-                            SequenceElement::new(seq.aminoacid, None)
+                            let mut result = SequenceElement::new(seq.aminoacid, None);
+                            result.modifications = modifications;
+                            result
                         }),
                 );
                 options
@@ -500,7 +502,7 @@ mod tests {
     fn simple_isobaric_sets() {
         let pep = LinearPeptide::pro_forma("AG", None)
             .unwrap()
-            .unambiguous()
+            .into_unambiguous()
             .unwrap();
         let sets: Vec<LinearPeptide<SimpleLinear>> = find_isobaric_sets(
             pep.bare_formulas()[0].monoisotopic_mass(),
@@ -516,11 +518,11 @@ mod tests {
             &[
                 LinearPeptide::pro_forma("GA", None)
                     .unwrap()
-                    .simple()
+                    .into_simple_linear()
                     .unwrap(),
                 LinearPeptide::pro_forma("Q", None)
                     .unwrap()
-                    .simple()
+                    .into_simple_linear()
                     .unwrap(),
             ]
         );

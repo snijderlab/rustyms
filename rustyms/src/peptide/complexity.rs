@@ -2,19 +2,19 @@
 //! Used for compile time checking for incorrect use of peptides.
 use serde::{Deserialize, Serialize};
 
-/// A [`LinearPeptide`] that (potentially) is linked, either with cross-links or branches
+/// A [`crate::LinearPeptide`] that (potentially) is linked, either with cross-links or branches
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
 pub struct Linked;
 
-/// A [`LinearPeptide`] that is not cross-linked or branched, but can use the whole breath of the complexity otherwise
+/// A [`crate::LinearPeptide`] that is not cross-linked or branched, but can use the whole breath of the complexity otherwise
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
 pub struct Linear;
 
-/// A [`LinearPeptide`] that does not have any of the following:
+/// A [`crate::LinearPeptide`] that does not have any of the following:
 /// * Labile modifications
 /// * Global isotope modifications
 /// * Charge carriers, use of charged ions apart from protons
@@ -24,7 +24,7 @@ pub struct Linear;
 )]
 pub struct SimpleLinear;
 
-/// A [`LinearPeptide`] that does not have any of the following:
+/// A [`crate::LinearPeptide`] that does not have any of the following:
 /// * Ambiguous modifications
 /// * Ambiguous amino acid sequence `(?AA)`
 ///
@@ -34,7 +34,7 @@ pub struct SimpleLinear;
 )]
 pub struct SemiAmbiguous;
 
-/// A [`LinearPeptide`] that does not have any of the following:
+/// A [`crate::LinearPeptide`] that does not have any of the following:
 /// * Ambiguous amino acids (B/Z)
 ///
 /// On top of the outlawed features in [`SemiAmbiguous`].
@@ -102,34 +102,34 @@ impl<T> AtLeast<T> for T {
     type HighestLevel = T;
 }
 impl AtLeast<Linear> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl AtLeast<SimpleLinear> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl AtLeast<SemiAmbiguous> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl AtLeast<UnAmbiguous> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl AtLeast<SimpleLinear> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl AtLeast<SemiAmbiguous> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl AtLeast<UnAmbiguous> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl AtLeast<SemiAmbiguous> for SimpleLinear {
-    type HighestLevel = SimpleLinear;
+    type HighestLevel = Self;
 }
 impl AtLeast<UnAmbiguous> for SimpleLinear {
-    type HighestLevel = SimpleLinear;
+    type HighestLevel = Self;
 }
 impl AtLeast<UnAmbiguous> for SemiAmbiguous {
-    type HighestLevel = SemiAmbiguous;
+    type HighestLevel = Self;
 }
 
 /// Type level max between two Peptide complexities
@@ -173,32 +173,32 @@ impl HighestOf<SemiAmbiguous> for UnAmbiguous {
 }
 
 impl HighestOf<Linear> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl HighestOf<SimpleLinear> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl HighestOf<SemiAmbiguous> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl HighestOf<UnAmbiguous> for Linked {
-    type HighestLevel = Linked;
+    type HighestLevel = Self;
 }
 impl HighestOf<SimpleLinear> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl HighestOf<SemiAmbiguous> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl HighestOf<UnAmbiguous> for Linear {
-    type HighestLevel = Linear;
+    type HighestLevel = Self;
 }
 impl HighestOf<SemiAmbiguous> for SimpleLinear {
-    type HighestLevel = SimpleLinear;
+    type HighestLevel = Self;
 }
 impl HighestOf<UnAmbiguous> for SimpleLinear {
-    type HighestLevel = SimpleLinear;
+    type HighestLevel = Self;
 }
 impl HighestOf<UnAmbiguous> for SemiAmbiguous {
-    type HighestLevel = SemiAmbiguous;
+    type HighestLevel = Self;
 }

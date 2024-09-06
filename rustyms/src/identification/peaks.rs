@@ -55,7 +55,7 @@ format_family!(
         ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
             location.or_empty().array(';').map(|v| {
                 let v = v.trim();
-                Modification::sloppy_modification::<SemiAmbiguous>(v.full_line(), v.location.clone(), None, custom_database)
+                Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
             }
             ).collect::<Result<Vec<_>,_>>();
         local_confidence: Vec<f64>, |location: Location, _| location

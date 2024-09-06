@@ -4,7 +4,8 @@ use crate::{AminoAcid, SequenceElement};
 
 /// A protease defined by it ability to cut at any site identified by the right amino acids at the n and c terminal.
 /// Each position is identified by an option, a none means that there is no specificity at this position. If there is
-/// a specificity at a certain position any amino acid that is contained in the set is allowed (see [`AminoAcid::canonical_identical`]).
+/// a specificity at a certain position any amino acid that is contained in the set is allowed (see
+/// [`crate::CheckedAminoAcid::canonical_identical`]).
 pub struct Protease {
     /// The amino acids n terminal of the cut site.
     pub n_term: Vec<Option<Vec<AminoAcid>>>,

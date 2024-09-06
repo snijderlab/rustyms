@@ -214,8 +214,8 @@ fn invert<T, E>(x: Result<Option<T>, E>) -> Option<Result<T, E>> {
 fn find_possible_n_glycan_locations(sequence: &[AminoAcid]) -> Vec<usize> {
     let mut result = Vec::new();
     for (index, aa) in sequence.windows(3).enumerate() {
-        if let (AminoAcid::N, AminoAcid::S | AminoAcid::T) = (aa[0], aa[2]) {
-            if aa[1] != AminoAcid::P {
+        if let (AminoAcid::Asparagine, AminoAcid::Serine | AminoAcid::Threonine) = (aa[0], aa[2]) {
+            if aa[1] != AminoAcid::Proline {
                 result.push(index);
             }
         }
@@ -242,15 +242,15 @@ fn fix_j(
     );
 
     let mut annotations = Vec::new();
-    if fr4.0[0] == AminoAcid::W {
+    if fr4.0[0] == AminoAcid::Tryptophan {
         annotations.push((Annotation::Tryptophan, cdr3_length));
-    } else if fr4.0[0] == AminoAcid::F {
+    } else if fr4.0[0] == AminoAcid::Phenylalanine {
         annotations.push((Annotation::Phenylalanine, cdr3_length));
     }
-    if fr4.0[1] == AminoAcid::G {
+    if fr4.0[1] == AminoAcid::Glycine {
         annotations.push((Annotation::Glycine, cdr3_length + 1));
     }
-    if fr4.0[3] == AminoAcid::G {
+    if fr4.0[3] == AminoAcid::Glycine {
         annotations.push((Annotation::Glycine, cdr3_length + 3));
     }
 

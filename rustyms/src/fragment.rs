@@ -355,7 +355,7 @@ pub enum FragmentType {
     /// Immonium ion
     immonium(PeptidePosition, AminoAcid),
     /// Precursor with amino acid side chain loss
-    m(PeptidePosition, AminoAcid),
+    PrecursorSideChainLoss(PeptidePosition, AminoAcid),
     /// Diagnostic ion for a given position
     diagnostic(DiagnosticPosition),
     /// precursor
@@ -379,7 +379,7 @@ impl FragmentType {
             | Self::z·(n)
             | Self::diagnostic(DiagnosticPosition::Peptide(n, _))
             | Self::immonium(n, _)
-            | Self::m(n, _) => Some(n),
+            | Self::PrecursorSideChainLoss(n, _) => Some(n),
             _ => None,
         }
     }
@@ -407,7 +407,7 @@ impl FragmentType {
             | Self::z·(n)
             | Self::diagnostic(DiagnosticPosition::Peptide(n, _))
             | Self::immonium(n, _)
-            | Self::m(n, _) => Some(n.series_number.to_string()),
+            | Self::PrecursorSideChainLoss(n, _) => Some(n.series_number.to_string()),
             Self::B(n) | Self::diagnostic(DiagnosticPosition::Glycan(n, _)) => Some(n.label()),
             Self::Y(bonds) => Some(bonds.iter().map(GlycanPosition::label).join("")),
             Self::Oxonium(breakages) => Some(
@@ -454,7 +454,7 @@ impl FragmentType {
             ) => Cow::Owned(format!("d{sug}")),
             Self::Oxonium(_) | Self::OxoniumComposition(_, _) => Cow::Borrowed("oxonium"),
             Self::immonium(_, aa) => Cow::Owned(format!("i{}", aa.char())),
-            Self::m(_, aa) => Cow::Owned(format!("p-s{}", aa.char())),
+            Self::PrecursorSideChainLoss(_, aa) => Cow::Owned(format!("p-s{}", aa.char())),
             Self::precursor => Cow::Borrowed("p"),
         }
     }
@@ -480,7 +480,7 @@ impl FragmentType {
             | Self::OxoniumComposition(_, _) => FragmentKind::Oxonium,
             Self::diagnostic(_) => FragmentKind::diagnostic,
             Self::immonium(_, _) => FragmentKind::immonium,
-            Self::m(_, _) => FragmentKind::m,
+            Self::PrecursorSideChainLoss(_, _) => FragmentKind::m,
             Self::precursor => FragmentKind::precursor,
         }
     }

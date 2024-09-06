@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use itertools::Itertools;
-use rustyms::AminoAcid;
+use rustyms::{AminoAcid, CheckedAminoAcid, UnAmbiguous};
 
 use crate::shared::{AnnotatedSequence, Annotation, Gene, Region};
 use crate::structs::{Location, SequenceRegion, SingleSeq};
@@ -56,7 +56,16 @@ impl IMGTGene {
             name,
             allele,
             acc: self.acc.clone(),
-            sequence: AnnotatedSequence::new(sequence.into(), region_lengths, conserved),
+            sequence: AnnotatedSequence::new(
+                sequence
+                    .iter()
+                    .copied()
+                    .map(CheckedAminoAcid::new)
+                    .map(|p| p.is_unambiguous().unwrap())
+                    .collect(),
+                region_lengths,
+                conserved,
+            ),
             dna,
         })
     }
@@ -78,9 +87,9 @@ impl IMGTGene {
             "J-GENE" => {
                 let j = self.get_region(Region::FR4, "J-REGION")?;
                 let motif = j.1 .0.iter().tuple_windows().position(|(a, b, _, d)| {
-                    (*a == AminoAcid::W || *a == AminoAcid::F)
-                        && *b == AminoAcid::G
-                        && *d == AminoAcid::G
+                    (*a == AminoAcid::Tryptophan || *a == AminoAcid::Phenylalanine)
+                        && *b == AminoAcid::Glycine
+                        && *d == AminoAcid::Glycine
                 });
                 if let Some(motif_start) = motif {
                     let j = fix_j(j.1, motif_start);

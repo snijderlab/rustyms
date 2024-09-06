@@ -10,8 +10,8 @@ use crate::{
     },
     peptide::Linked,
     placement_rule::PlacementRule,
-    AmbiguousLabel, CheckedAminoAcid, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula,
-    Multi, MultiChemical, SequencePosition,
+    CheckedAminoAcid, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi,
+    MultiChemical, SequencePosition,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -43,8 +43,8 @@ impl<T> Clone for SequenceElement<T> {
     }
 }
 
-impl<T> PartialEq for SequenceElement<T> {
-    fn eq(&self, other: &Self) -> bool {
+impl<A, B> PartialEq<SequenceElement<B>> for SequenceElement<A> {
+    fn eq(&self, other: &SequenceElement<B>) -> bool {
         self.aminoacid == other.aminoacid
             && self.modifications == other.modifications
             && self.possible_modifications == other.possible_modifications
@@ -87,6 +87,7 @@ impl<T> SequenceElement<T> {
     }
 
     /// Add a modification to this sequence element
+    #[must_use]
     pub fn with_simple_modification(mut self, modification: SimpleModification) -> Self {
         self.modifications.push(Modification::Simple(modification));
         self
@@ -129,8 +130,7 @@ impl<T> SequenceElement<T> {
             };
             write!(
                 f,
-                "{}{}{}]",
-                "#",
+                "\x23{}{}]",
                 m.group,
                 m.localisation_score
                     .map(|v| format!("({v})"))
@@ -168,49 +168,6 @@ impl<T> SequenceElement<T> {
             });
         (
             self.aminoacid.formulas(sequence_index, peptide_index) * formula,
-            seen,
-        )
-    }
-
-    /// Get the molecular formulas for this position with the selected ambiguous modifications, without any global isotype modifications
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn formulas(
-        &self,
-        selected_ambiguous: &[usize],
-        all_peptides: &[LinearPeptide<Linked>],
-        visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<CrossLinkName>,
-        allow_ms_cleavable: bool,
-        sequence_index: SequencePosition,
-        peptide_index: usize,
-    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (formula, seen) = self.base_formula(
-            all_peptides,
-            visited_peptides,
-            applied_cross_links,
-            allow_ms_cleavable,
-            sequence_index,
-            peptide_index,
-        );
-        (
-            (formula
-                + self
-                    .possible_modifications
-                    .iter()
-                    .filter(|&m| selected_ambiguous.contains(&m.id))
-                    .map(|f| f.formula(sequence_index, peptide_index))
-                    .sum::<MolecularFormula>())
-            .with_labels(
-                &selected_ambiguous
-                    .iter()
-                    .copied()
-                    .map(|id| AmbiguousLabel::Modification {
-                        id,
-                        sequence_index,
-                        peptide_index,
-                    })
-                    .collect_vec(),
-            ),
             seen,
         )
     }
@@ -280,34 +237,11 @@ impl<T> SequenceElement<T> {
         )
     }
 
-    /// Get the molecular formulas for this position, with all formulas for the amino acids combined with all options for the modifications.
-    /// If you have 2 options for amino acid mass (B or Z) and 2 ambiguous modifications that gives you 8 total options for the mass. (2 AA * 2 amb1 * 2 amb2)
-    pub(crate) fn formulas_all_options(
-        &self,
-        all_peptides: &[LinearPeptide<Linked>],
-        visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<CrossLinkName>,
-        allow_ms_cleavable: bool,
-        sequence_index: SequencePosition,
-        peptide_index: usize,
-    ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        let (mut formulas, seen) = self.base_formula(
-            all_peptides,
-            visited_peptides,
-            applied_cross_links,
-            allow_ms_cleavable,
-            sequence_index,
-            peptide_index,
-        );
-        for modification in &self.possible_modifications {
-            formulas = formulas + modification.formula(sequence_index, peptide_index);
-        }
-        (formulas, seen)
-    }
-
     /// Enforce the placement rules of predefined modifications.
     /// # Errors
     /// If a rule has been broken.
+    /// # Panics
+    /// If any placement rule is placement on a PSI modification that does not exist.
     pub(crate) fn enforce_modification_rules(
         &self,
         position: SequencePosition,
