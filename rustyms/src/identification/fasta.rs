@@ -60,19 +60,19 @@ impl FastaData {
                 let parsed = CompoundPeptidoform::pro_forma(&line, None)
                     .map_err(|e| e.overwrite_line_number(line_index))?
                     .singular()
-                    .ok_or_else(|| 
+                    .ok_or_else(||
                         CustomError::error(
                             "Invalid fasta sequence", 
                             "A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform",
                              Context::full_line(line_index, line.clone())))
-                    .and_then(|p| 
-                        p.singular().ok_or_else(|| 
+                    .and_then(|p|
+                        p.singular().ok_or_else(||
                             CustomError::error(
                                 "Invalid fasta sequence", 
                                 "A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform", 
                                 Context::full_line(line_index, line.clone())))
                     )
-                    .and_then(|p| p.into_semi_ambiguous().ok_or_else(|| 
+                    .and_then(|p| p.into_semi_ambiguous().ok_or_else(||
                         CustomError::error(
                             "Invalid fasta sequence", 
                             "A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well", 
