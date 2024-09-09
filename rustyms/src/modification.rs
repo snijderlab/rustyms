@@ -85,7 +85,7 @@ pub enum RulePossible {
 
 impl RulePossible {
     /// Flatten this into a bool, check if the rule is not [`Self::No`]
-    pub fn possible(self) -> bool {
+    pub fn any_possible(self) -> bool {
         self != Self::No
     }
 }
@@ -245,6 +245,64 @@ impl SimpleModification {
             Self::Linker { id, .. } => write!(f, "{}:{}", id.ontology.char(), id.name)?,
         }
         Ok(())
+    }
+
+    /// Get all placement rules as text
+    /// # Panics
+    /// When a PSI-MOD modification rule uses an non existing modification
+    pub(crate) fn placement_rules(&self) -> Vec<String> {
+        match self {
+            Self::Database { specificities, .. } => specificities
+                .iter()
+                .flat_map(|set| &set.0)
+                .map(|rule| match rule {
+                    PlacementRule::AminoAcid(aa, pos) => {
+                        format!("{}@{pos}", aa.iter().join(""))
+                    }
+                    PlacementRule::Terminal(pos) => pos.to_string(),
+                    PlacementRule::Anywhere => "Anywhere".to_string(),
+                    PlacementRule::PsiModification(index, pos) => {
+                        format!(
+                            "{}@{pos}",
+                            Ontology::Psimod.find_id(*index, None).unwrap_or_else(|| {
+                                panic!(
+                    "Invalid PsiMod placement rule, non existing modification {index}"
+                )
+                            })
+                        )
+                    }
+                })
+                .collect_vec(),
+            Self::Linker { specificities, .. } => specificities
+                .iter()
+                .flat_map(|set| match set {
+                    LinkerSpecificity::Symmetric(rules, _, _) => rules.clone(),
+                    LinkerSpecificity::Asymmetric((rules_a, rules_b), _, _) => rules_a
+                        .iter()
+                        .cloned()
+                        .chain(rules_b.iter().cloned())
+                        .collect_vec(),
+                })
+                .map(|rule| match rule {
+                    PlacementRule::AminoAcid(aa, pos) => {
+                        format!("{}@{pos}", aa.iter().join(""))
+                    }
+                    PlacementRule::Terminal(pos) => pos.to_string(),
+                    PlacementRule::Anywhere => "Anywhere".to_string(),
+                    PlacementRule::PsiModification(index, pos) => {
+                        format!(
+                            "{}@{pos}",
+                            Ontology::Psimod.find_id(index, None).unwrap_or_else(|| {
+                                panic!(
+                "Invalid PsiMod placement rule, non existing modification {index}"
+            )
+                            })
+                        )
+                    }
+                })
+                .collect_vec(),
+            _ => Vec::new(),
+        }
     }
 }
 

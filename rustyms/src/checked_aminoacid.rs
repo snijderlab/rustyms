@@ -264,14 +264,14 @@ impl<T> CheckedAminoAcid<T> {
     }
 
     /// Check if this amino acid is an unambiguous amino acid
-    pub fn is_unambiguous(self) -> Option<CheckedAminoAcid<UnAmbiguous>> {
-        if self.aminoacid != AminoAcid::AmbiguousAsparagine
+    pub fn is_unambiguous(self) -> bool {
+        self.aminoacid != AminoAcid::AmbiguousAsparagine
             && self.aminoacid != AminoAcid::AmbiguousGlutamine
-        {
-            Some(self.mark())
-        } else {
-            None
-        }
+    }
+
+    /// Check if this amino acid is an unambiguous amino acid
+    pub fn into_unambiguous(self) -> Option<CheckedAminoAcid<UnAmbiguous>> {
+        self.is_unambiguous().then_some(self.mark())
     }
 
     /// Check if two amino acids are considered identical. X is identical to anything, J to IL, B to ND, Z to EQ.
@@ -345,7 +345,7 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
         sequence_index: crate::SequencePosition,
         peptide_index: usize,
     ) -> Multi<MolecularFormula> {
-        self.is_unambiguous().map_or_else(|| {
+        self.into_unambiguous().map_or_else(|| {
             let crate::SequencePosition::Index(sequence_index) = sequence_index else {
                 panic!("Not allowed to call amino acid formulas with a terminal sequence index")
             };

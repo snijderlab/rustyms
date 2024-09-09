@@ -5,15 +5,14 @@ use std::{collections::HashSet, fmt::Write, marker::PhantomData};
 use crate::{
     error::{Context, CustomError},
     modification::{
-        AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, Ontology,
-        RulePossible, SimpleModification,
+        AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, RulePossible,
+        SimpleModification,
     },
     peptide::{AtLeast, Linked},
     placement_rule::PlacementRule,
     CheckedAminoAcid, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi,
     MultiChemical, SequencePosition,
 };
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
@@ -254,58 +253,10 @@ impl<T> SequenceElement<T> {
     ) -> Result<(), CustomError> {
         for modification in &self.modifications {
             if modification.is_possible(self, position) == RulePossible::No {
-                let rules = match modification.simple() {
-                    Some(SimpleModification::Database { specificities, .. }) => specificities
-                        .iter()
-                        .flat_map(|set| &set.0)
-                        .map(|rule| match rule {
-                            PlacementRule::AminoAcid(aa, pos) => {
-                                format!("{}@{pos}", aa.iter().join(""))
-                            }
-                            PlacementRule::Terminal(pos) => pos.to_string(),
-                            PlacementRule::Anywhere => "Anywhere".to_string(),
-                            PlacementRule::PsiModification(index, pos) => {
-                                format!(
-                                    "{}@{pos}",
-                                    Ontology::Psimod.find_id(*index, None).unwrap_or_else(|| {
-                                        panic!(
-                            "Invalid PsiMod placement rule, non existing modification {index}"
-                        )
-                                    })
-                                )
-                            }
-                        })
-                        .collect_vec(),
-                    Some(SimpleModification::Linker { specificities, .. }) => specificities
-                        .iter()
-                        .flat_map(|set| match set {
-                            LinkerSpecificity::Symmetric(rules, _, _) => rules.clone(),
-                            LinkerSpecificity::Asymmetric((rules_a, rules_b), _, _) => rules_a
-                                .iter()
-                                .cloned()
-                                .chain(rules_b.iter().cloned())
-                                .collect_vec(),
-                        })
-                        .map(|rule| match rule {
-                            PlacementRule::AminoAcid(aa, pos) => {
-                                format!("{}@{pos}", aa.iter().join(""))
-                            }
-                            PlacementRule::Terminal(pos) => pos.to_string(),
-                            PlacementRule::Anywhere => "Anywhere".to_string(),
-                            PlacementRule::PsiModification(index, pos) => {
-                                format!(
-                                    "{}@{pos}",
-                                    Ontology::Psimod.find_id(index, None).unwrap_or_else(|| {
-                                        panic!(
-                        "Invalid PsiMod placement rule, non existing modification {index}"
-                    )
-                                    })
-                                )
-                            }
-                        })
-                        .collect_vec(),
-                    _ => Vec::new(),
-                };
+                let rules = modification
+                    .simple()
+                    .map(SimpleModification::placement_rules)
+                    .unwrap_or_default();
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
                     format!(

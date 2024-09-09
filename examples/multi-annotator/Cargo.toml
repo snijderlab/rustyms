@@ -1,0 +1,13 @@
+[package]
+name = "multi-annotator"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rustyms = { path = "../../rustyms" }
+clap = { workspace = true, features = ["derive", "cargo"] }
+directories = { workspace = true }
+itertools = { workspace = true }
+rayon = { workspace = true }
+serde_json = { workspace = true }

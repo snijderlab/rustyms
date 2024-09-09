@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroU16};
+use std::{collections::BTreeMap, num::NonZeroU16};
 
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -139,7 +139,7 @@ impl CompoundPeptidoform {
         let mut ending = End::CrossLink;
         let mut cross_link_lookup = Vec::new();
         // Grouped on cross link id and stores peptide id, sequence index
-        let mut cross_links_found = HashMap::new();
+        let mut cross_links_found = BTreeMap::new();
 
         // Parse any following cross-linked species
         while index < line.len() && ending == End::CrossLink {
