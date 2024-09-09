@@ -61,7 +61,7 @@ impl IMGTGene {
                     .iter()
                     .copied()
                     .map(CheckedAminoAcid::new)
-                    .map(|p| p.is_unambiguous().unwrap())
+                    .map(|p| p.into_unambiguous().unwrap())
                     .collect(),
                 region_lengths,
                 conserved,

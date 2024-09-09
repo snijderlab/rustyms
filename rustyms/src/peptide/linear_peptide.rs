@@ -235,7 +235,7 @@ impl<Complexity> LinearPeptide<Complexity> {
             && self
                 .sequence
                 .iter()
-                .any(|seq| seq.aminoacid.is_unambiguous().is_none())
+                .all(|seq| seq.aminoacid.is_unambiguous())
     }
 
     /// Convert this peptide into [`UnAmbiguous`].
@@ -1400,6 +1400,7 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
         positions: &[(usize, Option<OrderedFloat<f64>>)],
         preferred_position: Option<usize>,
     ) {
+        // The sorting guarantees a defined order in ambiguous modifications which
         for (pos, score) in positions {
             self.sequence[*pos]
                 .possible_modifications
@@ -1408,9 +1409,13 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
                     preferred: preferred_position.is_some_and(|p| p == *pos),
                     ..modification.clone()
                 });
+            self.sequence[*pos]
+                .possible_modifications
+                .sort_unstable_by(|a, b| a.id.cmp(&b.id));
         }
         self.ambiguous_modifications
             .push(positions.iter().map(|(p, _)| *p).collect());
+        self.ambiguous_modifications.sort_unstable();
     }
 }
 

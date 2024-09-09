@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::{
     error::{Context, CustomError},
@@ -15,7 +15,7 @@ use super::{GlobalModification, Linear};
 /// Or if there are peptides that cannot be reached from the first peptide.
 pub fn cross_links(
     peptides: Vec<LinearPeptide<Linear>>,
-    cross_links_found: HashMap<usize, Vec<(usize, SequencePosition)>>,
+    cross_links_found: BTreeMap<usize, Vec<(usize, SequencePosition)>>,
     cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
 ) -> Result<Peptidoform, CustomError> {
@@ -29,7 +29,32 @@ pub fn cross_links(
                     format!("The cross-link named '{}' has no listed locations, this is an internal error please report this", definition.0),
                     Context::full_line(0, line),
                 ))},
-                1 => unreachable!("Assumed that the modification is already placed so this works out fine"), 
+                1 => {
+                    let (index, position) = locations[0];
+                    if linker.is_possible(&peptidoform.0[index][position], position).any_possible() {
+                        peptidoform.0[index].add_simple_modification(position, linker.clone());
+                    } else {
+                        let rules = linker.placement_rules();
+                        return Err(CustomError::error(
+                            "Modification incorrectly placed",
+                            format!(
+                                "Modification {linker} is not allowed on {}{}",
+                                match position {
+                                    SequencePosition::NTerm => "the N-terminus".to_string(),
+                                    SequencePosition::CTerm => "the C-terminus".to_string(),
+                                    SequencePosition::Index(index) =>
+                                        format!("the side chain of {} at index {index}", peptidoform.0[index][position].aminoacid),
+                                },
+                                if rules.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!(", this modification is only allowed at the following locations: {}", rules.join(", "))
+                                }
+                            ),
+                            Context::full_line(0, line),
+                        ));
+                    }
+                },
                 2 => {
                     if !peptidoform.add_cross_link(locations[0], locations[1], linker.clone(), definition.0.clone()) {
                         return Err(CustomError::error(
@@ -114,7 +139,7 @@ impl LinearPeptide<Linear> {
                                 && aa.map_or(true, |aa| aa == seq.aminoacid.aminoacid())
                                 && modification
                                     .is_possible(seq, position.sequence_index)
-                                    .possible()
+                                    .any_possible()
                         })
                         .map(|(position, _)| position)
                         .collect_vec();
@@ -145,7 +170,7 @@ impl LinearPeptide<Linear> {
                 .filter(|i| {
                     modification
                         .is_possible(&self.sequence()[*i], SequencePosition::Index(*i))
-                        .possible()
+                        .any_possible()
                 })
                 .map(|p| (p, None))
                 .collect_vec();
@@ -185,7 +210,7 @@ impl LinearPeptide<Linear> {
                 .filter_map(|i| {
                     modification
                         .is_possible(&self.sequence()[i], SequencePosition::Index(i))
-                        .possible()
+                        .any_possible()
                         .then_some(i)
                 })
                 .map(|p| (p, None))
