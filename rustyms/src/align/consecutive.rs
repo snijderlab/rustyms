@@ -1,7 +1,7 @@
 use crate::{
     align::*,
     imgt::*,
-    peptide::{SimpleLinear, UnAmbiguous},
+    peptide::{AtMax, SimpleLinear, UnAmbiguous},
     system::Mass,
     *,
 };
@@ -16,7 +16,7 @@ use itertools::Itertools;
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(feature = "imgt")]
 #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
-pub fn consecutive_align<const STEPS: u16, A: Into<SimpleLinear> + Into<Linear> + Clone + Eq>(
+pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear>>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
@@ -86,7 +86,7 @@ pub fn consecutive_align<const STEPS: u16, A: Into<SimpleLinear> + Into<Linear> 
 #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 pub fn par_consecutive_align<
     const STEPS: u16,
-    A: Into<SimpleLinear> + Into<Linear> + Clone + Eq + Send + Sync,
+    A: AtMax<SimpleLinear> + AtMax<Linear> + Send + Sync,
 >(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],

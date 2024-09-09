@@ -24,12 +24,12 @@ pub struct SloppyParsingParameters {
 }
 
 impl LinearPeptide<SemiAmbiguous> {
-    /// Read sloppy pro forma like sequences. Defined by the use of square or round braces to indicate
+    /// Read sloppy ProForma like sequences. Defined by the use of square or round braces to indicate
     /// modifications and missing any particular method of defining the N or C terminal modifications.
     /// Additionally any underscores will be ignored both on the ends and inside the sequence.
     ///
-    /// All modifications follow the same definitions as the strict pro forma syntax, if it cannot be
-    /// parsed as a strict pro forma modification it falls back to [`Modification::sloppy_modification`].
+    /// All modifications follow the same definitions as the strict ProForma syntax, if it cannot be
+    /// parsed as a strict ProForma modification it falls back to [`Modification::sloppy_modification`].
     ///
     /// # Errors
     /// If it does not fit the above description.

@@ -11,12 +11,12 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 
  - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences (complete specification supported: 'level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
  - Generate theoretical fragments with control over the fragmentation model from any ProForma peptidoform/proteoform
-   - Generate fragments from satellite ions (w, d, and v)
-   - Generate glycan fragments
-   - Generate theoretical fragments for modifications of unknown position
    - Generate theoretical fragments for chimeric spectra
    - Generate theoretical fragments for cross-links (also disulfides)
- - Integrated with [mzdata](https://crates.io/crates/mzdata) for reading raw data file
+   - Generate theoretical fragments for modifications of unknown position
+   - Generate peptide backbone (a, b, c, x, y, and z) and satellite ion fragments (w, d, and v)
+   - Generate glycan fragments (B, Y, and internal fragments)
+ - Integrated with [mzdata](https://crates.io/crates/mzdata) for reading raw data files
  - Match spectra to the generated fragments
  - [Align peptides based on mass](https://pubs.acs.org/doi/10.1021/acs.jproteome.4c00188)
  - Fast access to the IMGT database of antibody germlines
@@ -29,15 +29,19 @@ this crate enables the reading of [mgf](rawfile::mgf), doing [spectrum annotatio
 ```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
 # let raw_file_path = "data/annotated_example.mgf";
-// Open some data and see if the given peptide is a valid match
 use rustyms::{*, system::{usize::Charge, e}};
-let peptide = CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QVQEVSERTHGGNFD", None)?;
+// Open example raw data (this is the built in mgf reader, look into mzdata for more advanced raw file readers)
 let spectrum = rawfile::mgf::open(raw_file_path)?;
+// Parse the given ProForma definition
+let peptide = CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QVQEVSERTHGGNFD", None)?;
+// Generate theoretical fragments for this peptide given EThcD fragmentation
 let model = Model::ethcd();
 let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2), &model);
+// Annotate the raw data with the theoretical fragments
 let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);
+// Calculate a peak false discovery rate for this annotation 
 let (fdr, _) = annotated.fdr(&fragments, &model, MassMode::Monoisotopic);
-// This is the incorrect sequence for this spectrum so the FDR will indicate this
+// This is the incorrect sequence for this spectrum so the peak FDR will indicate this
 # dbg!(&fdr, fdr.peaks_sigma(), fdr.peaks_fdr(), fdr.peaks_score());
 assert!(fdr.peaks_sigma() > 2.0);
 # Ok(()) }
@@ -45,17 +49,21 @@ assert!(fdr.peaks_sigma() > 2.0);
 
 ```rust
 # fn main() -> Result<(), rustyms::error::CustomError> {
-// Check how this peptide compares to a similar peptide (using `align`)
-// (same sequence, repeated for easy reference)
 use rustyms::{*, align::*};
+// Check how this peptide compares to a similar peptide (using the feature `align`)
 let first_peptide = LinearPeptide::pro_forma("IVQEVS", None)?.simple().unwrap();
 let second_peptide = LinearPeptide::pro_forma("LEVQVES", None)?.simple().unwrap();
+// Align the two peptides using mass based alignment
+// I-VQEVS A
+// LEVQVES B
+// ─+  ╶─ 
 let alignment = align::<4, Simple, Simple>(&first_peptide, &second_peptide,
                  matrix::BLOSUM62, Tolerance::new_ppm(10.0), AlignType::GLOBAL);
 # dbg!(&alignment);
+// Calculate some more statistics on this alignment
 let stats = alignment.stats();
-# //assert_eq!(stats.identical, 3); // Only three positions are identical
-assert_eq!(stats.mass_similar, 6); // All positions are mass similar
+assert_eq!(stats.mass_similar, 6); // 6 out of the 7 positions are mass similar
+assert_eq!(stats.gaps, 1); // 1 position is an insertion
 # Ok(()) }
 ```
 
@@ -66,6 +74,7 @@ It has multiple features which allow you to slim it down if needed (all are enab
 * `align` - gives access to mass based alignment of peptides.
 * `identification` - gives access to methods reading many different identified peptide formats.
 * `imgt` - enables access to the IMGT database of antibodies germline sequences, with annotations.
-* `isotopes` - gives access to generation of an averagine model for isotopes, also enables two additional dependencies
-* `rand` - allows the generation of random peptides  align.
-* `rayon` - enables parallel iterators using rayon, mostly for `imgt` but also in consecutive
+* `isotopes` - gives access to generation of an averagine model for isotopes, also enables two additional dependencies.
+* `rand` - allows the generation of random peptides.
+* `rayon` - enables parallel iterators using rayon, mostly for `imgt` but also in consecutive align.
+* `mzdata` - enables integration with [mzdata](https://github.com/mobiusklein/mzdata) which has more advanced raw file support.

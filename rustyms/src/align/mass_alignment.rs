@@ -1,8 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
-    peptide::SimpleLinear, system::Mass, AminoAcid, LinearPeptide, MolecularFormula, Multi,
-    SequenceElement, SequencePosition, Tolerance, WithinTolerance,
+    peptide::{AtMax, SimpleLinear},
+    system::Mass,
+    AminoAcid, LinearPeptide, MolecularFormula, Multi, SequenceElement, SequencePosition,
+    Tolerance, WithinTolerance,
 };
 
 use super::{
@@ -16,14 +18,8 @@ use super::{
 /// The [`AlignType`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
-/// The peptides are assumed to be simple (see [`LinearPeptide::simple`]).
 #[allow(clippy::too_many_lines)]
-pub fn align<
-    'lifetime,
-    const STEPS: u16,
-    A: Into<SimpleLinear> + Clone,
-    B: Into<SimpleLinear> + Clone,
->(
+pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     seq_a: &'lifetime LinearPeptide<A>,
     seq_b: &'lifetime LinearPeptide<B>,
     scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -198,7 +194,7 @@ pub fn align<
 }
 
 /// Score a pair of sequence elements (AA + mods)
-fn score_pair<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
+fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     a: (&SequenceElement<A>, &Multi<Mass>),
     b: (&SequenceElement<B>, &Multi<Mass>),
     alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
@@ -227,7 +223,7 @@ fn score_pair<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
 
 /// Score two sets of aminoacids (it will only be called when at least one of a and b has len > 1)
 /// Returns none if no sensible explanation can be made
-fn score<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
+fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     a: (&[SequenceElement<A>], &Multi<Mass>),
     b: (&[SequenceElement<B>], &Multi<Mass>),
     score: isize,
@@ -275,7 +271,7 @@ fn score<A: Into<SimpleLinear>, B: Into<SimpleLinear>>(
 
 /// Get the masses of all sequence elements
 fn calculate_masses<const STEPS: u16>(
-    sequence: &LinearPeptide<impl Into<SimpleLinear>>,
+    sequence: &LinearPeptide<impl AtMax<SimpleLinear>>,
 ) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
     // dbg!(&array, format!("{sequence}"));

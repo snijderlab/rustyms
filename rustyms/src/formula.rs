@@ -71,7 +71,7 @@ impl MolecularFormula {
         }
     }
 
-    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the pro forma notation for specific isotopes
+    /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of elements merged with the ProForma notation for specific isotopes
     pub fn hill_notation(&self) -> String {
         self.hill_notation_generic(|element, buffer| {
             if let Some(isotope) = element.1 {
@@ -83,7 +83,7 @@ impl MolecularFormula {
     }
 
     /// Create a [Hill notation](https://en.wikipedia.org/wiki/Chemical_formula#Hill_system) from this collections of
-    /// elements merged with the pro forma notation for specific isotopes. Using fancy unicode characters for subscript
+    /// elements merged with the ProForma notation for specific isotopes. Using fancy unicode characters for subscript
     /// and superscript numbers.
     pub fn hill_notation_fancy(&self) -> String {
         self.hill_notation_generic(|element, buffer| {

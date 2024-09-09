@@ -85,7 +85,7 @@ use std::{
 /// ```
 ///
 #[derive(PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub struct LinearPeptide<MaximalComplexity> {
+pub struct LinearPeptide<Complexity> {
     /// Global isotope modifications, saved as the element and the species that
     /// all occurrence of that element will consist of. For example (N, 15) will
     /// make all occurring nitrogen atoms be isotope 15.
@@ -97,17 +97,17 @@ pub struct LinearPeptide<MaximalComplexity> {
     /// C terminal modification
     c_term: Option<Modification>,
     /// The sequence of this peptide (includes local modifications)
-    sequence: Vec<SequenceElement<MaximalComplexity>>,
+    sequence: Vec<SequenceElement<Complexity>>,
     /// For each ambiguous modification list all possible positions it can be placed on.
     /// Indexed by the ambiguous modification id.
     ambiguous_modifications: Vec<Vec<usize>>,
     /// The adduct ions, if specified
     charge_carriers: Option<MolecularCharge>,
     /// The marker indicating which level of complexity this peptide (potentially) uses
-    marker: PhantomData<MaximalComplexity>,
+    marker: PhantomData<Complexity>,
 }
 
-impl<T> Default for LinearPeptide<T> {
+impl<Complexity> Default for LinearPeptide<Complexity> {
     fn default() -> Self {
         Self {
             global: Vec::new(),
@@ -122,7 +122,7 @@ impl<T> Default for LinearPeptide<T> {
     }
 }
 
-impl<T> Clone for LinearPeptide<T> {
+impl<Complexity> Clone for LinearPeptide<Complexity> {
     fn clone(&self) -> Self {
         Self {
             global: self.global.clone(),
@@ -137,8 +137,10 @@ impl<T> Clone for LinearPeptide<T> {
     }
 }
 
-impl<A, B> PartialEq<LinearPeptide<B>> for LinearPeptide<A> {
-    fn eq(&self, other: &LinearPeptide<B>) -> bool {
+impl<OwnComplexity, OtherComplexity> PartialEq<LinearPeptide<OtherComplexity>>
+    for LinearPeptide<OwnComplexity>
+{
+    fn eq(&self, other: &LinearPeptide<OtherComplexity>) -> bool {
         self.global == other.global
             && self.labile == other.labile
             && self.n_term == other.n_term
@@ -149,7 +151,7 @@ impl<A, B> PartialEq<LinearPeptide<B>> for LinearPeptide<A> {
     }
 }
 
-impl<T> std::hash::Hash for LinearPeptide<T> {
+impl<Complexity> std::hash::Hash for LinearPeptide<Complexity> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.global.hash(state);
         self.labile.hash(state);
@@ -161,10 +163,10 @@ impl<T> std::hash::Hash for LinearPeptide<T> {
     }
 }
 
-impl<T> Eq for LinearPeptide<T> {}
+impl<Complexity> Eq for LinearPeptide<Complexity> {}
 
 /// Implement the complexity checks to reduce the complexity of a peptide in a controlled fashion.
-impl<T> LinearPeptide<T> {
+impl<Complexity> LinearPeptide<Complexity> {
     /// Check if this peptide does not use any of the features reserved for [`Linked`].
     ///
     /// This checks if all modifications (in the sequence and the termini) are [`SimpleModification`]s.
@@ -246,13 +248,13 @@ impl<T> LinearPeptide<T> {
     }
 }
 
-impl<T: HighestOf<Linear>> LinearPeptide<T> {
+impl<Complexity: HighestOf<Linear>> LinearPeptide<Complexity> {
     /// Add global isotope modifications, if any is invalid it returns None
     #[must_use]
     pub fn global(
         mut self,
         global: impl IntoIterator<Item = (Element, Option<NonZeroU16>)>,
-    ) -> Option<LinearPeptide<T::HighestLevel>> {
+    ) -> Option<LinearPeptide<Complexity::HighestLevel>> {
         for modification in global {
             if modification.0.is_valid(modification.1) {
                 self.global.push(modification);
@@ -260,7 +262,7 @@ impl<T: HighestOf<Linear>> LinearPeptide<T> {
                 return None;
             }
         }
-        Some(self.mark::<T::HighestLevel>())
+        Some(self.mark::<Complexity::HighestLevel>())
     }
 
     /// Add labile modifications
@@ -268,83 +270,14 @@ impl<T: HighestOf<Linear>> LinearPeptide<T> {
     pub fn labile(
         mut self,
         labile: impl IntoIterator<Item = SimpleModification>,
-    ) -> LinearPeptide<T::HighestLevel> {
+    ) -> LinearPeptide<Complexity::HighestLevel> {
         self.labile.extend(labile);
-        self.mark::<T::HighestLevel>()
+        self.mark::<Complexity::HighestLevel>()
     }
 }
 
-impl LinearPeptide<Linear> {
-    /// Add the charge carriers.
-    #[must_use]
-    pub fn charge_carriers(mut self, charge: Option<MolecularCharge>) -> Self {
-        self.charge_carriers = charge;
-        self
-    }
-}
-
-impl<T: AtLeast<Linear>> LinearPeptide<T> {
-    /// Get the global isotope modifications
-    pub fn get_global(&self) -> &[(Element, Option<NonZeroU16>)] {
-        &self.global
-    }
-
-    /// Add the global isotope modification, if any is invalid it returns false
-    #[must_use]
-    pub fn add_global(&mut self, modification: (Element, Option<NonZeroU16>)) -> bool {
-        if modification.0.is_valid(modification.1) {
-            self.global.push(modification);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Get all labile modifications
-    pub fn get_labile(&self) -> &[SimpleModification] {
-        &self.labile
-    }
-
-    /// Get the charge carriers, if there are any
-    pub const fn get_charge_carriers(&self) -> Option<&MolecularCharge> {
-        self.charge_carriers.as_ref()
-    }
-}
-
-impl<T: AtLeast<SimpleLinear>> LinearPeptide<T> {
-    /// Get the locations of all ambiguous modifications. The slice is indexed by ambiguous
-    /// modification id and contains all sequence locations where that ambiguous modification is
-    /// potentially located.
-    pub fn get_ambiguous_modifications(&self) -> &[Vec<usize>] {
-        self.ambiguous_modifications.as_ref()
-    }
-
-    /// Add an ambiguous modification on the given positions, the placement rules are NOT checked.
-    /// The `positions` contains all sequence indices where that ambiguous modification is
-    /// potentially located alongside the placement probability if known. If there is a preferred
-    /// position this can be indicated as well.
-    pub fn add_ambiguous_modification(
-        &mut self,
-        modification: &AmbiguousModification,
-        positions: &[(usize, Option<OrderedFloat<f64>>)],
-        preferred_position: Option<usize>,
-    ) {
-        for (pos, score) in positions {
-            self.sequence[*pos]
-                .possible_modifications
-                .push(AmbiguousModification {
-                    localisation_score: *score,
-                    preferred: preferred_position.is_some_and(|p| p == *pos),
-                    ..modification.clone()
-                });
-        }
-        self.ambiguous_modifications
-            .push(positions.iter().map(|(p, _)| *p).collect());
-    }
-}
-
-/// Builder style methods to create a [`LinearPeptide`]
-impl<T> LinearPeptide<T> {
+impl<Complexity> LinearPeptide<Complexity> {
+    /// Mark this peptide with the following complexity, be warned that the complexity level is not checked.
     pub(super) fn mark<M>(self) -> LinearPeptide<M> {
         LinearPeptide {
             global: self.global,
@@ -362,22 +295,31 @@ impl<T> LinearPeptide<T> {
         }
     }
 
+    /// Cast a linear peptide into a more complex linear peptide. This undoes any work done by
+    /// functions like [`Self::into_linear`]. This does not change the content of the linear
+    /// peptide. It only allows to pass this as higher complexity if needed.
+    pub fn cast<NewComplexity: AtLeast<Complexity>>(self) -> LinearPeptide<NewComplexity> {
+        self.mark()
+    }
+
     /// Create a new [`LinearPeptide`], if you want an empty peptide look at [`LinearPeptide::default`].
     /// Potentially the `.collect()` or `.into()` methods can be useful as well.
     #[must_use]
-    pub fn new(sequence: impl IntoIterator<Item = SequenceElement<T>>) -> Self {
-        sequence.into_iter().collect()
+    pub fn new<OtherComplexity: AtMax<Complexity>>(
+        sequence: impl IntoIterator<Item = SequenceElement<OtherComplexity>>,
+    ) -> Self {
+        sequence.into_iter().map(SequenceElement::mark).collect()
     }
 
     /// Get the sequence for this peptide
     #[must_use]
-    pub fn sequence(&self) -> &[SequenceElement<T>] {
+    pub fn sequence(&self) -> &[SequenceElement<Complexity>] {
         &self.sequence
     }
 
     /// Get the sequence mutably for the peptide
     #[must_use]
-    pub fn sequence_mut(&mut self) -> &mut Vec<SequenceElement<T>> {
+    pub fn sequence_mut(&mut self) -> &mut Vec<SequenceElement<Complexity>> {
         &mut self.sequence
     }
 
@@ -394,9 +336,7 @@ impl<T> LinearPeptide<T> {
         self.c_term = term;
         self
     }
-}
 
-impl<T> LinearPeptide<T> {
     /// Get the number of amino acids making up this peptide
     pub fn len(&self) -> usize {
         self.sequence.len()
@@ -604,7 +544,7 @@ impl<T> LinearPeptide<T> {
     pub(super) fn iter(
         &self,
         range: impl RangeBounds<usize>,
-    ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &SequenceElement<T>)> + '_ {
+    ) -> impl DoubleEndedIterator<Item = (PeptidePosition, &SequenceElement<Complexity>)> + '_ {
         let start = range.start_index();
         std::iter::once((
             PeptidePosition::n(SequencePosition::NTerm, self.len()),
@@ -1290,25 +1230,6 @@ impl<T> LinearPeptide<T> {
 }
 
 impl LinearPeptide<Linked> {
-    /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    pub(crate) fn formulas(
-        &self,
-        peptide_index: usize,
-        all_peptides: &[Self],
-        visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<CrossLinkName>,
-        allow_ms_cleavable: bool,
-    ) -> Multi<MolecularFormula> {
-        self.formulas_inner(
-            peptide_index,
-            all_peptides,
-            visited_peptides,
-            applied_cross_links,
-            allow_ms_cleavable,
-        )
-        .0
-    }
-
     /// Add a modification to this peptide
     pub(crate) fn add_modification(
         &mut self,
@@ -1321,28 +1242,18 @@ impl LinearPeptide<Linked> {
             SequencePosition::Index(index) => self.sequence[index].modifications.push(modification),
         }
     }
+}
 
-    /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    #[allow(clippy::missing_panics_doc, dead_code)] // Global isotope mods are guaranteed to be correct
-    pub(crate) fn bare_formulas(
-        &self,
-        all_peptides: &[Self],
-        visited_peptides: &[usize],
-        applied_cross_links: &mut Vec<CrossLinkName>,
-        allow_ms_cleavable: bool,
-        peptide_index: usize,
-    ) -> Multi<MolecularFormula> {
-        self.bare_formulas_inner(
-            all_peptides,
-            visited_peptides,
-            applied_cross_links,
-            allow_ms_cleavable,
-            peptide_index,
-        )
+impl LinearPeptide<Linear> {
+    /// Add the charge carriers.
+    #[must_use]
+    pub fn charge_carriers(mut self, charge: Option<MolecularCharge>) -> Self {
+        self.charge_carriers = charge;
+        self
     }
 }
 
-impl<T: Into<Linear>> LinearPeptide<T> {
+impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
     /// Get a region of this peptide as a new peptide (with all terminal/global/ambiguous modifications).
     #[must_use]
     pub fn sub_peptide(&self, index: impl RangeBounds<usize>) -> Self {
@@ -1443,21 +1354,81 @@ impl<T: Into<Linear>> LinearPeptide<T> {
     }
 }
 
-impl<OwnComplexity: Into<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
+impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
+    /// Get the global isotope modifications
+    pub fn get_global(&self) -> &[(Element, Option<NonZeroU16>)] {
+        &self.global
+    }
+
+    /// Add the global isotope modification, if any is invalid it returns false
+    #[must_use]
+    pub fn add_global(&mut self, modification: (Element, Option<NonZeroU16>)) -> bool {
+        if modification.0.is_valid(modification.1) {
+            self.global.push(modification);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get all labile modifications
+    pub fn get_labile(&self) -> &[SimpleModification] {
+        &self.labile
+    }
+
+    /// Get the charge carriers, if there are any
+    pub const fn get_charge_carriers(&self) -> Option<&MolecularCharge> {
+        self.charge_carriers.as_ref()
+    }
+}
+
+impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
+    /// Get the locations of all ambiguous modifications. The slice is indexed by ambiguous
+    /// modification id and contains all sequence locations where that ambiguous modification is
+    /// potentially located.
+    pub fn get_ambiguous_modifications(&self) -> &[Vec<usize>] {
+        self.ambiguous_modifications.as_ref()
+    }
+
+    /// Add an ambiguous modification on the given positions, the placement rules are NOT checked.
+    /// The `positions` contains all sequence indices where that ambiguous modification is
+    /// potentially located alongside the placement probability if known. If there is a preferred
+    /// position this can be indicated as well.
+    pub fn add_ambiguous_modification(
+        &mut self,
+        modification: &AmbiguousModification,
+        positions: &[(usize, Option<OrderedFloat<f64>>)],
+        preferred_position: Option<usize>,
+    ) {
+        for (pos, score) in positions {
+            self.sequence[*pos]
+                .possible_modifications
+                .push(AmbiguousModification {
+                    localisation_score: *score,
+                    preferred: preferred_position.is_some_and(|p| p == *pos),
+                    ..modification.clone()
+                });
+        }
+        self.ambiguous_modifications
+            .push(positions.iter().map(|(p, _)| *p).collect());
+    }
+}
+
+impl<OwnComplexity: AtMax<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
     /// Concatenate another peptide after this peptide. This will fail if any of these conditions are true:
     /// * This peptide has a C terminal modification
     /// * The other peptide has an N terminal modification
-    // Because it is complexity VerySimple these peptides are guaranteed to not contain charge
+    // Because it is complexity SemiAmbiguous these peptides are guaranteed to not contain charge
     // carriers, global or ambiguous modifications.
-    pub fn concatenate<
-        OtherComplexity: Into<SemiAmbiguous>,
-        ResultingComplexity: AtLeast<OtherComplexity>,
-    >(
+    pub fn concatenate<OtherComplexity: AtMax<SemiAmbiguous>>(
         self,
         other: LinearPeptide<OtherComplexity>,
-    ) -> Option<LinearPeptide<ResultingComplexity>> {
+    ) -> Option<LinearPeptide<OwnComplexity::HighestLevel>>
+    where
+        OwnComplexity: HighestOf<OtherComplexity>,
+    {
         if self.c_term.is_none() && other.n_term.is_none() {
-            Some(LinearPeptide::<ResultingComplexity> {
+            Some(LinearPeptide::<OwnComplexity::HighestLevel> {
                 global: self.global,
                 labile: self.labile.into_iter().chain(other.labile).collect(),
                 n_term: self.n_term,
@@ -1478,16 +1449,16 @@ impl<OwnComplexity: Into<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
     }
 }
 
-impl<T> Display for LinearPeptide<T> {
+impl<Complexity> Display for LinearPeptide<Complexity> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true, true)
     }
 }
 
-impl<Collection, Item, T> From<Collection> for LinearPeptide<T>
+impl<Collection, Item, Complexity> From<Collection> for LinearPeptide<Complexity>
 where
     Collection: IntoIterator<Item = Item>,
-    Item: Into<SequenceElement<T>>,
+    Item: Into<SequenceElement<Complexity>>,
 {
     fn from(value: Collection) -> Self {
         Self {
@@ -1503,16 +1474,18 @@ where
     }
 }
 
-impl<Item, T> FromIterator<Item> for LinearPeptide<T>
+impl<Item, Complexity> FromIterator<Item> for LinearPeptide<Complexity>
 where
-    Item: Into<SequenceElement<T>>,
+    Item: Into<SequenceElement<Complexity>>,
 {
     fn from_iter<Iter: IntoIterator<Item = Item>>(iter: Iter) -> Self {
         Self::from(iter)
     }
 }
 
-impl<I: SliceIndex<[SequenceElement<T>]>, T> Index<I> for LinearPeptide<T> {
+impl<I: SliceIndex<[SequenceElement<Complexity>]>, Complexity> Index<I>
+    for LinearPeptide<Complexity>
+{
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -1520,8 +1493,8 @@ impl<I: SliceIndex<[SequenceElement<T>]>, T> Index<I> for LinearPeptide<T> {
     }
 }
 
-impl<T> Index<SequencePosition> for LinearPeptide<T> {
-    type Output = SequenceElement<T>;
+impl<Complexity> Index<SequencePosition> for LinearPeptide<Complexity> {
+    type Output = SequenceElement<Complexity>;
 
     fn index(&self, index: SequencePosition) -> &Self::Output {
         match index {
@@ -1532,7 +1505,7 @@ impl<T> Index<SequencePosition> for LinearPeptide<T> {
     }
 }
 
-impl<T> IndexMut<SequencePosition> for LinearPeptide<T> {
+impl<Complexity> IndexMut<SequencePosition> for LinearPeptide<Complexity> {
     fn index_mut(&mut self, index: SequencePosition) -> &mut Self::Output {
         match index {
             SequencePosition::NTerm => &mut self.sequence[0],
@@ -1545,26 +1518,17 @@ impl<T> IndexMut<SequencePosition> for LinearPeptide<T> {
 /// Make sure that any lower level of peptide can be cast to a higher level
 macro_rules! into {
     ($a:tt => $b:ty) => {
-        impl From<LinearPeptide<$a>> for LinearPeptide<$b>
-        where
-            $a: Into<$b>,
-        {
+        impl From<LinearPeptide<$a>> for LinearPeptide<$b> {
             fn from(other: LinearPeptide<$a>) -> Self {
                 other.mark()
             }
         }
-        impl From<SequenceElement<$a>> for SequenceElement<$b>
-        where
-            $a: Into<$b>,
-        {
+        impl From<SequenceElement<$a>> for SequenceElement<$b> {
             fn from(other: SequenceElement<$a>) -> Self {
                 other.mark()
             }
         }
-        impl From<CheckedAminoAcid<$a>> for CheckedAminoAcid<$b>
-        where
-            $a: Into<$b>,
-        {
+        impl From<CheckedAminoAcid<$a>> for CheckedAminoAcid<$b> {
             fn from(other: CheckedAminoAcid<$a>) -> Self {
                 other.mark()
             }

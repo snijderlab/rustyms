@@ -312,7 +312,7 @@ impl MolecularFormula {
         }
     }
 
-    /// Create a Hill notation from this collections of elements merged with the pro forma notation for specific isotopes.
+    /// Create a Hill notation from this collections of elements merged with the ProForma notation for specific isotopes.
     ///
     /// Returns
     /// -------
@@ -321,7 +321,7 @@ impl MolecularFormula {
         self.0.hill_notation()
     }
 
-    /// Create a Hill notation from this collections of elements merged with the pro forma notation for specific isotopes. Using fancy unicode characters for subscript and superscript numbers.
+    /// Create a Hill notation from this collections of elements merged with the ProForma notation for specific isotopes. Using fancy unicode characters for subscript and superscript numbers.
     ///
     /// Returns
     /// -------
@@ -528,7 +528,7 @@ impl std::fmt::Display for AminoAcid {
 /// Parameters
 /// ----------
 /// name : str
-///   The name of the modification. Any simple modification as allowed in Pro Forma (no ambiguous or cross-linked modifications).
+///   The name of the modification. Any simple modification as allowed in ProForma (no ambiguous or cross-linked modifications).
 ///
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -1032,7 +1032,6 @@ impl Peptidoform {
             .generate_theoretical_fragments(
                 rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
                 &match_model(model)?,
-                0,
             )
             .iter()
             .map(|f| Fragment(f.clone()))

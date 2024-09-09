@@ -29,7 +29,7 @@ impl MonoSaccharide {
         }
     }
 
-    /// Get this same monosaccharide but now with the given pro forma name
+    /// Get this same monosaccharide but now with the given ProForma name
     #[must_use]
     #[allow(dead_code)]
     pub fn with_name(self, name: &str) -> Self {
