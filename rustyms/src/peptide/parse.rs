@@ -33,7 +33,7 @@ struct LinearPeptideResult {
 }
 
 impl LinearPeptide<Linked> {
-    /// Convenience wrapper to parse a linear peptide in pro forma notation, to handle all possible pro forma sequences look at [`CompoundPeptidoform::pro_forma`].
+    /// Convenience wrapper to parse a linear peptide in ProForma notation, to handle all possible ProForma sequences look at [`CompoundPeptidoform::pro_forma`].
     /// # Errors
     /// It gives an error when the peptide is not correctly formatted. (Also see the `CompoundPeptidoform` main function for this.)
     /// It additionally gives an error if the peptide specified was chimeric (see [`CompoundPeptidoform::singular`] and [`Peptidoform::singular`]).
@@ -67,10 +67,10 @@ impl LinearPeptide<Linked> {
 }
 
 impl Peptidoform {
-    /// Parse a peptidoform in the [Pro Forma specification](https://github.com/HUPO-PSI/ProForma).
+    /// Parse a peptidoform in the [ProForma specification](https://github.com/HUPO-PSI/ProForma).
     ///
     /// # Errors
-    /// It fails when the string is not a valid Pro Forma string. Or when the string has multiple peptidoforms.
+    /// It fails when the string is not a valid ProForma string. Or when the string has multiple peptidoforms.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(
         value: &str,
@@ -91,10 +91,10 @@ impl Peptidoform {
 }
 
 impl CompoundPeptidoform {
-    /// Parse a compound peptidoform in the [Pro Forma specification](https://github.com/HUPO-PSI/ProForma).
+    /// Parse a compound peptidoform in the [ProForma specification](https://github.com/HUPO-PSI/ProForma).
     ///
     /// # Errors
-    /// It fails when the string is not a valid Pro Forma string.
+    /// It fails when the string is not a valid ProForma string.
     #[allow(clippy::too_many_lines)]
     pub fn pro_forma(
         value: &str,
@@ -128,7 +128,7 @@ impl CompoundPeptidoform {
     }
 
     /// # Errors
-    /// It returns an error if the line is not a supported Pro Forma line.
+    /// It returns an error if the line is not a supported ProForma line.
     fn parse_peptidoform(
         line: &str,
         mut index: usize,
@@ -190,7 +190,7 @@ impl CompoundPeptidoform {
     }
 
     /// # Errors
-    /// It returns an error if the line is not a supported Pro Forma line.
+    /// It returns an error if the line is not a supported ProForma line.
     #[allow(clippy::missing_panics_doc)] // Can not panic
     fn parse_linear_peptide(
         line: &str,

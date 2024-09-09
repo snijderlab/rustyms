@@ -43,104 +43,44 @@ pub struct SemiAmbiguous;
 )]
 pub struct UnAmbiguous;
 
-impl From<Linear> for Linked {
-    fn from(_val: Linear) -> Self {
-        Self
-    }
-}
-impl From<SimpleLinear> for Linked {
-    fn from(_val: SimpleLinear) -> Self {
-        Self
-    }
-}
-impl From<SemiAmbiguous> for Linked {
-    fn from(_val: SemiAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<UnAmbiguous> for Linked {
-    fn from(_val: UnAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<SimpleLinear> for Linear {
-    fn from(_val: SimpleLinear) -> Self {
-        Self
-    }
-}
-impl From<SemiAmbiguous> for Linear {
-    fn from(_val: SemiAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<UnAmbiguous> for Linear {
-    fn from(_val: UnAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<SemiAmbiguous> for SimpleLinear {
-    fn from(_val: SemiAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<UnAmbiguous> for SimpleLinear {
-    fn from(_val: UnAmbiguous) -> Self {
-        Self
-    }
-}
-impl From<UnAmbiguous> for SemiAmbiguous {
-    fn from(_val: UnAmbiguous) -> Self {
-        Self
-    }
-}
+/// Indicate that a peptide has at max this level of complexity, or lower.
+/// `Self` will always be the highest (or identical) of the two complexities.
+pub trait AtMax<T> {}
+impl<T> AtMax<T> for T {}
+impl AtMax<Linked> for Linear {}
+impl AtMax<Linked> for SimpleLinear {}
+impl AtMax<Linked> for SemiAmbiguous {}
+impl AtMax<Linked> for UnAmbiguous {}
+impl AtMax<Linear> for SimpleLinear {}
+impl AtMax<Linear> for SemiAmbiguous {}
+impl AtMax<Linear> for UnAmbiguous {}
+impl AtMax<SimpleLinear> for SemiAmbiguous {}
+impl AtMax<SimpleLinear> for UnAmbiguous {}
+impl AtMax<SemiAmbiguous> for UnAmbiguous {}
 
-/// Indicate that a peptide has at least this level of complexity, or higher
-pub trait AtLeast<T> {
-    type HighestLevel;
-}
-impl<T> AtLeast<T> for T {
-    type HighestLevel = T;
-}
-impl AtLeast<Linear> for Linked {
-    type HighestLevel = Self;
-}
-impl AtLeast<SimpleLinear> for Linked {
-    type HighestLevel = Self;
-}
-impl AtLeast<SemiAmbiguous> for Linked {
-    type HighestLevel = Self;
-}
-impl AtLeast<UnAmbiguous> for Linked {
-    type HighestLevel = Self;
-}
-impl AtLeast<SimpleLinear> for Linear {
-    type HighestLevel = Self;
-}
-impl AtLeast<SemiAmbiguous> for Linear {
-    type HighestLevel = Self;
-}
-impl AtLeast<UnAmbiguous> for Linear {
-    type HighestLevel = Self;
-}
-impl AtLeast<SemiAmbiguous> for SimpleLinear {
-    type HighestLevel = Self;
-}
-impl AtLeast<UnAmbiguous> for SimpleLinear {
-    type HighestLevel = Self;
-}
-impl AtLeast<UnAmbiguous> for SemiAmbiguous {
-    type HighestLevel = Self;
-}
+/// Indicate that a peptide has at least this level of complexity, or higher.
+/// The type parameter will always be the highest (or identical) of the two complexities.
+pub trait AtLeast<T> {}
+impl<T> AtLeast<T> for T {}
+impl AtLeast<Linear> for Linked {}
+impl AtLeast<SimpleLinear> for Linked {}
+impl AtLeast<SemiAmbiguous> for Linked {}
+impl AtLeast<UnAmbiguous> for Linked {}
+impl AtLeast<SimpleLinear> for Linear {}
+impl AtLeast<SemiAmbiguous> for Linear {}
+impl AtLeast<UnAmbiguous> for Linear {}
+impl AtLeast<SemiAmbiguous> for SimpleLinear {}
+impl AtLeast<UnAmbiguous> for SimpleLinear {}
+impl AtLeast<UnAmbiguous> for SemiAmbiguous {}
 
-/// Type level max between two Peptide complexities
+/// Type level max between two complexity levels. The highest of the two levels is stored in the
+/// associated type `HighestLevel`.
 pub trait HighestOf<T> {
     type HighestLevel;
 }
-
 impl<T> HighestOf<T> for T {
     type HighestLevel = T;
 }
-
 impl HighestOf<Linked> for Linear {
     type HighestLevel = Linked;
 }
@@ -171,7 +111,6 @@ impl HighestOf<SimpleLinear> for UnAmbiguous {
 impl HighestOf<SemiAmbiguous> for UnAmbiguous {
     type HighestLevel = SemiAmbiguous;
 }
-
 impl HighestOf<Linear> for Linked {
     type HighestLevel = Self;
 }

@@ -7,30 +7,35 @@ use crate::{
     modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
     peptide::Linked,
     system::usize::Charge,
-    Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, MultiChemical,
-    SequencePosition,
+    Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
 };
 /// A single peptidoform, can contain multiple linear peptides
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
-impl MultiChemical for Peptidoform {
+impl Peptidoform {
+    /// Create a new [`Peptidoform`] from many [`LinearPeptide`]s. This returns None if the
+    /// global isotope modifications or the charge carriers of all peptides are not identical.
+    pub fn new<Complexity>(
+        iter: impl IntoIterator<Item = LinearPeptide<Complexity>>,
+    ) -> Option<Self> {
+        let result = Self(iter.into_iter().map(LinearPeptide::mark).collect());
+        let global_and_charge_equal = result.peptides().iter().tuple_windows().all(|(a, b)| {
+            a.get_global() == b.get_global() && a.get_charge_carriers() == b.get_charge_carriers()
+        });
+        global_and_charge_equal.then_some(result)
+    }
+
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
-    fn formulas(
-        &self,
-        _sequence_index: SequencePosition,
-        _peptide_index: usize,
-    ) -> Multi<MolecularFormula> {
+    pub fn formulas(&self) -> Multi<MolecularFormula> {
         self.0
             .first()
-            .map(|p| p.formulas(0, &self.0, &[], &mut Vec::new(), true))
+            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new(), true).0)
             .unwrap_or_default()
     }
-}
 
-impl Peptidoform {
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
@@ -41,8 +46,17 @@ impl Peptidoform {
             .unwrap_or_default()
     }
 
-    /// Generate the theoretical fragments for this peptide collection.
+    /// Generate the theoretical fragments for this peptidoform.
     pub fn generate_theoretical_fragments(
+        &self,
+        max_charge: Charge,
+        model: &Model,
+    ) -> Vec<Fragment> {
+        self.generate_theoretical_fragments_inner(max_charge, model, 0)
+    }
+
+    /// Generate the theoretical fragments for this peptidoform.
+    pub(super) fn generate_theoretical_fragments_inner(
         &self,
         max_charge: Charge,
         model: &Model,
@@ -70,7 +84,7 @@ impl Peptidoform {
         }
     }
 
-    /// Get all peptides making up this `Peptidoform`
+    /// Get all peptides making up this peptidoform
     pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         &self.0
     }
@@ -234,5 +248,11 @@ impl Peptidoform {
 impl std::fmt::Display for Peptidoform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true, true)
+    }
+}
+
+impl<Complexity> From<LinearPeptide<Complexity>> for Peptidoform {
+    fn from(value: LinearPeptide<Complexity>) -> Self {
+        Self(vec![value.mark()])
     }
 }

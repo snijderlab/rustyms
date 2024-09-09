@@ -6,8 +6,8 @@ use crate::{
 use std::{num::NonZeroU16, ops::RangeBounds};
 
 impl MolecularFormula {
-    /// Parse Pro Forma formulas: `[13C2][12C-2]H2N`.
-    /// # The specification (copied from Pro Forma v2)
+    /// Parse ProForma formulas: `[13C2][12C-2]H2N`.
+    /// # The specification (copied from ProForma v2)
     /// As no widely accepted specification exists for expressing elemental formulas, we have adapted a standard with the following rules (taken from <https://github.com/rfellers/chemForma>):
     /// ## Formula Rule 1
     /// A formula will be composed of pairs of atoms and their corresponding cardinality (two Carbon atoms: C2). Pairs SHOULD be separated by spaces but are not required to be.
@@ -63,7 +63,7 @@ impl MolecularFormula {
                         .position(|c| *c == b']')
                         .ok_or_else(|| {
                             CustomError::error(
-                                "Invalid Pro Forma molecular formula",
+                                "Invalid ProForma molecular formula",
                                 "No closing square bracket found",
                                 Context::line(None, value, index, 1),
                             )
@@ -113,7 +113,7 @@ impl MolecularFormula {
                             .parse::<i32>()
                             .map_err(|err| {
                                 CustomError::error(
-                                    "Invalid Pro Forma molecular formula",
+                                    "Invalid ProForma molecular formula",
                                     format!("The element number {}", explain_number_error(&err)),
                                     Context::line(
                                         None,
@@ -127,7 +127,7 @@ impl MolecularFormula {
                             .parse::<NonZeroU16>()
                             .map_err(|err| {
                                 CustomError::error(
-                                    "Invalid Pro Forma molecular formula",
+                                    "Invalid ProForma molecular formula",
                                     format!("The isotope number {}", explain_number_error(&err)),
                                     Context::line(None, value, index, isotope),
                                 )
@@ -135,7 +135,7 @@ impl MolecularFormula {
 
                         if !Self::add(&mut result, (parsed_element, Some(isotope), num)) {
                             return Err(CustomError::error(
-                                "Invalid Pro Forma molecular formula",
+                                "Invalid ProForma molecular formula",
                                 format!("Invalid isotope ({isotope}) added for element ({parsed_element})"),
                                 Context::line(None, value, index, len),
                             ),);
@@ -144,7 +144,7 @@ impl MolecularFormula {
                         index += len + 1;
                     } else {
                         return Err(CustomError::error(
-                            "Invalid Pro Forma molecular formula",
+                            "Invalid ProForma molecular formula",
                             "Invalid element",
                             Context::line(None, value, index + isotope, ele),
                         ));
@@ -161,12 +161,12 @@ impl MolecularFormula {
                             .collect::<Vec<_>>(),
                     )
                     .map_or_else(
-                        |e| panic!("Non UTF8 in Pro Forma molecular formula, error: {e}"),
+                        |e| panic!("Non UTF8 in ProForma molecular formula, error: {e}"),
                         |v| {
                             (
                                 v.parse::<i32>().map_err(|err| {
                                     CustomError::error(
-                                        "Invalid Pro Forma molecular formula",
+                                        "Invalid ProForma molecular formula",
                                         format!(
                                             "The element number {}",
                                             explain_number_error(&err)
@@ -181,7 +181,7 @@ impl MolecularFormula {
                     let num = num?;
                     if num != 0 && !Self::add(&mut result, (element.unwrap(), None, num)) {
                         return Err(CustomError::error(
-                            "Invalid Pro Forma molecular formula",
+                            "Invalid ProForma molecular formula",
                             format!(
                                 "An element without a defined mass ({}) was used",
                                 element.unwrap()
@@ -197,7 +197,7 @@ impl MolecularFormula {
                     if let Some(element) = element {
                         if !Self::add(&mut result, (element, None, 1)) {
                             return Err(CustomError::error(
-                                "Invalid Pro Forma molecular formula",
+                                "Invalid ProForma molecular formula",
                                 format!("An element without a defined mass ({element}) was used"),
                                 Context::line(None, value, index - 1, 1),
                             ));
@@ -221,7 +221,7 @@ impl MolecularFormula {
                         continue 'main_parse_loop;
                     }
                     return Err(CustomError::error(
-                        "Invalid Pro Forma molecular formula",
+                        "Invalid ProForma molecular formula",
                         "Not a valid character in formula",
                         Context::line(
                             None,
@@ -240,7 +240,7 @@ impl MolecularFormula {
         if let Some(element) = element {
             if !Self::add(&mut result, (element, None, 1)) {
                 return Err(CustomError::error(
-                    "Invalid Pro Forma molecular formula",
+                    "Invalid ProForma molecular formula",
                     format!("An element without a defined mass ({element}) was used"),
                     Context::line(None, value, index - 1, 1),
                 ));

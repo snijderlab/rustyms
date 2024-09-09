@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use itertools::Itertools;
-use rustyms::{AminoAcid, CheckedAminoAcid, UnAmbiguous};
+use rustyms::{AminoAcid, CheckedAminoAcid};
 
 use crate::shared::{AnnotatedSequence, Annotation, Gene, Region};
 use crate::structs::{Location, SequenceRegion, SingleSeq};

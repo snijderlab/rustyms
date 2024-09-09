@@ -5,29 +5,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     peptide::Linked, system::usize::Charge, Fragment, LinearPeptide, Model, MolecularFormula,
-    Multi, MultiChemical, Peptidoform, SequencePosition,
+    Multi, Peptidoform,
 };
 
-/// A single pro forma entry, can contain multiple peptidoforms
+/// A single full ProForma entry. This entry can contain multiple sets of cross-linked peptides.
+/// A single set of cross-linked peptides is a [`Peptidoform`]. A ProForma entry with two chimeric
+/// peptides will be saved as one [`CompoundPeptidoform`] with two [`Peptidoform`]s that each
+/// contain one of the [`LinearPeptide`]s.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub struct CompoundPeptidoform(pub(super) Vec<Peptidoform>);
 
-impl MultiChemical for CompoundPeptidoform {
-    /// Gives all possible formulas for this compound peptidoform
-    fn formulas(
-        &self,
-        sequence_index: SequencePosition,
-        peptide_index: usize,
-    ) -> Multi<MolecularFormula> {
-        self.0
-            .iter()
-            .flat_map(|p| p.formulas(sequence_index, peptide_index).to_vec())
-            .collect()
-    }
-}
-
 impl CompoundPeptidoform {
-    /// Assume there is exactly one peptidoform in this collection.
+    /// Create a new [`CompoundPeptidoform`] from many [`Peptidoform`]s. This returns None if the
+    /// global isotope modifications of all peptidoforms are not identical.
+    pub fn new(iter: impl IntoIterator<Item = Peptidoform>) -> Option<Self> {
+        let result = Self(iter.into_iter().collect());
+        let global_equal = result
+            .peptidoforms()
+            .iter()
+            .flat_map(Peptidoform::peptides)
+            .tuple_windows()
+            .all(|(a, b)| a.get_global() == b.get_global());
+        global_equal.then_some(result)
+    }
+
+    /// Get all possible formulas for this compound peptidoform
+    pub fn formulas(&self) -> Multi<MolecularFormula> {
+        self.0.iter().flat_map(|p| p.formulas().to_vec()).collect()
+    }
+
+    /// Assume there is exactly one peptidoform in this compound peptidoform.
     #[doc(alias = "assume_linear")]
     pub fn singular(mut self) -> Option<Peptidoform> {
         if self.0.len() == 1 {
@@ -37,17 +44,17 @@ impl CompoundPeptidoform {
         }
     }
 
-    /// Assume there is exactly one peptide in this collection.
+    /// Assume there is exactly one peptide in this compound peptidoform.
     pub fn singular_peptide(self) -> Option<LinearPeptide<Linked>> {
         self.singular().and_then(Peptidoform::singular)
     }
 
-    /// Get all peptidoforms making up this `CompoundPeptidoform`
+    /// Get all peptidoforms making up this compound peptidoform.
     pub fn peptidoforms(&self) -> &[Peptidoform] {
         &self.0
     }
 
-    /// Generate the theoretical fragments for this peptide collection.
+    /// Generate the theoretical fragments for this compound peptidoform.
     pub fn generate_theoretical_fragments(
         &self,
         max_charge: Charge,
@@ -55,27 +62,19 @@ impl CompoundPeptidoform {
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
         for (index, peptidoform) in self.peptidoforms().iter().enumerate() {
-            base.extend(peptidoform.generate_theoretical_fragments(max_charge, model, index));
+            base.extend(peptidoform.generate_theoretical_fragments_inner(max_charge, model, index));
         }
         base
     }
 
     /// Display this compound peptidoform.
-    /// `specification_compliant` Displays this compound peptidoform either normalised to the internal representation or as fully spec compliant ProForma
-    /// (no glycan structure or custom modifications).
-    /// # Panics
-    /// When some peptides do not have the same global isotope modifications.
+    /// `specification_compliant` Displays this compound peptidoform either normalised to the
+    /// internal representation (with false) or as fully spec compliant ProForma (no glycan
+    /// structure or custom modifications) (with true).
     /// # Errors
-    /// If the underlying formatter errors.
+    /// Only if the underlying formatter (`f`) errors.
     pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
-        let global_equal = self
-            .peptidoforms()
-            .iter()
-            .flat_map(Peptidoform::peptides)
-            .map(LinearPeptide::get_global)
-            .tuple_windows()
-            .all(|(a, b)| a == b);
-        assert!(global_equal, "Not all global isotope modifications on all peptides on this compound peptidoform are identical");
+        // The global isotope modifications are guaranteed to be identical, so take the first
         let empty = Vec::new();
         let global = self
             .peptidoforms()
@@ -110,11 +109,14 @@ impl Display for CompoundPeptidoform {
     }
 }
 
-impl<Item> From<Item> for CompoundPeptidoform
-where
-    Item: Into<LinearPeptide<Linked>>,
-{
-    fn from(value: Item) -> Self {
-        Self(vec![Peptidoform(vec![value.into()])])
+impl<Complexity> From<LinearPeptide<Complexity>> for CompoundPeptidoform {
+    fn from(value: LinearPeptide<Complexity>) -> Self {
+        Self(vec![Peptidoform(vec![value.mark()])])
+    }
+}
+
+impl From<Peptidoform> for CompoundPeptidoform {
+    fn from(value: Peptidoform) -> Self {
+        Self(vec![value])
     }
 }

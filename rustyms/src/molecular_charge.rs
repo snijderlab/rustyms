@@ -191,7 +191,7 @@ impl Chemical for MolecularCharge {
 }
 
 impl std::fmt::Display for MolecularCharge {
-    /// Is not guaranteed to fully conform to the Pro Forma standard. Because the data structure accepts more than the standard.
+    /// Is not guaranteed to fully conform to the ProForma standard. Because the data structure accepts more than the standard.
     /// So adducts with other than +1/-1 charge states, or adducts with complex formula (not a single element) will not adhere to the standard.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

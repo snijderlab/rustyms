@@ -11,6 +11,7 @@ use super::align_type::*;
 use super::piece::*;
 use super::scoring::*;
 
+use crate::peptide::AtMax;
 use crate::peptide::Linear;
 use crate::system::Mass;
 use crate::system::Ratio;
@@ -208,7 +209,7 @@ impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A: Into<Linear>, B: Into<Linear>> Alignment<'lifetime, A, B> {
+impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
     pub fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_a() && self.align_type().right.global_a() {

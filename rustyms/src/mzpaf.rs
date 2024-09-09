@@ -176,7 +176,7 @@ fn parse_ion(
                         })?,
                     ),
                 ))
-                // TODO: potentially followed by a pro forma sequence in {}
+                // TODO: potentially followed by a ProForma sequence in {}
             } else {
                 Err(CustomError::error(
                     "Invalid mzPAF main series ion ordinal",

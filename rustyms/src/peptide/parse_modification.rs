@@ -352,7 +352,7 @@ fn parse_single_modification(
     } else {
         Err(CustomError::error(
             "Invalid modification",
-            "It does not match the Pro Forma definition for modifications",
+            "It does not match the ProForma definition for modifications",
             Context::line(None, line, offset, full_modification.len()),
         ))
     }

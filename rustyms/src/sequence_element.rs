@@ -8,7 +8,7 @@ use crate::{
         AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, Ontology,
         RulePossible, SimpleModification,
     },
-    peptide::Linked,
+    peptide::{AtLeast, Linked},
     placement_rule::PlacementRule,
     CheckedAminoAcid, Chemical, DiagnosticIon, LinearPeptide, MolecularFormula, Multi,
     MultiChemical, SequencePosition,
@@ -25,7 +25,7 @@ pub struct SequenceElement<T> {
     pub modifications: Vec<Modification>,
     /// All ambiguous modifications (could be placed here or on another position)
     pub possible_modifications: Vec<AmbiguousModification>,
-    /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in pro forma
+    /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in ProForma
     pub ambiguous: Option<usize>,
     /// The marker indicating which level of complexity this sequence element uses as higher bound
     marker: PhantomData<T>,
@@ -73,6 +73,12 @@ impl<T> SequenceElement<T> {
             ambiguous: self.ambiguous,
             marker: PhantomData,
         }
+    }
+
+    /// Cast a sequence element into a more complex sequence element. This does not change the
+    /// content of the sequence element. It only allows to pass this as higher complexity if needed.
+    pub fn cast<OtherComplexity: AtLeast<T>>(self) -> SequenceElement<OtherComplexity> {
+        self.mark()
     }
 
     /// Create a new aminoacid without any modifications

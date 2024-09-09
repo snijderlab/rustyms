@@ -12,3 +12,6 @@ itertools = { workspace = true }
 rustyms = { path = "../rustyms" }
 serde = { workspace = true, features = ["derive", "rc"] }
 similar = { workspace = true }
+
+[features]
+rayon = []

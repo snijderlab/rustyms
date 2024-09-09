@@ -16,7 +16,7 @@ include!("../shared/glycan_structure.rs");
 
 impl FromStr for GlycanStructure {
     type Err = CustomError;
-    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
+    /// Parse a textual structure representation of a glycan (outside ProForma format)
     /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
     /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
     ///          =>  Hex-Hex-HexNAc
@@ -29,7 +29,7 @@ impl FromStr for GlycanStructure {
 }
 
 impl GlycanStructure {
-    /// Parse a textual structure representation of a glycan (outside Pro Forma format)
+    /// Parse a textual structure representation of a glycan (outside ProForma format)
     /// Example: Hex(Hex(HexNAc)) => Hex-Hex-HexNAc (linear)
     /// Example: Hex(Fuc,Hex(HexNAc,Hex(HexNAc)))
     ///          =>  Hex-Hex-HexNAc
