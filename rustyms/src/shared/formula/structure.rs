@@ -53,31 +53,55 @@ pub enum AmbiguousLabel {
 }
 
 /// Any item that has a clearly defined single molecular formula
+#[allow(dead_code)]
 pub trait Chemical {
     /// Get the molecular formula
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula;
+    fn formula(&self) -> MolecularFormula {
+        self.formula_inner(SequencePosition::default(), 0)
+    }
+
+    /// Get the molecular formula while keeping track of all ambiguous labels
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula;
 }
 
 impl<T: Chemical> Chemical for &[T] {
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
         self.iter()
-            .map(|f| f.formula(sequence_index, peptide_index))
+            .map(|f| f.formula_inner(sequence_index, peptide_index))
             .sum()
     }
 }
 
 impl<T: Chemical> Chemical for &Vec<T> {
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
         self.iter()
-            .map(|f| f.formula(sequence_index, peptide_index))
+            .map(|f| f.formula_inner(sequence_index, peptide_index))
             .sum()
     }
 }
 
 /// Any item that has a number of potential chemical formulas
+#[allow(dead_code)]
 pub trait MultiChemical {
     /// Get all possible molecular formulas
-    fn formulas(
+    fn formulas(&self) -> Multi<MolecularFormula> {
+        self.formulas_inner(SequencePosition::default(), 0)
+    }
+
+    /// Get all possible molecular formulas while keeping track of all ambiguous labels
+    fn formulas_inner(
         &self,
         sequence_index: SequencePosition,
         peptide_index: usize,
@@ -86,19 +110,25 @@ pub trait MultiChemical {
     /// Get the charge of this chemical, it returns None if no charge is defined.
     #[allow(dead_code)]
     fn charge(&self) -> Option<crate::system::isize::Charge> {
-        self.formulas(SequencePosition::default(), 0)
+        self.formulas()
             .first()
             .map(MolecularFormula::charge)
             .filter(|c| c.value != 0)
     }
 
     /// Return a single formula if this `MultiChemical` has only one possible formula
-    fn single_formula(
+    fn single_formula(&self) -> Option<MolecularFormula> {
+        let formulas = self.formulas();
+        (formulas.len() == 1).then_some(formulas.to_vec().pop().unwrap())
+    }
+
+    /// Return a single formula if this `MultiChemical` has only one possible formula while keeping track of all ambiguous labels
+    fn single_formula_inner(
         &self,
         sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> Option<MolecularFormula> {
-        let formulas = self.formulas(sequence_index, peptide_index);
+        let formulas = self.formulas_inner(sequence_index, peptide_index);
         (formulas.len() == 1).then_some(formulas.to_vec().pop().unwrap())
     }
 }

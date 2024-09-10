@@ -30,7 +30,7 @@ fn parse_unimod_composition_brick(text: &str, range: Range<usize>) -> Result<Bri
             Element::try_from(text[range.clone()].to_lowercase().as_str()).map_or_else(|()| if let Ok((ms, _)) =
                 MonoSaccharide::from_short_iupac(text, range.start_index(), range.len())
             {
-                Ok(Brick::Formula(ms.formula(crate::SequencePosition::default(),0)))
+                Ok(Brick::Formula(ms.formula_inner(crate::SequencePosition::default(),0)))
             } else {
                 Err(CustomError::error(
                     "Invalid Unimod chemical formula", 

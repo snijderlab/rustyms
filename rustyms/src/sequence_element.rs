@@ -172,7 +172,7 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas(sequence_index, peptide_index) * formula,
+            self.aminoacid.formulas_inner(sequence_index, peptide_index) * formula,
             seen,
         )
     }
@@ -205,7 +205,7 @@ impl<T> SequenceElement<T> {
                     .filter_map(|m| {
                         (!placed[m.id]).then(|| {
                             placed[m.id] = true;
-                            m.formula(sequence_index, peptide_index)
+                            m.formula_inner(sequence_index, peptide_index)
                         })
                     })
                     .sum::<MolecularFormula>(),
@@ -236,7 +236,7 @@ impl<T> SequenceElement<T> {
                 + self
                     .possible_modifications
                     .iter()
-                    .map(|f| f.formula(sequence_index, peptide_index))
+                    .map(|f| f.formula_inner(sequence_index, peptide_index))
                     .sum::<MolecularFormula>(),
             seen,
         )

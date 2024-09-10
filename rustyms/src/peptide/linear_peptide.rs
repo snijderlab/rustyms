@@ -662,12 +662,17 @@ impl<Complexity> LinearPeptide<Complexity> {
                                 .iter()
                                 .find(|m| m.id == id)
                                 .map(|m| {
-                                    m.formula(crate::SequencePosition::Index(pos), peptide_index)
-                                        .with_label(AmbiguousLabel::Modification {
+                                    m.formula_inner(
+                                        crate::SequencePosition::Index(pos),
+                                        peptide_index,
+                                    )
+                                    .with_label(
+                                        AmbiguousLabel::Modification {
                                             id,
                                             sequence_index: crate::SequencePosition::Index(pos),
                                             peptide_index,
-                                        })
+                                        },
+                                    )
                                 })
                         } else {
                             Some(MolecularFormula::default())
@@ -795,7 +800,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                     .flat_map(|m| {
                         self.sequence[sequence_index]
                             .aminoacid
-                            .formulas(SequencePosition::Index(sequence_index), peptide_index)
+                            .formulas_inner(SequencePosition::Index(sequence_index), peptide_index)
                             .iter()
                             .flat_map(|aa| {
                                 Fragment::generate_all(
@@ -1165,15 +1170,8 @@ impl<Complexity> LinearPeptide<Complexity> {
         let replace_simple =
             |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
                 SimpleModification::Mass(mass) => Tolerance::Absolute(Mass::new::<dalton>(0.1))
-                    .within(
-                        &mass.into_inner(),
-                        &provided
-                            .formula(SequencePosition::default(), 0)
-                            .monoisotopic_mass(),
-                    ),
-                SimpleModification::Formula(formula) => {
-                    *formula == provided.formula(SequencePosition::default(), 0)
-                }
+                    .within(&mass.into_inner(), &provided.formula().monoisotopic_mass()),
+                SimpleModification::Formula(formula) => *formula == provided.formula(),
                 _ => false,
             };
         let possibly_replace_simple = |in_place: &SimpleModification| {

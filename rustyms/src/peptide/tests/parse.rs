@@ -10,7 +10,6 @@ use crate::{
     placement_rule::{self, PlacementRule},
     system::{da, usize::Charge},
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
-    SequencePosition,
 };
 
 #[test]
@@ -221,6 +220,7 @@ fn charge_state_negative() {
     assert!(parse("/ 1 [ 1 H 1]").is_err());
 }
 
+#[test]
 fn parse_glycan() {
     let glycan = LinearPeptide::pro_forma("A[Glycan:Hex]", None).unwrap();
     let spaces = LinearPeptide::pro_forma("A[Glycan:    Hex    ]", None).unwrap();
@@ -420,12 +420,7 @@ fn parse_xl_intra() {
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
         singular.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine
-            .formulas(SequencePosition::default(), 0)
-            .to_vec()
-            .pop()
-            .unwrap()
-            * 2
+        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1))
         .elements()
@@ -445,12 +440,7 @@ fn parse_xl_inter() {
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
         peptidoform.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine
-            .formulas(SequencePosition::default(), 0)
-            .to_vec()
-            .pop()
-            .unwrap()
-            * 2
+        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
             .elements()

@@ -130,11 +130,7 @@ pub fn building_blocks(
                 )
                 .0
                 .iter()
-                .map(|f| {
-                    f.monoisotopic_mass()
-                        + m.formula(SequencePosition::default(), 0)
-                            .monoisotopic_mass()
-                })
+                .map(|f| f.monoisotopic_mass() + m.formula().monoisotopic_mass())
                 .map(|mass| (a.clone(), mc.clone(), mass))
                 .collect_vec()
             })

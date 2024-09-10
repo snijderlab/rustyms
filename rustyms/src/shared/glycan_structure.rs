@@ -151,16 +151,16 @@ impl Display for GlycanStructure {
 }
 
 impl Chemical for GlycanStructure {
-    fn formula(
+    fn formula_inner(
         &self,
         sequence_index: crate::SequencePosition,
         peptide_index: usize,
     ) -> MolecularFormula {
-        self.sugar.formula(sequence_index, peptide_index)
+        self.sugar.formula_inner(sequence_index, peptide_index)
             + self
                 .branches
                 .iter()
-                .map(|f| f.formula(sequence_index, peptide_index))
+                .map(|f| f.formula_inner(sequence_index, peptide_index))
                 .sum::<MolecularFormula>()
     }
 }

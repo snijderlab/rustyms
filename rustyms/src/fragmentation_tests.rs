@@ -506,37 +506,60 @@ fn glycan_composition_fragmentation() {
     );
 }
 
-fn custom_dsso_database() -> CustomDatabase {
-    vec![(
-        0,
-        "dsso".to_string(),
-        SimpleModification::Linker {
-            specificities: vec![modification::LinkerSpecificity::Symmetric(
-                vec![PlacementRule::AminoAcid(
-                    vec![AminoAcid::Lysine],
-                    placement_rule::Position::Anywhere,
+fn custom_database() -> CustomDatabase {
+    vec![
+        (
+            0,
+            "dsso".to_string(),
+            SimpleModification::Linker {
+                specificities: vec![modification::LinkerSpecificity::Symmetric(
+                    vec![PlacementRule::AminoAcid(
+                        vec![AminoAcid::Lysine],
+                        placement_rule::Position::Anywhere,
+                    )],
+                    vec![(
+                        molecular_formula!(C 3 O 2 H 1 N -1),
+                        molecular_formula!(C 3 O 3 H 1 N -1 S 1),
+                    )],
+                    Vec::new(),
                 )],
-                vec![(
-                    molecular_formula!(C 3 O 2 H 1 N -1),
-                    molecular_formula!(C 3 O 3 H 1 N -1 S 1),
-                )],
-                Vec::new(),
-            )],
-            formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
-            id: ModificationId {
-                name: "DSSO".to_string(),
-                id: 0,
-                ontology: modification::Ontology::Custom,
-                ..ModificationId::default()
+                formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
+                id: ModificationId {
+                    name: "DSSO".to_string(),
+                    id: 0,
+                    ontology: modification::Ontology::Custom,
+                    ..ModificationId::default()
+                },
+                length: None,
             },
-            length: None,
-        },
-    )]
+        ),
+        (
+            1,
+            "disulfide".to_string(),
+            SimpleModification::Linker {
+                specificities: vec![modification::LinkerSpecificity::Symmetric(
+                    vec![PlacementRule::AminoAcid(
+                        vec![AminoAcid::Cysteine],
+                        placement_rule::Position::Anywhere,
+                    )],
+                    vec![(molecular_formula!(H - 1), molecular_formula!(H - 1))],
+                    Vec::new(),
+                )],
+                formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
+                id: ModificationId {
+                    name: "Disulfide".to_string(),
+                    id: 1,
+                    ontology: modification::Ontology::Custom,
+                    ..ModificationId::default()
+                },
+                length: None,
+            },
+        ),
+    ]
 }
 
 #[test]
 fn intra_link() {
-    // TODO: store for the precursor the fact that there is a loop in the structure
     #[allow(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (260.196, "y2+"),
@@ -547,7 +570,7 @@ fn intra_link() {
         (732.327290402381, "b5+"),
     ];
     let peptide =
-        CompoundPeptidoform::pro_forma("K[C:DSSO#XL1]GK[#XL1]FLK", Some(&custom_dsso_database()))
+        CompoundPeptidoform::pro_forma("K[C:DSSO#XL1]GK[#XL1]FLK", Some(&custom_database()))
             .unwrap();
     let model = Model::none()
         .b(PrimaryIonSeries::default())
@@ -561,6 +584,24 @@ fn intra_link() {
         true,
         false,
     );
+    let fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
+    let doubly_annotated = dbg!(fragments
+        .iter()
+        .filter(|f| f.formula.labels().len() > 2)
+        .collect_vec());
+    assert_eq!(doubly_annotated.len(), 0);
+}
+
+#[test]
+fn ensure_no_double_xl_labels() {
+    let peptide =
+        CompoundPeptidoform::pro_forma("EVQLVESGGGLVQPGGSLRLSC[C:Disulfide#XL1]AASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYC[#XL1]SRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGC[C:Disulfide#XL2]LVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYIC[#XL2]NVNHKPSNTKVDKKVEPKSC[C:Disulfide#XL3]DKT//DIQMTQSPSSLSASVGDRVTITC[C:Disulfide#XL4]RASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYC[#XL4]QQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVC[C:Disulfide#XL5]LLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYAC[#XL5]EVTHQGLSSPVTKSFNRGEC[#XL3]", Some(&custom_database()))
+            .unwrap();
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .allow_cross_link_cleavage(true);
     let fragments =
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
