@@ -1,13 +1,12 @@
 [package]
-name = "multi-annotator"
+name = "de-novo-align"
 version = "0.1.0"
-edition.workspace = true
 publish = false
+edition.workspace = true
 
 [dependencies]
 rustyms = { path = "../../rustyms" }
 clap = { workspace = true, features = ["derive", "cargo"] }
-directories = { workspace = true }
 itertools = { workspace = true }
 rayon = { workspace = true }
 serde_json = { workspace = true }

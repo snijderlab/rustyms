@@ -4,6 +4,7 @@
 mod common_parser;
 
 mod fasta;
+mod general;
 mod helper_functions;
 mod identified_peptide;
 mod maxquant;
@@ -15,6 +16,7 @@ mod sage;
 
 use crate::*;
 pub use fasta::*;
+pub use general::*;
 pub use identified_peptide::*;
 pub use maxquant::*;
 pub use msfragger::*;

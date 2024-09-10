@@ -4,7 +4,10 @@ use crate::{
     CompoundPeptidoform, LinearPeptide, SequenceElement,
 };
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader};
+use std::{
+    io::{BufRead, BufReader},
+    path::Path,
+};
 
 use super::{IdentifiedPeptide, MetaData};
 
@@ -21,12 +24,13 @@ impl FastaData {
     /// Parse a single fasta file
     /// # Errors
     /// A custom error when it is not a valid fasta file
-    pub fn parse_file(path: &str) -> Result<Vec<Self>, CustomError> {
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Self>, CustomError> {
+        let path = path.as_ref();
         let file = std::fs::File::open(path).map_err(|_| {
             CustomError::error(
                 "Failed reading fasta file",
                 "Error occurred while opening the file",
-                Context::show(path),
+                Context::show(path.to_string_lossy()),
             )
         })?;
         let reader = BufReader::new(file);
@@ -39,7 +43,7 @@ impl FastaData {
                 CustomError::error(
                     "Failed reading fasta file",
                     format!("Error occurred while reading line {}", line_index + 1),
-                    Context::show(path),
+                    Context::show(path.to_string_lossy()),
                 )
             })?;
             #[allow(clippy::manual_strip)]

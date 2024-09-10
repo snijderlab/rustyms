@@ -7,6 +7,8 @@ members = [
     "examples/*",
 ]
 resolver = "2"
+package.edition = "2021"
+package.version = "0.9.0-alpha.1"
 
 [profile.release]
 debug = true
