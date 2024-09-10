@@ -459,7 +459,7 @@ impl AminoAcid {
     ///
     fn formulas(&self) -> Vec<MolecularFormula> {
         self.0
-            .formulas(SequencePosition::default(), 0)
+            .formulas()
             .iter()
             .map(|f| MolecularFormula(f.clone()))
             .collect()
@@ -474,13 +474,7 @@ impl AminoAcid {
     /// List[MolecularFormula]
     ///
     fn formula(&self) -> MolecularFormula {
-        MolecularFormula(
-            self.0
-                .formulas(SequencePosition::default(), 0)
-                .first()
-                .unwrap()
-                .clone(),
-        )
+        MolecularFormula(self.0.formulas().first().unwrap().clone())
     }
 
     /// Monoisotopic mass(es) of the amino acid.
@@ -493,7 +487,7 @@ impl AminoAcid {
     ///
     fn monoisotopic_masses(&self) -> Vec<f64> {
         self.0
-            .formulas(SequencePosition::default(), 0)
+            .formulas()
             .iter()
             .map(|f| f.monoisotopic_mass().value)
             .collect()
@@ -508,12 +502,7 @@ impl AminoAcid {
     /// float
     ///
     fn monoisotopic_mass(&self) -> f64 {
-        self.0
-            .formulas(SequencePosition::default(), 0)
-            .first()
-            .unwrap()
-            .monoisotopic_mass()
-            .value
+        self.0.formulas().first().unwrap().monoisotopic_mass().value
     }
 }
 
@@ -565,7 +554,7 @@ impl SimpleModification {
     /// MolecularFormula
     ///
     fn formula(&self) -> MolecularFormula {
-        MolecularFormula(self.0.formula(SequencePosition::default(), 0))
+        MolecularFormula(self.0.formula())
     }
 
     /// Monoisotopic mass of the modification.
@@ -575,10 +564,7 @@ impl SimpleModification {
     /// float
     ///
     fn monoisotopic_mass(&self) -> f64 {
-        self.0
-            .formula(SequencePosition::default(), 0)
-            .monoisotopic_mass()
-            .value
+        self.0.formula().monoisotopic_mass().value
     }
 }
 
@@ -1170,9 +1156,7 @@ impl LinearPeptide {
     ///
     #[getter]
     fn charge(&self) -> Option<isize> {
-        self.0
-            .get_charge_carriers()
-            .map(|c| c.formula(SequencePosition::default(), 0).charge().value)
+        self.0.get_charge_carriers().map(|c| c.charge().value)
     }
 
     /// The adduct ions, if specified.

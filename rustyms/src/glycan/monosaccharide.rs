@@ -46,7 +46,7 @@ impl MonoSaccharide {
         composition.retain(|el| el.1 != 0);
         let mut composition = composition
             .into_iter()
-            .map(|(m, n)| (m.formula(SequencePosition::default(), 0), n))
+            .map(|(m, n)| (m.formula(), n))
             .collect_vec();
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
@@ -90,7 +90,9 @@ impl MonoSaccharide {
         for composition in compositions {
             let formula: MolecularFormula = composition
                 .iter()
-                .map(|s| s.0.formula(SequencePosition::default(), peptide_index) * s.1 as i32)
+                .map(|s| {
+                    s.0.formula_inner(SequencePosition::default(), peptide_index) * s.1 as i32
+                })
                 .sum();
             fragments.extend(
                 Fragment::new(
@@ -193,7 +195,7 @@ impl MonoSaccharide {
         add_base: bool,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
-            self.formula(SequencePosition::default(), 0),
+            self.formula(),
             Charge::default(),
             peptidoform_index,
             peptide_index,
@@ -284,7 +286,7 @@ mod tests {
                     .find(|p| p.0 == *name)
                     .unwrap_or_else(|| panic!("Assumed {name} would be defined"))
                     .1
-                    .formula(SequencePosition::default(), 0),
+                    .formula(),
                 *formula,
                 "{name}",
             );
@@ -401,7 +403,7 @@ mod tests {
             MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
                 .unwrap()
                 .0
-                .formula(SequencePosition::default(), 0)
+                .formula()
                 .monoisotopic_mass()
                 .value
                 .round(),

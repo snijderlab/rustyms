@@ -191,7 +191,7 @@ impl std::fmt::Display for MolecularFormula {
 mod tests {
     use crate::{
         model::ChargeRange, molecular_formula, AminoAcid, Fragment, MolecularCharge,
-        MolecularFormula, MultiChemical, SequencePosition,
+        MolecularFormula, MultiChemical,
     };
 
     #[test]
@@ -295,7 +295,7 @@ mod tests {
     #[test]
     #[allow(clippy::similar_names)]
     fn labels() {
-        let labelled = AminoAcid::AmbiguousAsparagine.formulas(SequencePosition::default(), 0);
+        let labelled = AminoAcid::AmbiguousAsparagine.formulas();
         let unlabelled: crate::Multi<MolecularFormula> =
             vec![molecular_formula!(C 1), molecular_formula!(H 1)].into();
         let mut mul_assign_l = labelled.clone();

@@ -79,8 +79,8 @@ pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::{
-    CompoundPeptidoform, Linear, LinearPeptide, Linked, Peptidoform, ReturnModification,
-    SemiAmbiguous, SimpleLinear, SloppyParsingParameters, UnAmbiguous,
+    AtLeast, AtMax, CompoundPeptidoform, HighestOf, Linear, LinearPeptide, Linked, Peptidoform,
+    ReturnModification, SemiAmbiguous, SimpleLinear, SloppyParsingParameters, UnAmbiguous,
 };
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;

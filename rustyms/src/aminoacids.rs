@@ -291,7 +291,7 @@ impl AminoAcid {
 
         if ions.a.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 1 C 1 O 1))),
                 peptidoform_index,
                 peptide_index,
@@ -304,7 +304,7 @@ impl AminoAcid {
         }
         if ions.b.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
@@ -317,7 +317,7 @@ impl AminoAcid {
         }
         if ions.c.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(H 2 N 1))),
                 peptidoform_index,
                 peptide_index,
@@ -332,7 +332,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments(sequence_index, peptide_index)
                     * modifications
-                    * self.formulas(sequence_index, peptide_index)
+                    * self.formulas_inner(sequence_index, peptide_index)
                     + molecular_formula!(H 1 C 1 O 1)),
                 peptidoform_index,
                 peptide_index,
@@ -359,7 +359,7 @@ impl AminoAcid {
             base_fragments.extend(Fragment::generate_all(
                 &(-self.satellite_ion_fragments(sequence_index, peptide_index)
                     * modifications
-                    * self.formulas(sequence_index, peptide_index)
+                    * self.formulas_inner(sequence_index, peptide_index)
                     + molecular_formula!(H 2 N 1)),
                 peptidoform_index,
                 peptide_index,
@@ -372,7 +372,7 @@ impl AminoAcid {
         }
         if ions.x.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
@@ -385,7 +385,7 @@ impl AminoAcid {
         }
         if ions.y.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications + molecular_formula!(H 1))),
                 peptidoform_index,
                 peptide_index,
@@ -398,7 +398,7 @@ impl AminoAcid {
         }
         if ions.z.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 2 N 1))),
                 peptidoform_index,
                 peptide_index,
@@ -409,7 +409,7 @@ impl AminoAcid {
                 ions.z.2,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(H 1 N 1))),
                 peptidoform_index,
                 peptide_index,
@@ -423,7 +423,7 @@ impl AminoAcid {
 
         if ions.immonium.0 && allow_terminal.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptide_index)
                     * (modifications - molecular_formula!(C 1 O 1))),
                 peptidoform_index,
                 peptide_index,
@@ -567,10 +567,8 @@ mod tests {
 
     #[test]
     fn mass() {
-        let weight_ala =
-            AminoAcid::Alanine.formulas(SequencePosition::default(), 0)[0].average_weight();
-        let mass_ala =
-            AminoAcid::Alanine.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
+        let weight_ala = AminoAcid::Alanine.formulas()[0].average_weight();
+        let mass_ala = AminoAcid::Alanine.formulas()[0].monoisotopic_mass();
         assert_ne!(weight_ala, mass_ala);
         assert!((weight_ala.value - 71.07793).abs() < 1e-5);
         assert!((mass_ala.value - 71.037113783).abs() < 1e-5);
@@ -578,10 +576,8 @@ mod tests {
 
     #[test]
     fn mass_lysine() {
-        let weight_lys =
-            AminoAcid::Lysine.formulas(SequencePosition::default(), 0)[0].average_weight();
-        let mass_lys =
-            AminoAcid::Lysine.formulas(SequencePosition::default(), 0)[0].monoisotopic_mass();
+        let weight_lys = AminoAcid::Lysine.formulas()[0].average_weight();
+        let mass_lys = AminoAcid::Lysine.formulas()[0].monoisotopic_mass();
         assert_ne!(weight_lys, mass_lys);
         assert!((weight_lys.value - 128.17240999999999).abs() < 1e-5);
         assert!((mass_lys.value - 128.094963010536).abs() < 1e-5);
@@ -615,12 +611,8 @@ mod tests {
         for (aa, mono_mass, average_weight) in known {
             let aa = AminoAcid::try_from(*aa).unwrap();
             let (mono, weight) = (
-                aa.formulas(SequencePosition::default(), 0)[0]
-                    .monoisotopic_mass()
-                    .value,
-                aa.formulas(SequencePosition::default(), 0)[0]
-                    .average_weight()
-                    .value,
+                aa.formulas()[0].monoisotopic_mass().value,
+                aa.formulas()[0].average_weight().value,
             );
             println!(
                 "{}: {} {} {} {}",

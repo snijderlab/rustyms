@@ -92,7 +92,7 @@ impl Fragment {
             .map(|(((term, mass), charge), loss)| Self {
                 formula: term
                     + mass
-                    + charge.formula(SequencePosition::default(), peptide_index)
+                    + charge.formula_inner(SequencePosition::default(), peptide_index)
                     + loss.unwrap_or(&NeutralLoss::Gain(MolecularFormula::default())),
                 charge: Charge::new::<crate::system::e>(charge.charge().value.try_into().unwrap()),
                 ion: annotation.clone(),
@@ -109,10 +109,8 @@ impl Fragment {
     #[must_use]
     fn with_charge(&self, charge: &MolecularCharge) -> Self {
         let formula = charge
-            .formula(SequencePosition::default(), 0)
-            .with_labels(&[AmbiguousLabel::ChargeCarrier(
-                charge.formula(SequencePosition::default(), 0),
-            )]);
+            .formula()
+            .with_labels(&[AmbiguousLabel::ChargeCarrier(charge.formula())]);
         let c = Charge::new::<crate::system::charge::e>(
             usize::try_from(formula.charge().value).unwrap(),
         );
@@ -605,7 +603,7 @@ mod tests {
     #[test]
     fn neutral_loss() {
         let a = Fragment::new(
-            AminoAcid::AsparticAcid.formulas(SequencePosition::default(), 0)[0].clone(),
+            AminoAcid::AsparticAcid.formulas()[0].clone(),
             Charge::new::<crate::system::charge::e>(1),
             0,
             0,

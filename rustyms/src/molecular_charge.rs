@@ -178,7 +178,7 @@ impl MolecularCharge {
 }
 
 impl Chemical for MolecularCharge {
-    fn formula(
+    fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
         _peptide_index: usize,
@@ -229,7 +229,7 @@ impl std::fmt::Display for MolecularCharge {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{Chemical, SequencePosition};
+    use crate::Chemical;
 
     use super::MolecularCharge;
 
@@ -238,9 +238,6 @@ mod tests {
         let mc = MolecularCharge::new(&[(1, molecular_formula!(H 1 Electron -1))]);
         let options = mc.options(crate::system::isize::Charge::new::<crate::system::e>(1));
         assert_eq!(options.len(), 1);
-        assert_eq!(
-            options[0].formula(SequencePosition::default(), 0),
-            molecular_formula!(H 1 Electron -1)
-        );
+        assert_eq!(options[0].formula(), molecular_formula!(H 1 Electron -1));
     }
 }

@@ -407,7 +407,7 @@ mod tests {
         align::{align, matrix::BLOSUM62, AlignType},
         peptide::SimpleLinear,
         system::da,
-        AminoAcid, LinearPeptide, MultiChemical, SequencePosition,
+        AminoAcid, LinearPeptide, MultiChemical,
     };
 
     #[test]
@@ -470,10 +470,8 @@ mod tests {
             .abs()
                 < f64::EPSILON
         );
-        let mass_diff_nd = (AminoAcid::Asparagine.formulas(SequencePosition::default(), 0)[0]
-            .monoisotopic_mass()
-            - AminoAcid::AsparticAcid.formulas(SequencePosition::default(), 0)[0]
-                .monoisotopic_mass())
+        let mass_diff_nd = (AminoAcid::Asparagine.formulas()[0].monoisotopic_mass()
+            - AminoAcid::AsparticAcid.formulas()[0].monoisotopic_mass())
         .value
         .abs();
         let mass_diff_bc = align::<1, SimpleLinear, SimpleLinear>(

@@ -76,6 +76,7 @@ impl AtLeast<UnAmbiguous> for SemiAmbiguous {}
 /// Type level max between two complexity levels. The highest of the two levels is stored in the
 /// associated type `HighestLevel`.
 pub trait HighestOf<T> {
+    /// This is the highest complexity level out of Self and the type parameter
     type HighestLevel;
 }
 impl<T> HighestOf<T> for T {

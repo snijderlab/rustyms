@@ -49,27 +49,6 @@ impl ModificationId {
     }
 }
 
-impl Chemical for SimpleModification {
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
-        match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
-            Self::Formula(elements) => elements.clone(),
-            Self::Glycan(monosaccharides) => monosaccharides
-                .iter()
-                .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula(sequence_index, peptide_index) * i.1 as i32
-                }),
-            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula(sequence_index, peptide_index)
-            }
-            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => {
-                MolecularFormula::with_additional_mass(m.value)
-            }
-        }
-    }
-}
-
 /// The result of checking if a modification can be placed somewhere.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum RulePossible {
@@ -119,6 +98,28 @@ impl std::iter::Sum for RulePossible {
     }
 }
 
+impl Chemical for SimpleModification {
+    /// Get the molecular formula for this modification.
+    fn formula_inner(&self, position: SequencePosition, peptide_index: usize) -> MolecularFormula {
+        match self {
+            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
+            Self::Formula(elements) => elements.clone(),
+            Self::Glycan(monosaccharides) => monosaccharides
+                .iter()
+                .fold(MolecularFormula::default(), |acc, i| {
+                    acc + i.0.formula_inner(position, peptide_index) * i.1 as i32
+                }),
+            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
+                glycan.formula_inner(position, peptide_index)
+            }
+            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
+            Self::Gno(GnoComposition::Mass(m), _) => {
+                MolecularFormula::with_additional_mass(m.value)
+            }
+        }
+    }
+}
+
 impl SimpleModification {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
@@ -129,6 +130,30 @@ impl SimpleModification {
             Self::Gno(_, name) => Some(format!(
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={name}",
             )),
+        }
+    }
+
+    /// Internal formula code with the logic to make all labels right
+    pub(crate) fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
+        match self {
+            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
+            Self::Formula(elements) => elements.clone(),
+            Self::Glycan(monosaccharides) => monosaccharides
+                .iter()
+                .fold(MolecularFormula::default(), |acc, i| {
+                    acc + i.0.formula_inner(sequence_index, peptide_index) * i.1 as i32
+                }),
+            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
+                glycan.formula_inner(sequence_index, peptide_index)
+            }
+            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
+            Self::Gno(GnoComposition::Mass(m), _) => {
+                MolecularFormula::with_additional_mass(m.value)
+            }
         }
     }
 
@@ -396,7 +421,7 @@ impl Modification {
                 HashSet::new(),
             ),
             Self::Simple(s) => (
-                s.formula(sequence_index, peptide_index).into(),
+                s.formula_inner(sequence_index, peptide_index).into(),
                 HashSet::new(),
             ),
             Self::CrossLink {
@@ -409,7 +434,7 @@ impl Modification {
                 let link = (!applied_cross_links.contains(name))
                     .then(|| {
                         applied_cross_links.push(name.clone());
-                        linker.formula(sequence_index, peptide_index)
+                        linker.formula_inner(sequence_index, peptide_index)
                     })
                     .unwrap_or_default();
                 let (_, stubs, _) = side.allowed_rules(linker);
@@ -470,8 +495,8 @@ impl Modification {
     /// Get the formula for a modification, if it is a cross linked modification only get the cross link
     pub fn formula(&self) -> MolecularFormula {
         match self {
-            Self::Simple(s) => s.formula(SequencePosition::default(), 0),
-            Self::CrossLink { linker, .. } => linker.formula(SequencePosition::default(), 0),
+            Self::Simple(s) => s.formula(),
+            Self::CrossLink { linker, .. } => linker.formula(),
         }
     }
 }
@@ -567,11 +592,7 @@ impl SimpleModification {
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
                 .filter(|(_, _, _, m)| {
-                    tolerance.within(
-                        &mass.into_inner(),
-                        &m.formula(SequencePosition::default(), 0)
-                            .monoisotopic_mass(),
-                    )
+                    tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
                 })
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
@@ -591,7 +612,7 @@ impl SimpleModification {
                         .iter()
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
-                .filter(|(_, _, _, m)| *formula == m.formula(SequencePosition::default(), 0))
+                .filter(|(_, _, _, m)| *formula == m.formula())
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
             ),
@@ -711,8 +732,13 @@ pub struct AmbiguousModification {
 }
 
 impl Chemical for AmbiguousModification {
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
-        self.modification.formula(sequence_index, peptide_index)
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
+        self.modification
+            .formula_inner(sequence_index, peptide_index)
     }
 }
 

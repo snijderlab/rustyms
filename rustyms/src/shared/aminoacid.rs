@@ -160,7 +160,7 @@ impl MultiChemical for AminoAcid {
     /// Get all possible formulas for an amino acid (has one for all except B/Z has two for these)
     /// # Panics
     /// Is the sequence index is a terminal index
-    fn formulas(
+    fn formulas_inner(
         &self,
         sequence_index: crate::SequencePosition,
         peptide_index: usize,

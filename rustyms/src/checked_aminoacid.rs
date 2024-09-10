@@ -302,7 +302,7 @@ impl<T> CheckedAminoAcid<T> {
 
 impl Chemical for CheckedAminoAcid<UnAmbiguous> {
     /// Get all possible formula for an unambiguous amino acid (X is defined to be an empty formula)
-    fn formula(
+    fn formula_inner(
         &self,
         _sequence_index: crate::SequencePosition,
         _peptide_index: usize,
@@ -340,7 +340,7 @@ impl Chemical for CheckedAminoAcid<UnAmbiguous> {
 impl<T> MultiChemical for CheckedAminoAcid<T> {
     /// # Panics
     /// Is the sequence index is a terminal index
-    fn formulas(
+    fn formulas_inner(
         &self,
         sequence_index: crate::SequencePosition,
         peptide_index: usize,
@@ -361,7 +361,7 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
             ]
             .into(),
             _ => unreachable!(),        }
-        }, |unambiguous| unambiguous.formula(sequence_index, peptide_index).into())
+        }, |unambiguous| unambiguous.formula_inner(sequence_index, peptide_index).into())
     }
 }
 

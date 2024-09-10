@@ -348,12 +348,16 @@ impl ParseHelper for &str {
 }
 
 impl Chemical for MonoSaccharide {
-    fn formula(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
-        self.base_sugar.formula(sequence_index, peptide_index)
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
+        self.base_sugar.formula_inner(sequence_index, peptide_index)
             + self
                 .substituents
                 .as_slice()
-                .formula(sequence_index, peptide_index)
+                .formula_inner(sequence_index, peptide_index)
     }
 }
 
@@ -422,7 +426,7 @@ impl Display for BaseSugar {
 }
 
 impl Chemical for BaseSugar {
-    fn formula(
+    fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
         _peptide_index: usize,
@@ -659,7 +663,7 @@ impl Display for GlycanSubstituent {
 }
 
 impl Chemical for GlycanSubstituent {
-    fn formula(
+    fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
         _peptide_index: usize,
