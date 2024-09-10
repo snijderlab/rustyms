@@ -26,7 +26,11 @@ pub struct PositionedGlycanStructure {
 }
 
 impl Chemical for PositionedGlycanStructure {
-    fn formula_inner(&self, sequence_index: SequencePosition, peptide_index: usize) -> MolecularFormula {
+    fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
         self.sugar.formula_inner(sequence_index, peptide_index)
             + self
                 .branches
@@ -72,7 +76,8 @@ impl PositionedGlycanStructure {
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
-                                    full - self.formula_inner(SequencePosition::default(), peptide_index)
+                                    full - self
+                                        .formula_inner(SequencePosition::default(), peptide_index)
                                         + f,
                                     Charge::zero(),
                                     peptidoform_index,
