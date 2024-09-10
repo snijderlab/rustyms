@@ -4,11 +4,9 @@ use std::fmt::Debug;
 use std::num::NonZeroU16;
 
 use ordered_float::OrderedFloat;
-use pyo3::prelude::*;
-use pyo3::{exceptions::PyValueError, types::PyType};
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
-use rustyms::{AnnotatableSpectrum, Chemical, MultiChemical};
-use rustyms::{Linked, SequencePosition};
+use rustyms::{AnnotatableSpectrum, Chemical, Linked, MultiChemical};
 
 /// Mass mode enum.
 #[pyclass(eq, eq_int)]

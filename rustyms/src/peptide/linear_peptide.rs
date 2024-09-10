@@ -46,6 +46,7 @@ use std::{
 /// The following features are always allowed:
 /// * N and C terminal modifications (although cross-linkers are only allowed with [`Linked`])
 /// * The use of non-standard amino acids that have one chemical formula (J/X/U/O)
+/// * [Modification](SimpleModification)s on amino acids
 ///
 /// ## Cross-links
 /// Cross-links either bind together two separate peptides or form a loop within a single peptide.
