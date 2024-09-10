@@ -5,7 +5,7 @@ The ProForma specification is fully supported ('level 2-ProForma + top-down comp
 ## Sources for the downloaded files
 
 - PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV (2021-06-13 v1.031.6)
-- Unimod: http://www.unimod.org/obo/unimod.obo (2024-02-29 10:49)
+- Unimod: http://www.unimod.org/obo/unimod.obo (2024-08-12 11:33)
 - RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (2018-04-31 RESIDUES.XML)
 - XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo (2021-03-23 1.1.12)
 - GNO: http://purl.obolibrary.org/obo/gno.obo (2024-05-21) structures: https://glycosmos.org/download/glycosmos_glycans_list.csv (downloaded 2024-07-02)
