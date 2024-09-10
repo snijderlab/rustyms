@@ -237,3 +237,19 @@ where
         }
     }
 }
+
+impl<'lifetime, R, I> IdentifiedPeptideIter<'lifetime, R, I>
+where
+    R: IdentifiedPeptideSource + Into<IdentifiedPeptide> + 'lifetime,
+    I: Iterator<Item = Result<R::Source, CustomError>> + 'lifetime,
+    R::Format: 'static,
+{
+    pub(super) fn into_box(
+        self,
+    ) -> Box<dyn Iterator<Item = Result<IdentifiedPeptide, CustomError>> + 'lifetime> {
+        Box::new(self.map(|p: Result<R, CustomError>| match p {
+            Ok(p) => Ok(p.into()),
+            Err(e) => Err(e),
+        }))
+    }
+}
