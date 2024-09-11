@@ -10,3 +10,4 @@ clap = { workspace = true, features = ["derive", "cargo"] }
 itertools = { workspace = true }
 rayon = { workspace = true }
 serde_json = { workspace = true }
+ordered-float = { workspace = true }

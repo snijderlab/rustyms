@@ -32,8 +32,6 @@ struct Cli {
 }
 
 fn main() {
-    //cargo run --release -- --in-path .\CIDcurves_file_to_match.csv --out-path out.csv
-    //let model = Model::none().b(Location::All, Vec::new()).y(Location::All, Vec::new()).glycan(Some(Vec::new()));
     let model = Model::all();
     let args = Cli::parse();
     let path = ProjectDirs::from("com", "com.snijderlab.annotator", "")
