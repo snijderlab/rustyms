@@ -41,9 +41,7 @@ pub trait AnnotatableSpectrum {
 
             // Get the index of the element closest to this value
             if let Some(index) = Self::search(self, mz, tolerance) {
-                annotated.spectrum[index]
-                    .annotation
-                    .push((fragment.clone(), Vec::new()));
+                annotated.spectrum[index].annotation.push(fragment.clone());
             }
         }
 

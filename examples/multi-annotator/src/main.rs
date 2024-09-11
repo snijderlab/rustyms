@@ -98,8 +98,8 @@ fn main() {
                     if args.charge_independent_Y {
                         let unique_Y = fragments
                             .iter()
-                            .filter_map(|frag| {
-                                if let FragmentType::Y(pos) = &frag.ion {
+                            .filter_map(|fragment| {
+                                if let FragmentType::Y(pos) = &fragment.ion {
                                     Some(pos)
                                 } else {
                                     None
@@ -110,8 +110,8 @@ fn main() {
                         let unique_Y_found = annotated
                             .spectrum()
                             .flat_map(|peak| &peak.annotation)
-                            .filter_map(|(frag, _)| {
-                                if let FragmentType::Y(pos) = &frag.ion {
+                            .filter_map(|fragment| {
+                                if let FragmentType::Y(pos) = &fragment.ion {
                                     Some(pos)
                                 } else {
                                     None
