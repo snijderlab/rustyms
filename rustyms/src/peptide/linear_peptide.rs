@@ -1307,8 +1307,21 @@ impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
         }
     }
 
+    /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
+    /// With the global isotope modifications applied.
+    ///
+    /// # Panics
+    /// If `max_charge` outside the range `1..=u64::MAX`.
+    pub fn generate_theoretical_fragments(
+        &self,
+        max_charge: Charge,
+        model: &Model,
+    ) -> Vec<Fragment> {
+        self.generate_theoretical_fragments_inner(max_charge, model, 0, 0, &[])
+    }
+
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted) TODO: Create a single 'formula' function for ExtremelySimple
+    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn formulas(&self) -> Multi<MolecularFormula> {
         let mut formulas: Multi<MolecularFormula> =
             self.get_n_term_mass(&[], &[], &mut Vec::new(), false, 0)
@@ -1338,18 +1351,28 @@ impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
     pub fn bare_formulas(&self) -> Multi<MolecularFormula> {
         self.bare_formulas_inner(&[], &[], &mut Vec::new(), false, 0)
     }
+}
 
-    /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
-    /// With the global isotope modifications applied.
-    ///
-    /// # Panics
-    /// If `max_charge` outside the range `1..=u64::MAX`.
-    pub fn generate_theoretical_fragments(
-        &self,
-        max_charge: Charge,
-        model: &Model,
-    ) -> Vec<Fragment> {
-        self.generate_theoretical_fragments_inner(max_charge, model, 0, 0, &[])
+impl LinearPeptide<UnAmbiguous> {
+    /// Gives the formula for the whole peptide. With the global isotope modifications applied.
+    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
+    pub fn formula(&self) -> MolecularFormula {
+        let mut options = self
+            .formulas_inner(0, &[], &[], &mut Vec::new(), false)
+            .0
+            .to_vec();
+        assert_eq!(options.len(), 1);
+        options.pop().unwrap()
+    }
+
+    /// Gives the formula for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
+    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
+    pub fn bare_formula(&self) -> MolecularFormula {
+        let mut options = self
+            .bare_formulas_inner(&[], &[], &mut Vec::new(), false, 0)
+            .to_vec();
+        assert_eq!(options.len(), 1);
+        options.pop().unwrap()
     }
 }
 

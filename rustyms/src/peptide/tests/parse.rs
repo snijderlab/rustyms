@@ -481,3 +481,17 @@ fn parse_adduct_ions_01() {
         peptide.peptidoforms()[1].peptides()[0].sequence()
     );
 }
+
+#[test]
+fn hydrolysed_xl() {
+    let peptide_xl = LinearPeptide::pro_forma("EMEVTK[XLMOD:02001]SESPEK", None)
+        .unwrap()
+        .into_unambiguous()
+        .unwrap();
+    let peptide_mod = LinearPeptide::pro_forma("EMEVTK[Formula:C8H12O3]SESPEK", None)
+        .unwrap()
+        .into_unambiguous()
+        .unwrap();
+
+    assert_eq!(peptide_xl.formula(), peptide_mod.formula());
+}

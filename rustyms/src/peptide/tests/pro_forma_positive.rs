@@ -158,7 +158,7 @@ parse_test!(
     positive_example_70
 );
 parse_test!("EMEVTK[XLMOD:02001#XL1]SESPEK", positive_example_71);
-parse_test!("EMEVTK[XLMOD:02001]SESPEK", positive_example_72); // TODO: make sure the hydrolysed status of this linker actually applied
+parse_test!("EMEVTK[XLMOD:02001]SESPEK", positive_example_72);
 parse_test!(
     "SEK[XLMOD:02001#XL1]UENCE//EMEVTK[XLMOD:02001#XL1]SESPEK",
     positive_example_73
