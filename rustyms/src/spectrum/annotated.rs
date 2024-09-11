@@ -6,7 +6,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    fragment::{Fragment, MatchedIsotopeDistribution},
+    fragment::Fragment,
     system::{
         f64::{Mass, MassOverCharge, Time},
         usize::Charge,
@@ -120,7 +120,7 @@ pub struct AnnotatedPeak {
     /// The experimental intensity
     pub intensity: OrderedFloat<f64>,
     /// The annotation, if present
-    pub annotation: Vec<(Fragment, Vec<MatchedIsotopeDistribution>)>,
+    pub annotation: Vec<Fragment>, // Could become Vec<(Fragment, Vec<MatchedIsotopeDistribution>)> when isotope matching is finally in place
     /// Any annotation as isotope from a given fragment
     pub isotope_annotation: Vec<(usize, usize)>,
 }
@@ -131,7 +131,7 @@ impl AnnotatedPeak {
         Self {
             experimental_mz: peak.mz,
             intensity: peak.intensity,
-            annotation: vec![(annotation, Vec::new())],
+            annotation: vec![annotation],
             isotope_annotation: Vec::new(),
         }
     }
