@@ -501,7 +501,7 @@ mod tests {
             .into_unambiguous()
             .unwrap();
         let sets: Vec<LinearPeptide<SimpleLinear>> = find_isobaric_sets(
-            pep.bare_formulas()[0].monoisotopic_mass(),
+            pep.bare_formula().monoisotopic_mass(),
             Tolerance::new_ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
             &[],

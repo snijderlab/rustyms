@@ -433,7 +433,6 @@ mod tests {
                 })
                 .join(",")
         };
-        // TODO: improve testability and transform the results into a list of strings that are easy to read
         assert_eq!(
             human_readable(&options_0),
             "",
