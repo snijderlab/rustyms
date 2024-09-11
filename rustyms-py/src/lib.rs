@@ -1312,7 +1312,7 @@ impl AnnotatedPeak {
         self.0
             .annotation
             .iter()
-            .map(|x| Fragment(x.0.clone()))
+            .map(|x| Fragment(x.clone()))
             .collect()
     }
 }
