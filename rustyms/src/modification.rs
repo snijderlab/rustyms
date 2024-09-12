@@ -425,68 +425,67 @@ impl Modification {
                 HashSet::new(),
             ),
             Self::CrossLink {
-                peptide,
+                peptide: other_peptide,
                 linker,
                 name,
                 side,
                 ..
             } => {
-                let link = (!applied_cross_links.contains(name))
-                    .then(|| {
-                        applied_cross_links.push(name.clone());
-                        linker.formula_inner(sequence_index, peptide_index)
-                    })
-                    .unwrap_or_default();
-                let (_, stubs, _) = side.allowed_rules(linker);
+                if applied_cross_links.contains(name) {
+                    (Multi::default(), HashSet::default())
+                } else if visited_peptides.contains(other_peptide) {
+                    applied_cross_links.push(name.clone());
+                    (
+                        linker.formula_inner(sequence_index, peptide_index).into(),
+                        HashSet::from([name.clone()]),
+                    )
+                } else {
+                    applied_cross_links.push(name.clone());
+                    let link = linker.formula_inner(sequence_index, peptide_index);
+                    let (_, stubs, _) = side.allowed_rules(linker);
 
-                if allow_ms_cleavable && !stubs.is_empty() {
-                    let mut options: Vec<MolecularFormula> = stubs
-                        .iter()
-                        .map(|s| {
-                            s.0.clone().with_labels(&[AmbiguousLabel::CrossLinkBroken(
-                                name.clone(),
-                                s.0.clone(),
-                            )])
-                        })
-                        .unique()
-                        .collect();
-                    let mut seen_peptides = HashSet::from([name.clone()]);
-                    options.extend_from_slice(&if visited_peptides.contains(peptide) {
-                        vec![link.with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])]
+                    if allow_ms_cleavable && !stubs.is_empty() {
+                        let mut options: Vec<MolecularFormula> = stubs
+                            .iter()
+                            .map(|s| {
+                                s.0.clone().with_labels(&[AmbiguousLabel::CrossLinkBroken(
+                                    name.clone(),
+                                    s.0.clone(),
+                                )])
+                            })
+                            .unique()
+                            .collect();
+                        let mut seen_peptides = HashSet::from([name.clone()]);
+
+                        options.extend_from_slice(&{
+                            let (f, seen) = all_peptides[*other_peptide].formulas_inner(
+                                *other_peptide,
+                                all_peptides,
+                                visited_peptides,
+                                applied_cross_links,
+                                false,
+                            );
+                            seen_peptides.extend(seen);
+                            (f + link)
+                                .with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
+                                .to_vec()
+                        });
+
+                        (options.into(), seen_peptides)
                     } else {
-                        let (f, seen) = all_peptides[*peptide].formulas_inner(
-                            *peptide,
+                        let (f, mut seen) = all_peptides[*other_peptide].formulas_inner(
+                            *other_peptide,
                             all_peptides,
                             visited_peptides,
                             applied_cross_links,
                             false,
                         );
-                        seen_peptides.extend(seen);
-                        (f + link)
-                            .with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
-                            .to_vec()
-                    });
-
-                    (options.into(), seen_peptides)
-                } else if visited_peptides.contains(peptide) {
-                    (
-                        link.with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
-                            .into(),
-                        HashSet::from([name.clone()]),
-                    )
-                } else {
-                    let (f, mut seen) = all_peptides[*peptide].formulas_inner(
-                        *peptide,
-                        all_peptides,
-                        visited_peptides,
-                        applied_cross_links,
-                        false,
-                    );
-                    seen.insert(name.clone());
-                    (
-                        (f + link).with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())]),
-                        seen,
-                    )
+                        seen.insert(name.clone());
+                        (
+                            (f + link).with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())]),
+                            seen,
+                        )
+                    }
                 }
             }
         }
