@@ -31,9 +31,3 @@ path = "fuzz_targets/peaks.rs"
 test = false
 doc = false
 bench = false
-
-# in root dir
-# cargo afl build --release -p rustyms-fuzz
-# cargo afl fuzz -i fuzz/in_pro_forma -o out_pro_forma target/release/pro_forma
-# open out_pro_forma/default/crashes/* | save crashes.txt -f
-# cat out_pro_forma/default/crashes/* >> crashes.txt
