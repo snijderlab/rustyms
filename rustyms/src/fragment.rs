@@ -6,7 +6,6 @@ use std::{
 };
 
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
