@@ -53,7 +53,7 @@ macro_rules! species {
             pub(crate) fn from_imgt(s: &str) -> Result<Option<Self>, ()> {
                 match s {
                     $($imgt => Ok(Some(Self::$identifier)),)*
-                    "synthetic construct (synthetic construct)" |
+                    "synthetic construct" | "synthetic construct (synthetic construct)" |
                     "unidentified" | "unclassified sequences" | "unidentified cloning vector" |
                     "Cloning vector AbVec-hIgG1" |
                     "Cloning vector AbVec-hIgKappa" |
@@ -65,6 +65,7 @@ macro_rules! species {
                     "Cloning vector pMAB136" |
                     "Cloning vector pUR4546" |
                     "Cloning vector pUR4585" |
+                    "Cloning vector pZGT5" |
                     "Expression vector p28BIOH-LIC4" |
                     "Expression vector pFUSE-HEAVY" |
                     "Expression vector pFUSE-hFc2-adapt-scFv" |
@@ -81,7 +82,8 @@ macro_rules! species {
                     "Phagemid vector pGALD9" |
                     "Phagemid vector pGALD9DL" |
                     "Phagemid vector pGALD9DLFN" |
-                    "Phagemid vector pMID21" | "Enterobacteria phage M13 vector DY3F63"
+                    "Phagemid vector pMID21" |
+                    "Enterobacteria phage M13 vector DY3F63"
                         => Ok(None),
                     _ => Err(()),
                 }
@@ -146,6 +148,7 @@ species!(
     AotusAzarai, "Azara's night monkey", "Aotus azarai (Azara's night monkey)", "Aotus azarai"
     AotusNancymaae, "Ma's night monkey", "Aotus nancymaae (Ma's night monkey)", "Aotus nancymaae"
     AotusTrivirgatus, "Douroucouli", "Aotus trivirgatus (douroucouli)", "Aotus trivirgatus"
+    ApisCerana, "Asiatic honeybee", "Apis cerana (Asiatic honeybee)", "Apis cerana"
     ArgyropelecusHemigymnus, "Half-naked hatchetfish", "Argyropelecus hemigymnus (half-naked hatchetfish)", "Argyropelecus hemigymnus"
     AtelesBelzebuth, "White-bellied spider monkey", "Ateles belzebuth (white-bellied spider monkey)", "Ateles belzebuth"
     AtelesGeoffroyi, "Black-handed spider monkey", "Ateles geoffroyi (black-handed spider monkey)", "Ateles geoffroyi"
@@ -159,7 +162,8 @@ species!(
     BosIndicus, "Domestic zebu", "Bos indicus (zebu cattle)", "Bos indicus"
     BosJavanicus, "Banteng", "Bos javanicus (banteng)", "Bos javanicus"
     BosTaurus, "Domestic bovine", "Bos taurus (bovine)", "Bos taurus"
-    BosTaurusXBosIndicus, "Bos Tauris and Bos indicus cross", "Bos taurus x Bos indicus", "Bos taurus x Bos indicus"
+    BosTaurusXBosIndicus, "Bos taurus and Bos indicus cross", "Bos taurus x Bos indicus", "Bos taurus x Bos indicus"
+    BosIndicisXBosTaurus, "Bos indicus and Bos taurus cross", "Bos indicus x Bos taurus (hybrid cattle)", "Bos indicus x Bos taurus"
     BovichtusDiacanthus, "Tristan clipfish", "Bovichtus diacanthus", "Bovichtus diacanthus"
     BubalusBubalis, "Water buffalo", "Bubalus bubalis (water buffalo)", "Bubalus bubalis"
     BuergeriaBuergeri, "Buerger's frog", "Buergeria buergeri (Buerger's frog)", "Buergeria buergeri"
@@ -178,6 +182,7 @@ species!(
     CarassiusLangsdorfii, "Japanese silver crucian carp", "Carassius langsdorfii (Japanese silver crucian carp)", "Carassius langsdorfii"
     CarcharhinusLeucas, "Bull shark", "Carcharhinus leucas (bull shark)", "Carcharhinus leucas"
     CarcharhinusPlumbeus, "Sandbar shark", "Carcharhinus plumbeus (sandbar shark)", "Carcharhinus plumbeus"
+    CarlitoSyrichta, "Philippine tarsier", "Carlito syrichta (Philippine tarsier)", "Carlito syrichta"
     CarolliaPerspicillata, "Seba's short-tailed bat", "Carollia perspicillata (Seba's short-tailed bat)", "Carollia perspicillata"
     CaviaPorcellus, "Domestic guinea pig", "Cavia porcellus (domestic guinea pig)", "Cavia porcellus"
     CephalopachusBancanus, "Horsfield's tarsier", "Cephalopachus bancanus (Horsfield's tarsier)", "Cephalopachus bancanus"
@@ -222,6 +227,7 @@ species!(
     EquusAsinus, "Ass", "Equus asinus (ass)", "Equus asinus"
     EquusBurchelliiAntiquorum, "Burchell's zebra", "Equus burchellii antiquorum", "Equus burchellii antiquorum"
     EquusCaballus, "Domestic horse", "Equus caballus (horse)", "Equus caballus"
+    EquusQuaggaBurchellii, "Burchell's zebra", "Equus quagga burchellii (Burchell's zebra)", "Equus quagga burchellii"
     ErythrocebusPatas, "Red guenon", "Erythrocebus patas (red guenon)", "Erythrocebus patas"
     EscherichiaColi, "E. coli", "Escherichia coli (E. coli)", "Escherichia coli"
     EsoxLucius, "Northern pike", "Esox lucius (northern pike)", "Esox lucius"
@@ -312,11 +318,12 @@ species!(
     MusSpretus, "Western wild mouse", "Mus spretus (western wild mouse)", "Mus spretus"
     MustelaPutoriusFuro, "Domestic ferret", "Mustela putorius furo (domestic ferret)", "Mustela putorius furo"
     MustelaSp, "Ferret", "Mustela sp.", "Mustela sp."
-    MyotisLucifugus, "Little brown bat", "Myotis lucifugus (little brown bat)", "Myotis lucifugus"
+    MyotisLucifugus,"Little brown bat", "Myotis lucifugus (little brown bat)", "Myotis lucifugus"
     NeophocaenaPhocaenoides, "Indo-Pacific finless porpoise", "Neophocaena phocaenoides (Indo-Pacific finless porpoise)", "Neophocaena phocaenoides"
-    NeovisonVison, "American mink", "Neovison vison (American mink)", "Neovison vison"
+    NeogaleVison, "American mink", "Neogale vison (American mink)", "Neogale vison"
     NomascusConcolor, "Black crested gibbon", "Nomascus concolor (Black crested gibbon)", "Nomascus concolor"
     NotamacropusEugenii, "Tammar wallaby", "Notamacropus eugenii (tammar wallaby)", "Notamacropus eugenii"
+    NothocricetulusMigratorius, "Armenian hamster", "Nothocricetulus migratorius (Armenian hamster)", "Nothocricetulus migratorius"
     NototheniaCoriiceps, "Black rockcod", "Notothenia coriiceps (black rockcod)", "Notothenia coriiceps"
     NycticebusCoucang, "Slow loris", "Nycticebus coucang (slow loris)", "Nycticebus coucang"
     OncorhynchusGorbuscha, "Pink salmon", "Oncorhynchus gorbuscha (pink salmon)", "Oncorhynchus gorbuscha"
@@ -383,6 +390,7 @@ species!(
     RattusVillosissimus, "Long-haired rat", "Rattus villosissimus (long-haired rat)", "Rattus villosissimus"
     RhinocerosUnicornis, "Greater Indian rhinoceros", "Rhinoceros unicornis (greater Indian rhinoceros)", "Rhinoceros unicornis"
     RousettusLeschenaultii, "Leschenault's rousette", "Rousettus leschenaultii (Leschenault's rousette)", "Rousettus leschenaultii"
+    SaccharomycesCerevisiae, "baker's yeast", "Saccharomyces cerevisiae (baker's yeast)", "Saccharomyces cerevisiae"
     SaguinusLabiatus, "Red-chested mustached tamarin", "Saguinus labiatus (red-chested mustached tamarin)", "Saguinus labiatus"
     SaguinusMidas, "Midas tamarin", "Saguinus midas (Midas tamarin)", "Saguinus midas"
     SaguinusOedipus, "Cotton-top tamarin", "Saguinus oedipus (cotton-top tamarin)", "Saguinus oedipus"
@@ -394,6 +402,7 @@ species!(
     SalvelinusAlpinus, "Arctic char", "Salvelinus alpinus (Arctic char)", "Salvelinus alpinus"
     SanderVitreus, "Walleye", "Sander vitreus (walleye)", "Sander vitreus"
     SapajusApella, "Tufted capuchin", "Sapajus apella (Tufted capuchin)", "Sapajus apella"
+    SchizophyllumCommune, "Schizophyllum commune", "Schizophyllum commune", "Schizophyllum commune"
     SciaenopsOcellatus, "Red drum", "Sciaenops ocellatus (red drum)", "Sciaenops ocellatus"
     ScophthalmusMaximus, "Turbot", "Scophthalmus maximus (turbot)", "Scophthalmus maximus"
     ScyliorhinusCanicula, "Smaller spotted catshark", "Scyliorhinus canicula (smaller spotted catshark)", "Scyliorhinus canicula"
@@ -409,6 +418,7 @@ species!(
     StegastesPartitus, "Bicolor damselfish", "Stegastes partitus (bicolor damselfish)", "Stegastes partitus"
     StenellaAttenuata, "Bridled dolphin", "Stenella attenuata (bridled dolphin)", "Stenella attenuata"
     StenellaCoeruleoalba, "Striped dolphin", "Stenella coeruleoalba (striped dolphin)", "Stenella coeruleoalba"
+    StreptomycesAvidinii, "Streptomyces avidinii", "Streptomyces avidinii", "Streptomyces avidinii"
     StreptomycesViridochromogenes, "Streptomyces viridochromogenes", "Streptomyces viridochromogenes", "Streptomyces viridochromogenes"
     StruthioCamelus, "African ostrich", "Struthio camelus (African ostrich)", "Struthio camelus"
     SuncusMurinus, "House shrew", "Suncus murinus (house shrew)", "Suncus murinus"
