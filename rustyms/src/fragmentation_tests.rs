@@ -594,7 +594,7 @@ fn intra_link() {
 }
 
 #[test]
-fn ensure_no_double_xl_labels() {
+fn ensure_no_double_xl_labels_breaking() {
     let peptide =
         CompoundPeptidoform::pro_forma("EVQLVESGGGLVQPGGSLRLSC[C:Disulfide#XL1]AASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYC[#XL1]SRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGC[C:Disulfide#XL2]LVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYIC[#XL2]NVNHKPSNTKVDKKVEPKSC[C:Disulfide#XL3]DKT//DIQMTQSPSSLSASVGDRVTITC[C:Disulfide#XL4]RASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYC[#XL4]QQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVC[C:Disulfide#XL5]LLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYAC[#XL5]EVTHQGLSSPVTKSFNRGEC[#XL3]", Some(&custom_database()))
             .unwrap();
@@ -602,6 +602,64 @@ fn ensure_no_double_xl_labels() {
         .b(PrimaryIonSeries::default())
         .y(PrimaryIonSeries::default())
         .allow_cross_link_cleavage(true);
+    let fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
+    let doubly_annotated = dbg!(fragments
+        .iter()
+        .filter(|f| f.formula.labels().len() > 2)
+        .collect_vec());
+    assert_eq!(doubly_annotated.len(), 0);
+}
+
+#[test]
+fn ensure_no_double_xl_labels_non_breaking() {
+    let peptide =
+        CompoundPeptidoform::pro_forma("EVQLVESGGGLVQPGGSLRLSC[C:Disulfide#XL1]AASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYC[#XL1]SRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGC[C:Disulfide#XL2]LVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYIC[#XL2]NVNHKPSNTKVDKKVEPKSC[C:Disulfide#XL3]DKT//DIQMTQSPSSLSASVGDRVTITC[C:Disulfide#XL4]RASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYC[#XL4]QQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVC[C:Disulfide#XL5]LLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYAC[#XL5]EVTHQGLSSPVTKSFNRGEC[#XL3]", Some(&custom_database()))
+            .unwrap();
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .allow_cross_link_cleavage(false);
+    let fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
+    let doubly_annotated = dbg!(fragments
+        .iter()
+        .filter(|f| f.formula.labels().len() > 2)
+        .collect_vec());
+    assert_eq!(doubly_annotated.len(), 0);
+}
+
+#[test]
+fn ensure_no_double_xl_labels_small_breaking() {
+    let peptide = CompoundPeptidoform::pro_forma(
+        "EC[C:Disulfide#XL1]AC[#XL1]SC[C:Disulfide#XL3]D//DC[#XL3]",
+        Some(&custom_database()),
+    )
+    .unwrap();
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .allow_cross_link_cleavage(true);
+    let fragments =
+        peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
+    let doubly_annotated = dbg!(fragments
+        .iter()
+        .filter(|f| f.formula.labels().len() > 2)
+        .collect_vec());
+    assert_eq!(doubly_annotated.len(), 0);
+}
+
+#[test]
+fn ensure_no_double_xl_labels_small_non_breaking() {
+    let peptide = CompoundPeptidoform::pro_forma(
+        "EC[C:Disulfide#XL1]AC[#XL1]SC[C:Disulfide#XL3]D//DC[#XL3]",
+        Some(&custom_database()),
+    )
+    .unwrap();
+    let model = Model::none()
+        .b(PrimaryIonSeries::default())
+        .y(PrimaryIonSeries::default())
+        .allow_cross_link_cleavage(false);
     let fragments =
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
