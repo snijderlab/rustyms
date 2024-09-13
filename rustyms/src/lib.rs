@@ -11,6 +11,7 @@
     clippy::suboptimal_flops,
     clippy::too_many_lines
 )]
+#![recursion_limit = "256"]
 
 #[cfg(feature = "align")]
 /// Only available with feature `align`.

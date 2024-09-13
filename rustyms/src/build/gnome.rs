@@ -52,18 +52,15 @@ fn parse_gnome(_debug: bool) -> HashMap<String, GNOmeModification> {
             continue;
         }
         // name: glycan of molecular weight 40.03 Da
-        let name = &obj.lines["name"][0];
         let mut modification = GNOmeModification {
             code_name: obj.lines["id"][0][4..].to_lowercase(),
-            is_a: obj.lines["is_a"][0]
-                .split_once('!')
-                .map(|(a, _)| a.trim()[4..].to_lowercase())
-                .unwrap(),
-            mass: if name.len() > 30 {
-                name[27..name.len() - 3].parse::<f64>().ok()
-            } else {
-                None
-            },
+            is_a: obj.lines["is_a"][0].trim()[4..].to_lowercase(),
+            mass: obj
+                .lines
+                .get("name")
+                .map(|e| &e[0])
+                .filter(|n| n.len() > 30)
+                .and_then(|name| name[27..name.len() - 3].parse::<f64>().ok()),
             ..GNOmeModification::default()
         };
 
