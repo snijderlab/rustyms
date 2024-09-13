@@ -42,28 +42,28 @@ pub enum MetaData {
     MSFragger(MSFraggerData),
 }
 
-impl MetaData {
+impl IdentifiedPeptide {
     /// Get the peptide
     pub const fn peptide(&self) -> Option<&LinearPeptide<SemiAmbiguous>> {
-        match self {
-            Self::Peaks(PeaksData { peptide, .. })
-            | Self::Novor(NovorData { peptide, .. })
-            | Self::Opair(OpairData { peptide, .. })
-            | Self::Sage(SageData { peptide, .. })
-            | Self::Fasta(FastaData { peptide, .. }) => Some(peptide),
-            Self::MSFragger(MSFraggerData { peptide, .. })
-            | Self::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
-            Self::None => None,
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { peptide, .. })
+            | MetaData::Novor(NovorData { peptide, .. })
+            | MetaData::Opair(OpairData { peptide, .. })
+            | MetaData::Sage(SageData { peptide, .. })
+            | MetaData::Fasta(FastaData { peptide, .. }) => Some(peptide),
+            MetaData::MSFragger(MSFraggerData { peptide, .. })
+            | MetaData::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
+            MetaData::None => None,
         }
     }
 
     /// Get the local confidence, it is the same lengths as the peptide with a local score in 0..=1
     pub fn local_confidence(&self) -> Option<&[f64]> {
-        match self {
-            Self::Peaks(PeaksData {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData {
                 local_confidence, ..
             }) => Some(local_confidence),
-            Self::Novor(NovorData {
+            MetaData::Novor(NovorData {
                 local_confidence, ..
             }) => local_confidence.as_deref(),
             _ => None,
@@ -72,76 +72,78 @@ impl MetaData {
 
     /// The charge of the precursor, if known
     pub const fn charge(&self) -> Option<Charge> {
-        match self {
-            Self::Peaks(PeaksData { z, .. })
-            | Self::Novor(NovorData { z, .. })
-            | Self::Opair(OpairData { z, .. })
-            | Self::Sage(SageData { z, .. })
-            | Self::MSFragger(MSFraggerData { z, .. })
-            | Self::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
-            Self::Fasta(_) | Self::None => None,
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { z, .. })
+            | MetaData::Novor(NovorData { z, .. })
+            | MetaData::Opair(OpairData { z, .. })
+            | MetaData::Sage(SageData { z, .. })
+            | MetaData::MSFragger(MSFraggerData { z, .. })
+            | MetaData::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
+            MetaData::Fasta(_) | MetaData::None => None,
         }
     }
 
     /// Which fragmentation mode was used, if known
     pub fn mode(&self) -> Option<&str> {
-        match self {
-            Self::Peaks(PeaksData { mode, .. }) => Some(mode),
-            Self::MaxQuant(MaxQuantData { fragmentation, .. }) => fragmentation.as_deref(),
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { mode, .. }) => Some(mode),
+            MetaData::MaxQuant(MaxQuantData { fragmentation, .. }) => fragmentation.as_deref(),
             _ => None,
         }
     }
 
     /// The retention time, if known
     pub fn retention_time(&self) -> Option<Time> {
-        match self {
-            Self::Peaks(PeaksData { rt, .. })
-            | Self::Opair(OpairData { rt, .. })
-            | Self::Sage(SageData { rt, .. })
-            | Self::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
-            Self::MaxQuant(MaxQuantData { rt, .. }) | Self::Novor(NovorData { rt, .. }) => *rt,
-            Self::Fasta(_) | Self::None => None,
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { rt, .. })
+            | MetaData::Opair(OpairData { rt, .. })
+            | MetaData::Sage(SageData { rt, .. })
+            | MetaData::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
+            MetaData::MaxQuant(MaxQuantData { rt, .. }) | MetaData::Novor(NovorData { rt, .. }) => {
+                *rt
+            }
+            MetaData::Fasta(_) | MetaData::None => None,
         }
     }
 
     /// The scan indices of the spectrum for this identified peptide, if known.
     pub fn scan_indices(&self) -> Option<Vec<usize>> {
-        match self {
-            Self::Peaks(PeaksData { scan, .. }) => {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { scan, .. }) => {
                 Some(scan.iter().flat_map(|i| &i.scans).copied().collect())
             }
-            Self::Novor(NovorData { scan, .. }) | Self::Opair(OpairData { scan, .. }) => {
+            MetaData::Novor(NovorData { scan, .. }) | MetaData::Opair(OpairData { scan, .. }) => {
                 Some(vec![*scan])
             }
-            Self::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
-            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
-            Self::Sage(_) | Self::Fasta(_) | Self::None => None,
+            MetaData::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
+            MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
+            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None => None,
         }
     }
 
     /// The native ids of the spectrum for this identified peptide, if known.
     pub fn spectrum_native_ids(&self) -> Option<Vec<String>> {
-        match self {
-            Self::Sage(SageData { native_id, .. }) => Some(vec![native_id.clone()]),
-            Self::MaxQuant(_)
-            | Self::Opair(_)
-            | Self::Novor(_)
-            | Self::Peaks(_)
-            | Self::Fasta(_)
-            | Self::MSFragger(_)
-            | Self::None => None,
+        match &self.metadata {
+            MetaData::Sage(SageData { native_id, .. }) => Some(vec![native_id.clone()]),
+            MetaData::MaxQuant(_)
+            | MetaData::Opair(_)
+            | MetaData::Novor(_)
+            | MetaData::Peaks(_)
+            | MetaData::Fasta(_)
+            | MetaData::MSFragger(_)
+            | MetaData::None => None,
         }
     }
 
     /// Get the file name for the raw file
     pub fn raw_file(&self) -> Option<&Path> {
-        match self {
-            Self::Peaks(PeaksData { raw_file, .. }) => raw_file.as_deref(),
-            Self::Opair(OpairData { raw_file, .. })
-            | Self::MaxQuant(MaxQuantData { raw_file, .. })
-            | Self::Sage(SageData { raw_file, .. }) => Some(raw_file),
-            Self::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
-            Self::Novor(_) | Self::Fasta(_) | Self::None => None,
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { raw_file, .. }) => raw_file.as_deref(),
+            MetaData::Opair(OpairData { raw_file, .. })
+            | MetaData::MaxQuant(MaxQuantData { raw_file, .. })
+            | MetaData::Sage(SageData { raw_file, .. }) => Some(raw_file),
+            MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
+            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None => None,
         }
     }
 }
