@@ -45,7 +45,7 @@ fn main() {
                         peptide,
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
                             &db.peptide,
-                            peptide.metadata.peptide().unwrap(),
+                            peptide.peptide().unwrap(),
                             matrix::BLOSUM62,
                             Tolerance::Absolute(da(0.1)),
                             AlignType::EITHER_GLOBAL,
@@ -61,7 +61,6 @@ fn main() {
                 (
                     "Rawfile".to_string(),
                     peptide
-                        .metadata
                         .raw_file()
                         .map_or(String::new(), |p| p.to_string_lossy().to_string()),
                 ),
