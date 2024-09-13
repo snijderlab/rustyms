@@ -27,6 +27,7 @@ pub fn combine(
 
     for element in data.flatten() {
         let species = element.species;
+        // println!("{element}");
         // if species != Species::HomoSapiens {
         //     continue;
         // }
@@ -62,12 +63,12 @@ pub fn combine(
 
     // Save temp seqs in final data structure
     for (species, entry) in deduped_temp {
-        if species == Species::HomoSapiens
-            && entry.name.kind == GeneType::C(Some(Constant::M))
-            && entry.name.chain == ChainType::Heavy
-        {
-            println!("{}", entry);
-        }
+        // if species == Species::HomoSapiens
+        //     && entry.name.kind == GeneType::C(Some(Constant::M))
+        //     && entry.name.chain == ChainType::Heavy
+        // {
+        //     println!("{}", entry);
+        // }
         grouped
             .entry(species)
             .or_insert(Germlines::new(species))
