@@ -10,7 +10,7 @@ use crate::imgt_gene::IMGTGene;
 use crate::structs::DataItem;
 
 use crate::shared::{
-    AnnotatedSequence, Annotation, ChainType, Constant, Gene, GeneType, Germline, Germlines,
+    AnnotatedSequence, Annotation, Gene, Germline, Germlines,
     Species,
 };
 use crate::structs::SingleSeq;
