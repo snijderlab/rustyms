@@ -26,7 +26,8 @@ pub fn parse_dat<T: std::io::Read>(
         .filter(|pre| {
             pre.kw.contains(&"immunoglobulin (IG)".to_string())
                 && (pre.kw.contains(&"functional".to_string())
-                    || pre.kw.contains(&"germline".to_string()))
+                    || pre.kw.contains(&"germline".to_string())
+                    || pre.kw.contains(&"productive".to_string()))
                 && pre.os.is_some()
         })
         .map(DataItem::new)
@@ -67,6 +68,7 @@ fn parse_dat_line(data: &mut PreDataItem, line: &str) -> bool {
 
 impl DataItem {
     fn new(data: PreDataItem) -> Result<Self, String> {
+        // println!("{}", data.id);
         let mut result = Self {
             id: data.id[5..].split(';').next().unwrap().to_string(),
             species: data.os.ok_or("No species found")?,
@@ -91,7 +93,7 @@ impl DataItem {
                         reported_seq: String::new(),
                         found_seq: Err("Not loaded".to_string()),
                         allele: String::new(),
-                        functional: false,
+                        functional: true,
                         partial: false,
                         shift: 0,
                         splice_aa: None,
@@ -118,7 +120,7 @@ impl DataItem {
         let trimmed = line.trim();
         let split = trimmed
             .split_once('=')
-            .map(|(key, tail)| (key.to_lowercase(), tail));
+            .map(|(key, tail)| (key.to_ascii_lowercase(), tail));
 
         match split.as_ref().map(|(key, tail)| (key.as_str(), tail)) {
             Some(("/translation", tail)) => {
@@ -139,8 +141,14 @@ impl DataItem {
                     current.splice_aa = AminoAcid::try_from(tail.as_bytes()[i - 1]).ok();
                 }
             }
-            Some(("/functional" | "/note=\"functional\"" | "/imgt_note=\"functional\"", _)) => {
+            Some(("/functional", _)) => {
                 current.functional = true;
+            }
+            Some(("/note" | "/imgt_note", s)) if s.to_ascii_lowercase().contains("functional") => {
+                current.functional = true;
+            }
+            Some(("/pseudo", _)) => {
+                current.functional = false;
             }
             Some(("/partial", _)) => current.partial = true,
             None if *is_sequence => {
@@ -153,6 +161,7 @@ impl DataItem {
     }
 
     fn add_region(&mut self, mut region: Region) {
+        // println!("AR: {region}");
         // Get the actual sequence
         region.found_seq = self.get_sequence(&region.location, region.shift);
 
@@ -169,6 +178,22 @@ impl DataItem {
                 allele: region.allele,
                 regions: HashMap::new(),
             });
+        } else if ["V-REGION", "C-REGION", "J-REGION"].contains(&region.key.as_str()) // , "D-GENE"
+            && region.functional
+            && !region.partial
+            && region.allele.starts_with("IG")
+        {
+            if let Some(existing) = self.genes.iter_mut().find(|g| g.allele == region.allele) {
+                existing.regions.insert(region.key.clone(), region);
+            } else {
+                self.genes.push(IMGTGene {
+                    acc: region.acc,
+                    key: region.key,
+                    location: region.location,
+                    allele: region.allele,
+                    regions: HashMap::new(),
+                });
+            }
         } else if [
             "FR1-IMGT",
             "FR2-IMGT",
@@ -215,7 +240,18 @@ impl DataItem {
         ]
         .contains(&region.key.as_str())
         {
-            if let Some(gene) = self
+            if region.key == "CDR3-IMGT" {
+                if let Some(gene) = self
+                    .genes
+                    .iter_mut()
+                    .find(|g| g.location.overlaps(&region.location))
+                // CDR3 does not have to be fully inside a V-REGION
+                {
+                    gene.regions.insert(region.key.clone(), region);
+                } else {
+                    self.regions.push(region)
+                }
+            } else if let Some(gene) = self
                 .genes
                 .iter_mut()
                 .find(|g| g.location.contains(&region.location))

@@ -46,9 +46,12 @@ impl Display for Region {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}",
             self.key,
             self.location,
+            self.allele,
+            self.functional,
+            self.partial,
             // self.sequence,
             // dna,
             // self.found_seq.0,
@@ -71,6 +74,19 @@ pub enum Location {
 }
 
 impl Location {
+    /// Check if a location overlaps or is immediately adjacent to this location.
+    /// Used to detect if a CDR3 belongs to a certain V-REGION
+    pub fn overlaps(&self, other: &Location) -> bool {
+        match (self, other) {
+            (Self::Complement(s), Self::Complement(o)) | (Self::Normal(s), Self::Normal(o)) => {
+                *s.start() <= o.end() + 1 && s.end() + 1 >= *o.start()
+            }
+            (Self::Complement(s), Self::SingleComplement(o)) => s.contains(o),
+            (Self::Normal(s), Self::SingleNormal(o)) => s.contains(o),
+            _ => false,
+        }
+    }
+
     pub fn contains(&self, other: &Location) -> bool {
         match (self, other) {
             (Self::Complement(s), Self::Complement(o)) | (Self::Normal(s), Self::Normal(o)) => {
