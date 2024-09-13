@@ -111,21 +111,11 @@ _Number of genes / number of alleles_
 pub fn all_germlines() -> impl std::iter::Iterator<Item = &'static Germlines> {{"
     )
     .unwrap();
-    let mut first = true;
+    writeln!(output, "[").unwrap();
     for species in &found_species {
-        if first {
-            first = false;
-            writeln!(output, "std::iter::once(lock_{}())", species.ident()).unwrap();
-        } else {
-            writeln!(
-                output,
-                ".chain(std::iter::once(lock_{}()))",
-                species.ident()
-            )
-            .unwrap();
-        }
+        writeln!(output, "lock_{}(),", species.ident()).unwrap();
     }
-    writeln!(output, "}}").unwrap();
+    writeln!(output, "].into_iter()\n}}").unwrap();
     // par_germlines
     writeln!(
         output,
@@ -136,21 +126,11 @@ use rayon::prelude::*;
 pub fn par_germlines() -> impl rayon::prelude::ParallelIterator<Item = &'static Germlines> {{"
     )
     .unwrap();
-    let mut first = true;
+    writeln!(output, "[").unwrap();
     for species in &found_species {
-        if first {
-            first = false;
-            writeln!(output, "rayon::iter::once(lock_{}())", species.ident()).unwrap();
-        } else {
-            writeln!(
-                output,
-                ".chain(rayon::iter::once(lock_{}()))",
-                species.ident()
-            )
-            .unwrap();
-        }
+        writeln!(output, "lock_{}(),", species.ident()).unwrap();
     }
-    writeln!(output, "}}").unwrap();
+    writeln!(output, "].into_par_iter()\n}}").unwrap();
 
     for species in &found_species {
         writeln!(

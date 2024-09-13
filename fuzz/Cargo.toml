@@ -1,8 +1,10 @@
 [package]
 name = "rustyms-fuzz"
 version = "0.0.0"
-publish = false
+authors.workspace = true
 edition.workspace = true
+license.workspace = true
+publish = false
 
 [package.metadata]
 cargo-fuzz = true
