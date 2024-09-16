@@ -257,14 +257,15 @@ fn parse_single_modification(
                         "This modification cannot be read as a numerical modification",
                     )
                 }),
-                (_, _tail) => Ontology::Unimod
+                (_, _) => Ontology::Unimod
                     .find_name(full.0, custom_database)
                     .or_else(|| Ontology::Psimod.find_name(full.0, custom_database))
                     .map(Some)
                     .ok_or_else(||
-                        Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Custom], full.0, custom_database)
-                    .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification. Or did you intent to use a ontology that is not yet supported?")
-                    .with_context(Context::line(None, line, offset+full.1, full.2)))
+                        Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Resid, Ontology::Custom], full.0, custom_database)
+                        .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name.")
+                        .with_context(Context::line(None, line, offset+full.1, full.2))
+                    )
             }
         } else if full.0.is_empty() {
             Ok(None)
@@ -275,7 +276,7 @@ fn parse_single_modification(
                 .flat_err()
                 .map(Some)
                 .map_err(|_|
-                    Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Custom], full.0, custom_database)
+                    Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Resid, Ontology::Custom], full.0, custom_database)
                     .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name, or as a numerical modification.")
                     .with_context(Context::line(None, line, offset+full.1, full.2))
                 )
