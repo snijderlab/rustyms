@@ -81,10 +81,16 @@ pub enum SimpleModification {
     /// A glycan with a defined structure
     GlycanStructure(GlycanStructure),
     /// A modification from the GNOme ontology
-    Gno(
-        GnoComposition,
-        String, // Name
-    ),
+    Gno {
+        /// The composition, weight/composition/topology
+        composition: GnoComposition,
+        /// The id/name
+        id: ModificationId,
+        /// The structure score
+        structure_score: Option<usize>,
+        /// The subsumption level
+        subsumption_level: GnoSubsumption,
+    },
     /// A modification from one of the modification ontologies
     Database {
         /// The placement rules, neutral losses, and diagnostic ions
@@ -115,7 +121,7 @@ pub struct ModificationId {
     /// The name
     pub name: String,
     /// The id
-    pub id: usize,
+    pub id: Option<usize>,
     /// The description, mostly for search results
     pub description: String,
     /// Any synonyms
@@ -158,7 +164,27 @@ pub enum LinkerSpecificity {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum GnoComposition {
     /// Only the mass is known
-    Mass(OrderedMass),
+    Weight(OrderedMass),
+    /// The composition,
+    Composition(Vec<(MonoSaccharide, isize)>),
     /// The (full) structure is known
-    Structure(GlycanStructure),
+    Topology(GlycanStructure),
+}
+
+/// All possible subsumption levels in the GNOme database indicating different levels of description for a glycan species
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
+pub enum GnoSubsumption {
+    /// Indicates only the average weight is defined
+    #[default]
+    AverageWeight,
+    /// Indicates the basic composition, without isomeric information
+    BaseComposition,
+    /// Indicates the composition, with isomeric information
+    Composition,
+    /// Indicates the topology, without linkage and anomeric information
+    Topology,
+    /// Indicates the topology, without reducing end ring and anomeric information
+    Saccharide,
 }

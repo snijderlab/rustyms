@@ -30,11 +30,11 @@ impl ModificationId {
         match self.ontology {
             Ontology::Unimod => Some(format!(
                 "https://www.unimod.org/modifications_view.php?editid1={}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Psimod => Some(format!(
                 "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{:05}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Gnome => Some(format!(
                 "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
@@ -42,7 +42,7 @@ impl ModificationId {
             )),
             Ontology::Resid => Some(format!(
                 "https://proteininformationresource.org/cgi-bin/resid?id=AA{:04}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Xlmod | Ontology::Custom => None,
         }
@@ -104,18 +104,25 @@ impl Chemical for SimpleModification {
         match self {
             Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
             Self::Formula(elements) => elements.clone(),
-            Self::Glycan(monosaccharides) => monosaccharides
+            Self::Gno {
+                composition: GnoComposition::Composition(monosaccharides),
+                ..
+            }
+            | Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula_inner(position, peptide_index) * i.1 as i32
                 }),
-            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula_inner(position, peptide_index)
-            }
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan.formula_inner(position, peptide_index),
             Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => {
-                MolecularFormula::with_additional_mass(m.value)
-            }
+            Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
         }
     }
 }
@@ -127,8 +134,9 @@ impl SimpleModification {
         match self {
             Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
             Self::Database { id, .. } | Self::Linker { id, .. } => id.url(),
-            Self::Gno(_, name) => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}",
+            Self::Gno { id, .. } => Some(format!(
+                "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
+                id.name
             )),
         }
     }
@@ -142,18 +150,25 @@ impl SimpleModification {
         match self {
             Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
             Self::Formula(elements) => elements.clone(),
-            Self::Glycan(monosaccharides) => monosaccharides
+            Self::Gno {
+                composition: GnoComposition::Composition(monosaccharides),
+                ..
+            }
+            | Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula_inner(sequence_index, peptide_index) * i.1 as i32
                 }),
-            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula_inner(sequence_index, peptide_index)
-            }
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan.formula_inner(sequence_index, peptide_index),
             Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => {
-                MolecularFormula::with_additional_mass(m.value)
-            }
+            Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
         }
     }
 
@@ -263,11 +278,9 @@ impl SimpleModification {
             } if specification_compliant => {
                 write!(f, "C:{name}")?;
             }
-            Self::Database { id, .. } => {
-                write!(f, "{}:{}", id.ontology.char(), id.name)?;
+            Self::Database { id, .. } | Self::Gno { id, .. } | Self::Linker { id, .. } => {
+                write!(f, "{}:{}", id.ontology.char(), id.name)?
             }
-            Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
-            Self::Linker { id, .. } => write!(f, "{}:{}", id.ontology.char(), id.name)?,
         }
         Ok(())
     }
@@ -623,7 +636,11 @@ impl SimpleModification {
                         .lookup(custom_database)
                         .iter()
                         .filter(|(_, _, m)| {
-                            if let Self::Gno(GnoComposition::Structure(structure), _) = m {
+                            if let Self::Gno {
+                                composition: GnoComposition::Topology(structure),
+                                ..
+                            } = m
+                            {
                                 MonoSaccharide::search_composition(structure.composition())
                                     == *search
                             } else {
@@ -648,8 +665,12 @@ impl SimpleModification {
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
-        if let Self::GlycanStructure(glycan) = self {
-            glycan
+        match self {
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan
                 .clone()
                 .determine_positions()
                 .generate_theoretical_fragments(
@@ -659,21 +680,12 @@ impl SimpleModification {
                     charge_carriers,
                     full_formula,
                     attachment,
-                )
-        } else if let Self::Gno(GnoComposition::Structure(glycan), _) = self {
-            glycan
-                .clone()
-                .determine_positions()
-                .generate_theoretical_fragments(
-                    model,
-                    peptidoform_index,
-                    peptide_index,
-                    charge_carriers,
-                    full_formula,
-                    attachment,
-                )
-        } else if let Self::Glycan(composition) = self {
-            MonoSaccharide::theoretical_fragments(
+                ),
+            Self::Glycan(composition)
+            | Self::Gno {
+                composition: GnoComposition::Composition(composition),
+                ..
+            } => MonoSaccharide::theoretical_fragments(
                 composition,
                 model,
                 peptidoform_index,
@@ -681,9 +693,8 @@ impl SimpleModification {
                 charge_carriers,
                 full_formula,
                 attachment,
-            )
-        } else {
-            Vec::new()
+            ),
+            _ => Vec::new(),
         }
     }
 }
@@ -696,17 +707,17 @@ pub enum ModificationSearchResult {
     Mass(
         Mass,
         Tolerance<Mass>,
-        Vec<(Ontology, usize, String, SimpleModification)>,
+        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
     ),
     /// All modifications with the same formula
     Formula(
         MolecularFormula,
-        Vec<(Ontology, usize, String, SimpleModification)>,
+        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
     ),
     /// All modifications with the same glycan composition
     Glycan(
         Vec<(MonoSaccharide, isize)>,
-        Vec<(Ontology, usize, String, SimpleModification)>,
+        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
     ),
 }
 

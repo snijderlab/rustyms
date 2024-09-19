@@ -62,36 +62,35 @@ fn parse_psi_mod(_debug: bool) -> Vec<OntologyModification> {
         let mut rules = Vec::new();
         let mut origins = Vec::new();
         let mut term = None;
-        if let Some(values) = obj.lines.get("property_value") {
-            for line in values {
-                if line.starts_with("DiffFormula") {
-                    modification.formula =
-                        MolecularFormula::from_psi_mod(line, 13..line.len() - 11).unwrap();
-                } else if line.starts_with("Origin") {
-                    origins = line[8..line.len() - 12]
-                        .split(',')
-                        .map(|s| s.trim())
-                        .collect();
-                } else if line.starts_with("TermSpec") {
-                    if line[10..].starts_with("N-term") {
-                        term = Some(Position::AnyNTerm);
-                    } else if line[10..].starts_with("C-term") {
-                        term = Some(Position::AnyCTerm);
-                    } else {
-                        panic!("Invalid TermSpec: {line}")
-                    }
+        for (id, value) in obj.property_values {
+            if id == "DiffFormula" {
+                modification.formula =
+                    MolecularFormula::from_psi_mod(&value[0].to_string(), ..).unwrap();
+            } else if id == "Origin" {
+                origins = value[0]
+                    .to_string()
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect();
+            } else if id == "TermSpec" {
+                if value[0].to_string() == "N-term" {
+                    term = Some(Position::AnyNTerm);
+                } else if value[0].to_string() == "C-term" {
+                    term = Some(Position::AnyCTerm);
+                } else {
+                    panic!("Invalid TermSpec: {}", value[0])
                 }
             }
         }
         // If the list of possible origins contains "X" than the mod can be placed on any aminoacid
         // But if there is a TermSpec definition that should still be accounted for
-        let all_aminoacids = origins.contains(&"X");
+        let all_aminoacids = origins.contains(&"X".to_string());
         if !all_aminoacids {
             for origin in &origins {
                 if origin.len() == 1 {
                     rules.push((
                         vec![PlacementRule::AminoAcid(
-                            vec![(*origin).try_into().unwrap()],
+                            vec![origin.try_into().unwrap()],
                             term.unwrap_or(Position::Anywhere),
                         )],
                         Vec::new(),

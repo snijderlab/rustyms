@@ -110,7 +110,7 @@ impl Ontology {
         custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
         for option in self.lookup(custom_database) {
-            if option.0 == id {
+            if option.0.is_some_and(|i| i == id) {
                 return Some(option.2.clone());
             }
         }

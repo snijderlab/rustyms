@@ -102,6 +102,20 @@ impl TryFrom<&str> for AminoAcid {
     }
 }
 
+impl TryFrom<String> for AminoAcid {
+    type Error = ();
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.as_str().try_into()
+    }
+}
+
+impl TryFrom<&String> for AminoAcid {
+    type Error = ();
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        value.as_str().try_into()
+    }
+}
+
 impl TryFrom<char> for AminoAcid {
     type Error = ();
     fn try_from(value: char) -> Result<Self, Self::Error> {

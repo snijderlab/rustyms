@@ -49,6 +49,60 @@ impl MonoSaccharide {
         }
     }
 
+    /// Simplify a glycan composition to be sorted and deduplicated.
+    /// Returns None if overflow occurred, meaning that there where more than `isize::MAX` or less then `isize::MIN` monosaccharides for one species.
+    pub(crate) fn simplify_composition(
+        mut composition: Vec<(Self, isize)>,
+    ) -> Option<Vec<(Self, isize)>> {
+        // Sort on monosaccharide
+        composition.retain(|el| el.1 != 0);
+        composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+        // Deduplicate
+        let mut max = composition.len().saturating_sub(1);
+        let mut index = 0;
+        while index < max {
+            let this = &composition[index];
+            let next = &composition[index + 1];
+            if this.0 == next.0 {
+                composition[index].1 = composition[index].1.checked_add(next.1)?;
+                composition.remove(index + 1);
+                max = max.saturating_sub(1);
+            } else {
+                index += 1;
+            }
+        }
+        composition.retain(|el| el.1 != 0);
+        Some(composition)
+    }
+
+    /// Parse the given text (will be changed to lowercase) as a glycan composition.
+    /// # Errors
+    /// When the composition could not be read. Or when any of the glycans occurs outside of the valid range
+    pub fn from_composition(text: &str) -> Result<Vec<(Self, isize)>, CustomError> {
+        let basic_error =
+            CustomError::error("Invalid glycan composition", "..", Context::show(text));
+        Self::simplify_composition(
+            crate::helper_functions::parse_named_counter(
+                &text.to_ascii_lowercase(),
+                glycan_parse_list(),
+                false,
+            )
+            .map_err(|e| {
+                basic_error.with_long_description(format!(
+                    "This modification cannot be read as a valid glycan: {e}"
+                ))
+            })?,
+        )
+        .ok_or_else(|| {
+            basic_error.with_long_description(format!(
+                "The occurrence of one monosaccharide species is outside of the range {} to {}",
+                isize::MIN,
+                isize::MAX
+            ))
+        })
+    }
+
     /// Parse a short IUPAC name from this string starting at `start` and returning,
     /// if successful, a monosaccharide and the offset in the string where parsing ended.
     /// # Errors

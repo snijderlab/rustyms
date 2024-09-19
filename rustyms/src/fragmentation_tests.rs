@@ -509,7 +509,7 @@ fn glycan_composition_fragmentation() {
 fn custom_database() -> CustomDatabase {
     vec![
         (
-            0,
+            Some(0),
             "dsso".to_string(),
             SimpleModification::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
@@ -526,7 +526,7 @@ fn custom_database() -> CustomDatabase {
                 formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
                 id: ModificationId {
                     name: "DSSO".to_string(),
-                    id: 0,
+                    id: Some(0),
                     ontology: modification::Ontology::Custom,
                     ..ModificationId::default()
                 },
@@ -534,7 +534,7 @@ fn custom_database() -> CustomDatabase {
             },
         ),
         (
-            1,
+            Some(1),
             "disulfide".to_string(),
             SimpleModification::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
@@ -548,7 +548,7 @@ fn custom_database() -> CustomDatabase {
                 formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
                 id: ModificationId {
                     name: "Disulfide".to_string(),
-                    id: 1,
+                    id: Some(1),
                     ontology: modification::Ontology::Custom,
                     ..ModificationId::default()
                 },

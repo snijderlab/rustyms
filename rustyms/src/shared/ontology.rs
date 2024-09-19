@@ -64,4 +64,4 @@ impl std::fmt::Display for Ontology {
 }
 
 /// The shared type for contact between the build and compile steps
-pub type OntologyModificationList = Vec<(usize, String, SimpleModification)>;
+pub type OntologyModificationList = Vec<(Option<usize>, String, SimpleModification)>;

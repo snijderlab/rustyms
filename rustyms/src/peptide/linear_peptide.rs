@@ -932,7 +932,10 @@ impl<Complexity> LinearPeptide<Complexity> {
                     ));
                 }
                 SimpleModification::GlycanStructure(structure)
-                | SimpleModification::Gno(GnoComposition::Structure(structure), _) => {
+                | SimpleModification::Gno {
+                    composition: GnoComposition::Topology(structure),
+                    ..
+                } => {
                     output.extend(
                         structure
                             .clone()

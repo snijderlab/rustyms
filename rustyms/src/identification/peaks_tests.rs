@@ -39,7 +39,7 @@ fn peaks_11_custom_modification() {
             BufReader::new(DATA_11_CUSTOM_MODIFICATION.as_bytes()),
             &peaks::XI,
             Some(&vec![(
-                0,
+                Some(0),
                 "oxidation".to_string(),
                 SimpleModification::Formula(molecular_formula!(O 1)),
             )])

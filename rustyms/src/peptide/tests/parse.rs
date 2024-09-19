@@ -379,7 +379,7 @@ fn parse_custom() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma(
         "A[C:WEEE]",
         Some(&vec![(
-            0,
+            Some(0),
             "weee".to_string(),
             SimpleModification::Database {
                 formula: molecular_formula!(U 1),
@@ -394,7 +394,7 @@ fn parse_custom() {
                 id: ModificationId {
                     ontology: modification::Ontology::Custom,
                     name: "WEEE".to_string(),
-                    id: 0,
+                    id: Some(0),
                     ..ModificationId::default()
                 }
             }

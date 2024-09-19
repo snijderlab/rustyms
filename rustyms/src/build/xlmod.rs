@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{formula::MolecularFormula, LinkerSpecificity};
 
 use super::{
-    obo::OboOntology,
+    obo::{OboOntology, OboValue},
     ontology_modification::{
         OntologyModification, OntologyModificationList, PlacementRule, Position,
     },
@@ -64,78 +64,89 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
                 synonyms.push(line.0.to_string());
             }
         }
-        if let Some(values) = obj.lines.get("property_value") {
-            for line in values {
-                if line.starts_with("reactionSites") {
-                    // reactionSites: "2" xsd:nonNegativeInteger
-                    sites = Some((line[16..line.len() - 24]).parse::<u8>().unwrap());
-                } else if line.starts_with("spacerLength") {
-                    // spacerLength: "5.0" xsd:float
-                    if !line[15..line.len() - 11].contains('-') {
-                        length = Some(
-                            (line[15..line.len() - 11])
-                                .parse::<ordered_float::OrderedFloat<f64>>()
-                                .unwrap(),
-                        );
+        for (id, value) in obj.property_values {
+            match id.as_str() {
+                "reactionSites" => {
+                    sites = if let OboValue::Integer(n) = value[0] {
+                        Some(u8::try_from(n).unwrap())
+                    } else {
+                        unreachable!()
                     }
-                } else if line.starts_with("monoIsotopicMass") {
-                    // monoIsotopicMass: "535.15754" xsd:double
-                    mass = Some(
-                        (line[19..line.len() - 12])
-                            .parse::<ordered_float::OrderedFloat<f64>>()
-                            .unwrap(),
-                    );
-                } else if line.starts_with("deadEndFormula") {
-                    // deadEndFormula: "C8 H12 O3" xsd:string
+                }
+                "spacerLength" => {
+                    length = if let OboValue::Float(n) = value[0] {
+                        Some(ordered_float::OrderedFloat(n))
+                    } else {
+                        None // can contain ranges
+                    }
+                }
+                "monoIsotopicMass" => {
+                    mass = if let OboValue::Float(n) = value[0] {
+                        Some(ordered_float::OrderedFloat(n))
+                    } else {
+                        unreachable!()
+                    }
+                }
+                "deadEndFormula" => {
                     sites = Some(1);
                     formula =
-                        Some(MolecularFormula::from_xlmod(line, 17..line.len() - 11).unwrap());
-                } else if line.starts_with("bridgeFormula") {
-                    // bridgeFormula: "C7 D10 H2 N4" xsd:string
+                        Some(MolecularFormula::from_xlmod(&value[0].to_string(), ..).unwrap());
+                }
+                "bridgeFormula" => {
                     sites = Some(2);
                     formula =
-                        Some(MolecularFormula::from_xlmod(line, 16..line.len() - 11).unwrap());
-                } else if line.starts_with("specificities") {
+                        Some(MolecularFormula::from_xlmod(&value[0].to_string(), ..).unwrap());
+                }
+                "specificities" => {
                     // specificities: "(C,U)" xsd:string
                     // specificities: "(K,N,Q,R,Protein N-term)&(E,D,Protein C-term)" xsd:string
-                    if let Some((l, r)) = line[17..line.len() - 13].split_once('&') {
+                    if let Some((l, r)) = value[0].to_string().split_once('&') {
                         origins = (
                             l.trim_matches(['(', ')'])
                                 .split(',')
-                                .map(|s| s.trim())
+                                .map(|s| s.trim().to_string())
                                 .collect(),
                             r.trim_matches(['(', ')'])
                                 .split(',')
-                                .map(|s| s.trim())
+                                .map(|s| s.trim().to_string())
                                 .collect(),
                         );
                     } else {
                         origins = (
-                            line[17..line.len() - 13]
+                            value[0]
+                                .to_string()
                                 .trim_matches(['(', ')'])
                                 .split(',')
-                                .map(|s| s.trim())
+                                .map(|s| s.trim().to_string())
                                 .collect(),
                             Vec::new(),
                         );
                     }
-                } else if line.starts_with("secondarySpecificities") {
+                }
+                "secondarySpecificities" => {
                     // secondarySpecificities: "(S,T,Y)" xsd:string
                     origins.0.extend(
-                        line[26..line.len() - 13]
+                        value[0]
+                            .to_string()
                             .trim_matches(['(', ')'])
                             .split(',')
-                            .map(|s| s.trim()),
+                            .map(|s| s.trim().to_string()),
                     );
-                } else if line.starts_with("reporterMass") || line.starts_with("CID_Fragment") {
+                }
+                "reporterMass" | "CID_Fragment" => {
                     // reporterMass: "555.2481" xsd:double
                     // CID_Fragment: "828.5" xsd:double
                     diagnostic_ions.push(crate::DiagnosticIon(
                         MolecularFormula::with_additional_mass(
-                            line[15..line.len() - 12].parse().unwrap(),
+                            if let OboValue::Float(n) = value[0] {
+                                n
+                            } else {
+                                unreachable!()
+                            },
                         ),
                     ))
                 }
+                _ => {}
             }
         }
         let origins = (
@@ -191,7 +202,7 @@ fn parse_xlmod(_debug: bool) -> Vec<OntologyModification> {
     mods
 }
 
-fn read_placement_rules(bricks: &[&str]) -> Vec<PlacementRule> {
+fn read_placement_rules(bricks: &[String]) -> Vec<PlacementRule> {
     if bricks.is_empty() {
         vec![PlacementRule::Anywhere]
     } else {
@@ -200,14 +211,14 @@ fn read_placement_rules(bricks: &[&str]) -> Vec<PlacementRule> {
             .filter_map(|brick| {
                 if brick.len() == 1 {
                     Some(PlacementRule::AminoAcid(
-                        vec![(*brick).try_into().unwrap()],
+                        vec![brick.try_into().unwrap()],
                         Position::Anywhere,
                     ))
                 } else if *brick == "Protein N-term" {
                     Some(PlacementRule::Terminal(Position::ProteinNTerm))
                 } else if *brick == "Protein C-term" {
                     Some(PlacementRule::Terminal(Position::ProteinCTerm))
-                } else if ["Thy"].contains(brick) {
+                } else if ["Thy"].contains(&brick.as_str()) {
                     None
                 } else {
                     panic!("Invalid placement rule: '{brick}'")

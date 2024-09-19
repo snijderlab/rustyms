@@ -10,7 +10,7 @@ use regex::Regex;
 
 use crate::{
     error::{Context, CustomError},
-    glycan::{glycan_parse_list, GlycanStructure, MonoSaccharide},
+    glycan::{GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::CustomDatabase,
     placement_rule::Position,
@@ -127,44 +127,57 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("Unimod accession number should be a number")
                     })?;
-                    Ontology::Unimod.find_id(id, custom_database).map(Some).ok_or_else(|| {
-                        basic_error.with_long_description(
+                    Ontology::Unimod
+                        .find_id(id, custom_database)
+                        .map(Some)
+                        .ok_or_else(|| {
+                            basic_error.with_long_description(
                             "The supplied Unimod accession number is not an existing modification",
                         )
-                    })
+                        })
                 }
                 ("mod", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| {
                         basic_error
                             .with_long_description("PSI-MOD accession number should be a number")
                     })?;
-                    Ontology::Psimod.find_id(id, custom_database).map(Some).ok_or_else(|| {
-                        basic_error.with_long_description(
+                    Ontology::Psimod
+                        .find_id(id, custom_database)
+                        .map(Some)
+                        .ok_or_else(|| {
+                            basic_error.with_long_description(
                             "The supplied PSI-MOD accession number is not an existing modification",
                         )
-                    })
+                        })
                 }
                 ("resid", tail) => {
                     let id = tail[2..].parse::<usize>().map_err(|_| {
-                        basic_error
-                            .with_long_description("RESID accession number should be a number prefixed with 'AA'")
-                    })?;
-                    Ontology::Resid.find_id(id, custom_database).map(Some).ok_or_else(|| {
                         basic_error.with_long_description(
+                            "RESID accession number should be a number prefixed with 'AA'",
+                        )
+                    })?;
+                    Ontology::Resid
+                        .find_id(id, custom_database)
+                        .map(Some)
+                        .ok_or_else(|| {
+                            basic_error.with_long_description(
                             "The supplied Resid accession number is not an existing modification",
                         )
-                    })
+                        })
                 }
                 ("xlmod", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| {
                         basic_error
                             .with_long_description("XLMOD accession number should be a number")
                     })?;
-                    Ontology::Xlmod.find_id(id, custom_database).map(Some).ok_or_else(|| {
-                        basic_error.with_long_description(
+                    Ontology::Xlmod
+                        .find_id(id, custom_database)
+                        .map(Some)
+                        .ok_or_else(|| {
+                            basic_error.with_long_description(
                             "The supplied XLMOD accession number is not an existing modification",
                         )
-                    })
+                        })
                 }
                 ("custom", tail) => {
                     let id = tail.parse::<usize>().map_err(|_| {
@@ -178,7 +191,8 @@ fn parse_single_modification(
                         basic_error.with_long_description(
                                 "The supplied Custom accession number is not an existing modification",
                             )
-                    })},
+                    })
+                }
                 ("u", tail) => Ontology::Unimod
                     .find_name(tail, custom_database)
                     .ok_or_else(|| numerical_mod(tail))
@@ -227,10 +241,13 @@ fn parse_single_modification(
                             .find_closest(tail, custom_database)
                             .with_context(basic_error.context().clone())
                     }),
-                ("gno" | "g", tail) => Ontology::Gnome.find_name(tail, custom_database).map(Some).ok_or_else(|| {
-                    basic_error
-                        .with_long_description("This modification cannot be read as a GNO name")
-                }),
+                ("gno" | "g", tail) => Ontology::Gnome
+                    .find_name(tail, custom_database)
+                    .map(Some)
+                    .ok_or_else(|| {
+                        basic_error
+                            .with_long_description("This modification cannot be read as a GNO name")
+                    }),
                 ("formula", tail) => Ok(Some(SimpleModification::Formula(
                     MolecularFormula::from_pro_forma(tail, .., false, false).map_err(|e| {
                         basic_error.with_long_description(format!(
@@ -239,18 +256,14 @@ fn parse_single_modification(
                     })?,
                 ))),
                 ("glycan", tail) => Ok(Some(SimpleModification::Glycan(
-                    MonoSaccharide::simplify_composition(parse_named_counter(&tail.to_ascii_lowercase(), glycan_parse_list(), false).map_err(|e| {
-                        basic_error.with_long_description(format!(
-                            "This modification cannot be read as a valid glycan: {e}"
-                        ))
-                    })?).ok_or_else(|| basic_error.with_long_description(format!(
-                        "The occurrence of one monosaccharide species is outside of the range {} to {}", isize::MIN, isize::MAX
-                    )))?,
+                    MonoSaccharide::from_composition(tail)
+                        .map_err(|err| err.with_context(basic_error.context().clone()))?,
                 ))),
-                ("glycanstructure", _) => {
-                    GlycanStructure::parse(&line.to_ascii_lowercase(), offset + tail.1..offset + tail.1 + tail.2)
-                        .map(|g| Some(SimpleModification::GlycanStructure(g)))
-                }
+                ("glycanstructure", _) => GlycanStructure::parse(
+                    &line.to_ascii_lowercase(),
+                    offset + tail.1..offset + tail.1 + tail.2,
+                )
+                .map(|g| Some(SimpleModification::GlycanStructure(g))),
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| {
                     basic_error.with_long_description(
@@ -261,11 +274,29 @@ fn parse_single_modification(
                     .find_name(full.0, custom_database)
                     .or_else(|| Ontology::Psimod.find_name(full.0, custom_database))
                     .map(Some)
-                    .ok_or_else(||
-                        Ontology::find_closest_many(&[Ontology::Unimod, Ontology::Psimod, Ontology::Gnome, Ontology::Xlmod, Ontology::Resid, Ontology::Custom], full.0, custom_database)
-                        .with_long_description("This modification cannot be read as a valid Unimod or PSI-MOD name.")
-                        .with_context(Context::line(None, line, offset+full.1, full.2))
-                    )
+                    .ok_or_else(|| {
+                        Ontology::find_closest_many(
+                            &[
+                                Ontology::Unimod,
+                                Ontology::Psimod,
+                                Ontology::Gnome,
+                                Ontology::Xlmod,
+                                Ontology::Resid,
+                                Ontology::Custom,
+                            ],
+                            full.0,
+                            custom_database,
+                        )
+                        .with_long_description(
+                            "This modification cannot be read as a valid Unimod or PSI-MOD name.",
+                        )
+                        .with_context(Context::line(
+                            None,
+                            line,
+                            offset + full.1,
+                            full.2,
+                        ))
+                    }),
             }
         } else if full.0.is_empty() {
             Ok(None)

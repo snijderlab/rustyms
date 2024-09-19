@@ -31,7 +31,7 @@ impl PlacementRule {
                         ..
                     }) = m
                     {
-                        id == mod_index
+                        id.is_some_and(|i| i == *mod_index)
                     } else {
                         false
                     }

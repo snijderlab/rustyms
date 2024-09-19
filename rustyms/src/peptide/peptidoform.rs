@@ -116,7 +116,7 @@ impl Peptidoform {
                 SimpleModification::Formula(_)
                     | SimpleModification::Glycan(_)
                     | SimpleModification::GlycanStructure(_)
-                    | SimpleModification::Gno(_, _)
+                    | SimpleModification::Gno { .. }
                     | SimpleModification::Mass(_)
             ) {
                 Some((

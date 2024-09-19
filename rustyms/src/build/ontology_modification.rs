@@ -95,19 +95,19 @@ impl OntologyModification {
         }
     }
 
-    pub fn into_mod(mut self) -> (usize, String, SimpleModification) {
+    pub fn into_mod(mut self) -> (Option<usize>, String, SimpleModification) {
         self.simplify_rules();
         let id = ModificationId {
             ontology: self.ontology,
             name: self.name.clone(),
-            id: self.id,
+            id: Some(self.id),
             description: self.description,
             synonyms: self.synonyms,
             cross_ids: self.cross_ids,
         };
         match self.data {
             ModData::Mod { specificities } => (
-                self.id,
+                Some(self.id),
                 self.name.to_ascii_lowercase(),
                 SimpleModification::Database {
                     id,
@@ -119,7 +119,7 @@ impl OntologyModification {
                 specificities,
                 length,
             } => (
-                self.id,
+                Some(self.id),
                 self.name.to_ascii_lowercase(),
                 SimpleModification::Linker {
                     specificities,
