@@ -70,7 +70,7 @@ fn main() {
                 ),
                 ("Protein".to_string(), db.id.clone()),
                 (
-                    "Score".to_string(),
+                    "Alignment score".to_string(),
                     alignment.normalised_score().to_string(),
                 ),
                 ("Start".to_string(), alignment.start_a().to_string()),
@@ -79,6 +79,38 @@ fn main() {
                     (alignment.start_a() + alignment.len_a()).to_string(),
                 ),
                 ("Path".to_string(), alignment.short()),
+                (
+                    "Mass".to_string(),
+                    peptide
+                        .peptide()
+                        .map_or(f64::NAN, |p| {
+                            p.clone()
+                                .into_unambiguous()
+                                .map_or(f64::NAN, |p| p.formula().monoisotopic_mass().value)
+                        })
+                        .to_string(),
+                ),
+                (
+                    "Z".to_string(),
+                    peptide.charge().map_or(0, |c| c.value).to_string(),
+                ),
+                (
+                    "Peptide length".to_string(),
+                    peptide.peptide().map_or(0, |p| p.len()).to_string(),
+                ),
+                (
+                    "Scan".to_string(),
+                    peptide
+                        .scan_indices()
+                        .map_or(String::new(), |s| s.into_iter().join(",")),
+                ),
+                (
+                    "Retention time".to_string(),
+                    peptide
+                        .retention_time()
+                        .map_or(f64::NAN, |t| t.value)
+                        .to_string(),
+                ),
             ])
         })
         .collect();

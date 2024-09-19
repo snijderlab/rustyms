@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +48,11 @@ impl OntologyModification {
         {
             let mut new = Vec::new();
             for rule in rules.iter() {
+                let rule = (
+                    rule.0.clone(),
+                    rule.1.iter().unique().sorted().cloned().collect(),
+                    rule.2.iter().unique().sorted().cloned().collect(),
+                ); // Remove duplicate neutral losses and diagnostic ions, and sort for a better guarantee of equality
                 if new.is_empty() {
                     new.push(rule.clone());
                 } else {
