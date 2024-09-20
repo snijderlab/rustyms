@@ -17,3 +17,14 @@ pub enum MassMode {
     /// Only available with crate feature 'isotopes'.
     MostAbundant,
 }
+
+impl std::fmt::Display for MassMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Average => write!(f, "average weight"),
+            Self::Monoisotopic => write!(f, "monoisotopic mass"),
+            #[cfg(feature = "isotopes")]
+            Self::MostAbundant => write!(f, "most abundant mass"),
+        }
+    }
+}

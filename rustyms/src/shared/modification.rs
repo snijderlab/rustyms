@@ -188,3 +188,15 @@ pub enum GnoSubsumption {
     /// Indicates the topology, without reducing end ring and anomeric information
     Saccharide,
 }
+
+impl std::fmt::Display for GnoSubsumption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AverageWeight => write!(f, "Average weight"),
+            Self::BaseComposition => write!(f, "Base composition (no isomeric information)"),
+            Self::Composition => write!(f, "Composition"),
+            Self::Topology => write!(f, "Topology (no linkage)"),
+            Self::Saccharide => write!(f, "Saccharide"),
+        }
+    }
+}

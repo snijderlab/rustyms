@@ -17,7 +17,7 @@ use crate::{
     peptide::Linked,
     placement_rule::PlacementRule,
     system::{Mass, OrderedMass},
-    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, Model,
+    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, MassMode, Model,
     MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition, Tolerance,
     WithinTolerance,
 };
@@ -586,12 +586,18 @@ impl SimpleModification {
     pub fn search(
         modification: &Self,
         tolerance: Tolerance<Mass>,
+        mass_mode: MassMode,
         custom_database: Option<&CustomDatabase>,
     ) -> ModificationSearchResult {
         match modification {
-            Self::Mass(mass) => ModificationSearchResult::Mass(
+            Self::Mass(mass)
+            | Self::Gno {
+                composition: GnoComposition::Weight(mass),
+                ..
+            } => ModificationSearchResult::Mass(
                 mass.into_inner(),
                 tolerance,
+                mass_mode,
                 [
                     Ontology::Unimod,
                     Ontology::Psimod,
@@ -606,7 +612,7 @@ impl SimpleModification {
                         .map(|(i, n, m)| (*o, *i, n, m))
                 })
                 .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
+                    tolerance.within(&mass.into_inner(), &m.formula().mass(mass_mode))
                 })
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
@@ -630,8 +636,12 @@ impl SimpleModification {
                 .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
                 .collect(),
             ),
-            Self::Glycan(glycan) => {
-                let search = MonoSaccharide::search_composition(glycan.clone());
+            Self::Glycan(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Composition(glycan),
+                ..
+            } => {
+                let search = MonoSaccharide::search_composition(glycan);
                 ModificationSearchResult::Glycan(
                     glycan.clone(),
                     Ontology::Gnome
@@ -643,8 +653,14 @@ impl SimpleModification {
                                 ..
                             } = m
                             {
-                                MonoSaccharide::search_composition(structure.composition())
+                                MonoSaccharide::search_composition(&structure.composition())
                                     == *search
+                            } else if let Self::Gno {
+                                composition: GnoComposition::Composition(composition),
+                                ..
+                            } = m
+                            {
+                                MonoSaccharide::search_composition(composition) == *search
                             } else {
                                 false
                             }
@@ -709,6 +725,7 @@ pub enum ModificationSearchResult {
     Mass(
         Mass,
         Tolerance<Mass>,
+        MassMode,
         Vec<(Ontology, Option<usize>, String, SimpleModification)>,
     ),
     /// All modifications with the same formula

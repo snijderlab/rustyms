@@ -9,10 +9,7 @@ use rustyms::UnAmbiguous;
 use crate::imgt_gene::IMGTGene;
 use crate::structs::DataItem;
 
-use crate::shared::{
-    AnnotatedSequence, Annotation, Gene, Germline, Germlines,
-    Species,
-};
+use crate::shared::{AnnotatedSequence, Annotation, Gene, Germline, Germlines, Species};
 use crate::structs::SingleSeq;
 
 pub fn combine(

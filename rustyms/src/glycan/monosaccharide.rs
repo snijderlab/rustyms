@@ -13,13 +13,12 @@ include!("../shared/glycan_lists.rs");
 impl MonoSaccharide {
     /// Generate the composition used for searching on glycans
     pub(crate) fn search_composition(
-        mut composition: Vec<(Self, isize)>,
+        composition: &[(Self, isize)],
     ) -> Vec<(MolecularFormula, isize)> {
         // Sort on monosaccharide
-        composition.retain(|el| el.1 != 0);
         let mut composition = composition
-            .into_iter()
-            .map(|(m, n)| (m.formula(), n))
+            .iter()
+            .filter_map(|(m, n)| (*n != 0).then(|| (m.formula(), *n)))
             .collect_vec();
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
