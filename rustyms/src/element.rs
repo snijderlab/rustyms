@@ -90,9 +90,8 @@ impl Element {
 /// # Panics
 /// It panics if the elemental data that is passed at compile time is not formatted correctly.
 pub fn elemental_data() -> &'static ElementalData {
-    ELEMENTAL_DATA_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/elements.dat"))).unwrap()
-    })
+    ELEMENTAL_DATA_CELL
+        .get_or_init(|| bincode::deserialize(include_bytes!("databases/elements.dat")).unwrap())
 }
 static ELEMENTAL_DATA_CELL: OnceLock<ElementalData> = OnceLock::new();
 

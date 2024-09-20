@@ -102,8 +102,11 @@ impl Chemical for SimpleModification {
     /// Get the molecular formula for this modification.
     fn formula_inner(&self, position: SequencePosition, peptide_index: usize) -> MolecularFormula {
         match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
-            Self::Formula(elements) => elements.clone(),
+            Self::Mass(m)
+            | Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
             Self::Gno {
                 composition: GnoComposition::Composition(monosaccharides),
                 ..
@@ -118,11 +121,9 @@ impl Chemical for SimpleModification {
                 composition: GnoComposition::Topology(glycan),
                 ..
             } => glycan.formula_inner(position, peptide_index),
-            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno {
-                composition: GnoComposition::Weight(m),
-                ..
-            } => MolecularFormula::with_additional_mass(m.value),
+            Self::Formula(formula)
+            | Self::Database { formula, .. }
+            | Self::Linker { formula, .. } => formula.clone(),
         }
     }
 }
@@ -148,8 +149,11 @@ impl SimpleModification {
         peptide_index: usize,
     ) -> MolecularFormula {
         match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
-            Self::Formula(elements) => elements.clone(),
+            Self::Mass(m)
+            | Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
             Self::Gno {
                 composition: GnoComposition::Composition(monosaccharides),
                 ..
@@ -164,11 +168,9 @@ impl SimpleModification {
                 composition: GnoComposition::Topology(glycan),
                 ..
             } => glycan.formula_inner(sequence_index, peptide_index),
-            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno {
-                composition: GnoComposition::Weight(m),
-                ..
-            } => MolecularFormula::with_additional_mass(m.value),
+            Self::Formula(formula)
+            | Self::Database { formula, .. }
+            | Self::Linker { formula, .. } => formula.clone(),
         }
     }
 
@@ -279,7 +281,7 @@ impl SimpleModification {
                 write!(f, "C:{name}")?;
             }
             Self::Database { id, .. } | Self::Gno { id, .. } | Self::Linker { id, .. } => {
-                write!(f, "{}:{}", id.ontology.char(), id.name)?
+                write!(f, "{}:{}", id.ontology.char(), id.name)?;
             }
         }
         Ok(())

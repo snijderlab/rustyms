@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "rustyms",
-    "rustyms-imgt-generate",
+    "rustyms-generate-databases",
+    "rustyms-generate-imgt",
     "rustyms-py",
     "fuzz",
     "examples/*",

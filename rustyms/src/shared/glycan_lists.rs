@@ -316,9 +316,54 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 },
             ),
             (
+                "pent".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Pentose(None),
+                    substituents: vec![],
+                    proforma_name: Some("Pen".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
                 "pen".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Pentose(None),
+                    substituents: vec![],
+                    proforma_name: Some("Pen".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "rib".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Pentose(Some(PentoseIsomer::Ribose)),
+                    substituents: vec![],
+                    proforma_name: Some("Pen".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "ara".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Pentose(Some(PentoseIsomer::Arabinose)),
+                    substituents: vec![],
+                    proforma_name: Some("Pen".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "xyl".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Pentose(Some(PentoseIsomer::Xylose)),
+                    substituents: vec![],
+                    proforma_name: Some("Pen".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "lyx".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Pentose(Some(PentoseIsomer::Lyxose)),
                     substituents: vec![],
                     proforma_name: Some("Pen".to_string()),
                     furanose: false,
@@ -356,6 +401,15 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 },
             ),
             (
+                "dhex".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(None),
+                    substituents: vec![],
+                    proforma_name: Some("d-Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
                 "hexnac(s)".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Hexose(None),
@@ -368,6 +422,69 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 "hexnac".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Hexose(None),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "glcnac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "galnac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "mannac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Mannose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "allnac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Allose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "altnac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Altrose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "idonac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Idose)),
+                    substituents: vec![GlycanSubstituent::NAcetyl],
+                    proforma_name: Some("HexNAc".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "talnac".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Talose)),
                     substituents: vec![GlycanSubstituent::NAcetyl],
                     proforma_name: Some("HexNAc".to_string()),
                     furanose: false,
@@ -419,6 +536,78 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 },
             ),
             (
+                "glc".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Glucose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "gal".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Galactose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "man".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Mannose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "all".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Allose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "alt".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Altrose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "gul".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Gulose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "ido".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Idose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "tal".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Hexose(Some(HexoseIsomer::Talose)),
+                    substituents: vec![],
+                    proforma_name: Some("Hex".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
                 "hep".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Heptose(None),
@@ -437,10 +626,45 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                 },
             ),
             (
+                "kdo".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Octose,
+                    substituents: vec![GlycanSubstituent::Deoxy, GlycanSubstituent::Acid],
+                    proforma_name: Some("Oct".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
                 "non".to_string(),
                 MonoSaccharide {
                     base_sugar: BaseSugar::Nonose,
                     substituents: vec![],
+                    proforma_name: Some("Non".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "kdn".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Nonose,
+                    substituents: vec![
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Deoxy,
+                        GlycanSubstituent::Acid,
+                    ],
+                    proforma_name: Some("Non".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "sia".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::Nonose,
+                    substituents: vec![
+                        GlycanSubstituent::Amino,
+                        GlycanSubstituent::Deoxy,
+                        GlycanSubstituent::Acid,
+                    ],
                     proforma_name: Some("Non".to_string()),
                     furanose: false,
                 },
@@ -528,7 +752,43 @@ pub fn glycan_parse_list() -> &'static Vec<(String, MonoSaccharide)> {
                     furanose: false,
                 },
             ),
+            (
+                "xxx".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::None,
+                    substituents: vec![],
+                    proforma_name: Some("Xxx".to_string()),
+                    furanose: false,
+                },
+            ),
+            (
+                "aldi".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::None,
+                    substituents: vec![GlycanSubstituent::Alcohol],
+                    proforma_name: None,
+                    furanose: false,
+                },
+            ),
+            (
+                "me".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::None,
+                    substituents: vec![GlycanSubstituent::Methyl],
+                    proforma_name: None,
+                    furanose: false,
+                },
+            ),
             // Single letter codes, by defining them like this they will be read but exported to the standard ProForma codes
+            (
+                "x".to_string(),
+                MonoSaccharide {
+                    base_sugar: BaseSugar::None,
+                    substituents: vec![GlycanSubstituent::Acetyl],
+                    proforma_name: None,
+                    furanose: false,
+                },
+            ),
             (
                 "p".to_string(),
                 MonoSaccharide {

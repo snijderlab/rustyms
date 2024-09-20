@@ -34,16 +34,6 @@ serde = { workspace = true, features = ["derive", "rc"] }
 similar = { workspace = true }
 uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
 
-[build-dependencies]
-bincode = { workspace = true }
-flate2 = { workspace = true }
-itertools = { workspace = true }
-ordered-float = { workspace = true, features = ["serde"] }
-regex = { workspace = true }
-roxmltree = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"] }
-uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
-
 [dev-dependencies]
 iai-callgrind = { workspace = true }
 serde_json = { workspace = true }
