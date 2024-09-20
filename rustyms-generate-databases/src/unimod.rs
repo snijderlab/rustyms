@@ -16,6 +16,7 @@ pub fn build_unimod_ontology(out_dir: &Path) {
     let dest_path = Path::new(&out_dir).join("unimod.dat");
     let mut file = std::fs::File::create(dest_path).unwrap();
     let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
+    println!("Found {} Unimod modifications", final_mods.len());
     file.write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
 }
@@ -33,10 +34,10 @@ fn parse_unimod() -> Vec<OntologyModification> {
         let mut modification = OntologyModification {
             id: obj.lines["id"][0]
                 .split_once(':')
-                .expect("Incorrect psi mod id, should contain a colon")
+                .expect("Incorrect unimod id, should contain a colon")
                 .1
                 .parse()
-                .expect("Incorrect psi mod id, should be numerical"),
+                .expect("Incorrect unimod id, should be numerical"),
             name: obj.lines["name"][0].to_string(),
             ontology: super::ontology_modification::Ontology::Unimod,
             ..OntologyModification::default()

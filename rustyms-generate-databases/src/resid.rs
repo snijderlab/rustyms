@@ -18,6 +18,7 @@ pub fn build_resid_ontology(out_dir: &Path) {
     let dest_path = Path::new(&out_dir).join("resid.dat");
     let mut file = std::fs::File::create(dest_path).unwrap();
     let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
+    println!("Found {} RESID modifications", final_mods.len());
     file.write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
 }

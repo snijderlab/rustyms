@@ -36,8 +36,10 @@ pub fn build_gnome_ontology(out_dir: &Path) {
     let final_mods = mods
         .into_values()
         .filter(|m| m.weight.is_some())
+        .sorted_unstable()
         .map(|m| (None, m.id.name.clone(), m.into_mod()))
-        .collect::<Vec<_>>();
+        .collect::<OntologyModificationList>();
+    println!("Found {} GNOme modifications", final_mods.len());
     file.write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())
         .unwrap();
 }
@@ -81,6 +83,7 @@ mod gnome_terms {
 }
 
 use gnome_terms::*;
+use itertools::Itertools;
 
 impl std::str::FromStr for GnoSubsumption {
     type Err = ();
@@ -252,5 +255,35 @@ impl GNOmeModification {
             structure_score: self.structure_score,
             subsumption_level: self.subsumption_level,
         }
+    }
+}
+
+impl PartialEq for GNOmeModification {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.subsumption_level == other.subsumption_level
+            && self.is_a == other.is_a
+            && self.composition_id == other.composition_id
+            && self.topology_id == other.topology_id
+            && (self.weight.is_none() && other.weight.is_none()
+                || self
+                    .weight
+                    .is_some_and(|sw| other.weight.is_some_and(|ow| sw.total_cmp(&ow).is_eq())))
+            && self.composition == other.composition
+            && self.topology == other.topology
+            && self.structure_score == other.structure_score
+    }
+}
+impl Eq for GNOmeModification {}
+
+impl PartialOrd for GNOmeModification {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GNOmeModification {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.name.cmp(&other.id.name)
     }
 }
