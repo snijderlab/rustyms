@@ -133,14 +133,11 @@ mod tests {
     #[test]
     fn parse_molecular_formula() {
         assert_eq!(
-            crate::MolecularFormula::parse_molecular_formula_psi_mod(
-                "(12)C -5 (13)C 5 H 0 N 0 O 0 S 0"
-            )
-            .unwrap(),
+            crate::MolecularFormula::from_psi_mod("(12)C -5 (13)C 5 H 0 N 0 O 0 S 0", ..).unwrap(),
             molecular_formula!([12 C -5] [13 C 5] H 0 N 0 O 0 S 0)
         );
         assert_eq!(
-            crate::MolecularFormula::parse_molecular_formula_psi_mod("(12)C -9 (13)C 9").unwrap(),
+            crate::MolecularFormula::from_psi_mod("(12)C -9 (13)C 9", ..).unwrap(),
             molecular_formula!([12 C -9] [13 C 9])
         );
     }

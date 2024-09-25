@@ -15,7 +15,7 @@ use crate::{
     molecular_charge::CachedCharge,
     ontologies::CustomDatabase,
     peptide::Linked,
-    placement_rule::PlacementRule,
+    placement_rule::{PlacementRule, Position},
     system::{Mass, OrderedMass},
     AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, MassMode, Model,
     MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition, Tolerance,
@@ -210,6 +210,54 @@ impl SimpleModification {
                     LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
                         let left = PlacementRule::any_possible(rules_left, seq, position);
                         let right = PlacementRule::any_possible(rules_right, seq, position);
+                        if left && right {
+                            RulePossible::Symmetric(HashSet::from([index]))
+                        } else if left {
+                            RulePossible::AsymmetricLeft(HashSet::from([index]))
+                        } else if right {
+                            RulePossible::AsymmetricRight(HashSet::from([index]))
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                })
+                .sum::<RulePossible>(),
+            _ => RulePossible::Symmetric(HashSet::default()),
+        }
+    }
+
+    /// Check to see if this modification can be placed on the specified element
+    pub fn is_possible_aa(&self, aa: AminoAcid, position: Position) -> RulePossible {
+        match self {
+            Self::Database { specificities, .. } => {
+                // If any of the rules match the current situation then it can be placed
+                let matching: HashSet<usize> = specificities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, (rules, _, _))| {
+                        PlacementRule::any_possible_aa(rules, aa, position).then_some(index)
+                    })
+                    .collect();
+                if matching.is_empty() {
+                    RulePossible::No
+                } else {
+                    RulePossible::Symmetric(matching)
+                }
+            }
+            Self::Linker { specificities, .. } => specificities
+                .iter()
+                .enumerate()
+                .map(|(index, spec)| match spec {
+                    LinkerSpecificity::Symmetric(rules, _, _) => {
+                        if PlacementRule::any_possible_aa(rules, aa, position) {
+                            RulePossible::Symmetric(HashSet::from([index]))
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                    LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
+                        let left = PlacementRule::any_possible_aa(rules_left, aa, position);
+                        let right = PlacementRule::any_possible_aa(rules_right, aa, position);
                         if left && right {
                             RulePossible::Symmetric(HashSet::from([index]))
                         } else if left {
@@ -579,100 +627,6 @@ impl Modification {
 }
 
 impl SimpleModification {
-    /// Search matching modification based on what modification is provided. If a mass modification is provided
-    /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
-    /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
-    /// that composition. Otherwise it returns the modification itself.
-    pub fn search(
-        modification: &Self,
-        tolerance: Tolerance<Mass>,
-        mass_mode: MassMode,
-        custom_database: Option<&CustomDatabase>,
-    ) -> ModificationSearchResult {
-        match modification {
-            Self::Mass(mass)
-            | Self::Gno {
-                composition: GnoComposition::Weight(mass),
-                ..
-            } => ModificationSearchResult::Mass(
-                mass.into_inner(),
-                tolerance,
-                mass_mode,
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
-                })
-                .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula().mass(mass_mode))
-                })
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Formula(formula) => ModificationSearchResult::Formula(
-                formula.clone(),
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
-                })
-                .filter(|(_, _, _, m)| *formula == m.formula())
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Glycan(glycan)
-            | Self::Gno {
-                composition: GnoComposition::Composition(glycan),
-                ..
-            } => {
-                let search = MonoSaccharide::search_composition(glycan);
-                ModificationSearchResult::Glycan(
-                    glycan.clone(),
-                    Ontology::Gnome
-                        .lookup(custom_database)
-                        .iter()
-                        .filter(|(_, _, m)| {
-                            if let Self::Gno {
-                                composition: GnoComposition::Topology(structure),
-                                ..
-                            } = m
-                            {
-                                MonoSaccharide::search_composition(&structure.composition())
-                                    == *search
-                            } else if let Self::Gno {
-                                composition: GnoComposition::Composition(composition),
-                                ..
-                            } = m
-                            {
-                                MonoSaccharide::search_composition(composition) == *search
-                            } else {
-                                false
-                            }
-                        })
-                        .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
-                        .collect(),
-                )
-            }
-            m => ModificationSearchResult::Single(m.clone()),
-        }
-    }
-
     /// Generate theoretical fragments for side chains (glycans)
     pub(crate) fn generate_theoretical_fragments(
         &self,
@@ -715,29 +669,6 @@ impl SimpleModification {
             _ => Vec::new(),
         }
     }
-}
-
-/// The result of a modification search, see [`SimpleModification::search`].
-pub enum ModificationSearchResult {
-    /// The modification was already defined
-    Single(SimpleModification),
-    /// All modifications with the same mass, within the tolerance
-    Mass(
-        Mass,
-        Tolerance<Mass>,
-        MassMode,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
-    /// All modifications with the same formula
-    Formula(
-        MolecularFormula,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
-    /// All modifications with the same glycan composition
-    Glycan(
-        Vec<(MonoSaccharide, isize)>,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)

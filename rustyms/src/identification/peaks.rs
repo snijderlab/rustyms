@@ -18,6 +18,7 @@ use super::{
     common_parser::{Location, OptionalLocation},
     csv::{parse_csv, CsvLine},
     modification::SimpleModification,
+    peptide::PeptideModificationSearch,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData, Modification,
 };
 
@@ -80,7 +81,8 @@ format_family!(
 impl From<PeaksData> for IdentifiedPeptide {
     fn from(mut value: PeaksData) -> Self {
         // Add the meaningful modifications to replace mass modifications
-        value.peptide.inject_modifications(&value.ptm);
+        value.peptide =
+            PeptideModificationSearch::in_modifications(value.ptm.clone()).search(value.peptide);
 
         Self {
             score: Some(value.de_novo_score.unwrap_or(value.alc)),

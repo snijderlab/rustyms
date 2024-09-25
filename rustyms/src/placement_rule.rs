@@ -45,6 +45,20 @@ impl PlacementRule {
         }
     }
 
+    /// Check if this rule fits with the given location
+    pub fn is_possible_aa(&self, aa: AminoAcid, position: Position) -> bool {
+        match self {
+            Self::AminoAcid(allowed_aa, r_pos) => {
+                allowed_aa.iter().any(|a| *a == aa) && r_pos.is_possible_position(position)
+            }
+            Self::PsiModification(_, _) => false,
+            Self::Terminal(r_pos) => {
+                r_pos.is_possible_position(position) && (position != Position::Anywhere)
+            }
+            Self::Anywhere => true,
+        }
+    }
+
     /// Check if any of the given rules are possible
     pub fn any_possible<T>(
         rules: &[Self],
@@ -52,6 +66,11 @@ impl PlacementRule {
         position: SequencePosition,
     ) -> bool {
         rules.iter().any(|r| r.is_possible(seq, position))
+    }
+
+    /// Check if any of the given rules are possible
+    pub fn any_possible_aa(rules: &[Self], aa: AminoAcid, position: Position) -> bool {
+        rules.iter().any(|r| r.is_possible_aa(aa, position))
     }
 }
 
@@ -104,6 +123,17 @@ impl Position {
             Self::Anywhere => true,
             Self::AnyNTerm | Self::ProteinNTerm => position == SequencePosition::NTerm,
             Self::AnyCTerm | Self::ProteinCTerm => position == SequencePosition::CTerm,
+        }
+    }
+
+    /// See if the given position is a valid position given this [`Position`] as placement rule.
+    pub fn is_possible_position(self, position: Self) -> bool {
+        match self {
+            Self::Anywhere => true,
+            Self::AnyNTerm => position == Self::AnyNTerm || position == Self::ProteinNTerm,
+            Self::ProteinNTerm => position == Self::ProteinNTerm,
+            Self::AnyCTerm => position == Self::AnyCTerm || position == Self::ProteinCTerm,
+            Self::ProteinCTerm => position == Self::ProteinCTerm,
         }
     }
 }

@@ -12,10 +12,9 @@ use crate::{
     molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
     placement_rule::PlacementRule,
-    system::{dalton, usize::Charge, Mass},
+    system::usize::Charge,
     AmbiguousLabel, Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi,
-    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition, Tolerance,
-    WithinTolerance,
+    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -1167,52 +1166,6 @@ impl<Complexity> LinearPeptide<Complexity> {
         Ok(())
     }
 
-    /// Look at the provided modifications and see if they match any modification on this peptide with
-    /// more information and replace those. Replaces any mass modification within 0.1 Da or any precise
-    /// matching formula with the provided modifications.
-    pub(crate) fn inject_modifications(&mut self, modifications: &[SimpleModification]) {
-        let replace_simple =
-            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
-                SimpleModification::Mass(mass) => Tolerance::Absolute(Mass::new::<dalton>(0.1))
-                    .within(&mass.into_inner(), &provided.formula().monoisotopic_mass()),
-                SimpleModification::Formula(formula) => *formula == provided.formula(),
-                _ => false,
-            };
-        let possibly_replace_simple = |in_place: &SimpleModification| {
-            for provided in modifications {
-                if replace_simple(in_place, provided) {
-                    return provided.clone();
-                }
-            }
-            in_place.clone()
-        };
-        let replace = |in_place: &Modification, provided: &SimpleModification| match in_place {
-            Modification::Simple(simple) => replace_simple(simple, provided),
-            Modification::CrossLink { .. } => false,
-        };
-        let possibly_replace = |in_place: &Modification| {
-            for provided in modifications {
-                if replace(in_place, provided) {
-                    return Modification::Simple(provided.clone());
-                }
-            }
-            in_place.clone()
-        };
-        self.n_term = self.n_term.as_ref().map(possibly_replace);
-        self.c_term = self.c_term.as_ref().map(possibly_replace);
-        for position in &mut self.sequence {
-            for m in &mut position.modifications {
-                *m = possibly_replace(m);
-            }
-            for m in &mut position.possible_modifications {
-                m.modification = possibly_replace_simple(&m.modification);
-            }
-        }
-        for m in &mut self.labile {
-            *m = possibly_replace_simple(m);
-        }
-    }
-
     /// Get the reverse of this peptide
     #[must_use]
     pub fn reverse(&self) -> Self {
@@ -1228,6 +1181,10 @@ impl<Complexity> LinearPeptide<Complexity> {
                 .collect(),
             ..self.clone()
         }
+    }
+    /// Get all labile modifications
+    pub(super) fn get_labile_mut_inner(&mut self) -> &mut Vec<SimpleModification> {
+        &mut self.labile
     }
 }
 
@@ -1385,6 +1342,11 @@ impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
         &self.global
     }
 
+    /// Get the global isotope modifications
+    pub fn get_global_mut(&mut self) -> &mut Vec<(Element, Option<NonZeroU16>)> {
+        &mut self.global
+    }
+
     /// Add the global isotope modification, if any is invalid it returns false
     #[must_use]
     pub fn add_global(&mut self, modification: (Element, Option<NonZeroU16>)) -> bool {
@@ -1401,9 +1363,19 @@ impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
         &self.labile
     }
 
+    /// Get all labile modifications
+    pub fn get_labile_mut(&mut self) -> &mut Vec<SimpleModification> {
+        &mut self.labile
+    }
+
     /// Get the charge carriers, if there are any
     pub const fn get_charge_carriers(&self) -> Option<&MolecularCharge> {
         self.charge_carriers.as_ref()
+    }
+
+    /// Get the charge carriers, if there are any
+    pub fn get_charge_carriers_mut(&mut self) -> Option<&mut MolecularCharge> {
+        self.charge_carriers.as_mut()
     }
 }
 
