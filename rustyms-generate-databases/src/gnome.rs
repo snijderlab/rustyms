@@ -108,13 +108,17 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
         if obj.name != "Term" || !obj.lines.contains_key("is_a") {
             continue;
         }
+
         // name: glycan of molecular weight 40.03 Da
         let modification = GNOmeModification {
             id: ModificationId {
                 ontology: super::Ontology::Gnome,
-                name: obj.lines["id"][0][4..].to_lowercase(),
+                name: obj.lines["id"][0][4..].to_ascii_lowercase(),
                 id: None,
-                description: obj.lines.get("def").map_or(String::new(), |d| d[0].clone()),
+                description: obj.lines.get("def").map_or(String::new(), |d| {
+                    d[0].trim_matches("\"[] ".chars().collect_vec().as_slice())
+                        .to_string()
+                }),
                 synonyms: obj.lines.get("synonym").map_or(Vec::new(), |s| {
                     s.iter()
                         .filter_map(|s| s[1..].split_once('"').map(|(s, _)| s.to_string()))
@@ -151,7 +155,12 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
                 .lines
                 .get(HAS_STRUCTURE_CHARACTERISATION_SCORE)
                 .map(|s| s[0].parse().unwrap()),
-            is_a: obj.lines["is_a"][0].trim()[4..].to_lowercase(),
+            is_a: obj.lines["is_a"][0].trim()[4..]
+                .split_once("!")
+                .unwrap()
+                .0
+                .trim()
+                .to_ascii_lowercase(),
             composition_id: obj
                 .property_values
                 .get(HAS_COMPOSITION)

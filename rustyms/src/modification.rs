@@ -13,13 +13,11 @@ use std::{
 use crate::{
     glycan::{GlycanStructure, MonoSaccharide},
     molecular_charge::CachedCharge,
-    ontologies::CustomDatabase,
     peptide::Linked,
     placement_rule::{PlacementRule, Position},
-    system::{Mass, OrderedMass},
-    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, MassMode, Model,
-    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition, Tolerance,
-    WithinTolerance,
+    system::OrderedMass,
+    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, Model,
+    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition,
 };
 
 include!("shared/modification.rs");
@@ -148,7 +146,7 @@ impl SimpleModification {
         sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> MolecularFormula {
-        match self {
+        match dbg!(self) {
             Self::Mass(m)
             | Self::Gno {
                 composition: GnoComposition::Weight(m),
@@ -499,7 +497,10 @@ impl Modification {
                 } else if visited_peptides.contains(other_peptide) {
                     applied_cross_links.push(name.clone());
                     (
-                        linker.formula_inner(sequence_index, peptide_index).into(),
+                        dbg!(linker
+                            .formula_inner(sequence_index, peptide_index)
+                            .with_label(AmbiguousLabel::CrossLinkBound(name.clone())))
+                        .into(),
                         HashSet::from([name.clone()]),
                     )
                 } else {
@@ -511,10 +512,10 @@ impl Modification {
                         let mut options: Vec<MolecularFormula> = stubs
                             .iter()
                             .map(|s| {
-                                s.0.clone().with_labels(&[AmbiguousLabel::CrossLinkBroken(
+                                s.0.clone().with_label(AmbiguousLabel::CrossLinkBroken(
                                     name.clone(),
                                     s.0.clone(),
-                                )])
+                                ))
                             })
                             .unique()
                             .collect();
@@ -530,7 +531,7 @@ impl Modification {
                             );
                             seen_peptides.extend(seen);
                             (f + link)
-                                .with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
+                                .with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
                                 .to_vec()
                         });
 
@@ -545,7 +546,9 @@ impl Modification {
                         );
                         seen.insert(name.clone());
                         (
-                            (f + link).with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())]),
+                            dbg!(
+                                (f + link).with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
+                            ),
                             seen,
                         )
                     }

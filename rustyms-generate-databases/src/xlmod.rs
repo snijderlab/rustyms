@@ -66,12 +66,13 @@ fn parse_xlmod() -> Vec<OntologyModification> {
                 synonyms.push(line.0.to_string());
             }
         }
-        for (id, value) in obj.property_values {
+        for (id, value) in &obj.property_values {
             match id.as_str() {
                 "reactionSites" => {
                     sites = if let OboValue::Integer(n) = value[0] {
                         Some(u8::try_from(n).unwrap())
                     } else {
+                        dbg!(obj);
                         unreachable!()
                     }
                 }
@@ -86,6 +87,7 @@ fn parse_xlmod() -> Vec<OntologyModification> {
                     mass = if let OboValue::Float(n) = value[0] {
                         Some(ordered_float::OrderedFloat(n))
                     } else {
+                        dbg!(obj);
                         unreachable!()
                     }
                 }
@@ -143,6 +145,7 @@ fn parse_xlmod() -> Vec<OntologyModification> {
                             if let OboValue::Float(n) = value[0] {
                                 n
                             } else {
+                                dbg!(obj);
                                 unreachable!()
                             },
                         ),

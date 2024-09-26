@@ -325,4 +325,15 @@ impl crate::Multi<crate::MolecularFormula> {
                 .collect(),
         )
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn with_label(self, label: crate::AmbiguousLabel) -> Self {
+        Self(
+            self.0
+                .iter()
+                .cloned()
+                .map(|o| o.with_label(label.clone()))
+                .collect(),
+        )
+    }
 }

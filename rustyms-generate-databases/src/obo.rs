@@ -73,7 +73,7 @@ impl OboOntology {
                             .map(|(i, _)| i)
                             .unwrap();
                         if first_space != last_space {
-                            let name = value_line[..first_space].trim();
+                            let name = value_line[..first_space].trim().trim_end_matches(':');
                             let value =
                                 value_line[first_space..last_space].trim().trim_matches('"');
                             let unit = value_line[last_space..].trim();
@@ -83,7 +83,7 @@ impl OboOntology {
                                 .push(match unit {
                                     "xsd:string" => OboValue::String(value.to_string()),
                                     "xsd:double" | "xsd:float" => {
-                                        if value.contains('-') {
+                                        if !value.starts_with('-') && value.contains('-') {
                                             // Some ontologies use a range
                                             OboValue::String(value.to_string())
                                         } else {

@@ -9,7 +9,8 @@ use crate::{
     },
     placement_rule::{self, PlacementRule},
     system::{da, usize::Charge},
-    AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
+    AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge,
+    MultiChemical, Peptidoform,
 };
 
 #[test]
@@ -413,37 +414,31 @@ fn parse_custom() {
 
 #[test]
 fn parse_xl_intra() {
-    let peptide = CompoundPeptidoform::pro_forma("A[XLMOD:02001#XLTEST]A[#XLTEST]", None).unwrap();
-    let singular = peptide
-        .singular()
-        .expect("Peptide is not a singular peptide");
+    let peptide = Peptidoform::pro_forma("A[XLMOD:02001#XLTEST]A[#XLTEST]", None).unwrap();
+    println!("{peptide}");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        peptide.formulas().to_vec()[0],
+        (AminoAcid::Alanine.single_formula().unwrap() * 2)
             + molecular_formula!(C 8 H 10 O 2)
-            + molecular_formula!(H 2 O 1))
-        .elements()
+            + molecular_formula!(H 2 O 1).with_label(crate::AmbiguousLabel::CrossLinkBound(
+                crate::CrossLinkName::Name("test".to_string())
+            ))
     );
 }
 
 #[test]
 fn parse_xl_inter() {
-    let peptide =
-        CompoundPeptidoform::pro_forma("A[XLMOD:02001#XLTEST]//A[#XLTEST]", None).unwrap();
-    let peptidoform = peptide.singular();
-    assert!(
-        peptidoform.is_some(),
-        "Peptide is not a singular peptidoform"
-    );
-    let peptidoform = peptidoform.unwrap();
+    let peptide = Peptidoform::pro_forma("A[XLMOD:02001#XLTEST]//A[#XLTEST]", None).unwrap();
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        peptidoform.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        peptide.formulas().to_vec()[0],
+        (AminoAcid::Alanine.single_formula().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
-            .elements()
+            .with_label(crate::AmbiguousLabel::CrossLinkBound(
+                crate::CrossLinkName::Name("test".to_string())
+            ))
     );
 }
 

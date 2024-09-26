@@ -4,6 +4,8 @@ Cargo.lock
 errors.dat
 imgt.dat.Z
 imgt.dat
+GNOme.obo
+glycosmos_glycans_list.csv
 .venv/
 docs/**/_build/
 out
