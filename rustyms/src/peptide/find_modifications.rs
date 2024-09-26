@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
     glycan::MonoSaccharide,
@@ -151,9 +151,7 @@ pub struct PeptideModificationSearch {
     /// The custom modifications, if defined
     custom_database: Option<CustomDatabase>,
     /// The cache to speed up processing from mod + AA to the replacement mod
-    cache: RefCell<
-        HashMap<(Position, Option<AminoAcid>, SimpleModification), Option<SimpleModification>>,
-    >,
+    cache: HashMap<(Position, Option<AminoAcid>, SimpleModification), Option<SimpleModification>>,
 }
 
 impl Default for PeptideModificationSearch {
@@ -167,7 +165,7 @@ impl Default for PeptideModificationSearch {
             modifications: Vec::new(),
             ontologies: Vec::new(),
             custom_database: None,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
         }
     }
 }
@@ -198,7 +196,7 @@ impl PeptideModificationSearch {
     pub fn tolerance(self, tolerance: Tolerance<Mass>) -> Self {
         Self {
             tolerance,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
             ..self
         }
     }
@@ -207,7 +205,7 @@ impl PeptideModificationSearch {
     pub fn mass_mode(self, mass_mode: MassMode) -> Self {
         Self {
             mass_mode,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
             ..self
         }
     }
@@ -219,7 +217,7 @@ impl PeptideModificationSearch {
     pub fn force_closest(self, force_closest: bool) -> Self {
         Self {
             force_closest,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
             ..self
         }
     }
@@ -228,7 +226,7 @@ impl PeptideModificationSearch {
     pub fn replace_formulas(self, replace_formulas: bool) -> Self {
         Self {
             replace_formulas,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
             ..self
         }
     }
@@ -240,157 +238,82 @@ impl PeptideModificationSearch {
     pub fn allow_terminal_redefinition(self, allow_terminal_redefinition: bool) -> Self {
         Self {
             allow_terminal_redefinition,
-            cache: RefCell::new(HashMap::new()),
+            cache: HashMap::new(),
             ..self
         }
     }
 
     /// Search for modifications that can be replaced by named modifications in this peptide.
-    #[allow(
-        clippy::similar_names,
-        clippy::missing_panics_doc,
-        clippy::needless_pass_by_ref_mut
-    )] // unwrap is controlled, and the mut is needed for the cache
+    #[allow(clippy::similar_names)]
     pub fn search<Complexity>(
         &mut self,
         mut peptide: LinearPeptide<Complexity>,
     ) -> LinearPeptide<Complexity> {
-        let check_matches =
-            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
-                SimpleModification::Mass(mass) => self
-                    .tolerance
-                    .within(&mass.into_inner(), &provided.formula().mass(self.mass_mode)),
-                SimpleModification::Formula(formula) if self.replace_formulas => {
-                    *formula == provided.formula()
-                }
-                _ => false,
-            };
+        fn find_replacement_all_positions(
+            settings: &mut PeptideModificationSearch,
+            n_term: bool,
+            c_term: bool,
+            aminoacid: Option<AminoAcid>,
+            in_place: &SimpleModification,
+        ) -> Option<(SimpleModification, Position)> {
+            if !settings.allow_terminal_redefinition || (!n_term && !c_term) {
+                settings
+                    .find_replacement(Position::Anywhere, aminoacid, in_place)
+                    .map(|r| (r, Position::Anywhere))
+            } else if n_term && c_term {
+                settings
+                    .find_replacement(Position::Anywhere, aminoacid, in_place)
+                    .map(|r| (r, Position::Anywhere))
+                    .or_else(|| {
+                        settings
+                            .find_replacement(Position::AnyNTerm, aminoacid, in_place)
+                            .map(|r| (r, Position::AnyNTerm))
+                    })
+                    .or_else(|| {
+                        settings
+                            .find_replacement(Position::AnyCTerm, aminoacid, in_place)
+                            .map(|r| (r, Position::AnyCTerm))
+                    })
+            } else if n_term {
+                settings
+                    .find_replacement(Position::Anywhere, aminoacid, in_place)
+                    .map(|r| (r, Position::Anywhere))
+                    .or_else(|| {
+                        settings
+                            .find_replacement(Position::AnyNTerm, aminoacid, in_place)
+                            .map(|r| (r, Position::AnyNTerm))
+                    })
+            } else {
+                // The case when c_term
+                settings
+                    .find_replacement(Position::Anywhere, aminoacid, in_place)
+                    .map(|r| (r, Position::Anywhere))
+                    .or_else(|| {
+                        settings
+                            .find_replacement(Position::AnyCTerm, aminoacid, in_place)
+                            .map(|r| (r, Position::AnyCTerm))
+                    })
+            }
+        }
 
-        let find_replacement_uncached =
-            |position: Position, aminoacid: Option<AminoAcid>, in_place: &SimpleModification| {
-                let options: Vec<_> = if self.modifications.is_empty() {
-                    self.ontologies
-                        .iter()
-                        .flat_map(|o| o.lookup(self.custom_database.as_ref()))
-                        .filter(|modification| {
-                            aminoacid.map_or(true, |aa| {
-                                modification.2.is_possible_aa(aa, position).any_possible()
-                            })
-                        })
-                        .filter(|modification| check_matches(in_place, &modification.2))
-                        .map(|(_, _, modification)| modification)
-                        .collect()
-                } else {
-                    self.modifications
-                        .iter()
-                        .filter(|modification| {
-                            aminoacid.map_or(true, |aa| {
-                                modification.is_possible_aa(aa, position).any_possible()
-                            })
-                        })
-                        .filter(|modification| check_matches(in_place, modification))
-                        .collect()
-                };
-                match options.len() {
-                    0 => None,
-                    1 => Some(options[0].clone()),
-                    _ if !self.force_closest => None,
-                    _ => {
-                        let distances: Vec<_> = options
-                            .iter()
-                            .map(|m| {
-                                in_place
-                                    .formula()
-                                    .mass(self.mass_mode)
-                                    .ppm(m.formula().mass(self.mass_mode))
-                                    .value
-                            })
-                            .collect();
-                        let max: f64 = distances
-                            .iter()
-                            .copied()
-                            .max_by(|a, b| (*a).total_cmp(b))
-                            .unwrap(); // Guaranteed to always have a value
-                        let filtered: Vec<_> = distances
-                            .iter()
-                            .copied()
-                            .enumerate()
-                            .filter(|(_, d)| *d == max)
-                            .collect();
-                        if filtered.len() == 1 {
-                            Some(options[filtered[0].0].clone())
-                        } else {
-                            None
-                        }
-                    }
-                }
-            };
-
-        let find_replacement =
-            |position: Position, aminoacid: Option<AminoAcid>, in_place: &SimpleModification| {
-                if matches!(in_place, SimpleModification::Mass(_))
-                    || self.replace_formulas && matches!(in_place, SimpleModification::Formula(_))
-                {
-                    self.cache
-                        .borrow_mut()
-                        .entry((position, aminoacid, in_place.clone()))
-                        .or_insert_with(|| find_replacement_uncached(position, aminoacid, in_place))
-                        .clone()
-                } else {
-                    None
-                }
-            };
-
-        let find_replacement_all_positions =
-            |n_term: bool,
-             c_term: bool,
-             aminoacid: Option<AminoAcid>,
-             in_place: &SimpleModification| {
-                if !self.allow_terminal_redefinition || (!n_term && !c_term) {
-                    find_replacement(Position::Anywhere, aminoacid, in_place)
-                        .map(|r| (r, Position::Anywhere))
-                } else if n_term && c_term {
-                    find_replacement(Position::Anywhere, aminoacid, in_place)
-                        .map(|r| (r, Position::Anywhere))
-                        .or_else(|| {
-                            find_replacement(Position::AnyNTerm, aminoacid, in_place)
-                                .map(|r| (r, Position::AnyNTerm))
-                        })
-                        .or_else(|| {
-                            find_replacement(Position::AnyCTerm, aminoacid, in_place)
-                                .map(|r| (r, Position::AnyCTerm))
-                        })
-                } else if n_term {
-                    find_replacement(Position::Anywhere, aminoacid, in_place)
-                        .map(|r| (r, Position::Anywhere))
-                        .or_else(|| {
-                            find_replacement(Position::AnyNTerm, aminoacid, in_place)
-                                .map(|r| (r, Position::AnyNTerm))
-                        })
-                } else {
-                    // The case when c_term
-                    find_replacement(Position::Anywhere, aminoacid, in_place)
-                        .map(|r| (r, Position::Anywhere))
-                        .or_else(|| {
-                            find_replacement(Position::AnyCTerm, aminoacid, in_place)
-                                .map(|r| (r, Position::AnyCTerm))
-                        })
-                }
-            };
-
-        let find_replacement_modification =
-            |position: Position, aminoacid: Option<AminoAcid>, in_place: &Modification| {
-                match in_place {
-                    Modification::Simple(simple) => {
-                        find_replacement(position, aminoacid, simple).map(Modification::Simple)
-                    }
-                    Modification::CrossLink { .. } => None, // TODO: potentially the cross-linker could be replaced?
-                }
-            };
+        fn find_replacement_modification(
+            settings: &mut PeptideModificationSearch,
+            position: Position,
+            aminoacid: Option<AminoAcid>,
+            in_place: &Modification,
+        ) -> Option<Modification> {
+            match in_place {
+                Modification::Simple(simple) => settings
+                    .find_replacement(position, aminoacid, simple)
+                    .map(Modification::Simple),
+                Modification::CrossLink { .. } => None, // TODO: potentially the cross-linker could be replaced?
+            }
+        }
 
         // Start with N and C terminal mods
         let mut n_term = peptide.get_n_term().cloned().and_then(|m| {
             find_replacement_modification(
+                self,
                 Position::AnyNTerm,
                 peptide.sequence().first().map(|p| p.aminoacid.aminoacid()),
                 &m,
@@ -398,6 +321,7 @@ impl PeptideModificationSearch {
         });
         let mut c_term = peptide.get_c_term().cloned().and_then(|m| {
             find_replacement_modification(
+                self,
                 Position::AnyCTerm,
                 peptide.sequence().last().map(|p| p.aminoacid.aminoacid()),
                 &m,
@@ -413,6 +337,7 @@ impl PeptideModificationSearch {
             for (i, m) in position.modifications.iter_mut().enumerate() {
                 if let Some(simple) = m.simple() {
                     if let Some((replace, location)) = find_replacement_all_positions(
+                        self,
                         is_n_term,
                         is_c_term,
                         Some(position.aminoacid.aminoacid()),
@@ -436,6 +361,7 @@ impl PeptideModificationSearch {
             }
             for (i, m) in position.possible_modifications.iter_mut().enumerate() {
                 if let Some((replace, location)) = find_replacement_all_positions(
+                    self,
                     is_n_term,
                     is_c_term,
                     Some(position.aminoacid.aminoacid()),
@@ -458,11 +384,124 @@ impl PeptideModificationSearch {
             }
         }
         for m in peptide.get_labile_mut_inner() {
-            if let Some(replace) = find_replacement(Position::Anywhere, None, m) {
+            if let Some(replace) = self.find_replacement(Position::Anywhere, None, m) {
                 *m = replace;
             }
         }
         peptide.n_term(n_term).c_term(c_term)
+    }
+
+    fn find_replacement(
+        &mut self,
+        position: Position,
+        aminoacid: Option<AminoAcid>,
+        in_place: &SimpleModification,
+    ) -> Option<SimpleModification> {
+        if matches!(in_place, SimpleModification::Mass(_))
+            || self.replace_formulas && matches!(in_place, SimpleModification::Formula(_))
+        {
+            self.cache
+                .entry((position, aminoacid, in_place.clone()))
+                .or_insert_with(|| {
+                    Self::find_replacement_uncached(
+                        self.mass_mode,
+                        self.tolerance,
+                        self.replace_formulas,
+                        self.force_closest,
+                        &self.modifications,
+                        &self.ontologies,
+                        self.custom_database.as_ref(),
+                        position,
+                        aminoacid,
+                        in_place,
+                    )
+                })
+                .clone()
+        } else {
+            None
+        }
+    }
+
+    #[allow(clippy::missing_panics_doc, clippy::too_many_arguments)]
+    fn find_replacement_uncached(
+        mass_mode: MassMode,
+        tolerance: Tolerance<Mass>,
+        replace_formulas: bool,
+        force_closest: bool,
+        modifications: &[SimpleModification],
+        ontologies: &[Ontology],
+        custom_database: Option<&CustomDatabase>,
+        position: Position,
+        aminoacid: Option<AminoAcid>,
+        in_place: &SimpleModification,
+    ) -> Option<SimpleModification> {
+        let check_matches =
+            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
+                SimpleModification::Mass(mass) => {
+                    tolerance.within(&mass.into_inner(), &provided.formula().mass(mass_mode))
+                }
+                SimpleModification::Formula(formula) if replace_formulas => {
+                    *formula == provided.formula()
+                }
+                _ => false,
+            };
+
+        let options: Vec<_> = if modifications.is_empty() {
+            ontologies
+                .iter()
+                .flat_map(|o| o.lookup(custom_database))
+                .filter(|modification| {
+                    aminoacid.map_or(true, |aa| {
+                        modification.2.is_possible_aa(aa, position).any_possible()
+                    })
+                })
+                .filter(|modification| check_matches(in_place, &modification.2))
+                .map(|(_, _, modification)| modification)
+                .collect()
+        } else {
+            modifications
+                .iter()
+                .filter(|modification| {
+                    aminoacid.map_or(true, |aa| {
+                        modification.is_possible_aa(aa, position).any_possible()
+                    })
+                })
+                .filter(|modification| check_matches(in_place, modification))
+                .collect()
+        };
+        match options.len() {
+            0 => None,
+            1 => Some(options[0].clone()),
+            _ if !force_closest => None,
+            _ => {
+                let distances: Vec<_> = options
+                    .iter()
+                    .map(|m| {
+                        in_place
+                            .formula()
+                            .mass(mass_mode)
+                            .ppm(m.formula().mass(mass_mode))
+                            .value
+                    })
+                    .collect();
+                let max: f64 = distances
+                    .iter()
+                    .copied()
+                    .max_by(|a, b| (*a).total_cmp(b))
+                    .unwrap(); // Guaranteed to always have a value
+                let filtered: Vec<_> = distances
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|(_, d)| (*d - max).abs() < f64::EPSILON)
+                    .collect();
+                if filtered.len() == 1 {
+                    Some(options[filtered[0].0].clone())
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
