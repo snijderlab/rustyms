@@ -16,7 +16,11 @@ pub fn build_xlmod_ontology(out_dir: &Path) {
     let mods = parse_xlmod();
 
     let mut mods_file = std::fs::File::create(Path::new(&out_dir).join("xlmod.dat")).unwrap();
-    let final_mods = mods.into_iter().map(|m| m.into_mod()).collect::<Vec<_>>();
+    let final_mods = mods
+        .into_iter()
+        .map(|m| m.into_mod())
+        .sorted_unstable()
+        .collect::<Vec<_>>();
     println!("Found {} XLMOD modifications", final_mods.len());
     mods_file
         .write_all(&bincode::serialize::<OntologyModificationList>(&final_mods).unwrap())

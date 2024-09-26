@@ -19,9 +19,24 @@ pub fn build_gnome_ontology(out_dir: &Path) {
             modification.weight = find_mass(&read_mods, modification.is_a.clone());
         }
         if let Some(structure) = structures.get(&modification.id.name) {
-            modification.topology = Some(structure.clone());
+            modification.topology = Some(structure.structure.clone());
+            if let Some(chebi) = structure.chebi {
+                modification
+                    .id
+                    .cross_ids
+                    .push(("ChEBI".to_string(), chebi.to_string()));
+            }
+            if let Some(pubchem) = structure.pubchem {
+                modification
+                    .id
+                    .cross_ids
+                    .push(("PubChemCID".to_string(), pubchem.to_string()));
+            }
+            modification.motif = structure.motif.clone();
+            modification.taxonomy = structure.taxonomy.clone();
+            modification.glycomeatlas = structure.glycomeatlas.clone();
         } else if let Some(id) = &modification.topology_id {
-            modification.topology = structures.get(id).cloned();
+            modification.topology = structures.get(id).map(|s| s.structure.clone());
         }
         if let Some(composition_id) = &modification.composition_id {
             modification.composition = read_mods
@@ -180,6 +195,9 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
                 .get(SHORTUCKB_COMPOSITION)
                 .map(|lines| MonoSaccharide::from_composition(&lines[0].to_string()).unwrap()),
             topology: None, // Will be looked up later
+            motif: None,
+            taxonomy: Vec::new(),
+            glycomeatlas: Vec::new(),
         };
 
         mods.insert(modification.id.name.clone(), modification);
@@ -188,7 +206,16 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
     mods
 }
 
-fn parse_gnome_structures() -> HashMap<String, GlycanStructure> {
+struct GlycosmosList {
+    structure: GlycanStructure,
+    motif: Option<(String, String)>,
+    chebi: Option<usize>,
+    pubchem: Option<usize>,
+    taxonomy: Vec<(String, usize)>,
+    glycomeatlas: Vec<(String, Vec<(String, String)>)>,
+}
+
+fn parse_gnome_structures() -> HashMap<String, GlycosmosList> {
     let mut glycans = HashMap::new();
     let mut errors = 0;
     for line in parse_csv(
@@ -200,14 +227,82 @@ fn parse_gnome_structures() -> HashMap<String, GlycanStructure> {
     .skip(1)
     {
         let line = line.unwrap();
-        if !line[1].is_empty() {
+        if !line.index_column("iupac condensed").unwrap().0.is_empty() {
             match GlycanStructure::from_short_iupac(
                 line.line(),
                 line.range(1).clone(),
                 line.line_index() + 1,
             ) {
                 Ok(glycan) => {
-                    glycans.insert(line[0].to_lowercase(), glycan);
+                    glycans.insert(
+                        line.index_column("accession number")
+                            .unwrap()
+                            .0
+                            .to_lowercase(),
+                        GlycosmosList {
+                            structure: glycan,
+                            motif: line
+                                .index_column("motif name(s)")
+                                .ok()
+                                .filter(|p| !p.0.is_empty())
+                                .and_then(|p| p.0.split_once(':'))
+                                .map(|(n, i)| (n.to_string(), i.to_ascii_lowercase())),
+                            chebi: line
+                                .index_column("chebi")
+                                .ok()
+                                .map(|p| p.0.to_string())
+                                .filter(|p| !p.is_empty())
+                                .and_then(|p| p.parse::<usize>().ok()),
+                            pubchem: line
+                                .index_column("pubchem cid")
+                                .ok()
+                                .map(|p| p.0.to_string())
+                                .filter(|p| !p.is_empty())
+                                .and_then(|p| p.parse::<usize>().ok()),
+                            taxonomy: line
+                                .index_column("taxonomy")
+                                .ok()
+                                .filter(|p| !p.0.is_empty())
+                                .into_iter()
+                                .flat_map(|p| {
+                                    p.0.split(',').map(|s| {
+                                        s.rsplit_once(':')
+                                            .map(|(n, i)| {
+                                                (n.to_string(), i.parse::<usize>().unwrap())
+                                            })
+                                            .unwrap()
+                                    })
+                                })
+                                .collect(),
+                            glycomeatlas: line
+                                .index_column("glycomeatlas")
+                                .ok()
+                                .filter(|p| !p.0.is_empty())
+                                .map(|p| p.0)
+                                .into_iter()
+                                .flat_map(|p| p.split(','))
+                                .map(|p| p.split_once(':').unwrap())
+                                .chunk_by(|(species, _)| species.to_string())
+                                .into_iter()
+                                .map(|(species, locations)| {
+                                    (
+                                        species.to_string(),
+                                        locations
+                                            .into_iter()
+                                            .map(|location| {
+                                                location
+                                                    .1
+                                                    .trim_end_matches(')')
+                                                    .split_once('(')
+                                                    .map(|(l, o)| (l.to_string(), o.to_string()))
+                                                    .unwrap()
+                                            })
+                                            .collect(),
+                                    )
+                                })
+                                .collect(),
+                        },
+                    );
                 }
                 Err(error) => {
                     if errors < 5 {
@@ -246,6 +341,12 @@ struct GNOmeModification {
     topology: Option<GlycanStructure>,
     /// the score for the structure (0 if fully defined)
     structure_score: Option<usize>,
+    /// The underlying glycan motifs
+    motif: Option<(String, String)>,
+    /// Taxonomy of where the glycan exists
+    taxonomy: Vec<(String, usize)>,
+    /// Locations of where the glycan exists
+    glycomeatlas: Vec<(String, Vec<(String, String)>)>,
 }
 
 impl GNOmeModification {
@@ -263,6 +364,9 @@ impl GNOmeModification {
             id: self.id,
             structure_score: self.structure_score,
             subsumption_level: self.subsumption_level,
+            motif: self.motif,
+            taxonomy: self.taxonomy,
+            glycomeatlas: self.glycomeatlas,
         }
     }
 }

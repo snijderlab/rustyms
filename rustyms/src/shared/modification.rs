@@ -90,6 +90,12 @@ pub enum SimpleModification {
         structure_score: Option<usize>,
         /// The subsumption level
         subsumption_level: GnoSubsumption,
+        /// The underlying glycan motif, first is the human description, the second id the GNOme ID of the motif
+        motif: Option<(String, String)>,
+        /// Taxonomy of the animals in which this glycan is found, defined as a list of species name with taxonomy ID
+        taxonomy: Vec<(String, usize)>,
+        /// Locations of where the glycan exists
+        glycomeatlas: Vec<(String, Vec<(String, String)>)>,
     },
     /// A modification from one of the modification ontologies
     Database {
