@@ -606,7 +606,17 @@ fn ensure_no_double_xl_labels_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.labels().len()
+            > f.formula
+                .labels()
+                .iter()
+                .map(|l| match l {
+                    AmbiguousLabel::CrossLinkBound(n) | AmbiguousLabel::CrossLinkBroken(n, _) =>
+                        n.to_string(),
+                    _ => String::new(),
+                })
+                .unique()
+                .count())
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
@@ -624,7 +634,17 @@ fn ensure_no_double_xl_labels_non_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.labels().len()
+            > f.formula
+                .labels()
+                .iter()
+                .map(|l| match l {
+                    AmbiguousLabel::CrossLinkBound(n) | AmbiguousLabel::CrossLinkBroken(n, _) =>
+                        n.to_string(),
+                    _ => String::new(),
+                })
+                .unique()
+                .count())
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
