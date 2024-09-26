@@ -3,7 +3,7 @@
 
 # Match those fragments!
 
-A peptide fragmentation matching library for Rust.
+A peptide fragmentation matching library for Rust. Built to handle very complex peptides in a sensible way.
 
 ## Features
 

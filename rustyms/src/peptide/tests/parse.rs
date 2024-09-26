@@ -9,8 +9,8 @@ use crate::{
     },
     placement_rule::{self, PlacementRule},
     system::{da, usize::Charge},
-    AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge,
-    MultiChemical, Peptidoform,
+    AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
+    Peptidoform,
 };
 
 #[test]
