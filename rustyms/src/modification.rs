@@ -142,7 +142,7 @@ impl SimpleModification {
         sequence_index: SequencePosition,
         peptide_index: usize,
     ) -> MolecularFormula {
-        match dbg!(self) {
+        match self {
             Self::Mass(m)
             | Self::Gno {
                 composition: GnoComposition::Weight(m),
