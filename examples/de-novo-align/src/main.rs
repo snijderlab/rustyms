@@ -2,7 +2,6 @@ use std::{collections::HashMap, fs::File, io::BufWriter};
 
 use clap::Parser;
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use rayon::prelude::*;
 use rustyms::{
     align::{align, matrix, AlignType},
@@ -36,8 +35,8 @@ fn main() {
 
     let alignments: Vec<_> = peptides
         .par_iter()
-        .map(|peptide| {
-            database
+        .flat_map(|peptide| {
+            let alignments = database
                 .iter()
                 .map(|db| {
                     (
@@ -52,10 +51,28 @@ fn main() {
                         ),
                     )
                 })
-                .max_by_key(|a| OrderedFloat(a.2.normalised_score()))
+                .collect_vec();
+            let max = alignments
+                .iter()
+                .max_by(|a, b| a.2.normalised_score().total_cmp(&b.2.normalised_score()))
                 .unwrap()
+                .2
+                .normalised_score();
+            let mut alignments = alignments
+                .into_iter()
+                .filter(|a| a.2.normalised_score() == max)
+                .collect_vec();
+            if alignments.len() == 1 {
+                let (d, p, a) = alignments.pop().unwrap();
+                vec![(d, p, a, true)]
+            } else {
+                alignments
+                    .into_iter()
+                    .map(|(d, p, a)| (d, p, a, false))
+                    .collect_vec()
+            }
         })
-        .map(|(db, peptide, alignment)| {
+        .map(|(db, peptide, alignment, unique)| {
             HashMap::from([
                 ("Peptide".to_string(), alignment.seq_b().to_string()),
                 (
@@ -73,6 +90,7 @@ fn main() {
                     "Alignment score".to_string(),
                     alignment.normalised_score().to_string(),
                 ),
+                ("Unique".to_string(), unique.to_string()),
                 ("Start".to_string(), alignment.start_a().to_string()),
                 (
                     "End".to_string(),
