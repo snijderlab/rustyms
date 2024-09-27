@@ -35,7 +35,7 @@ impl ModificationId {
                 self.id.unwrap_or_default()
             )),
             Ontology::Gnome => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
+                "http://glytoucan.org/Structures/Glycans/{}",
                 self.name
             )),
             Ontology::Resid => Some(format!(
@@ -132,11 +132,7 @@ impl SimpleModification {
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
-            Self::Database { id, .. } | Self::Linker { id, .. } => id.url(),
-            Self::Gno { id, .. } => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
-                id.name
-            )),
+            Self::Database { id, .. } | Self::Linker { id, .. } | Self::Gno { id, .. } => id.url(),
         }
     }
 
