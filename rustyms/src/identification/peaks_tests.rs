@@ -1,6 +1,7 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::{BufReader, Read};
 
+use crate::Modification;
 use crate::{modification::SimpleModification, molecular_formula};
 
 use super::error::CustomError;
@@ -136,9 +137,17 @@ fn open_file(
     let mut num_lines = 0;
     for line in lines {
         let line = line?;
-        let _read: IdentifiedPeptide =
+        let read: IdentifiedPeptide =
             PeaksData::parse_specific(&line, format, custom_database)?.into();
         num_lines += 1;
+        assert!(
+            read.peptide().unwrap().sequence().iter().all(|s| s
+                .modifications
+                .iter()
+                .all(|m| !matches!(m, Modification::Simple(SimpleModification::Mass(_))))),
+            "Peptide contains mass mods: {}",
+            read.peptide().unwrap()
+        );
     }
     Ok(num_lines)
 }
@@ -152,17 +161,17 @@ F2:13745,STMHWV,6,97,6,380.6751,2,30.62,2.73E6,759.3374,-2.2,,,98 99 95 95 99 99
 F1:20191,LFLN(+.98)ESHLTHAF,12,97,12,715.3615,2,37.09,4.4E6,1428.7036,3.3,,Deamidation (NQ),85 97 99 98 98 94 98 99 99 99 100 99,LFLN(+.98)ESHLTHAF,CID
 F3:14603,APNTFTCSVLHE,12,97,12,659.8101,2,38.73,9.59E7,1317.6023,2.5,constructed_protein_Heavy,,96 96 98 99 100 99 96 95 96 99 98 94,APNTFTCSVLHE,CID
 F3:15521,FTLNLHPVEEE,11,97,11,664.3321,2,41.05,2.65E6,1326.6455,3.1,,,99 99 99 97 99 99 90 92 99 100 94,FTLNLHPVEEE,CID
-F4:8195,SNNYATHYAENK(+72.06),12,97,12,742.3466,2,18.77,6.26E7,1482.6792,-0.3,,Carboxymethyl1,83 94 98 99 99 99 98 99 99 100 97 99,SNNYATHYAENK(+72.06),CID
+F4:8195,SNNYATHYAENK(+72.06),12,97,12,742.3466,2,18.77,6.26E7,1482.6792,-0.3,,Carboxyethyl,83 94 98 99 99 99 98 99 99 100 97 99,SNNYATHYAENK(+72.06),CID
 F2:13141,WFVDLEEVHTA,11,97,11,673.3289,2,29.59,1.25E7,1344.6350,6.2,,,92 99 99 98 88 95 99 99 100 99 98,WFVDLEEVHTA,CID
 F3:2323,HN(+.98)HHTE,6,97,6,388.1600,2,9.21,4.17E4,774.3045,1.2,,Deamidation (NQ),97 97 99 99 99 91,HN(+.98)HHTE,CID
-F4:7286,ANN(+.98)HATYYAENK(+72.06),12,96,12,734.8412,2,17.49,7.73E6,1467.6682,-0.2,,Deamidation (NQ); Carboxymethyl1,82 94 99 99 100 99 99 99 99 100 95 96,ANN(+.98)HATYYAENK(+72.06),CID
+F4:7286,ANN(+.98)HATYYAENK(+72.06),12,96,12,734.8412,2,17.49,7.73E6,1467.6682,-0.2,,Deamidation (NQ); Carboxyethyl,82 94 99 99 100 99 99 99 99 100 95 96,ANN(+.98)HATYYAENK(+72.06),CID
 F2:7215,HYLHEV,6,96,6,399.1997,2,18.41,8.67E6,796.3868,-2.5,,,95 95 97 97 99 99,HYLHEV,CID
 F1:20356,YLDQTEQWQLY,11,96,11,743.8483,2,37.34,1.04E7,1485.6775,3.1,,,90 97 99 96 99 99 96 98 94 97 96,YLDQTEQWQLY,CID
 F3:14820,APNTFTCSVLHE,12,96,12,659.8107,2,39.24,6.09E6,1317.6023,3.5,constructed_protein_Heavy,,92 89 98 99 100 99 99 98 97 98 93 94,APNTFTCSVLHE,CID
-F4:9062,SDNYATHYAENK(+72.06),12,96,12,742.8393,2,20.43,5.92E7,1483.6631,0.6,,Carboxymethyl1,84 95 98 99 99 99 99 99 99 100 89 97,SDNYATHYAENK(+72.06),CID
-F4:6305,NHATYYAENK(+72.06),10,96,10,641.8087,2,16.22,2.99E6,1281.6040,-1.0,,Carboxymethyl1,85 96 99 99 99 98 98 100 94 94,NHATYYAENK(+72.06),CID
+F4:9062,SDNYATHYAENK(+72.06),12,96,12,742.8393,2,20.43,5.92E7,1483.6631,0.6,,Carboxyethyl,84 95 98 99 99 99 99 99 99 100 89 97,SDNYATHYAENK(+72.06),CID
+F4:6305,NHATYYAENK(+72.06),10,96,10,641.8087,2,16.22,2.99E6,1281.6040,-1.0,,Carboxyethyl,85 96 99 99 99 98 98 100 94 94,NHATYYAENK(+72.06),CID
 F2:8831,VCAAVHGV,8,96,8,378.1942,2,21.04,3.21E6,754.3796,-7.5,,,84 92 98 99 99 100 99 99,VCAAVHGV,CID
-F4:3135,TPVSEHQK(+72.06),8,96,8,499.2701,2,10.87,3.28E7,996.5292,-3.5,,Carboxymethyl1,99 99 99 97 99 94 88 95,TPVSEHQK(+72.06),CID";
+F4:3135,TPVSEHQK(+72.06),8,96,8,499.2701,2,10.87,3.28E7,996.5292,-3.5,,Carboxyethyl,99 99 99 97 99 94 88 95,TPVSEHQK(+72.06),CID";
 
 const DATA_X: &str = r"Fraction,Source File,Feature,Peptide,Scan,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,PTM,local confidence (%),tag (>=0%),mode
 1,20190517_F1_Ag5_3117030_SA_ETHCD_131-2a_Tryp01.raw,F1:5056,LLYLVSK,F1:6994,7,99,7,418.2689,2,39.59,1.47E6,834.5215,2.2,,100 100 100 100 100 100 100,LLYLVSK,ETHCD

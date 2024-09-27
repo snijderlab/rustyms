@@ -5,7 +5,7 @@ use std::{
 };
 
 /// A struct to define the context of an error message
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Context {
     /// When no context can be given
     None,

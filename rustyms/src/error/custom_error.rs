@@ -5,7 +5,7 @@ use std::error;
 use std::fmt;
 
 /// An error
-#[derive(Serialize, Deserialize, PartialEq, Clone, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Eq, Hash)]
 pub struct CustomError {
     /// The level of the error, defining how it should be handled
     warning: bool,

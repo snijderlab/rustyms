@@ -58,7 +58,7 @@ format_family!(
                 let v = v.trim();
                 Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
             }
-            ).collect::<Result<Vec<_>,_>>();
+            ).unique().collect::<Result<Vec<_>,_>>();
         local_confidence: Vec<f64>, |location: Location, _| location
                 .array(' ')
                 .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
@@ -81,8 +81,9 @@ format_family!(
 impl From<PeaksData> for IdentifiedPeptide {
     fn from(mut value: PeaksData) -> Self {
         // Add the meaningful modifications to replace mass modifications
-        value.peptide =
-            PeptideModificationSearch::in_modifications(value.ptm.clone()).search(value.peptide);
+        value.peptide = PeptideModificationSearch::in_modifications(value.ptm.clone())
+            .tolerance(super::Tolerance::Absolute(super::system::da(0.05)))
+            .search(value.peptide);
 
         Self {
             score: Some(value.de_novo_score.unwrap_or(value.alc)),
