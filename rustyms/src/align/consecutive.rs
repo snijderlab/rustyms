@@ -1,8 +1,8 @@
 use crate::{
+    align::AlignScoring,
     align::*,
     imgt::*,
     peptide::{AtMax, SimpleLinear, UnAmbiguous},
-    system::Mass,
     *,
 };
 use std::collections::HashSet;
@@ -15,15 +15,14 @@ use itertools::Itertools;
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(feature = "imgt")]
-#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear>>(
     sequence: &LinearPeptide<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     allele: AlleleSelection,
-    tolerance: Tolerance<Mass>,
-    matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
+    scoring: AlignScoring<'_>,
     return_number: usize,
 ) -> Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> {
     assert!(genes.len() >= 2);
@@ -60,14 +59,9 @@ pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear
             }
             .germlines()
             .map(|seq| {
-                let alignment = align::<STEPS, UnAmbiguous, A>(
-                    seq.sequence,
-                    &left_sequence,
-                    matrix,
-                    tolerance,
-                    gene.1,
-                )
-                .to_owned();
+                let alignment =
+                    align::<STEPS, UnAmbiguous, A>(seq.sequence, &left_sequence, scoring, gene.1)
+                        .to_owned();
                 (seq, alignment)
             })
             .k_largest_by(return_number, |a, b| a.1.cmp(&b.1))
@@ -83,7 +77,7 @@ pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(all(feature = "rayon", feature = "imgt"))]
-#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn par_consecutive_align<
     const STEPS: u16,
     A: AtMax<SimpleLinear> + AtMax<Linear> + Send + Sync,
@@ -93,8 +87,7 @@ pub fn par_consecutive_align<
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     allele: AlleleSelection,
-    tolerance: Tolerance<Mass>,
-    matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
+    scoring: AlignScoring<'_>,
     return_number: usize,
 ) -> Vec<Vec<(Allele<'static>, Alignment<'static, UnAmbiguous, A>)>> {
     use rayon::iter::ParallelIterator;
@@ -133,13 +126,8 @@ pub fn par_consecutive_align<
             }
             .par_germlines()
             .map(|seq| {
-                let alignment = align::<STEPS, UnAmbiguous, A>(
-                    seq.sequence,
-                    &left_sequence,
-                    matrix,
-                    tolerance,
-                    gene.1,
-                );
+                let alignment =
+                    align::<STEPS, UnAmbiguous, A>(seq.sequence, &left_sequence, scoring, gene.1);
                 (seq, alignment.to_owned())
             })
             .collect::<Vec<_>>()

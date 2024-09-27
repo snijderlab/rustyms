@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use itertools::Itertools;
-use rustyms::system::{dalton, Mass};
+use rustyms::align::AlignScoring;
 use rustyms::LinearPeptide;
 use rustyms::UnAmbiguous;
 
@@ -193,12 +193,15 @@ impl std::fmt::Display for TemporaryGermline {
                         cons.1.iter().map(|i| seq.acc[*i].clone()).join(" "),
                     )?;
                 }
+                let scoring = AlignScoring::<'_> {
+                    matrix: rustyms::align::matrix::BLOSUM90,
+                    ..Default::default()
+                };
                 if let Some(first_allele) = first_allele {
                     let alignment = rustyms::align::align::<1, UnAmbiguous, UnAmbiguous>(
                         first_allele,
                         &seq.sequence,
-                        rustyms::align::matrix::BLOSUM90,
-                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        scoring,
                         rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();
@@ -213,8 +216,7 @@ impl std::fmt::Display for TemporaryGermline {
                     let alignment = rustyms::align::align::<1, UnAmbiguous, UnAmbiguous>(
                         reference,
                         &seq.sequence,
-                        rustyms::align::matrix::BLOSUM90,
-                        crate::Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+                        scoring,
                         rustyms::align::AlignType::GLOBAL,
                     )
                     .stats();

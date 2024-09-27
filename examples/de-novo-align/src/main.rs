@@ -1,13 +1,13 @@
 use std::{collections::HashMap, fs::File, io::BufWriter};
 
+use align::AlignScoring;
 use clap::Parser;
 use itertools::Itertools;
 use rayon::prelude::*;
 use rustyms::{
-    align::{align, matrix, AlignType},
+    align::{align, AlignType},
     csv::write_csv,
     identification::{open_identified_peptides_file, FastaData},
-    system::da,
     *,
 };
 
@@ -45,8 +45,7 @@ fn main() {
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
                             &db.peptide,
                             peptide.peptide().unwrap(),
-                            matrix::BLOSUM62,
-                            Tolerance::Absolute(da(0.1)),
+                            AlignScoring::default(),
                             AlignType::EITHER_GLOBAL,
                         ),
                     )
