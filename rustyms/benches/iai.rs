@@ -1,8 +1,6 @@
 use std::hint::black_box;
 
 use rustyms::align::*;
-use rustyms::system::dalton;
-use rustyms::system::Mass;
 use rustyms::SimpleLinear;
 use rustyms::*;
 
@@ -42,8 +40,7 @@ pub fn align_1(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)
     align::<1, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
-        matrix::BLOSUM62,
-        Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+        AlignScoring::default(),
         AlignType::GLOBAL,
     );
 }
@@ -60,8 +57,7 @@ pub fn align_4(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)
     align::<4, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
-        matrix::BLOSUM62,
-        Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+        AlignScoring::default(),
         AlignType::GLOBAL,
     );
 }
@@ -73,8 +69,7 @@ pub fn align_unbounded(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<Simple
     align::<{ u16::MAX }, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
-        matrix::BLOSUM62,
-        Tolerance::new_absolute(Mass::new::<dalton>(0.01)),
+        AlignScoring::default(),
         AlignType::GLOBAL,
     );
 }

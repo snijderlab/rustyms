@@ -117,7 +117,7 @@ pub const OLD: PeaksFormat = PeaksFormat {
     predicted_rt: None,
     accession: None,
 };
-/// Version X of PEAKS export (made for build 31 january 2019)
+/// Version X of PEAKS export (made for build 31 January 2019)
 pub const X: PeaksFormat = PeaksFormat {
     version: PeaksVersion::X,
     scan: "scan",
@@ -142,7 +142,7 @@ pub const X: PeaksFormat = PeaksFormat {
     predicted_rt: None,
     accession: None,
 };
-/// Version X+ of PEAKS export (made for build 20 november 2019)
+/// Version X+ of PEAKS export (made for build 20 November 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
     version: PeaksVersion::Xplus,
     scan: "scan",
@@ -223,9 +223,9 @@ pub const AB: PeaksFormat = PeaksFormat {
 pub enum PeaksVersion {
     /// An older version of a PEAKS export
     Old,
-    /// Version X of PEAKS export (made for build 31 january 2019)
+    /// Version X of PEAKS export (made for build 31 January 2019)
     X,
-    /// Version X+ of PEAKS export (made for build 20 november 2019)
+    /// Version X+ of PEAKS export (made for build 20 November 2019)
     Xplus,
     /// Version Ab of PEAKS export
     Ab,

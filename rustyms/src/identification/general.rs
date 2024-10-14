@@ -7,6 +7,10 @@ use super::{
     MaxQuantData, NovorData, OpairData, PeaksData, SageData,
 };
 
+// TODO:
+// * Merge multiple annotations for the same spectrum (e.g. all candidates peaks export, take care not to lose info on chimeric spectra)
+// * Merge identical (or similar?) peptide sequences (for faster processing)
+
 /// Open the selected path and automatically determine the file type.
 /// # Errors
 /// It errors if the file type could not be determined or if opening the file errors.

@@ -18,7 +18,8 @@ impl MonoSaccharide {
         // Sort on monosaccharide
         let mut composition = composition
             .iter()
-            .filter_map(|(m, n)| (*n != 0).then(|| (m.formula(), *n)))
+            .filter(|(_, n)| *n != 0)
+            .map(|(m, n)| (m.formula(), *n))
             .collect_vec();
         composition.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 

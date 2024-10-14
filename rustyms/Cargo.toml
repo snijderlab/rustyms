@@ -25,14 +25,14 @@ flate2 = { workspace = true }
 itertools = { workspace = true }
 mzdata = { workspace = true, optional = true }
 ndarray = { workspace = true, optional = true }
-ordered-float = { workspace = true, features = ["serde"] }
+ordered-float = { workspace = true }
 probability = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 regex = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"] }
+serde = { workspace = true }
 similar = { workspace = true }
-uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
+uom = { workspace = true }
 
 [dev-dependencies]
 iai-callgrind = { workspace = true }

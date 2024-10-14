@@ -7,7 +7,7 @@ use std::{cmp::Ordering, collections::HashMap};
 impl MolecularFormula {
     /// Get the isotopic distribution, using the natural distribution as defined by CIAAW.
     /// All elements are considered. The return is an array with the probability per offset.
-    /// The first element of the array is the base peak, every consecutive peak is 1 dalton heavier.
+    /// The first element of the array is the base peak, every consecutive peak is 1 Dalton heavier.
     /// The probability is normalized to (approximately) 1 total area.
     ///
     /// This approximation slightly overestimates the tail end of the distribution. Especially

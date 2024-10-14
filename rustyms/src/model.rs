@@ -165,9 +165,9 @@ impl std::default::Default for PrimaryIonSeries {
 /// The settings for glycan fragmentation
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct GlycanModel {
-    /// Allows fragments from glycans with defined structures (ie GNO modifications)
+    /// Allows fragments from glycans with defined structures (i.e. GNO modifications)
     pub allow_structural: bool,
-    /// Allows fragments from glycans where only the composition is known (ie `Glycan:Hex1`).
+    /// Allows fragments from glycans where only the composition is known (i.e. `Glycan:Hex1`).
     /// This allows any fragment containing any number of monosaccharides within this range.
     pub compositional_range: RangeInclusive<usize>,
     /// The allowed neutral losses
@@ -187,7 +187,7 @@ impl GlycanModel {
             ..self
         }
     }
-    /// Set the range of monosaccharides tha can result in composition fragments, see [`Self::compositional_range`].
+    /// Set the range of monosaccharides that can result in composition fragments, see [`Self::compositional_range`].
     #[must_use]
     pub fn compositional_range(self, compositional_range: RangeInclusive<usize>) -> Self {
         Self {

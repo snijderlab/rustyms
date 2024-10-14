@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 rustyms = { path = "../../rustyms" }
-clap = { workspace = true, features = ["derive", "cargo"] }
+clap = { workspace = true }
 directories = { workspace = true }
 itertools = { workspace = true }
 rayon = { workspace = true }

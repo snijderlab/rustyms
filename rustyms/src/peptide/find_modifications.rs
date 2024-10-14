@@ -11,123 +11,109 @@ use crate::{
 
 use super::LinearPeptide;
 
-impl SimpleModification {
-    /// Search matching modification based on what modification is provided. If a mass modification is provided
-    /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
-    /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
-    /// that composition. Otherwise it returns the modification itself.
-    pub fn search(
-        modification: &Self,
-        tolerance: Tolerance<Mass>,
-        mass_mode: MassMode,
-        custom_database: Option<&CustomDatabase>,
-    ) -> ModificationSearchResult {
-        match modification {
-            Self::Mass(mass)
-            | Self::Gno {
-                composition: GnoComposition::Weight(mass),
-                ..
-            } => ModificationSearchResult::Mass(
-                mass.into_inner(),
-                tolerance,
-                mass_mode,
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
+/// Search for modifications that fit the mass tolerance and optional position requirements. If the
+/// `positions` is `None` it will not filter for possible positions. Otherwise only modifications
+/// that are possible (see [`SimpleModification::is_possible_aa`]) on any of the listed combinations
+/// of amino acid and position. If the custom modifications are passed it will also search in them.
+///
+/// It returns the list of possible modifications.
+pub fn modification_search_mass(
+    mass: Mass,
+    tolerance: Tolerance<Mass>,
+    positions: Option<&[(Vec<AminoAcid>, Position)]>,
+    mass_mode: MassMode,
+    custom_database: Option<&CustomDatabase>,
+) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+    [
+        Ontology::Unimod,
+        Ontology::Psimod,
+        Ontology::Gnome,
+        Ontology::Xlmod,
+        Ontology::Resid,
+        Ontology::Custom,
+    ]
+    .iter()
+    .flat_map(|o| {
+        o.lookup(custom_database)
+            .iter()
+            .map(|(i, n, m)| (*o, *i, n, m))
+    })
+    .filter(|(_, _, _, m)| tolerance.within(&mass, &m.formula().mass(mass_mode)))
+    .filter(|(_, _, _, m)| {
+        positions.is_none()
+            || positions.is_some_and(|positions| {
+                positions.iter().any(|(aas, p)| {
+                    aas.iter()
+                        .any(|aa| m.is_possible_aa(*aa, *p).any_possible())
                 })
-                .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula().mass(mass_mode))
-                })
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Formula(formula) => ModificationSearchResult::Formula(
-                formula.clone(),
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
-                })
-                .filter(|(_, _, _, m)| *formula == m.formula())
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Glycan(glycan)
-            | Self::Gno {
-                composition: GnoComposition::Composition(glycan),
-                ..
-            } => {
-                let search = MonoSaccharide::search_composition(glycan);
-                ModificationSearchResult::Glycan(
-                    glycan.clone(),
-                    Ontology::Gnome
-                        .lookup(custom_database)
-                        .iter()
-                        .filter(|(_, _, m)| {
-                            if let Self::Gno {
-                                composition: GnoComposition::Topology(structure),
-                                ..
-                            } = m
-                            {
-                                MonoSaccharide::search_composition(&structure.composition())
-                                    == *search
-                            } else if let Self::Gno {
-                                composition: GnoComposition::Composition(composition),
-                                ..
-                            } = m
-                            {
-                                MonoSaccharide::search_composition(composition) == *search
-                            } else {
-                                false
-                            }
-                        })
-                        .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
-                        .collect(),
-                )
-            }
-            m => ModificationSearchResult::Single(m.clone()),
-        }
-    }
+            })
+    })
+    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
+    .collect()
 }
 
-/// The result of a modification search, see [`SimpleModification::search`].
-pub enum ModificationSearchResult {
-    /// The modification was already defined
-    Single(SimpleModification),
-    /// All modifications with the same mass, within the tolerance
-    Mass(
-        Mass,
-        Tolerance<Mass>,
-        MassMode,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
-    /// All modifications with the same formula
-    Formula(
-        MolecularFormula,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
-    /// All modifications with the same glycan composition
-    Glycan(
-        Vec<(MonoSaccharide, isize)>,
-        Vec<(Ontology, Option<usize>, String, SimpleModification)>,
-    ),
+/// Search for modifications that have the exact same molecular formula as the given target.
+///
+/// It returns the list of possible modifications.
+pub fn modification_search_formula(
+    formula: &MolecularFormula,
+    custom_database: Option<&CustomDatabase>,
+) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+    [
+        Ontology::Unimod,
+        Ontology::Psimod,
+        Ontology::Gnome,
+        Ontology::Xlmod,
+        Ontology::Resid,
+        Ontology::Custom,
+    ]
+    .iter()
+    .flat_map(|o| {
+        o.lookup(custom_database)
+            .iter()
+            .map(|(i, n, m)| (*o, *i, n, m))
+    })
+    .filter(|(_, _, _, m)| *formula == m.formula())
+    .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
+    .collect()
+}
+
+/// Search for glycans in the GNOme database that have a similar composition. To detect similar
+/// composition is converts all monosaccharides into molecular formulas then deduplicate this list.
+/// This 'canonical composition' is then compared to the canonical composition for all GNOme
+/// modofication. Setting `search_topologies` to true allows any GNOme topology modification as
+/// well as composition modification.
+///
+/// It returns the list of possible modifications.
+pub fn modification_search_glycan(
+    glycan: &[(MonoSaccharide, isize)],
+    search_topologies: bool,
+) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+    let search = MonoSaccharide::search_composition(glycan);
+
+    Ontology::Gnome
+        .lookup(None)
+        .iter()
+        .filter(|(_, _, m)| {
+            if let SimpleModification::Gno {
+                composition: GnoComposition::Topology(structure),
+                ..
+            } = m
+            {
+                search_topologies
+                    && MonoSaccharide::search_composition(&structure.composition()) == *search
+            } else if let SimpleModification::Gno {
+                composition: GnoComposition::Composition(composition),
+                ..
+            } = m
+            {
+                MonoSaccharide::search_composition(composition) == *search
+            } else {
+                false
+            }
+        })
+        .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
+        .collect()
 }
 
 /// Search for named modifications based on mass and/or chemical formula modifications in a peptide.
@@ -193,6 +179,7 @@ impl PeptideModificationSearch {
     }
 
     /// Set the tolerance of matches, default is 10 ppm
+    #[must_use]
     pub fn tolerance(self, tolerance: Tolerance<Mass>) -> Self {
         Self {
             tolerance,
@@ -202,6 +189,7 @@ impl PeptideModificationSearch {
     }
 
     /// Set the mass mode, all mass modifications will be interpreted as this mode, the default is [`MassMode::MonoIsotopic`]
+    #[must_use]
     pub fn mass_mode(self, mass_mode: MassMode) -> Self {
         Self {
             mass_mode,
@@ -214,6 +202,7 @@ impl PeptideModificationSearch {
     /// will not provide any named modification if multiple are within the tolerance, on true the
     /// closest modification will be picked. If multiple modifications are just as close no
     /// modification will be picked.
+    #[must_use]
     pub fn force_closest(self, force_closest: bool) -> Self {
         Self {
             force_closest,
@@ -223,6 +212,7 @@ impl PeptideModificationSearch {
     }
 
     /// Also allow formula modifications to be replaced, defaults to false
+    #[must_use]
     pub fn replace_formulas(self, replace_formulas: bool) -> Self {
         Self {
             replace_formulas,
@@ -235,6 +225,7 @@ impl PeptideModificationSearch {
     /// modifications, default true. It is very common to see such definitions as `Q[-17.02655]AA`
     /// which is a pyroglutamic acid on the Q at the N terminus, these are supposed to be defined
     /// as `[Gln->pyro-glu]-QAA` in ProForma.
+    #[must_use]
     pub fn allow_terminal_redefinition(self, allow_terminal_redefinition: bool) -> Self {
         Self {
             allow_terminal_redefinition,
@@ -352,7 +343,7 @@ impl PeptideModificationSearch {
                         } else if location == Position::Anywhere {
                             *m = Modification::Simple(replace);
                         }
-                        // if it can only be a terminal mod but there already is a terminal mod keep it in the original state
+                        // If it can only be a terminal mod but there already is a terminal mod keep it in the original state
                     }
                 }
             }
@@ -376,7 +367,7 @@ impl PeptideModificationSearch {
                     } else if location == Position::Anywhere {
                         m.modification = replace;
                     }
-                    // if it can only be a terminal mod but there already is a terminal mod keep it in the original state
+                    // If it can only be a terminal mod but there already is a terminal mod keep it in the original state
                 }
             }
             if let Some(remove) = remove.take() {

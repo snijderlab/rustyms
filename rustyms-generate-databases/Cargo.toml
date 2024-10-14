@@ -13,7 +13,7 @@ itertools = { workspace = true }
 ordered-float = { workspace = true }
 regex = { workspace = true }
 roxmltree = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"] }
+serde = { workspace = true }
 similar = { workspace = true }
 uom = { workspace = true }
 
