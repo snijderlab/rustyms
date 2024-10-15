@@ -34,7 +34,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&X, &OLD, &XPLUS, &AB, &XI], b',';
+    PeaksVersion, [&XII, &XI, &X, &OLD, &XPLUS, &AB], b',';
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -187,8 +187,33 @@ pub const XI: PeaksFormat = PeaksFormat {
     length: "length",
     fraction: None,
     raw_file: Some("source file"),
-    feature: Some("feature"),
+    feature: Some("feature id"),
     de_novo_score: None,
+    predicted_rt: None,
+    accession: None,
+};
+/// Version 12 of PEAKS export
+pub const XII: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::XII,
+    scan: "scan",
+    peptide: "peptide",
+    tag_length: "tag length",
+    alc: "alc (%)",
+    mz: "m/z",
+    z: "z",
+    mass: "mass",
+    rt: "rt",
+    area: "area",
+    ppm: "ppm",
+    ptm: "ptm",
+    local_confidence: "local confidence (%)",
+    tag: "tag(>=0%)",
+    mode: "mode",
+    length: "length",
+    fraction: None,
+    raw_file: Some("source file"),
+    feature: Some("feature id"),
+    de_novo_score: Some("deep novo score (%)"),
     predicted_rt: None,
     accession: None,
 };
@@ -230,8 +255,10 @@ pub enum PeaksVersion {
     /// Version Ab of PEAKS export
     Ab,
     /// Version 11
-    #[default]
     XI,
+    /// Version 12
+    #[default]
+    XII,
 }
 
 impl std::fmt::Display for PeaksVersion {
@@ -245,6 +272,7 @@ impl std::fmt::Display for PeaksVersion {
                 Self::Xplus => "X+",
                 Self::Ab => "Ab",
                 Self::XI => "11",
+                Self::XII => "12",
             }
         )
     }
