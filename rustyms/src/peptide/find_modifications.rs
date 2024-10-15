@@ -17,13 +17,13 @@ use super::LinearPeptide;
 /// of amino acid and position. If the custom modifications are passed it will also search in them.
 ///
 /// It returns the list of possible modifications.
-pub fn modification_search_mass(
+pub fn modification_search_mass<'a>(
     mass: Mass,
     tolerance: Tolerance<Mass>,
-    positions: Option<&[(Vec<AminoAcid>, Position)]>,
+    positions: Option<&'a [(Vec<AminoAcid>, Position)]>,
     mass_mode: MassMode,
-    custom_database: Option<&CustomDatabase>,
-) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+    custom_database: Option<&'a CustomDatabase>,
+) -> impl Iterator<Item = (Ontology, Option<usize>, String, SimpleModification)> + 'a {
     [
         Ontology::Unimod,
         Ontology::Psimod,
@@ -33,13 +33,13 @@ pub fn modification_search_mass(
         Ontology::Custom,
     ]
     .iter()
-    .flat_map(|o| {
+    .flat_map(move |o| {
         o.lookup(custom_database)
             .iter()
             .map(|(i, n, m)| (*o, *i, n, m))
     })
-    .filter(|(_, _, _, m)| tolerance.within(&mass, &m.formula().mass(mass_mode)))
-    .filter(|(_, _, _, m)| {
+    .filter(move |(_, _, _, m)| tolerance.within(&mass, &m.formula().mass(mass_mode)))
+    .filter(move |(_, _, _, m)| {
         positions.is_none()
             || positions.is_some_and(|positions| {
                 positions.iter().any(|(aas, p)| {
@@ -49,16 +49,15 @@ pub fn modification_search_mass(
             })
     })
     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-    .collect()
 }
 
 /// Search for modifications that have the exact same molecular formula as the given target.
 ///
 /// It returns the list of possible modifications.
-pub fn modification_search_formula(
-    formula: &MolecularFormula,
-    custom_database: Option<&CustomDatabase>,
-) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+pub fn modification_search_formula<'a>(
+    formula: &'a MolecularFormula,
+    custom_database: Option<&'a CustomDatabase>,
+) -> impl Iterator<Item = (Ontology, Option<usize>, String, SimpleModification)> + 'a {
     [
         Ontology::Unimod,
         Ontology::Psimod,
@@ -68,14 +67,13 @@ pub fn modification_search_formula(
         Ontology::Custom,
     ]
     .iter()
-    .flat_map(|o| {
+    .flat_map(move |o| {
         o.lookup(custom_database)
             .iter()
             .map(|(i, n, m)| (*o, *i, n, m))
     })
     .filter(|(_, _, _, m)| *formula == m.formula())
     .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-    .collect()
 }
 
 /// Search for glycans in the GNOme database that have a similar composition. To detect similar
@@ -88,13 +86,13 @@ pub fn modification_search_formula(
 pub fn modification_search_glycan(
     glycan: &[(MonoSaccharide, isize)],
     search_topologies: bool,
-) -> Vec<(Ontology, Option<usize>, String, SimpleModification)> {
+) -> impl Iterator<Item = (Ontology, Option<usize>, String, SimpleModification)> {
     let search = MonoSaccharide::search_composition(glycan);
 
     Ontology::Gnome
         .lookup(None)
         .iter()
-        .filter(|(_, _, m)| {
+        .filter(move |(_, _, m)| {
             if let SimpleModification::Gno {
                 composition: GnoComposition::Topology(structure),
                 ..
@@ -113,7 +111,6 @@ pub fn modification_search_glycan(
             }
         })
         .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
-        .collect()
 }
 
 /// Search for named modifications based on mass and/or chemical formula modifications in a peptide.
