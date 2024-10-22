@@ -6,6 +6,8 @@ doc-valid-idents = [
     "ProForma",
     "OPair",
     "MSFragger",
+    "MZTab",
+    "PSM_ID",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

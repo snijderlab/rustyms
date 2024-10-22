@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, MSFraggerData,
-    MaxQuantData, SageData,
+    MZTabData, MaxQuantData, SageData,
 };
 use crate::{
     error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
@@ -40,6 +40,8 @@ pub enum MetaData {
     Sage(SageData),
     /// MSFragger metadata
     MSFragger(MSFraggerData),
+    /// MSFragger metadata
+    MZTab(MZTabData),
 }
 
 impl IdentifiedPeptide {
@@ -50,20 +52,24 @@ impl IdentifiedPeptide {
             | MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::Fasta(FastaData { peptide, .. }) => Some(peptide),
+            | MetaData::Fasta(FastaData { peptide, .. })
+            | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
             MetaData::None => None,
         }
     }
 
-    /// Get the local confidence, it is the same lengths as the peptide with a local score in 0..=1
+    /// Get the local confidence, it is the same length as the peptide with a local score in 0..=1
     pub fn local_confidence(&self) -> Option<&[f64]> {
         match &self.metadata {
             MetaData::Peaks(PeaksData {
                 local_confidence, ..
             }) => Some(local_confidence),
             MetaData::Novor(NovorData {
+                local_confidence, ..
+            })
+            | MetaData::MZTab(MZTabData {
                 local_confidence, ..
             }) => local_confidence.as_deref(),
             _ => None,
@@ -78,7 +84,8 @@ impl IdentifiedPeptide {
             | MetaData::Opair(OpairData { z, .. })
             | MetaData::Sage(SageData { z, .. })
             | MetaData::MSFragger(MSFraggerData { z, .. })
-            | MetaData::MaxQuant(MaxQuantData { z, .. }) => Some(*z),
+            | MetaData::MaxQuant(MaxQuantData { z, .. })
+            | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::Fasta(_) | MetaData::None => None,
         }
     }
@@ -99,9 +106,9 @@ impl IdentifiedPeptide {
             | MetaData::Opair(OpairData { rt, .. })
             | MetaData::Sage(SageData { rt, .. })
             | MetaData::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
-            MetaData::MaxQuant(MaxQuantData { rt, .. }) | MetaData::Novor(NovorData { rt, .. }) => {
-                *rt
-            }
+            MetaData::MaxQuant(MaxQuantData { rt, .. })
+            | MetaData::Novor(NovorData { rt, .. })
+            | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
             MetaData::Fasta(_) | MetaData::None => None,
         }
     }
@@ -117,7 +124,7 @@ impl IdentifiedPeptide {
             }
             MetaData::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
             MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
-            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None | MetaData::MZTab(_) => None,
         }
     }
 
@@ -131,7 +138,8 @@ impl IdentifiedPeptide {
             | MetaData::Peaks(_)
             | MetaData::Fasta(_)
             | MetaData::MSFragger(_)
-            | MetaData::None => None,
+            | MetaData::None
+            | MetaData::MZTab(_) => None,
         }
     }
 
@@ -143,7 +151,7 @@ impl IdentifiedPeptide {
             | MetaData::MaxQuant(MaxQuantData { raw_file, .. })
             | MetaData::Sage(SageData { raw_file, .. }) => Some(raw_file),
             MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
-            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None | MetaData::MZTab(_) => None,
         }
     }
 }

@@ -6,10 +6,6 @@ use crate::{
 };
 use std::{ops::Range, str::FromStr};
 
-// Create:
-// * XXFormat
-// * XXData
-// * XXParser?
 macro_rules! format_family {
     (#[doc = $format_doc:expr]
      $format:ident,

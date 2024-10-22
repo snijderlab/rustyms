@@ -234,7 +234,7 @@ impl<T: std::io::Read> Iterator for CsvLineIter<T> {
 
 /// # Errors
 /// If the line is empty.
-fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, CustomError> {
+pub(crate) fn csv_separate(line: &str, separator: u8) -> Result<Vec<Range<usize>>, CustomError> {
     if line.is_empty() {
         return Err(CustomError::error(
             "Empty line",
