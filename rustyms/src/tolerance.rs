@@ -33,6 +33,14 @@ impl<T> Tolerance<T> {
     pub fn new_absolute(value: impl Into<T>) -> Self {
         Self::Absolute(value.into())
     }
+
+    /// Convert this tolerance into another absolute type.
+    pub fn convert<O: From<T>>(self) -> Tolerance<O> {
+        match self {
+            Self::Relative(r) => Tolerance::Relative(r),
+            Self::Absolute(a) => Tolerance::Absolute(a.into()),
+        }
+    }
 }
 
 impl<T> Tolerance<T>

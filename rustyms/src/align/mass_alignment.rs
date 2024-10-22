@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use crate::{
     peptide::{AtMax, SimpleLinear},
     system::Mass,
-    LinearPeptide, MolecularFormula, Multi, SequenceElement, SequencePosition, WithinTolerance,
+    LinearPeptide, MassMode, MolecularFormula, Multi, SequenceElement, SequencePosition,
+    WithinTolerance,
 };
 
 use super::{
@@ -30,8 +31,8 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
 
     let mut matrix = Matrix::new(seq_a.len(), seq_b.len());
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_a);
-    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b);
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_a, scoring.mass_mode);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b, scoring.mass_mode);
     let zero: Multi<Mass> = Multi::default();
 
     if align_type.left.global_a() {
@@ -287,11 +288,10 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
 /// Get the masses of all sequence elements
 fn calculate_masses<const STEPS: u16>(
     sequence: &LinearPeptide<impl AtMax<SimpleLinear>>,
+    mass_mode: MassMode,
 ) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
-    // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
-        // dbg!(i, 0..=i.min(max_depth));
         for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence()[i - j..=i]
                 .iter()
@@ -308,7 +308,7 @@ fn calculate_masses<const STEPS: u16>(
                 })
                 .sum::<Multi<MolecularFormula>>()
                 .iter()
-                .map(MolecularFormula::monoisotopic_mass)
+                .map(|f| f.mass(mass_mode))
                 .collect();
         }
     }

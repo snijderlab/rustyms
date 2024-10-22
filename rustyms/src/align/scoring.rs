@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{system::OrderedMass, AminoAcid, Tolerance};
+use crate::{system::OrderedMass, AminoAcid, MassMode, Tolerance};
 
 /// The type of a single match step
 #[derive(
@@ -68,6 +68,10 @@ pub struct AlignScoring<'a> {
     ///
     /// Default: 10ppm.
     pub tolerance: Tolerance<OrderedMass>,
+    /// The mass mode for the alignment.
+    ///
+    /// Default: Monoisotopic.
+    pub mass_mode: MassMode,
 }
 
 impl Default for AlignScoring<'static> {
@@ -82,6 +86,7 @@ impl Default for AlignScoring<'static> {
             gap_extend: -1,
             matrix: matrices::BLOSUM62,
             tolerance: crate::Tolerance::new_ppm(10.0),
+            mass_mode: MassMode::Monoisotopic,
         }
     }
 }
