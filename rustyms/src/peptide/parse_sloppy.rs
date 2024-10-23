@@ -11,6 +11,7 @@ use crate::{
     modification::{Ontology, SimpleModification},
     ontologies::CustomDatabase,
     peptide::*,
+    system::Mass,
     AminoAcid, SequenceElement,
 };
 
@@ -21,6 +22,8 @@ use crate::modification::Modification;
 pub struct SloppyParsingParameters {
     /// Ignore a prefix lowercase n as in `n[211]GC[779]RQSSEEK` as this indicates an N terminal modification in MSFragger
     pub ignore_prefix_lowercase_n: bool,
+    /// Allow AA+12AA instead of AA[+12]AA as used by Casanovo
+    pub allow_unwrapped_modifications: bool,
 }
 
 impl LinearPeptide<SemiAmbiguous> {
@@ -90,6 +93,30 @@ impl LinearPeptide<SemiAmbiguous> {
                             ));
                         }
                     }
+                }
+                ch if parameters.allow_unwrapped_modifications
+                    && (ch == b'-' || ch == b'+' || ch.is_ascii_digit()) =>
+                {
+                    let length = 1 + chars[index + 1..]
+                        .iter()
+                        .take_while(|c| c.is_ascii_digit() || **c == b'.')
+                        .count();
+                    let modification = SimpleModification::Mass(Mass::new::<crate::system::dalton>(
+                        line[location.start + index..location.start + index + length]
+                        .parse::<f64>()
+                        .map_err(|err|
+                            CustomError::error(
+                                "Invalid mass shift modification", 
+                                format!("Mass shift modification must be a valid number but this number is invalid: {err}"), 
+                                Context::line(None, line, location.start + index, length))
+                            )?).into());
+                    match peptide.sequence_mut().last_mut() {
+                        Some(aa) => aa.modifications.push(Modification::Simple(modification)),
+                        None => {
+                            peptide.set_simple_n_term(Some(modification));
+                        }
+                    }
+                    index += length;
                 }
                 ch => {
                     peptide.sequence_mut().push(SequenceElement::new(

@@ -40,7 +40,7 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters {ignore_prefix_lowercase_n: true},
+            SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
         ));
         extended_peptide: String, |location: Location, _| Ok(location.get_string());
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);

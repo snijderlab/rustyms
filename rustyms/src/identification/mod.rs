@@ -32,6 +32,8 @@ mod maxquant_tests;
 #[cfg(test)]
 mod msfragger_tests;
 #[cfg(test)]
+mod mztab_test;
+#[cfg(test)]
 mod novor_tests;
 #[cfg(test)]
 mod opair_tests;
