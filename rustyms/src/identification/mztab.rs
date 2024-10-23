@@ -120,15 +120,21 @@ impl MZTabData {
                             "columnit_psm" => (),
                             m if m.starts_with("fixed_mod[") && m.ends_with(']') => (),
                             m if m.starts_with("variable_mod[") && m.ends_with(']') => (),
-                            m if m.starts_with("psm_search_engine_score[") && m.ends_with(']') => (),
+                            m if m.starts_with("psm_search_engine_score[") && m.ends_with(']') => {
+                                ()
+                            }
                             m if m.starts_with("ms_run[") && m.ends_with("]-location") => (),
-                            _ => ()
+                            _ => (),
                         }
                         None
                     } else {
-                        Some(Err(CustomError::error("Invalid MTD line", "MTD lines should contain three columns (the tag, key, and value)", Context::full_line(line_index, line))))
+                        Some(Err(CustomError::error(
+                            "Invalid MTD line",
+                            "MTD lines should contain three columns (the tag, key, and value)",
+                            Context::full_line(line_index, line),
+                        )))
                     }
-                },
+                }
                 Ok(MZTabLine::PSH(line_index, line, fields)) => {
                     let header = fields
                         .into_iter()
@@ -228,7 +234,9 @@ impl MZTabData {
                 for (location, modification) in modifications {
                     match location {
                         0 => peptide.set_simple_n_term(Some(modification)),
-                        c if c == peptide.len() + 1 => peptide.set_simple_c_term(Some(modification)),
+                        c if c == peptide.len() + 1 => {
+                            peptide.set_simple_c_term(Some(modification))
+                        }
                         i => peptide.sequence_mut()[i - 1].add_simple_modification(modification),
                     }
                 }
