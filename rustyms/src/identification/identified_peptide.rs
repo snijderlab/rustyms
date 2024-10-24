@@ -124,7 +124,13 @@ impl IdentifiedPeptide {
             }
             MetaData::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
             MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
-            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None | MetaData::MZTab(_) => None,
+            MetaData::MZTab(MZTabData { spectra_ref, .. }) => Some(
+                spectra_ref
+                    .iter()
+                    .filter_map(|(_, _, id, _)| id.index())
+                    .collect(),
+            ),
+            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None => None,
         }
     }
 
@@ -132,14 +138,19 @@ impl IdentifiedPeptide {
     pub fn spectrum_native_ids(&self) -> Option<Vec<String>> {
         match &self.metadata {
             MetaData::Sage(SageData { native_id, .. }) => Some(vec![native_id.clone()]),
+            MetaData::MZTab(MZTabData { spectra_ref, .. }) => Some(
+                spectra_ref
+                    .iter()
+                    .filter_map(|(_, _, id, _)| id.native().map(ToString::to_string))
+                    .collect(),
+            ),
             MetaData::MaxQuant(_)
             | MetaData::Opair(_)
             | MetaData::Novor(_)
             | MetaData::Peaks(_)
             | MetaData::Fasta(_)
             | MetaData::MSFragger(_)
-            | MetaData::None
-            | MetaData::MZTab(_) => None,
+            | MetaData::None => None,
         }
     }
 

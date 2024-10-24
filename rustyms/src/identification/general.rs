@@ -4,14 +4,16 @@ use super::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
     FastaData, IdentifiedPeptide, IdentifiedPeptideIter, IdentifiedPeptideSource, MSFraggerData,
-    MaxQuantData, NovorData, OpairData, PeaksData, SageData,
+    MZTabData, MaxQuantData, NovorData, OpairData, PeaksData, SageData,
 };
 
 // TODO:
 // * Merge multiple annotations for the same spectrum (e.g. all candidates peaks export, take care not to lose info on chimeric spectra)
 // * Merge identical (or similar?) peptide sequences (for faster processing)
 
-/// Open the selected path and automatically determine the file type.
+/// Open the selected path and automatically determine the file type. It will uncompress gzipped
+/// files automatically.
+///
 /// # Errors
 /// It errors if the file type could not be determined or if opening the file errors.
 pub fn open_identified_peptides_file<'a>(
@@ -64,6 +66,10 @@ pub fn open_identified_peptides_file<'a>(
         Some("txt") => {
             MaxQuantData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
         }
+        Some("mztab") => MZTabData::parse_file(path, custom_database).map(|peptides| {
+            Box::new(peptides.into_iter().map(|p| p.map(Into::into)))
+                as Box<dyn Iterator<Item = Result<IdentifiedPeptide, CustomError>> + 'a>
+        }),
         _ => Err(CustomError::error(
             "Unknown extension",
             "Use CSV, TSV, TXT, PSMTSV, or Fasta, or any of these as a gzipped file (eg csv.gz).",

@@ -34,7 +34,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&XII, &XI, &X, &OLD, &XPLUS, &AB], b',';
+    PeaksVersion, [&V12, &V11, &X, &OLD, &XPLUS, &AB], b',';
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -168,8 +168,8 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     accession: None,
 };
 /// Version 11 of PEAKS export
-pub const XI: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::XI,
+pub const V11: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::V11,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -193,8 +193,8 @@ pub const XI: PeaksFormat = PeaksFormat {
     accession: None,
 };
 /// Version 12 of PEAKS export
-pub const XII: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::XII,
+pub const V12: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::V12,
     scan: "scan",
     peptide: "peptide",
     tag_length: "tag length",
@@ -255,10 +255,10 @@ pub enum PeaksVersion {
     /// Version Ab of PEAKS export
     Ab,
     /// Version 11
-    XI,
+    V11,
     /// Version 12
     #[default]
-    XII,
+    V12,
 }
 
 impl std::fmt::Display for PeaksVersion {
@@ -271,8 +271,8 @@ impl std::fmt::Display for PeaksVersion {
                 Self::X => "X",
                 Self::Xplus => "X+",
                 Self::Ab => "Ab",
-                Self::XI => "11",
-                Self::XII => "12",
+                Self::V11 => "11",
+                Self::V12 => "12",
             }
         )
     }

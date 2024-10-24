@@ -214,7 +214,7 @@ impl Modification {
                     Ontology::find_closest_many(
                         &[Ontology::Unimod, Ontology::Psimod],
                         &name.trim().to_lowercase(),
-                        custom_database).suggestions)
+                        custom_database).suggestions())
             })
     }
 

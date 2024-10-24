@@ -28,7 +28,7 @@ fn peaks_x_plus() {
 #[test]
 fn peaks_11() {
     assert_eq!(
-        open_file(BufReader::new(DATA_11.as_bytes()), &peaks::XI, None).unwrap(),
+        open_file(BufReader::new(DATA_11.as_bytes()), &peaks::V11, None).unwrap(),
         19
     );
 }
@@ -38,7 +38,7 @@ fn peaks_11_all_candidates() {
     assert_eq!(
         open_file(
             BufReader::new(DATA_11_ALL_CANDIDATES.as_bytes()),
-            &peaks::XI,
+            &peaks::V11,
             None
         )
         .unwrap(),
@@ -51,7 +51,7 @@ fn peaks_11_custom_modification() {
     assert_eq!(
         open_file(
             BufReader::new(DATA_11_CUSTOM_MODIFICATION.as_bytes()),
-            &peaks::XI,
+            &peaks::V11,
             Some(&vec![(
                 Some(0),
                 "oxidation".to_string(),
@@ -66,7 +66,7 @@ fn peaks_11_custom_modification() {
 #[test]
 fn peaks_12() {
     assert_eq!(
-        open_file(BufReader::new(DATA_12.as_bytes()), &peaks::XII, None).unwrap(),
+        open_file(BufReader::new(DATA_12.as_bytes()), &peaks::V12, None).unwrap(),
         19
     );
 }
@@ -100,7 +100,7 @@ fn fuzz_crashes() {
             match std::panic::catch_unwind(|| {
                 open_file(
                     BufReader::new(std::fs::File::open(&path).unwrap()),
-                    &peaks::XI,
+                    &peaks::V11,
                     None,
                 )
             }) {
@@ -129,7 +129,7 @@ fn fuzz_hangs() {
             match std::panic::catch_unwind(|| {
                 open_file(
                     BufReader::new(std::fs::File::open(&path).unwrap()),
-                    &peaks::XI,
+                    &peaks::V11,
                     None,
                 )
             }) {

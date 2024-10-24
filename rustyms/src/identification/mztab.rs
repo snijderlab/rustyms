@@ -17,12 +17,10 @@ use crate::{
     modification::SimpleModification,
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge, Time},
-    AminoAcid, LinearPeptide, SemiAmbiguous,
+    AminoAcid, LinearPeptide, PeptideModificationSearch, ReturnModification, SemiAmbiguous,
+    SloppyParsingParameters, Tolerance,
 };
-
-use super::{Modification, SequencePosition, SloppyParsingParameters};
-
-/// Peptide data from a MZTab file
+/// Peptide data from a mzTab file
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct MZTabData {
     /// The peptide's sequence corresponding to the PSM
@@ -43,10 +41,9 @@ pub struct MZTabData {
     /// The protein database's version
     pub database_version: Option<String>,
     /// The search engines that identified this peptide, alongside their identified score and the CV term describing the score
-    pub search_engine: Vec<(CVTerm, Option<f64>, String)>,
+    pub search_engine: Vec<(CVTerm, Option<f64>, CVTerm)>,
     /// If available the estaimated reliability of the PSM.
     pub reliability: Option<PSMReliability>,
-    // TODO: parse modifications columns and inject in peptide
     /// The retention time for this peptide.
     pub rt: Option<Time>,
     /// The charge for this peptide.
@@ -55,8 +52,8 @@ pub struct MZTabData {
     pub exp_mz: Option<MassOverCharge>,
     /// A URI pointing to the PSM's entry in the experiment it was identified in (e.g. the peptide’s PRIDE entry).
     pub uri: Option<String>,
-    // TODO: fix type
-    pub spectra_ref: Vec<String>,
+    /// The raw file path, the CV term describing the file format, the spectrum identifer, and the CV term describing the identifier format
+    pub spectra_ref: Vec<(String, Option<CVTerm>, SpectrumId, Option<CVTerm>)>,
     /// The amino acide before this peptide
     pub preceding_aa: FlankingResidue,
     /// The amino acide after this peptide
@@ -72,10 +69,10 @@ pub struct MZTabData {
 }
 
 impl MZTabData {
-    /// Parse a MZTab file.
+    /// Parse a mzTab file.
     /// # Errors
     /// If the file is not in the correct format
-    pub fn parse_mztab(
+    pub fn parse_file(
         path: impl AsRef<std::path::Path>,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Box<dyn Iterator<Item = Result<Self, CustomError>> + '_>, CustomError> {
@@ -89,41 +86,121 @@ impl MZTabData {
             )
         })?;
         if check_extension(path, "gz") {
-            Ok(Box::new(Self::parse_mztab_raw(
+            Ok(Box::new(Self::parse_raw(
                 BufReader::new(GzDecoder::new(BufReader::new(file))),
                 custom_database,
             )))
         } else {
-            Ok(Box::new(Self::parse_mztab_raw(
+            Ok(Box::new(Self::parse_raw(
                 BufReader::new(file),
                 custom_database,
             )))
         }
     }
 
-    /// Parse a MZTab file directly from a buf reader
-    pub fn parse_mztab_raw<'a, T: std::io::BufRead + 'a>(
+    /// Parse a mzTab file directly from a buffered reader
+    pub fn parse_raw<'a, T: std::io::BufRead + 'a>(
         reader: T,
         custom_database: Option<&'a CustomDatabase>,
     ) -> impl Iterator<Item = Result<Self, CustomError>> + 'a {
-        let time_unit = 0.0;
-        let search_engine_score_type: Vec<CVTerm> = Vec::new();
-        let modifications: Vec<SimpleModification> = Vec::new();
+        let mut search_engine_score_type: Vec<CVTerm> = Vec::new();
+        let mut modifications: Vec<SimpleModification> = Vec::new();
+        let mut raw_files: Vec<(Option<String>, Option<CVTerm>, Option<CVTerm>)> = Vec::new(); //path, file format, identifier type
         let mut peptide_header: Option<Vec<String>> = None;
 
         parse_mztab_raw(reader).filter_map(move |item| {
             item.transpose().and_then(|item| match item {
                 Ok(MZTabLine::MTD(line_index, line, fields)) => {
                     if fields.len() == 3 {
-                        // TODO: finish handling metadata
                         match line[fields[1].clone()].to_ascii_lowercase().as_str() {
-                            "columnit_psm" => (),
-                            m if m.starts_with("fixed_mod[") && m.ends_with(']') => (),
-                            m if m.starts_with("variable_mod[") && m.ends_with(']') => (),
+                            m if (m.starts_with("variable_mod[") || m.starts_with("fixed_mod[")) && m.ends_with(']') => {
+                                match CVTerm::from_str(&line[fields[2].clone()]).and_then(|term|
+                                        (term.id.trim() != "MS:1002453" && term.id.trim()  != "MS:1002454").then(||
+                                            SimpleModification::try_from(term.id.trim(), 0..term.id.trim().len(), &mut Vec::new(), &mut Vec::new(), custom_database)).transpose()) {
+                                    Ok(Some(ReturnModification::Defined(modification))) => if !modifications.contains(&modification) { modifications.push(modification)},
+                                    Ok(Some(_)) => return Some(Err(CustomError::error("Invalid modification in mzTab", "Modifications in mzTab have to be defeined, not ambiguous or cross-linkers", Context::line_range(Some(line_index), line, fields[2].clone())))),
+                                    Err(err) => return Some(Err(err)),
+                                    Ok(None) => (),
+                                }
+                            },
                             m if m.starts_with("psm_search_engine_score[") && m.ends_with(']') => {
-                                ()
+                                match CVTerm::from_str(&line[fields[2].clone()]) {
+                                    Ok(term) => search_engine_score_type.push(term),
+                                    Err(err) => return Some(Err(err)),
+                                }
                             }
-                            m if m.starts_with("ms_run[") && m.ends_with("]-location") => (),
+                            m if m.starts_with("ms_run[") && m.ends_with("]-location") => {
+                                let index = match m.trim_start_matches("ms_run[").trim_end_matches("]-location").parse::<usize>().map_err(|err| {
+                                    CustomError::error(
+                                        "Invalid mzTab ms_run identifier",
+                                        format!("The ms_run identifier {}", explain_number_error(&err)),
+                                        Context::line_range(
+                                            Some(line_index),
+                                            &line,
+                                            fields[1].clone(),
+                                        ),
+                                    )
+                                }) {
+                                    Ok(i) => i - 1,
+                                    Err(err) => return Some(Err(err)),
+                                };
+
+                                while raw_files.len() <= index {
+                                    raw_files.push((None, None, None));
+                                }
+
+                                raw_files[index].0 = Some(line[fields[2].clone()].to_string());
+                            },
+                            m if m.starts_with("ms_run[") && m.ends_with("]-format") => {
+                                let index = match m.trim_start_matches("ms_run[").trim_end_matches("]-format").parse::<usize>().map_err(|err| {
+                                    CustomError::error(
+                                        "Invalid mzTab ms_run identifier",
+                                        format!("The ms_run identifier {}", explain_number_error(&err)),
+                                        Context::line_range(
+                                            Some(line_index),
+                                            &line,
+                                            fields[1].clone(),
+                                        ),
+                                    )
+                                }) {
+                                    Ok(i) => i - 1,
+                                    Err(err) => return Some(Err(err)),
+                                };
+
+                                while raw_files.len() <= index {
+                                    raw_files.push((None, None, None));
+                                }
+
+                                raw_files[index].1 = Some(match CVTerm::from_str(&line[fields[2].clone()]) {
+                                        Ok(i) => i,
+                                        Err(err) => return Some(Err(err)),
+                                });
+                            },
+                            m if m.starts_with("ms_run[") && m.ends_with("]-id_format") => {
+                                let index = match m.trim_start_matches("ms_run[").trim_end_matches("]-id_format").parse::<usize>().map_err(|err| {
+                                    CustomError::error(
+                                        "Invalid mzTab ms_run identifier",
+                                        format!("The ms_run identifier {}", explain_number_error(&err)),
+                                        Context::line_range(
+                                            Some(line_index),
+                                            &line,
+                                            fields[1].clone(),
+                                        ),
+                                    )
+                                }) {
+                                    Ok(i) => i - 1,
+                                    Err(err) => return Some(Err(err)),
+                                };
+
+                                while raw_files.len() <= index {
+                                    raw_files.push((None, None, None));
+                                }
+
+                                raw_files[index].2 = Some(match CVTerm::from_str(&line[fields[2].clone()]) {
+                                        Ok(i) => i,
+                                        Err(err) => return Some(Err(err)),
+                                });
+                            },
                             _ => (),
                         }
                         None
@@ -173,19 +250,25 @@ impl MZTabData {
                 }
                 Ok(MZTabLine::PSM(line_index, line, fields)) => Some(
                     PSMLine::new(line_index, peptide_header.as_deref(), &line, &fields)
-                        .and_then(|line| Self::from_line(line, custom_database)),
+                        .and_then(|line| Self::from_line(line, &modifications, &search_engine_score_type, &raw_files, custom_database)),
                 ),
                 Err(e) => Some(Err(e)),
             })
         })
     }
 
-    fn from_line<'a>(
-        line: PSMLine<'a>,
+    /// Parse a single PSM line
+    /// # Errors
+    /// When not in the correct format
+    #[allow(clippy::missing_panics_doc)]
+    fn from_line(
+        line: PSMLine<'_>,
+        global_modifications: &[SimpleModification],
+        search_engine_score_types: &[CVTerm],
+        raw_files: &[(Option<String>, Option<CVTerm>, Option<CVTerm>)],
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Self, CustomError> {
-        let (mod_column, mod_range) =
-            line.required_column("modifications", line.line, line.line_index)?;
+        let (mod_column, mod_range) = line.required_column("modifications")?;
         let mut mod_index = mod_range.start;
         let modifications: Vec<(usize, SimpleModification)> = mod_column
             .split(',')
@@ -197,22 +280,22 @@ impl MZTabData {
                         "Invalid modification position",
                         format!("The position {}", explain_number_error(&err)),
                         Context::line_range(Some(line.line_index), line.line, mod_range.clone()),
-                    ))?, 
+                    ))?,
                     SimpleModification::try_from(
-                        line.line, 
-                        mod_index+1+pos.len()..mod_index+definition.len(), 
-                        &mut Vec::new(), 
-                        &mut Vec::new(), 
+                        line.line,
+                        mod_index+1+pos.len()..mod_index+definition.len(),
+                        &mut Vec::new(),
+                        &mut Vec::new(),
                         custom_database)?.defined()
                         .ok_or_else(
                             || CustomError::error(
-                                "Invalid modification", 
-                                "A modification should be a fully defined modification, no cross-link or ambiguous modification", 
+                                "Invalid modification",
+                                "A modification should be a fully defined modification, no cross-link or ambiguous modification",
                                 Context::line_range(Some(line.line_index), line.line, mod_range.clone())))?)))
                     .ok_or_else(
                         || CustomError::error(
-                            "Invalid modification", 
-                            "A modification should be the position followed by a hyphen ('-') followed by the modification", 
+                            "Invalid modification",
+                            "A modification should be the position followed by a hyphen ('-') followed by the modification",
                             Context::line_range(Some(line.line_index), line.line, mod_range.clone())));
                             mod_index += definition.len() + 1;
                             pair
@@ -223,8 +306,7 @@ impl MZTabData {
             peptide: {
                 let mut peptide = LinearPeptide::sloppy_pro_forma(
                     line.line,
-                    line.required_column("sequence", line.line, line.line_index)?
-                        .1,
+                    line.required_column("sequence")?.1,
                     custom_database,
                     SloppyParsingParameters {
                         allow_unwrapped_modifications: true,
@@ -235,28 +317,26 @@ impl MZTabData {
                     match location {
                         0 => peptide.set_simple_n_term(Some(modification)),
                         c if c == peptide.len() + 1 => {
-                            peptide.set_simple_c_term(Some(modification))
+                            peptide.set_simple_c_term(Some(modification));
                         }
                         i => peptide.sequence_mut()[i - 1].add_simple_modification(modification),
                     }
                 }
-                peptide
+                PeptideModificationSearch::in_modifications(global_modifications.to_vec())
+                    .tolerance(Tolerance::new_ppm(20.0))
+                    .search(peptide)
             },
-            psm_id: line
-                .required_column("psm_id", line.line, line.line_index)?
-                .0
-                .parse()
-                .map_err(|err| {
-                    CustomError::error(
-                        "Invalid MZTab PSM_ID",
-                        format!("The PSM_ID {}", explain_number_error(&err)),
-                        Context::line_range(
-                            Some(line.line_index),
-                            line.line,
-                            line.optional_column("psm_id").unwrap().1,
-                        ),
-                    )
-                })?,
+            psm_id: line.required_column("psm_id")?.0.parse().map_err(|err| {
+                CustomError::error(
+                    "Invalid mzTab PSM_ID",
+                    format!("The PSM_ID {}", explain_number_error(&err)),
+                    Context::line_range(
+                        Some(line.line_index),
+                        line.line,
+                        line.optional_column("psm_id").unwrap().1,
+                    ),
+                )
+            })?,
             accession: line
                 .optional_column("accession")
                 .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v.to_string())),
@@ -270,8 +350,7 @@ impl MZTabData {
                 .optional_column("database_version")
                 .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v.to_string())),
             search_engine: {
-                let (value, range) =
-                    line.required_column("search_engine", line.line, line.line_index)?;
+                let (value, range) = line.required_column("search_engine")?;
 
                 if value.trim().to_ascii_lowercase() == "null" {
                     Vec::new()
@@ -285,7 +364,7 @@ impl MZTabData {
                                     (v.to_ascii_lowercase() != "null").then(|| {
                                         v.parse::<f64>().map_err(|err| {
                                             CustomError::error(
-                                                "Invalid MZTab search engine score",
+                                                "Invalid mzTab search engine score",
                                                 format!(
                                         "The search engine score can not be parsed as f64: {err}"
                                     ),
@@ -313,9 +392,12 @@ impl MZTabData {
                                                 range.clone(),
                                             ))
                                         })
-                                        .map(|engine| (engine, score, String::new()))
+                                        .and_then(|engine| Ok((engine, score, search_engine_score_types.get(i).ok_or_else(|| CustomError::error("Missing search engine score type", "All search engines require a defined search type", Context::line_range(
+                                            Some(line.line_index),
+                                            line.line,
+                                            range.clone(),
+                                        )))?.clone())))
                                 })
-                            // TODO: get proper CV term
                         })
                         .collect::<Result<Vec<_>, CustomError>>()?
                 }
@@ -340,17 +422,17 @@ impl MZTabData {
                         v.parse::<f64>()
                             .map_err(|err| {
                                 CustomError::error(
-                                    "Invalid MZTab retention time",
+                                    "Invalid mzTab retention time",
                                     format!("The retention time can not be parsed as f64: {err}"),
                                     Context::line_range(Some(line.line_index), line.line, r),
                                 )
                             })
-                            .map(|v| Time::new::<crate::system::s>(v)) // TODO: use correct unit
+                            .map(|v| Time::new::<crate::system::s>(v))
                     })
                 })
                 .transpose()?,
             z: {
-                let (value, range) = line.required_column("charge", line.line, line.line_index)?;
+                let (value, range) = line.required_column("charge")?;
 
                 if value.trim().to_ascii_lowercase() == "null" {
                     Charge::new::<crate::system::e>(1)
@@ -360,7 +442,7 @@ impl MZTabData {
                         .parse::<usize>()
                         .map_err(|err| {
                             CustomError::error(
-                                "Invalid MZTab charge",
+                                "Invalid mzTab charge",
                                 format!("The charge {}", explain_number_error(&err)),
                                 Context::line_range(Some(line.line_index), line.line, range),
                             )
@@ -375,7 +457,7 @@ impl MZTabData {
                         v.parse::<f64>()
                             .map_err(|err| {
                                 CustomError::error(
-                                    "Invalid MZTab experimental mz",
+                                    "Invalid mzTab experimental mz",
                                     format!("The experimental mz can not be parsed as f64: {err}"),
                                     Context::line_range(Some(line.line_index), line.line, r),
                                 )
@@ -385,48 +467,93 @@ impl MZTabData {
                 })
                 .transpose()?,
             uri: line.optional_column("uri").map(|(v, _)| v.to_string()),
-            spectra_ref: line
-                .optional_column("spectra_ref")
-                .map(|(v, _)| v.to_string())
-                .into_iter()
-                .collect(),
-            preceding_aa: line
-                .required_column("pre", line.line, line.line_index)?
-                .0
-                .parse()
-                .map_err(|()| {
-                    CustomError::error(
-                        "Invalid preceding amino acid",
-                        "The pre column should contain null, -, or an aminoacid",
-                        Context::line_range(
+            spectra_ref: {
+                let (value, range) = line.required_column("spectra_ref")?;
+
+                value
+                    .split('|')
+                    .map(|value|
+                    value.split_once(':')
+                    .ok_or_else(|| {
+                        CustomError::error(
+                            "Invalid mzTab spectra_ref",
+                            "The spectra_ref should be 'ms_run[x]:id'",
+                            Context::line_range(Some(line.line_index), line.line, range.clone()),
+                        )
+                    })
+                    .and_then(|(run, scan_id)| {
+                        let index = run
+                            .trim_start_matches("ms_run[")
+                            .trim_end_matches(']')
+                            .parse::<usize>()
+                            .map_err(|err| {
+                                CustomError::error(
+                                    "Invalid mzTab ms_run",
+                                    format!("The ms_run identifier {}", explain_number_error(&err)),
+                                    Context::line_range(
+                                        Some(line.line_index),
+                                        line.line,
+                                        range.clone(),
+                                    ),
+                                )
+                            })? - 1;
+                        let (path, file_format, identifier_type) = raw_files.get(index).ok_or_else(||CustomError::error("Missing raw file definition", "All raw files should be defined in the MTD section before being used in the PSM Section", Context::line_range(
                             Some(line.line_index),
                             line.line,
-                            line.optional_column("pre").unwrap().1,
-                        ),
-                    )
-                })?,
-            following_aa: line
-                .required_column("post", line.line, line.line_index)?
-                .0
-                .parse()
-                .map_err(|()| {
-                    CustomError::error(
-                        "Invalid following amino acid",
-                        "The post column should contain null, -, or an aminoacid",
-                        Context::line_range(
+                            range.clone(),
+                        )))?;
+                        let path = path.clone().ok_or_else(|| CustomError::error("Missing raw file path definition", "The path is not defined for this raw file", Context::line_range(
                             Some(line.line_index),
                             line.line,
-                            line.optional_column("post").unwrap().1,
-                        ),
-                    )
-                })?,
+                            range.clone(),
+                        )))?;
+
+                        let scan_index = scan_id.strip_prefix("index=").map(|id| id.parse::<usize>().map_err(|err| {
+                            CustomError::error(
+                                "Invalid mzTab spectra_ref index",
+                                format!("The spectra_ref index {}", explain_number_error(&err)),
+                                Context::line_range(
+                                    Some(line.line_index),
+                                    line.line,
+                                    range.clone(),
+                                ),
+                            )
+                        })).transpose()?;
+
+                        let id = scan_index.map_or_else(|| SpectrumId::Native(scan_id.to_string()), SpectrumId::Index);
+
+                        Ok((path, file_format.clone(), id, identifier_type.clone()))
+                    })).collect::<Result<Vec<_>, CustomError>>()?
+            },
+            preceding_aa: line.required_column("pre")?.0.parse().map_err(|()| {
+                CustomError::error(
+                    "Invalid preceding amino acid",
+                    "The pre column should contain null, -, or an aminoacid",
+                    Context::line_range(
+                        Some(line.line_index),
+                        line.line,
+                        line.optional_column("pre").unwrap().1,
+                    ),
+                )
+            })?,
+            following_aa: line.required_column("post")?.0.parse().map_err(|()| {
+                CustomError::error(
+                    "Invalid following amino acid",
+                    "The post column should contain null, -, or an aminoacid",
+                    Context::line_range(
+                        Some(line.line_index),
+                        line.line,
+                        line.optional_column("post").unwrap().1,
+                    ),
+                )
+            })?,
             start: line
                 .optional_column("start")
                 .and_then(|(v, r)| {
                     (v.to_ascii_lowercase() != "null").then(|| {
                         v.parse::<usize>().map_err(|err| {
                             CustomError::error(
-                                "Invalid MZTab start",
+                                "Invalid mzTab start",
                                 format!("The start {}", explain_number_error(&err)),
                                 Context::line_range(Some(line.line_index), line.line, r),
                             )
@@ -440,7 +567,7 @@ impl MZTabData {
                     (v.to_ascii_lowercase() != "null").then(|| {
                         v.parse::<usize>().map_err(|err| {
                             CustomError::error(
-                                "Invalid MZTab end",
+                                "Invalid mzTab end",
                                 format!("The end {}", explain_number_error(&err)),
                                 Context::line_range(Some(line.line_index), line.line, r),
                             )
@@ -455,7 +582,7 @@ impl MZTabData {
                         .map(|score| {
                             score.parse::<f64>().map_err(|err| {
                                 CustomError::error(
-                                    "Invalid MZTab local confidence",
+                                    "Invalid mzTab local confidence",
                                     format!("The local confidence can not be parsed: {err}"),
                                     Context::line_range(
                                         Some(line.line_index),
@@ -481,6 +608,9 @@ struct PSMLine<'a> {
 }
 
 impl<'a> PSMLine<'a> {
+    /// Form a indexable line out of a set of fields
+    /// # Errors
+    /// When there is no header or the line has a different number of columns
     fn new(
         line_index: usize,
         header: Option<&'a [String]>,
@@ -517,17 +647,17 @@ impl<'a> PSMLine<'a> {
             .map(|i| (&self.line[self.fields[i].clone()], self.fields[i].clone()))
     }
 
-    fn required_column(
-        &self,
-        column: &str,
-        line: &str,
-        line_index: usize,
-    ) -> Result<(&str, Range<usize>), CustomError> {
-        self.optional_column(column).ok_or(CustomError::error(
-            "Missing column",
-            format!("The column '{column}' is required but not present"),
-            Context::full_line(line_index, line),
-        ))
+    /// Get a required columns
+    /// # Errors
+    /// If the column is not available
+    fn required_column(&self, column: &str) -> Result<(&str, Range<usize>), CustomError> {
+        self.optional_column(column).ok_or_else(|| {
+            CustomError::error(
+                "Missing column",
+                format!("The column '{column}' is required but not present"),
+                Context::full_line(self.line_index, self.line),
+            )
+        })
     }
 }
 
@@ -547,6 +677,39 @@ impl From<MZTabData> for IdentifiedPeptide {
                 )
             },
             metadata: MetaData::MZTab(value),
+        }
+    }
+}
+
+/// A spectrum identifier
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum SpectrumId {
+    /// A native id, the format differs between vendors
+    Native(String),
+    /// A spectrum index
+    Index(usize),
+}
+
+impl Default for SpectrumId {
+    fn default() -> Self {
+        Self::Index(0)
+    }
+}
+
+impl SpectrumId {
+    /// Get the index if this is an index
+    pub const fn index(&self) -> Option<usize> {
+        match self {
+            Self::Index(i) => Some(*i),
+            Self::Native(_) => None,
+        }
+    }
+
+    /// Get the native ID if this is a native ID
+    pub fn native(&self) -> Option<&str> {
+        match self {
+            Self::Index(_) => None,
+            Self::Native(n) => Some(n),
         }
     }
 }
@@ -620,7 +783,8 @@ pub enum PSMReliability {
     Poor,
 }
 
-/// A basic structure for an MZTab file line
+/// A basic structure for a mzTab file line
+#[allow(clippy::upper_case_acronyms)]
 enum MZTabLine {
     /// Metadata line
     MTD(usize, String, Vec<Range<usize>>),
@@ -630,9 +794,9 @@ enum MZTabLine {
     PSM(usize, String, Vec<Range<usize>>),
 }
 
-/// Parse a MZTab file
+/// Parse a mzTab file
 /// # Errors
-/// If the file is not a valid MZTab file
+/// If the file is not a valid mzTab file
 fn parse_mztab_raw<T: BufRead>(
     reader: T,
 ) -> impl Iterator<Item = Result<Option<MZTabLine>, CustomError>> {
