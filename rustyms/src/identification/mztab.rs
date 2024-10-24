@@ -576,7 +576,7 @@ impl MZTabData {
                 })
                 .transpose()?,
             local_confidence: line
-                .optional_column("op_ms_run[1]_aa_scores")
+                .optional_column("opt_ms_run[1]_aa_scores")
                 .map(|(v, r)| {
                     v.split(',')
                         .map(|score| {
@@ -595,7 +595,20 @@ impl MZTabData {
                         .collect()
                 })
                 .transpose()?,
-            additional: HashMap::new(), // TODO: fill
+            additional: line
+                .header
+                .iter()
+                .enumerate()
+                .filter(|(_, column)| {
+                    column.starts_with("opt") && *column != "opt_ms_run[1]_aa_scores"
+                })
+                .map(|(index, column)| {
+                    (
+                        column.to_string(),
+                        line.line[line.fields[index].clone()].to_string(),
+                    )
+                })
+                .collect(),
         })
     }
 }
