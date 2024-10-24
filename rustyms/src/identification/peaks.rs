@@ -44,7 +44,6 @@ format_family!(
                             custom_database,
                             SloppyParsingParameters::default()
                         );
-        tag_length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
@@ -52,7 +51,6 @@ format_family!(
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         area: Option<f64>, |location: Location, _| location.or_empty().parse(NUMBER_ERROR);
-        ppm: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
             location.or_empty().array(';').map(|v| {
                 let v = v.trim();
@@ -97,14 +95,12 @@ pub const OLD: PeaksFormat = PeaksFormat {
     version: PeaksVersion::Old,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
@@ -122,14 +118,12 @@ pub const X: PeaksFormat = PeaksFormat {
     version: PeaksVersion::X,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
@@ -147,14 +141,12 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     version: PeaksVersion::Xplus,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
@@ -172,14 +164,12 @@ pub const V11: PeaksFormat = PeaksFormat {
     version: PeaksVersion::V11,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag(>=0.0%)",
@@ -197,14 +187,12 @@ pub const V12: PeaksFormat = PeaksFormat {
     version: PeaksVersion::V12,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag(>=0%)",
@@ -222,14 +210,12 @@ pub const AB: PeaksFormat = PeaksFormat {
     version: PeaksVersion::Ab,
     scan: "scan",
     peptide: "peptide",
-    tag_length: "tag length",
     alc: "alc (%)",
     mz: "m/z",
     z: "z",
     mass: "mass",
     rt: "rt",
     area: "area",
-    ppm: "ppm",
     ptm: "ptm",
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",

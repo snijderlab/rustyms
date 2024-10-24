@@ -34,7 +34,8 @@ format_family!(
         delta_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         delta_next: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         delta_rt_model: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        /// Experimental mass
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         fragment_ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         hyperscore: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         ion_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -50,7 +51,6 @@ format_family!(
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
         poisson: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         posterior_error: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        precursor_ppm: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         predicted_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         predicted_rt: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         protein_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -88,13 +88,12 @@ pub const VERSION_0_14: SageFormat = SageFormat {
     native_id: "scannr",
     rank: "rank",
     decoy: "label",
-    experimental_mass: "expmass",
+    mass: "expmass",
     theoretical_mass: "calcmass",
     z: "charge",
     missed_cleavages: "missed_cleavages",
     semi_enzymatic: "semi_enzymatic",
     isotope_error: "isotope_error",
-    precursor_ppm: "precursor_ppm",
     fragment_ppm: "fragment_ppm",
     hyperscore: "hyperscore",
     delta_next: "delta_next",

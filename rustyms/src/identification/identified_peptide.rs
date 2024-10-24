@@ -3,8 +3,8 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, MSFraggerData,
-    MZTabData, MaxQuantData, SageData,
+    fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, system::MassOverCharge,
+    MSFraggerData, MZTabData, MaxQuantData, SageData,
 };
 use crate::{
     error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
@@ -162,8 +162,70 @@ impl IdentifiedPeptide {
             | MetaData::MaxQuant(MaxQuantData { raw_file, .. })
             | MetaData::Sage(SageData { raw_file, .. }) => Some(raw_file),
             MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
-            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None | MetaData::MZTab(_) => None,
+            MetaData::MZTab(MZTabData { spectra_ref, .. }) => {
+                spectra_ref.first().map(|r| r.0.as_path()) // TODO: Could contain multiple files
+            }
+            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None => None,
         }
+    }
+
+    /// Get the mz as experimentally determined
+    pub fn experimental_mz(&self) -> Option<MassOverCharge> {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { mz, .. })
+            | MetaData::Novor(NovorData { mz, .. })
+            | MetaData::Opair(OpairData { mz, .. })
+            | MetaData::MSFragger(MSFraggerData { mz, .. }) => Some(*mz),
+            MetaData::MZTab(MZTabData { mz, .. }) | MetaData::MaxQuant(MaxQuantData { mz, .. }) => {
+                *mz
+            }
+            MetaData::Sage(SageData {
+                mass: experimental_mass,
+                z,
+                ..
+            }) => Some(MassOverCharge::new::<crate::system::mz>(
+                experimental_mass.value / (z.value as f64),
+            )),
+            MetaData::Fasta(_) | MetaData::None => None,
+        }
+    }
+
+    /// Get the mass as experimentally determined
+    pub fn experimental_mass(&self) -> Option<crate::system::Mass> {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { mass, .. })
+            | MetaData::Novor(NovorData { mass, .. })
+            | MetaData::Opair(OpairData { mass, .. })
+            | MetaData::MSFragger(MSFraggerData { mass, .. })
+            | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
+            MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
+            MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
+            MetaData::Fasta(_) | MetaData::None => None,
+        }
+    }
+
+    /// Get the absolute ppm error between the experimental and theoretical precursor mz
+    pub fn ppm_error(&self) -> Option<crate::system::Ratio> {
+        let exp_mz = self.experimental_mz()?;
+        let z = self.charge()?.to_float();
+        let mass = self
+            .peptide()
+            .and_then(|p| p.formulas().to_vec().pop())
+            .map(|f| f.monoisotopic_mass())?;
+        let theo_mz = mass / z;
+
+        Some(theo_mz.ppm(exp_mz))
+    }
+
+    /// Get the absolute mass error between the experimental and theoretical precursor mass
+    pub fn mass_error(&self) -> Option<crate::system::Mass> {
+        let exp_mass = self.experimental_mass()?;
+        let theo_mass = self
+            .peptide()
+            .and_then(|p| p.formulas().to_vec().pop())
+            .map(|f| f.monoisotopic_mass())?;
+
+        Some((exp_mass - theo_mass).abs())
     }
 }
 

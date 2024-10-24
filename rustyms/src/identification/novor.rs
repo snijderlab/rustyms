@@ -29,7 +29,6 @@ format_family!(
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
@@ -48,7 +47,6 @@ format_family!(
             }) // Skip the F of the F{num} definition
             .parse::<usize>(NUMBER_ERROR);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        mass_err: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         length: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         peptide_no_ptm: String, |location: Location, _| Ok(Some(location.get_string()));
         protein: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
@@ -118,14 +116,12 @@ pub const OLD_DENOVO: NovorFormat = NovorFormat {
     mz: "m/z",
     z: "z",
     mass: "peptide mass",
-    ppm: "error (ppm)",
     score: "score",
     peptide: "de novo peptide",
     id: None,
     spectra_id: None,
     fraction: Some("fraction"),
     rt: None,
-    mass_err: None,
     length: Some("length"),
     peptide_no_ptm: None,
     protein: None,
@@ -155,14 +151,12 @@ pub const OLD_PSM: NovorFormat = NovorFormat {
     mz: "m/z",
     z: "z",
     mass: "mass",
-    ppm: "error (ppm)",
     score: "score",
     peptide: "sequence",
     id: Some("id"),
     spectra_id: None,
     fraction: Some("fraction"),
     rt: None,
-    mass_err: None,
     length: None,
     peptide_no_ptm: None,
     protein: Some("# proteins"),
@@ -180,14 +174,12 @@ pub const NEW_DENOVO: NovorFormat = NovorFormat {
     mz: "mz(data)",
     z: "z",
     mass: "pepmass(denovo)",
-    ppm: "ppm(1e6*err/(mz*z))",
     score: "score",
     peptide: "peptide",
     id: Some("# id"),
     spectra_id: None,
     fraction: Some("fraction"),
     rt: None,
-    mass_err: Some("err(data-denovo)"),
     length: None,
     peptide_no_ptm: None,
     protein: Some("# proteins"),
@@ -205,14 +197,12 @@ pub const NEW_PSM: NovorFormat = NovorFormat {
     mz: "mz",
     z: "z",
     mass: "pepmass",
-    ppm: "ppm",
     score: "score",
     peptide: "peptide",
     id: Some("#id"),
     spectra_id: None,
     fraction: Some("fraction"),
     rt: None,
-    mass_err: Some("err(data-denovo)"),
     length: Some("length"),
     peptide_no_ptm: Some("noptmpeptide"),
     protein: Some("protein"),

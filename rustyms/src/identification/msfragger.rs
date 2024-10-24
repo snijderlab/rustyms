@@ -45,9 +45,11 @@ format_family!(
         extended_peptide: String, |location: Location, _| Ok(location.get_string());
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
-        experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        /// Experimental mass
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         calibrated_experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        /// Experimental mz
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         calibrated_experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         expectation: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         hyperscore: f64, |location: Location, _| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
@@ -117,9 +119,9 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
     extended_peptide: "extended peptide",
     z: "charge",
     rt: "retention",
-    experimental_mass: "observed mass",
+    mass: "observed mass",
     calibrated_experimental_mass: "calibrated observed mass",
-    experimental_mz: "observed m/z",
+    mz: "observed m/z",
     calibrated_experimental_mz: "calibrated observed m/z",
     expectation: "expectation",
     hyperscore: "hyperscore",
@@ -153,9 +155,9 @@ pub const V22: MSFraggerFormat = MSFraggerFormat {
     extended_peptide: "extended peptide",
     z: "charge",
     rt: "retention",
-    experimental_mass: "observed mass",
+    mass: "observed mass",
     calibrated_experimental_mass: "calibrated observed mass",
-    experimental_mz: "observed m/z",
+    mz: "observed m/z",
     calibrated_experimental_mz: "calibrated observed m/z",
     expectation: "expectation",
     hyperscore: "hyperscore",

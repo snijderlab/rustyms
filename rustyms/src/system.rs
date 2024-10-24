@@ -181,14 +181,27 @@ pub mod isize {
     pub use super::time::s;
 }
 
+impl usize::Charge {
+    pub fn to_float(self) -> f64::Charge {
+        f64::Charge::new::<crate::system::e>(self.value as f64)
+    }
+}
+
+impl isize::Charge {
+    pub fn to_float(self) -> f64::Charge {
+        f64::Charge::new::<crate::system::e>(self.value as f64)
+    }
+}
+
 impl MassOverCharge {
-    /// Absolute ppm error between this number and the given other
+    /// Absolute ppm error between this mz and the given other
     pub fn ppm(self, b: Self) -> Ratio {
         Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
     }
 }
+
 impl Mass {
-    /// Absolute ppm error between this number and the given other
+    /// Absolute ppm error between this mass and the given other
     pub fn ppm(self, b: Self) -> Ratio {
         Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
     }

@@ -5,7 +5,7 @@ use crate::{
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
-    system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
@@ -74,8 +74,6 @@ format_family!(
         labeling_state: bool, |location: Location, _| location.or_empty().ignore("-1").parse::<u8>(BOOL_ERROR).map(|n| n.map(|n| n != 0));
         localisation_probability: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         mass_analyser: String, |location: Location, _| Ok(location.get_string());
-        mass_error_da: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        mass_error_ppm: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         missed_cleavages: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         modified_peptide_id:usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
@@ -170,8 +168,6 @@ pub const MSMS: MaxQuantFormat = MaxQuantFormat {
     labeling_state: None,
     localisation_probability: Some("localization prob"),
     mass_analyser: Some("mass analyzer"),
-    mass_error_da: Some("mass error [da]"),
-    mass_error_ppm: Some("mass error [ppm]"),
     mass: Some("mass"),
     missed_cleavages: Some("missed cleavages"),
     modifications: "modifications",
@@ -235,8 +231,6 @@ pub const MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     labeling_state: None,
     localisation_probability: None,
     mass_analyser: Some("mass analyzer"),
-    mass_error_da: None,
-    mass_error_ppm: None,
     mass: Some("mass"),
     missed_cleavages: None,
     modifications: "modifications",
@@ -300,8 +294,6 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     labeling_state: None,
     localisation_probability: None,
     mass_analyser: Some("mass analyzer"),
-    mass_error_da: None,
-    mass_error_ppm: None,
     mass: Some("mass"),
     missed_cleavages: None,
     modifications: "modifications",
@@ -365,8 +357,6 @@ pub const SILAC: MaxQuantFormat = MaxQuantFormat {
     labeling_state: Some("labeling state"),
     localisation_probability: None,
     mass_analyser: None,
-    mass_error_da: Some("mass error [da]"),
-    mass_error_ppm: Some("mass error [ppm]"),
     mass: Some("mass"),
     missed_cleavages: None,
     modifications: "modifications",

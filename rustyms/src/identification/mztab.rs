@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     ops::Range,
+    path::PathBuf,
     str::FromStr,
 };
 
@@ -49,11 +50,11 @@ pub struct MZTabData {
     /// The charge for this peptide.
     pub z: Charge,
     /// The experimental mz
-    pub exp_mz: Option<MassOverCharge>,
+    pub mz: Option<MassOverCharge>,
     /// A URI pointing to the PSM's entry in the experiment it was identified in (e.g. the peptide’s PRIDE entry).
     pub uri: Option<String>,
     /// The raw file path, the CV term describing the file format, the spectrum identifer, and the CV term describing the identifier format
-    pub spectra_ref: Vec<(String, Option<CVTerm>, SpectrumId, Option<CVTerm>)>,
+    pub spectra_ref: Vec<(PathBuf, Option<CVTerm>, SpectrumId, Option<CVTerm>)>,
     /// The amino acide before this peptide
     pub preceding_aa: FlankingResidue,
     /// The amino acide after this peptide
@@ -450,7 +451,7 @@ impl MZTabData {
                         .map(|v| Charge::new::<crate::system::e>(v))?
                 }
             },
-            exp_mz: line
+            mz: line
                 .optional_column("exp_mass_to_charge")
                 .and_then(|(v, r)| {
                     (v.to_ascii_lowercase() != "null").then(|| {
@@ -522,7 +523,7 @@ impl MZTabData {
 
                         let id = scan_index.map_or_else(|| SpectrumId::Native(scan_id.to_string()), SpectrumId::Index);
 
-                        Ok((path, file_format.clone(), id, identifier_type.clone()))
+                        Ok((path.into(), file_format.clone(), id, identifier_type.clone()))
                     })).collect::<Result<Vec<_>, CustomError>>()?
             },
             preceding_aa: line.required_column("pre")?.0.parse().map_err(|()| {
@@ -709,6 +710,15 @@ impl Default for SpectrumId {
     }
 }
 
+impl std::fmt::Display for SpectrumId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Index(i) => write!(f, "{i}"),
+            Self::Native(n) => write!(f, "{n}"),
+        }
+    }
+}
+
 impl SpectrumId {
     /// Get the index if this is an index
     pub const fn index(&self) -> Option<usize> {
@@ -750,6 +760,16 @@ impl std::str::FromStr for FlankingResidue {
     }
 }
 
+impl std::fmt::Display for FlankingResidue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unknown => write!(f, "Unknown"),
+            Self::Terminal => write!(f, "Terminal"),
+            Self::AminoAcid(a) => write!(f, "{a}"),
+        }
+    }
+}
+
 /// A CV term
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct CVTerm {
@@ -771,10 +791,10 @@ impl std::str::FromStr for CVTerm {
             let value = &value[1..value.len() - 1];
             let mut split = value.splitn(4, ',');
             Ok(Self {
-                ontology: split.next().unwrap_or_default().to_string(),
-                id: split.next().unwrap_or_default().to_string(),
-                term: split.next().unwrap_or_default().to_string(),
-                comment: split.next().unwrap_or_default().to_string(),
+                ontology: split.next().unwrap_or_default().trim().to_string(),
+                id: split.next().unwrap_or_default().trim().to_string(),
+                term: split.next().unwrap_or_default().trim().to_string(),
+                comment: split.next().unwrap_or_default().trim().to_string(),
             })
         } else {
             Err(CustomError::error(
@@ -794,6 +814,16 @@ pub enum PSMReliability {
     Medium,
     #[default]
     Poor,
+}
+
+impl std::fmt::Display for PSMReliability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::High => write!(f, "High"),
+            Self::Medium => write!(f, "Medium"),
+            Self::Poor => write!(f, "Poor"),
+        }
+    }
 }
 
 /// A basic structure for a mzTab file line
