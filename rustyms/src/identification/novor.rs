@@ -8,7 +8,7 @@ use crate::{
     helper_functions::InvertResult,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
-    system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
 use serde::{Deserialize, Serialize};

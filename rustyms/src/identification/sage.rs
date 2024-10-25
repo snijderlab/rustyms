@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::CustomError,
+    identification::SpectrumId,
     ontologies::CustomDatabase,
     peptide::SemiAmbiguous,
     system::{usize::Charge, Mass, Ratio, Time},
@@ -46,7 +47,7 @@ format_family!(
         matched_peaks: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         missed_cleavages: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         ms2_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        native_id: String, |location: Location, _|Ok(location.get_string());
+        scan: SpectrumId, |location: Location, _|Ok(SpectrumId::Native(location.get_string()));
         peptide_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
         poisson: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -55,7 +56,8 @@ format_family!(
         predicted_rt: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         protein_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
-        psm_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        /// PSM ID
+        id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
@@ -81,11 +83,11 @@ impl From<SageData> for IdentifiedPeptide {
 /// An older version of a Sage export
 pub const VERSION_0_14: SageFormat = SageFormat {
     version: SageVersion::Version_0_14,
-    psm_id: "psm_id",
+    id: "psm_id",
     peptide: "peptide",
     proteins: "proteins",
     raw_file: "filename",
-    native_id: "scannr",
+    scan: "scannr",
     rank: "rank",
     decoy: "label",
     mass: "expmass",

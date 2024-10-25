@@ -2,6 +2,7 @@ use std::{collections::HashMap, fs::File, io::BufWriter};
 
 use align::AlignScoring;
 use clap::Parser;
+use identification::SpectrumIds;
 use itertools::Itertools;
 use rayon::prelude::*;
 use rustyms::{
@@ -75,10 +76,17 @@ fn main() {
             HashMap::from([
                 ("Peptide".to_string(), alignment.seq_b().to_string()),
                 (
-                    "Rawfile".to_string(),
-                    peptide
-                        .raw_file()
-                        .map_or(String::new(), |p| p.to_string_lossy().to_string()),
+                    "Spectra ref".to_string(),
+                    match peptide.scans() {
+                        SpectrumIds::None => String::new(),
+                        SpectrumIds::FileNotKnown(scans) => scans.iter().join(";"),
+                        SpectrumIds::FileKnown(scans) => scans
+                            .iter()
+                            .map(|(file, scans)| {
+                                format!("{}:{}", file.to_string_lossy(), scans.iter().join(";"))
+                            })
+                            .join("|"),
+                    },
                 ),
                 (
                     "De novo score".to_string(),
@@ -114,12 +122,6 @@ fn main() {
                 (
                     "Peptide length".to_string(),
                     peptide.peptide().map_or(0, |p| p.len()).to_string(),
-                ),
-                (
-                    "Scan".to_string(),
-                    peptide
-                        .scan_indices()
-                        .map_or(String::new(), |s| s.into_iter().join(",")),
                 ),
                 (
                     "Retention time".to_string(),

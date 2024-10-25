@@ -1,5 +1,6 @@
-use std::path::Path;
+use std::path::PathBuf;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -12,7 +13,7 @@ use crate::{
 };
 
 /// A peptide that is identified by a de novo or database matching program
-#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
     /// The score -1.0..=1.0 if available in the original format
     pub score: Option<f64>,
@@ -21,27 +22,24 @@ pub struct IdentifiedPeptide {
 }
 
 /// The definition of all special metadata for all types of identified peptides that can be read
-#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MetaData {
-    /// No metadata
-    #[default]
-    None,
-    /// Peaks metadata
-    Peaks(PeaksData),
-    /// Novor metadata
-    Novor(NovorData),
-    /// OPair metadata
-    Opair(OpairData),
     /// Fasta metadata
     Fasta(FastaData),
     /// MaxQuant metadata
     MaxQuant(MaxQuantData),
-    /// Sage metadata
-    Sage(SageData),
     /// MSFragger metadata
     MSFragger(MSFraggerData),
-    /// MSFragger metadata
+    /// mzTab metadata
     MZTab(MZTabData),
+    /// Novor metadata
+    Novor(NovorData),
+    /// OPair metadata
+    Opair(OpairData),
+    /// Peaks metadata
+    Peaks(PeaksData),
+    /// Sage metadata
+    Sage(SageData),
 }
 
 impl IdentifiedPeptide {
@@ -56,7 +54,37 @@ impl IdentifiedPeptide {
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
-            MetaData::None => None,
+        }
+    }
+
+    /// Get the name of the format
+    pub const fn format_name(&self) -> &'static str {
+        match &self.metadata {
+            MetaData::Fasta(_) => "Fasta",
+            MetaData::MaxQuant(_) => "MaxQuant",
+            MetaData::MSFragger(_) => "MSFragger",
+            MetaData::MZTab(_) => "mzTab",
+            MetaData::Novor(_) => "Novor",
+            MetaData::Opair(_) => "OPair",
+            MetaData::Peaks(_) => "PEAKS",
+            MetaData::Sage(_) => "Sage",
+        }
+    }
+
+    /// Get the identifier
+    pub fn id(&self) -> String {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { scan, .. }) => scan.iter().join(";"),
+            MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
+            MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
+            MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
+                id.to_string()
+            }
+            MetaData::Fasta(FastaData { id, .. }) => id.clone(),
+            MetaData::MSFragger(MSFraggerData { scan, .. }) => scan.to_string(),
+            MetaData::MaxQuant(MaxQuantData { id, scan, .. }) => {
+                id.map_or_else(|| scan.iter().join(";"), |id| id.to_string())
+            }
         }
     }
 
@@ -86,7 +114,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
-            MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Fasta(_) => None,
         }
     }
 
@@ -109,63 +137,50 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
-            MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Fasta(_) => None,
         }
     }
 
-    /// The scan indices of the spectrum for this identified peptide, if known.
-    pub fn scan_indices(&self) -> Option<Vec<usize>> {
+    /// The scans per rawfile that are at the basis for this identified peptide, if the rawfile is unknown there will be one
+    pub fn scans(&self) -> SpectrumIds {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { scan, .. }) => {
-                Some(scan.iter().flat_map(|i| &i.scans).copied().collect())
-            }
-            MetaData::Novor(NovorData { scan, .. }) | MetaData::Opair(OpairData { scan, .. }) => {
-                Some(vec![*scan])
-            }
-            MetaData::MaxQuant(MaxQuantData { scan_number, .. }) => Some(scan_number.clone()),
-            MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(vec![spectrum.scan.0]),
-            MetaData::MZTab(MZTabData { spectra_ref, .. }) => Some(
-                spectra_ref
-                    .iter()
-                    .filter_map(|(_, _, id, _)| id.index())
-                    .collect(),
+            MetaData::Peaks(PeaksData { raw_file, scan, .. }) => raw_file.clone().map_or_else(
+                || {
+                    SpectrumIds::FileNotKnown(
+                        scan.iter()
+                            .flat_map(|s| s.scans.clone())
+                            .map(SpectrumId::Index)
+                            .collect(),
+                    )
+                },
+                |raw_file| {
+                    SpectrumIds::FileKnown(vec![(
+                        raw_file,
+                        scan.iter()
+                            .flat_map(|s| s.scans.clone())
+                            .map(SpectrumId::Index)
+                            .collect(),
+                    )])
+                },
             ),
-            MetaData::Sage(_) | MetaData::Fasta(_) | MetaData::None => None,
-        }
-    }
-
-    /// The native ids of the spectrum for this identified peptide, if known.
-    pub fn spectrum_native_ids(&self) -> Option<Vec<String>> {
-        match &self.metadata {
-            MetaData::Sage(SageData { native_id, .. }) => Some(vec![native_id.clone()]),
-            MetaData::MZTab(MZTabData { spectra_ref, .. }) => Some(
-                spectra_ref
-                    .iter()
-                    .filter_map(|(_, _, id, _)| id.native().map(ToString::to_string))
-                    .collect(),
-            ),
-            MetaData::MaxQuant(_)
-            | MetaData::Opair(_)
-            | MetaData::Novor(_)
-            | MetaData::Peaks(_)
-            | MetaData::Fasta(_)
-            | MetaData::MSFragger(_)
-            | MetaData::None => None,
-        }
-    }
-
-    /// Get the file name for the raw file
-    pub fn raw_file(&self) -> Option<&Path> {
-        match &self.metadata {
-            MetaData::Peaks(PeaksData { raw_file, .. }) => raw_file.as_deref(),
-            MetaData::Opair(OpairData { raw_file, .. })
-            | MetaData::MaxQuant(MaxQuantData { raw_file, .. })
-            | MetaData::Sage(SageData { raw_file, .. }) => Some(raw_file),
-            MetaData::MSFragger(MSFraggerData { spectrum, .. }) => Some(&spectrum.file),
-            MetaData::MZTab(MZTabData { spectra_ref, .. }) => {
-                spectra_ref.first().map(|r| r.0.as_path()) // TODO: Could contain multiple files
+            MetaData::Novor(NovorData { scan, .. }) => {
+                SpectrumIds::FileNotKnown(vec![SpectrumId::Index(*scan)])
             }
-            MetaData::Novor(_) | MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Opair(OpairData { raw_file, scan, .. }) => {
+                SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
+            }
+            MetaData::MaxQuant(MaxQuantData { raw_file, scan, .. }) => {
+                SpectrumIds::FileKnown(vec![(
+                    raw_file.clone(),
+                    scan.iter().copied().map(SpectrumId::Index).collect(),
+                )])
+            }
+            MetaData::MZTab(MZTabData { spectra_ref, .. }) => spectra_ref.clone(),
+            MetaData::MSFragger(MSFraggerData { raw_file, scan, .. })
+            | MetaData::Sage(SageData { raw_file, scan, .. }) => {
+                SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
+            }
+            MetaData::Fasta(_) => SpectrumIds::None,
         }
     }
 
@@ -186,7 +201,7 @@ impl IdentifiedPeptide {
             }) => Some(MassOverCharge::new::<crate::system::mz>(
                 experimental_mass.value / (z.value as f64),
             )),
-            MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Fasta(_) => None,
         }
     }
 
@@ -200,21 +215,19 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
-            MetaData::Fasta(_) | MetaData::None => None,
+            MetaData::Fasta(_) => None,
         }
     }
 
-    /// Get the absolute ppm error between the experimental and theoretical precursor mz
+    /// Get the absolute ppm error between the experimental and theoretical precursor mass
     pub fn ppm_error(&self) -> Option<crate::system::Ratio> {
-        let exp_mz = self.experimental_mz()?;
-        let z = self.charge()?.to_float();
-        let mass = self
+        let exp_mass = self.experimental_mass()?;
+        let theo_mass = self
             .peptide()
             .and_then(|p| p.formulas().to_vec().pop())
             .map(|f| f.monoisotopic_mass())?;
-        let theo_mz = mass / z;
 
-        Some(theo_mz.ppm(exp_mz))
+        Some(theo_mass.ppm(exp_mass))
     }
 
     /// Get the absolute mass error between the experimental and theoretical precursor mass
@@ -226,6 +239,60 @@ impl IdentifiedPeptide {
             .map(|f| f.monoisotopic_mass())?;
 
         Some((exp_mass - theo_mass).abs())
+    }
+}
+
+/// Multiple spectrum identifiers
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum SpectrumIds {
+    /// When no spectra references are knwon at all
+    #[default]
+    None,
+    /// When the source file is now known
+    FileNotKnown(Vec<SpectrumId>),
+    /// When the source file is known, grouped per file
+    FileKnown(Vec<(PathBuf, Vec<SpectrumId>)>),
+}
+
+/// A spectrum identifier
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum SpectrumId {
+    /// A native id, the format differs between vendors
+    Native(String),
+    /// A spectrum index
+    Index(usize),
+}
+
+impl Default for SpectrumId {
+    fn default() -> Self {
+        Self::Index(0)
+    }
+}
+
+impl std::fmt::Display for SpectrumId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Index(i) => write!(f, "{i}"),
+            Self::Native(n) => write!(f, "{n}"),
+        }
+    }
+}
+
+impl SpectrumId {
+    /// Get the index if this is an index
+    pub const fn index(&self) -> Option<usize> {
+        match self {
+            Self::Index(i) => Some(*i),
+            Self::Native(_) => None,
+        }
+    }
+
+    /// Get the native ID if this is a native ID
+    pub fn native(&self) -> Option<&str> {
+        match self {
+            Self::Index(_) => None,
+            Self::Native(n) => Some(n),
+        }
     }
 }
 

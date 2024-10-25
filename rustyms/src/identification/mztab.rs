@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     ops::Range,
-    path::PathBuf,
     str::FromStr,
 };
 
@@ -14,13 +13,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{Context, CustomError},
     helper_functions::{check_extension, explain_number_error},
-    identification::{IdentifiedPeptide, MetaData},
+    identification::{IdentifiedPeptide, MetaData, SpectrumId, SpectrumIds},
     modification::SimpleModification,
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge, Time},
     AminoAcid, LinearPeptide, PeptideModificationSearch, ReturnModification, SemiAmbiguous,
     SloppyParsingParameters, Tolerance,
 };
+
 /// Peptide data from a mzTab file
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct MZTabData {
@@ -29,7 +29,7 @@ pub struct MZTabData {
     /// A unique identifier for a PSM within the file. If a PSM can be matched to
     /// multiple proteins, the same PSM should be represented on multiple rows with
     /// different accessions and the same PSM_ID.
-    pub psm_id: usize,
+    pub id: usize,
     /// The protein's accession the corresponding peptide sequence (coming from the
     /// PSM) is associated with.
     pub accession: Option<String>,
@@ -53,8 +53,8 @@ pub struct MZTabData {
     pub mz: Option<MassOverCharge>,
     /// A URI pointing to the PSM's entry in the experiment it was identified in (e.g. the peptide’s PRIDE entry).
     pub uri: Option<String>,
-    /// The raw file path, the CV term describing the file format, the spectrum identifer, and the CV term describing the identifier format
-    pub spectra_ref: Vec<(PathBuf, Option<CVTerm>, SpectrumId, Option<CVTerm>)>,
+    /// The spectra references grouped by raw file
+    pub spectra_ref: SpectrumIds,
     /// The amino acide before this peptide
     pub preceding_aa: FlankingResidue,
     /// The amino acide after this peptide
@@ -327,7 +327,7 @@ impl MZTabData {
                     .tolerance(Tolerance::new_ppm(20.0))
                     .search(peptide)
             },
-            psm_id: line.required_column("psm_id")?.0.parse().map_err(|err| {
+            id: line.required_column("psm_id")?.0.parse().map_err(|err| {
                 CustomError::error(
                     "Invalid mzTab PSM_ID",
                     format!("The PSM_ID {}", explain_number_error(&err)),
@@ -470,61 +470,69 @@ impl MZTabData {
             uri: line.optional_column("uri").map(|(v, _)| v.to_string()),
             spectra_ref: {
                 let (value, range) = line.required_column("spectra_ref")?;
-
-                value
-                    .split('|')
-                    .map(|value|
-                    value.split_once(':')
-                    .ok_or_else(|| {
-                        CustomError::error(
-                            "Invalid mzTab spectra_ref",
-                            "The spectra_ref should be 'ms_run[x]:id'",
-                            Context::line_range(Some(line.line_index), line.line, range.clone()),
-                        )
-                    })
-                    .and_then(|(run, scan_id)| {
-                        let index = run
-                            .trim_start_matches("ms_run[")
-                            .trim_end_matches(']')
-                            .parse::<usize>()
-                            .map_err(|err| {
-                                CustomError::error(
-                                    "Invalid mzTab ms_run",
-                                    format!("The ms_run identifier {}", explain_number_error(&err)),
-                                    Context::line_range(
-                                        Some(line.line_index),
-                                        line.line,
-                                        range.clone(),
-                                    ),
-                                )
-                            })? - 1;
-                        let (path, file_format, identifier_type) = raw_files.get(index).ok_or_else(||CustomError::error("Missing raw file definition", "All raw files should be defined in the MTD section before being used in the PSM Section", Context::line_range(
-                            Some(line.line_index),
-                            line.line,
-                            range.clone(),
-                        )))?;
-                        let path = path.clone().ok_or_else(|| CustomError::error("Missing raw file path definition", "The path is not defined for this raw file", Context::line_range(
-                            Some(line.line_index),
-                            line.line,
-                            range.clone(),
-                        )))?;
-
-                        let scan_index = scan_id.strip_prefix("index=").map(|id| id.parse::<usize>().map_err(|err| {
+                let grouped = value
+                .split('|')
+                .map(|value|
+                value.split_once(':')
+                .ok_or_else(|| {
+                    CustomError::error(
+                        "Invalid mzTab spectra_ref",
+                        "The spectra_ref should be 'ms_run[x]:id'",
+                        Context::line_range(Some(line.line_index), line.line, range.clone()),
+                    )
+                })
+                .and_then(|(run, scan_id)| {
+                    let index = run
+                        .trim_start_matches("ms_run[")
+                        .trim_end_matches(']')
+                        .parse::<usize>()
+                        .map_err(|err| {
                             CustomError::error(
-                                "Invalid mzTab spectra_ref index",
-                                format!("The spectra_ref index {}", explain_number_error(&err)),
+                                "Invalid mzTab ms_run",
+                                format!("The ms_run identifier {}", explain_number_error(&err)),
                                 Context::line_range(
                                     Some(line.line_index),
                                     line.line,
                                     range.clone(),
                                 ),
                             )
-                        })).transpose()?;
+                        })? - 1;
+                    let path = raw_files.get(index).ok_or_else(|| CustomError::error("Missing raw file definition", "All raw files should be defined in the MTD section before being used in the PSM Section", Context::line_range(
+                        Some(line.line_index),
+                        line.line,
+                        range.clone(),
+                    )))?.0.as_ref().ok_or_else(|| CustomError::error("Missing raw file path definition", "The path is not defined for this raw file", Context::line_range(
+                        Some(line.line_index),
+                        line.line,
+                        range.clone(),
+                    )))?;
 
-                        let id = scan_index.map_or_else(|| SpectrumId::Native(scan_id.to_string()), SpectrumId::Index);
+                    let scan_index = scan_id.strip_prefix("index=").map(|id| id.parse::<usize>().map_err(|err| {
+                        CustomError::error(
+                            "Invalid mzTab spectra_ref index",
+                            format!("The spectra_ref index {}", explain_number_error(&err)),
+                            Context::line_range(
+                                Some(line.line_index),
+                                line.line,
+                                range.clone(),
+                            ),
+                        )
+                    })).transpose()?;
 
-                        Ok((path.into(), file_format.clone(), id, identifier_type.clone()))
-                    })).collect::<Result<Vec<_>, CustomError>>()?
+                    let id = scan_index.map_or_else(|| SpectrumId::Native(scan_id.to_string()), SpectrumId::Index);
+
+                    Ok((std::path::PathBuf::from(path), id))
+                })).collect::<Result<Vec<_>, CustomError>>()?
+                .into_iter()
+                .sorted_by(|(a, _), (b,_)| a.cmp(b))
+                .chunk_by(|(path, _)| path.clone());
+
+                SpectrumIds::FileKnown(
+                    grouped
+                        .into_iter()
+                        .map(|(path, ids)| (path, ids.into_iter().map(|(_, i)| i).collect()))
+                        .collect(),
+                )
             },
             preceding_aa: line.required_column("pre")?.0.parse().map_err(|()| {
                 CustomError::error(
@@ -691,48 +699,6 @@ impl From<MZTabData> for IdentifiedPeptide {
                 )
             },
             metadata: MetaData::MZTab(value),
-        }
-    }
-}
-
-/// A spectrum identifier
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub enum SpectrumId {
-    /// A native id, the format differs between vendors
-    Native(String),
-    /// A spectrum index
-    Index(usize),
-}
-
-impl Default for SpectrumId {
-    fn default() -> Self {
-        Self::Index(0)
-    }
-}
-
-impl std::fmt::Display for SpectrumId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Index(i) => write!(f, "{i}"),
-            Self::Native(n) => write!(f, "{n}"),
-        }
-    }
-}
-
-impl SpectrumId {
-    /// Get the index if this is an index
-    pub const fn index(&self) -> Option<usize> {
-        match self {
-            Self::Index(i) => Some(*i),
-            Self::Native(_) => None,
-        }
-    }
-
-    /// Get the native ID if this is a native ID
-    pub fn native(&self) -> Option<&str> {
-        match self {
-            Self::Index(_) => None,
-            Self::Native(n) => Some(n),
         }
     }
 }

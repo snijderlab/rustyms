@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, InvertResult},
+    identification::SpectrumId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
@@ -34,8 +35,8 @@ format_family!(
     MSFraggerData,
     MSFraggerVersion, [&V21, &V22], b'\t';
     required {
-        spectrum: MSFraggerID, |location: Location, _| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
-        spectrum_file: String, |location: Location, _| Ok(location.get_string());
+        scan: SpectrumId, |location: Location, _| Ok(SpectrumId::Native(location.get_string()));
+        raw_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
         peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
@@ -113,8 +114,8 @@ impl std::fmt::Display for MSFraggerVersion {
 /// v21
 pub const V21: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V21,
-    spectrum: "spectrum",
-    spectrum_file: "spectrum file",
+    scan: "spectrum",
+    raw_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",
@@ -149,8 +150,8 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
 /// v22
 pub const V22: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V22,
-    spectrum: "spectrum",
-    spectrum_file: "spectrum file",
+    scan: "spectrum",
+    raw_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",
