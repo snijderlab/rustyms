@@ -551,13 +551,13 @@ impl Model {
     pub fn cid_hcd() -> Self {
         Self {
             a: PrimaryIonSeries::default()
-                .location(Location::TakeN { skip: 1, take: 1 })
+                .location(Location::TakeN { skip: 0, take: 1 })
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             b: PrimaryIonSeries::default()
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             c: PrimaryIonSeries::default().location(Location::None),
             d: PrimaryIonSeries::default()
-                .location(Location::TakeN { skip: 1, take: 1 })
+                .location(Location::TakeN { skip: 0, take: 1 })
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             v: PrimaryIonSeries::default().location(Location::None),
             w: PrimaryIonSeries::default().location(Location::None),

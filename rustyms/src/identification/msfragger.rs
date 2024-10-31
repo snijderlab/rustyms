@@ -36,7 +36,7 @@ format_family!(
     MSFraggerVersion, [&V21, &V22], b'\t';
     required {
         scan: SpectrumId, |location: Location, _| Ok(SpectrumId::Native(location.get_string()));
-        raw_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
+        spectrum_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
         peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
@@ -73,10 +73,23 @@ format_family!(
         mapped_proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
     }
     optional {
+        raw_file: PathBuf, |location: Location, _| Ok(Some(location.get_string().into()));
         condition: String, |location: Location, _| Ok(Some(location.get_string()));
         group: String, |location: Location, _| Ok(Some(location.get_string()));
     }
+    fn post_process(mut self) -> Self {
+        if let SpectrumId::Native(native) = &self.scan {
+            if let Some(m) = IDENTIFER_REGEX.get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap()).captures(native) {
+                self.raw_file = Some(m.get(1).unwrap().as_str().into());
+                self.scan = SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
+            }
+        }
+        self
+    }
 );
+
+/// The Regex to match against MSFragger scan fields
+static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
 impl From<MSFraggerData> for IdentifiedPeptide {
     fn from(value: MSFraggerData) -> Self {
@@ -115,7 +128,8 @@ impl std::fmt::Display for MSFraggerVersion {
 pub const V21: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V21,
     scan: "spectrum",
-    raw_file: "spectrum file",
+    raw_file: None,
+    spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",
@@ -151,7 +165,8 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
 pub const V22: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V22,
     scan: "spectrum",
-    raw_file: "spectrum file",
+    raw_file: None,
+    spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",

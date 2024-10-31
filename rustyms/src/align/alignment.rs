@@ -165,8 +165,6 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
             }
         }
 
-        dbg!((&steps, &path));
-
         let mut index_a = start_a;
         let mut index_b = start_b;
         let mut score = 0;

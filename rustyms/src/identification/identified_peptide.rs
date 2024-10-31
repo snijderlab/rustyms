@@ -176,8 +176,13 @@ impl IdentifiedPeptide {
                 )])
             }
             MetaData::MZTab(MZTabData { spectra_ref, .. }) => spectra_ref.clone(),
-            MetaData::MSFragger(MSFraggerData { raw_file, scan, .. })
-            | MetaData::Sage(SageData { raw_file, scan, .. }) => {
+            MetaData::MSFragger(MSFraggerData { raw_file, scan, .. }) => {
+                raw_file.clone().map_or_else(
+                    || SpectrumIds::FileNotKnown(vec![scan.clone()]),
+                    |raw_file| SpectrumIds::FileKnown(vec![(raw_file, vec![scan.clone()])]),
+                )
+            }
+            MetaData::Sage(SageData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
             }
             MetaData::Fasta(_) => SpectrumIds::None,

@@ -493,10 +493,10 @@ impl Modification {
                 } else if visited_peptides.contains(other_peptide) {
                     applied_cross_links.push(name.clone());
                     (
-                        dbg!(linker
+                        linker
                             .formula_inner(sequence_index, peptide_index)
-                            .with_label(AmbiguousLabel::CrossLinkBound(name.clone())))
-                        .into(),
+                            .with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
+                            .into(),
                         HashSet::from([name.clone()]),
                     )
                 } else {
@@ -542,9 +542,7 @@ impl Modification {
                         );
                         seen.insert(name.clone());
                         (
-                            dbg!(
-                                (f + link).with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
-                            ),
+                            (f + link).with_label(AmbiguousLabel::CrossLinkBound(name.clone())),
                             seen,
                         )
                     }

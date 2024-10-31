@@ -13,7 +13,8 @@ macro_rules! format_family {
      $data:ident,
      $version:ident, $versions:expr, $separator:expr;
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
-     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
+     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}
+     $($post_process:item)?) => {
         use super::common_parser::HasLocation;
         #[non_exhaustive]
         #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default, Serialize, Deserialize)]
@@ -35,14 +36,19 @@ macro_rules! format_family {
             pub version: $version
         }
 
+        impl crate::identification::common_parser::PostProcess for $data {
+            $($post_process)?
+        }
+
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
             fn parse(source: &Self::Source, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
+                use crate::identification::common_parser::PostProcess;
                 let mut errors = Vec::new();
                 for format in $versions {
                     match Self::parse_specific(source, format, custom_database) {
-                        Ok(peptide) => return Ok((peptide, format)),
+                        Ok(peptide) => return Ok((peptide.post_process(), format)),
                         Err(err) => errors.push(err),
                     }
                 }
@@ -72,6 +78,12 @@ macro_rules! format_family {
             }
         }
     };
+}
+
+pub(super) trait PostProcess: Sized {
+    fn post_process(self) -> Self {
+        self
+    }
 }
 
 pub trait HasLocation {
