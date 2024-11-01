@@ -78,7 +78,7 @@ fn casanovo_v4_2_1() {
 /// If any part of the process errors.
 fn open_file(reader: impl BufRead) -> Result<usize, CustomError> {
     let mut peptides = 0;
-    for read in MZTabData::parse_raw(reader, None) {
+    for read in MZTabData::parse_reader(reader, None) {
         let read: IdentifiedPeptide = read?.into();
         peptides += 1;
         assert!(

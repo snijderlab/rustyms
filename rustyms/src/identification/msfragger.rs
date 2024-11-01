@@ -43,7 +43,19 @@ format_family!(
             custom_database,
             SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
         ));
-        extended_peptide: String, |location: Location, _| Ok(location.get_string());
+        extended_peptide: [Option<LinearPeptide<SemiAmbiguous>>; 3], |location: Location, custom_database: Option<&CustomDatabase>| {
+            let peptides = location.clone().array('.').map(|l| l.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+                location.full_line(),
+                location.location.clone(),
+                custom_database,
+                SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
+            ))).collect::<Result<Vec<_>,_>>()?;
+            if peptides.len() == 3 {
+                Ok([peptides[0].clone(), peptides[1].clone(), peptides[2].clone()])
+            } else {
+                Err(CustomError::error("Invalid extened peptide", "The extended peptide should contain the prefix.peptide.suffix for all peptides.", location.context()))
+            }
+        };
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
         /// Experimental mass
@@ -77,22 +89,27 @@ format_family!(
         condition: String, |location: Location, _| Ok(Some(location.get_string()));
         group: String, |location: Location, _| Ok(Some(location.get_string()));
     }
-    fn post_process(mut self) -> Self {
-        if let SpectrumId::Native(native) = &self.scan {
-            if let Some(m) = IDENTIFER_REGEX.get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap()).captures(native) {
-                self.raw_file = Some(m.get(1).unwrap().as_str().into());
-                self.scan = SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
-            }
-        }
-        self
-    }
 );
 
 /// The Regex to match against MSFragger scan fields
 static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
+#[allow(clippy::fallible_impl_from)] // Not fallible thanks to regex
 impl From<MSFraggerData> for IdentifiedPeptide {
-    fn from(value: MSFraggerData) -> Self {
+    fn from(mut value: MSFraggerData) -> Self {
+        if let SpectrumId::Native(native) = &value.scan {
+            if let Some(m) = IDENTIFER_REGEX
+                .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap())
+                .captures(native)
+            {
+                value.raw_file = Some(m.get(1).unwrap().as_str().into());
+                value.scan =
+                    SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
+            }
+        }
+        if value.peptide.is_none() {
+            value.peptide = value.extended_peptide[1].clone();
+        }
         Self {
             score: Some(value.hyperscore),
             metadata: MetaData::MSFragger(value),

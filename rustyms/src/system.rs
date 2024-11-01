@@ -182,12 +182,14 @@ pub mod isize {
 }
 
 impl usize::Charge {
+    /// Convert a usize charge to f64 for computations
     pub fn to_float(self) -> f64::Charge {
         f64::Charge::new::<crate::system::e>(self.value as f64)
     }
 }
 
 impl isize::Charge {
+    /// Convert an isize charge to f64 for computations
     pub fn to_float(self) -> f64::Charge {
         f64::Charge::new::<crate::system::e>(self.value as f64)
     }

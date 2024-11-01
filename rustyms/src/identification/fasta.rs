@@ -34,6 +34,15 @@ impl FastaData {
             )
         })?;
         let reader = BufReader::new(file);
+        Self::parse_reader(reader, Some(path))
+    }
+    /// Parse a single fasta file from a reader
+    /// # Errors
+    /// A custom error when it is not a valid fasta file
+    pub fn parse_reader(
+        reader: impl BufRead,
+        path: Option<&Path>,
+    ) -> Result<Vec<Self>, CustomError> {
         let mut sequences = Vec::new();
         let mut last_header = None;
         let mut last_sequence: Vec<SequenceElement<SemiAmbiguous>> = Vec::new();
@@ -43,7 +52,7 @@ impl FastaData {
                 CustomError::error(
                     "Failed reading fasta file",
                     format!("Error occurred while reading line {}", line_index + 1),
-                    Context::show(path.to_string_lossy()),
+                    path.map_or(Context::None, |p| Context::show(p.to_string_lossy())),
                 )
             })?;
             #[allow(clippy::manual_strip)]

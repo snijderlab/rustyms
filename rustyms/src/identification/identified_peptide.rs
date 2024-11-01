@@ -336,6 +336,7 @@ where
             iter: Box::new(iter),
             format: None,
             custom_database,
+            peek: None,
         }
     }
     /// Parse a file with identified peptides.
@@ -345,13 +346,23 @@ where
         path: impl AsRef<std::path::Path>,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError>;
+    /// Parse a reader with identified peptides.
+    /// # Errors
+    /// When the file is empty or no headers are present.
+    fn parse_reader<'a>(
+        reader: impl std::io::Read + 'a,
+        custom_database: Option<&'a CustomDatabase>,
+    ) -> Result<BoxedIdentifiedPeptideIter<'a, Self>, CustomError>;
 }
 
 /// Convenience type to not have to type out long iterator types
 pub type BoxedIdentifiedPeptideIter<'lifetime, T> = IdentifiedPeptideIter<
     'lifetime,
     T,
-    Box<dyn Iterator<Item = Result<<T as IdentifiedPeptideSource>::Source, CustomError>>>,
+    Box<
+        dyn Iterator<Item = Result<<T as IdentifiedPeptideSource>::Source, CustomError>>
+            + 'lifetime,
+    >,
 >;
 
 /// An iterator returning parsed identified peptides
@@ -363,6 +374,40 @@ pub struct IdentifiedPeptideIter<
     iter: Box<I>,
     format: Option<R::Format>,
     custom_database: Option<&'lifetime CustomDatabase>,
+    peek: Option<Result<R, CustomError>>,
+}
+
+impl<
+        'lifetime,
+        R: IdentifiedPeptideSource + Clone,
+        I: Iterator<Item = Result<R::Source, CustomError>>,
+    > IdentifiedPeptideIter<'lifetime, R, I>
+where
+    R::Format: 'static,
+{
+    /// Peek at the next item in the iterator
+    pub fn peek(&mut self) -> Option<Result<R, CustomError>> {
+        let peek = if let Some(format) = &self.format {
+            self.iter
+                .next()
+                .map(|source| R::parse_specific(&source?, format, self.custom_database))
+        } else {
+            match self
+                .iter
+                .next()
+                .map(|source| R::parse(&source?, self.custom_database))
+            {
+                None => None,
+                Some(Ok((pep, format))) => {
+                    self.format = Some(format.clone());
+                    Some(Ok(pep))
+                }
+                Some(Err(e)) => Some(Err(e)),
+            }
+        };
+        self.peek.clone_from(&peek);
+        peek
+    }
 }
 
 impl<'lifetime, R: IdentifiedPeptideSource, I: Iterator<Item = Result<R::Source, CustomError>>>
@@ -372,6 +417,10 @@ where
 {
     type Item = Result<R, CustomError>;
     fn next(&mut self) -> Option<Self::Item> {
+        if self.peek.is_some() {
+            return self.peek.take();
+        }
+
         if let Some(format) = &self.format {
             self.iter
                 .next()

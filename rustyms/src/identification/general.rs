@@ -77,3 +77,37 @@ pub fn open_identified_peptides_file<'a>(
         )),
     }
 }
+
+#[allow(clippy::missing_panics_doc)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn open_sage() {
+        let peptides =
+            open_identified_peptides_file("src/identification/test_files/sage_v0_14.tsv", None)
+                .unwrap();
+        let mut num_peptides = 0;
+        for peptide in peptides {
+            let read: IdentifiedPeptide = peptide.unwrap();
+            num_peptides += 1;
+            let _ = read.peptide().unwrap();
+        }
+        assert_eq!(num_peptides, 19);
+    }
+
+    #[test]
+    fn open_msfragger() {
+        let peptides =
+            open_identified_peptides_file("src/identification/test_files/msfragger_v21.tsv", None)
+                .unwrap();
+        let mut num_peptides = 0;
+        for peptide in peptides {
+            let read: IdentifiedPeptide = peptide.unwrap();
+            num_peptides += 1;
+            let _ = read.peptide().unwrap();
+        }
+        assert_eq!(num_peptides, 19);
+    }
+}

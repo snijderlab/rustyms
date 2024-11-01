@@ -87,12 +87,12 @@ impl MZTabData {
             )
         })?;
         if check_extension(path, "gz") {
-            Ok(Box::new(Self::parse_raw(
+            Ok(Box::new(Self::parse_reader(
                 BufReader::new(GzDecoder::new(BufReader::new(file))),
                 custom_database,
             )))
         } else {
-            Ok(Box::new(Self::parse_raw(
+            Ok(Box::new(Self::parse_reader(
                 BufReader::new(file),
                 custom_database,
             )))
@@ -100,7 +100,7 @@ impl MZTabData {
     }
 
     /// Parse a mzTab file directly from a buffered reader
-    pub fn parse_raw<'a, T: std::io::BufRead + 'a>(
+    pub fn parse_reader<'a, T: BufRead + 'a>(
         reader: T,
         custom_database: Option<&'a CustomDatabase>,
     ) -> impl Iterator<Item = Result<Self, CustomError>> + 'a {
@@ -109,7 +109,7 @@ impl MZTabData {
         let mut raw_files: Vec<(Option<String>, Option<CVTerm>, Option<CVTerm>)> = Vec::new(); //path, file format, identifier type
         let mut peptide_header: Option<Vec<String>> = None;
 
-        parse_mztab_raw(reader).filter_map(move |item| {
+        parse_mztab_reader(reader).filter_map(move |item| {
             item.transpose().and_then(|item| match item {
                 Ok(MZTabLine::MTD(line_index, line, fields)) => {
                     if fields.len() == 3 {
@@ -806,7 +806,7 @@ enum MZTabLine {
 /// Parse a mzTab file
 /// # Errors
 /// If the file is not a valid mzTab file
-fn parse_mztab_raw<T: BufRead>(
+fn parse_mztab_reader<T: BufRead>(
     reader: T,
 ) -> impl Iterator<Item = Result<Option<MZTabLine>, CustomError>> {
     reader.lines().enumerate().map(move |(line_index, line)| {

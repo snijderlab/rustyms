@@ -13,8 +13,7 @@ macro_rules! format_family {
      $data:ident,
      $version:ident, $versions:expr, $separator:expr;
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
-     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}
-     $($post_process:item)?) => {
+     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
         use super::common_parser::HasLocation;
         #[non_exhaustive]
         #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default, Serialize, Deserialize)]
@@ -36,19 +35,14 @@ macro_rules! format_family {
             pub version: $version
         }
 
-        impl crate::identification::common_parser::PostProcess for $data {
-            $($post_process)?
-        }
-
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
             fn parse(source: &Self::Source, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
-                use crate::identification::common_parser::PostProcess;
                 let mut errors = Vec::new();
                 for format in $versions {
                     match Self::parse_specific(source, format, custom_database) {
-                        Ok(peptide) => return Ok((peptide.post_process(), format)),
+                        Ok(peptide) => return Ok((peptide, format)),
                         Err(err) => errors.push(err),
                     }
                 }
@@ -62,10 +56,28 @@ macro_rules! format_family {
                 path: impl AsRef<std::path::Path>,
                 custom_database: Option<&crate::ontologies::CustomDatabase>,
             ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError> {
-                parse_csv(path, $separator, None).map(|lines| {
-                    Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(Box::new(
-                        lines,
-                    ), custom_database)
+                parse_csv(path, $separator, None).and_then(|lines| {
+                    let mut i = Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(
+                        Box::new(lines), custom_database);
+                    if let Some(Err(e)) = i.peek() {
+                        Err(e.clone())
+                    } else {
+                        Ok(i)
+                    }
+                })
+            }
+            fn parse_reader<'a>(
+                reader: impl std::io::Read + 'a,
+                custom_database: Option<&'a crate::ontologies::CustomDatabase>,
+            ) -> Result<BoxedIdentifiedPeptideIter<'a, Self>, CustomError> {
+                crate::csv::parse_csv_raw(reader, $separator, None).and_then(move |lines| {
+                    let mut i = Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(
+                        Box::new(lines), custom_database);
+                    if let Some(Err(e)) = i.peek() {
+                        Err(e.clone())
+                    } else {
+                        Ok(i)
+                    }
                 })
             }
             #[allow(clippy::redundant_closure_call)] // Macro magic
@@ -78,12 +90,6 @@ macro_rules! format_family {
             }
         }
     };
-}
-
-pub(super) trait PostProcess: Sized {
-    fn post_process(self) -> Self {
-        self
-    }
 }
 
 pub trait HasLocation {
@@ -106,6 +112,7 @@ impl HasLocation for CsvLine {
 }
 
 /// The base location type to keep track of the location of to be parsed pieces in the monadic parser combinators below
+#[derive(Clone)]
 pub struct Location<'a> {
     pub(super) line: &'a CsvLine,
     pub(super) location: Range<usize>,
