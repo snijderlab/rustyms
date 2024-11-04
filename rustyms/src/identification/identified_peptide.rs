@@ -387,6 +387,10 @@ where
 {
     /// Peek at the next item in the iterator
     pub fn peek(&mut self) -> Option<Result<R, CustomError>> {
+        if self.peek.is_some() {
+            return self.peek.clone();
+        }
+
         let peek = if let Some(format) = &self.format {
             self.iter
                 .next()

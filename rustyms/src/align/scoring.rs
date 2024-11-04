@@ -51,7 +51,7 @@ pub struct AlignScoring<'a> {
     /// Default: 2.
     pub isobaric: i8,
     /// The gap start score for affine gaps, this is the score for starting any gap. The total score
-    /// for a full gap will be `gap_start + gep_extend * len`.
+    /// for a full gap will be `gap_start + gap_extend * len`.
     ///
     /// Default: -4.
     pub gap_start: i8,

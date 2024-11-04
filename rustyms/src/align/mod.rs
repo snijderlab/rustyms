@@ -28,12 +28,12 @@
 
 mod align_type;
 mod alignment;
-#[cfg(test)]
-mod bad_alignments;
 mod diagonal_array;
 mod mass_alignment;
 mod piece;
 mod scoring;
+#[cfg(test)]
+mod test_alignments;
 
 #[cfg(feature = "imgt")]
 mod consecutive;

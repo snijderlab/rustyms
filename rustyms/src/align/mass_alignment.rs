@@ -62,8 +62,8 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                         let score = scoring.gap_extend as isize
                             + scoring.gap_start as isize
                                 * isize::from(
-                                    prev.step_a == 0 && len_a == 0
-                                        || prev.step_b == 0 && len_b == 0,
+                                    !(prev.step_a == 0 && len_a == 0
+                                        || prev.step_b == 0 && len_b == 0),
                                 );
                         Some(Piece::new(
                             base_score + score,

@@ -56,3 +56,6 @@ isotopes = ["probability", "ndarray"]
 [[bench]]
 name = "iai"
 harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(github_action)'] }

@@ -179,27 +179,31 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
 
                     (0..a.max(b))
                         .map(|i| {
-                            if i == 0 {
-                                let r = Piece {
+                            // The first gap will have the gap_start score, unless this is the very first gap and the alignment is global left A/B
+                            if i == 0
+                                && !((index_a == 0 || index_b == 0)
+                                    && (align_type.left.global_a() || align_type.left.global_b()))
+                            {
+                                let local_score =
+                                    scoring.gap_start as isize + scoring.gap_extend as isize;
+                                score += local_score;
+                                Piece {
                                     score,
-                                    local_score: scoring.gap_start as isize
-                                        + scoring.gap_extend as isize,
+                                    local_score,
                                     match_type: MatchType::Gap,
                                     step_a,
                                     step_b,
-                                };
-                                score += scoring.gap_start as isize + scoring.gap_extend as isize;
-                                r
+                                }
                             } else {
-                                let r = Piece {
+                                let local_score = scoring.gap_extend as isize;
+                                score += scoring.gap_extend as isize;
+                                Piece {
                                     score,
-                                    local_score: scoring.gap_extend as isize,
+                                    local_score,
                                     match_type: MatchType::Gap,
                                     step_a,
                                     step_b,
-                                };
-                                score += scoring.gap_extend as isize;
-                                r
+                                }
                             }
                         })
                         .collect_vec()

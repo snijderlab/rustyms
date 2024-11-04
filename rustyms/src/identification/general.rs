@@ -34,27 +34,33 @@ pub fn open_identified_peptides_file<'a>(
     match actual_extension.as_deref() {
         Some("csv") => PeaksData::parse_file(path, custom_database)
             .map(IdentifiedPeptideIter::into_box)
-            .or_else(|_| {
-                NovorData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+            .or_else(|pe| {
+                NovorData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|ne| (pe, ne))
             })
-            .map_err(|_| {
+            .map_err(|(pe, ne)| {
                 CustomError::error(
                     "Unknown file",
                     "Could not be recognised as either a Peaks or Novor file",
                     Context::show(path.to_string_lossy()),
                 )
+                .with_underlying_errors(vec![pe, ne])
             }),
         Some("tsv") => MSFraggerData::parse_file(path, custom_database)
             .map(IdentifiedPeptideIter::into_box)
-            .or_else(|_| {
-                SageData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+            .or_else(|me| {
+                SageData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|se| (me, se))
             })
-            .map_err(|_| {
+            .map_err(|(me, se)| {
                 CustomError::error(
                     "Unknown file",
                     "Could not be recognised as either a MSFragger or Sage file",
                     Context::show(path.to_string_lossy()),
                 )
+                .with_underlying_errors(vec![me, se])
             }),
         Some("psmtsv") => {
             OpairData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
