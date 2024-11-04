@@ -51,19 +51,21 @@ assert!(fdr.peaks_sigma() > 2.0);
 # fn main() -> Result<(), rustyms::error::CustomError> {
 use rustyms::{*, align::*};
 // Check how this peptide compares to a similar peptide (using the feature `align`)
-let first_peptide = LinearPeptide::pro_forma("IVQEVS", None)?.into_simple_linear().unwrap();
-let second_peptide = LinearPeptide::pro_forma("LEVQVES", None)?.into_simple_linear().unwrap();
+let first_peptide = LinearPeptide::pro_forma("IVQEVT", None)?.into_simple_linear().unwrap();
+let second_peptide = LinearPeptide::pro_forma("LVQVET", None)?.into_simple_linear().unwrap();
 // Align the two peptides using mass based alignment
-// I-VQEVS A
-// LEVQVES B
-// ─+  ╶─ 
-let alignment = align::<4, SimpleLinear, SimpleLinear>(&first_peptide, &second_peptide,
-                 matrix::BLOSUM62, Tolerance::new_ppm(10.0), AlignType::GLOBAL);
+// IVQEVT A
+// LVQVET B
+// ─  ╶╴
+let alignment = align::<4, SimpleLinear, SimpleLinear>(
+                  &first_peptide, 
+                  &second_peptide,
+                  AlignScoring::default(), 
+                  AlignType::GLOBAL);
 # dbg!(&alignment);
 // Calculate some more statistics on this alignment
 let stats = alignment.stats();
-assert_eq!(stats.mass_similar, 6); // 6 out of the 7 positions are mass similar
-assert_eq!(stats.gaps, 1); // 1 position is an insertion
+assert_eq!(stats.mass_similar, 6); // 6 out of the 6 positions are mass similar
 # Ok(()) }
 ```
 
