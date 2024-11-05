@@ -179,11 +179,8 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
 
                     (0..a.max(b))
                         .map(|i| {
-                            // The first gap will have the gap_start score, unless this is the very first gap and the alignment is global left A/B
-                            if i == 0
-                                && !((index_a == 0 || index_b == 0)
-                                    && (align_type.left.global_a() || align_type.left.global_b()))
-                            {
+                            // The first gap will have the gap_start score
+                            if i == 0 {
                                 let local_score =
                                     scoring.gap_start as isize + scoring.gap_extend as isize;
                                 score += local_score;
@@ -264,7 +261,7 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
                 }
                 StepType::Isobaric => {
                     let local_score = scoring.mass_base as isize
-                        + scoring.isobaric as isize * (a as isize + b as isize) / 2;
+                        + scoring.isobaric as isize * (a + b) as isize / 2;
                     score += local_score;
                     index_a += a as usize;
                     index_b += b as usize;

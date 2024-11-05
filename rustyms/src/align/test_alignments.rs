@@ -17,13 +17,13 @@ fn global_b() {
 }
 
 #[test]
-fn global_a() {
+fn global_a_1() {
     test_alignment(
         "HJKASFHLKJFHAS",
         "JHSLAFKJHFLKSFJ",
         AlignScoring::default(),
         AlignType::GLOBAL_A,
-        "1=2X1=2X2i3i3X",
+        "1=2X1=1X2I2r2=1X1=1X2D",
     );
 }
 
@@ -34,18 +34,62 @@ fn global_a_2() {
         "ASSS",
         AlignScoring::default(),
         AlignType::GLOBAL_A,
-        "2D4=",
+        "1=2D3=",
     );
 }
 
 #[test]
-fn either_global() {
+fn either_global_1() {
     test_alignment(
         "HHHHHHAA",
         "AAHHHHHHH",
         AlignScoring::default(),
         AlignType::EITHER_GLOBAL,
         "6=",
+    );
+}
+
+#[test]
+fn either_global_2() {
+    test_alignment(
+        "EPELVESGGGLAQPGTSLRLSCEASGFTFDDYAMHWVRQAPGRALEWVSGISWSSDNLAYSDSVEGRFTISRDNAKNSLYLQMNSLRLDDTAFYYCAKDVRPYYDFWAFDSWGRGTPVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+        "DLQLVESGGGLVQPGGSLRLSC[carboxymethyl]AASGF",
+        AlignScoring::default(),
+        AlignType::EITHER_GLOBAL,
+        "3X8=1X3=1X5=2i4=",
+    );
+}
+
+#[test]
+fn either_global_3() {
+    test_alignment(
+        "EPELVESGGGLAQPGTSLRLSCEASGFTFDDYAMHWVRQAPGRALEWVSGISWSSDNLAYSDSVEGRFTISRDNAKNSLYLQMNSLRLDDTAFYYCAKDVRPYYDFWAFDSWGRGTPVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+        "TSGVHTAPFVLQSSGLY",
+        AlignScoring::default(),
+        AlignType::EITHER_GLOBAL,
+        "6=3r8=",
+    );
+}
+
+#[test]
+fn either_global_4() {
+    test_alignment(
+        "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+        "SGFGGLKN[deamidated]TYLHW",
+        AlignScoring::default(),
+        AlignType::EITHER_GLOBAL,
+        "3=1:2i1i1=1i2=1i2=",
+    );
+}
+
+#[test]
+fn either_global_5() {
+    test_alignment(
+        "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+        "DTLM[oxidation]LSRTPEVTC[carbamidomethyl]VVVN[deamidated]VSHEN[deamidated]PEVK",
+        AlignScoring::default(),
+        AlignType::EITHER_GLOBAL,
+        "3=1X1i7=1X3=1i4=1i4=",
     );
 }
 
@@ -63,43 +107,37 @@ fn normal() {
     );
 }
 
-/// Tests that are known to be failing, but will have to be addressed at some point in the future
-#[cfg(not(github_action))]
-mod known_failing {
-    use super::*;
+#[test]
+fn overextended_rotation() {
+    test_alignment(
+        "IVQEVS",
+        "LEVQVES",
+        AlignScoring::default(),
+        AlignType::GLOBAL,
+        "1i1I2=2r1=",
+    );
+}
 
-    #[test]
-    fn overextended_rotation() {
-        test_alignment(
-            "IVQEVS",
-            "LEVQVES",
-            AlignScoring::default(),
-            AlignType::GLOBAL,
-            "1i1I2=2r1=",
-        );
-    }
+#[test]
+fn no_detected_rotation() {
+    test_alignment(
+        "AGGHT",
+        "ANTH",
+        AlignScoring::default(),
+        AlignType::GLOBAL,
+        "1=2:1i2r",
+    );
+}
 
-    #[test]
-    fn no_detected_rotation() {
-        test_alignment(
-            "AGGHT",
-            "ANTH",
-            AlignScoring::default(),
-            AlignType::GLOBAL,
-            "1=2:1i2r",
-        );
-    }
-
-    #[test]
-    fn no_detected_rotation_2() {
-        test_alignment(
-            "AGGHTK",
-            "ANTHK",
-            AlignScoring::default(),
-            AlignType::GLOBAL,
-            "1=2:1i2r1=",
-        );
-    }
+#[test]
+fn no_detected_rotation_2() {
+    test_alignment(
+        "AGGHTK",
+        "ANTHK",
+        AlignScoring::default(),
+        AlignType::GLOBAL,
+        "1=2:1i2r1=",
+    );
 }
 
 /// Test if the given alignment is as expected and can be recreated
@@ -133,18 +171,18 @@ fn test_alignment(
         "Alignment of {seq_a} vs {seq_b} did not produce the expected alignment"
     );
 
-    assert_eq!(
-        Alignment::create_from_path(
-            &first_peptide,
-            &second_peptide,
-            alignment.start_a,
-            alignment.start_b,
-            &alignment.short(),
-            scoring,
-            align_type,
-            MAXIMAL_STEP
-        )
-        .unwrap(),
-        alignment
-    );
+    let recreated = Alignment::create_from_path(
+        &first_peptide,
+        &second_peptide,
+        alignment.start_a,
+        alignment.start_b,
+        &alignment.short(),
+        scoring,
+        align_type,
+        MAXIMAL_STEP,
+    )
+    .unwrap();
+    // First compare paths because thta gives smaller error messages
+    assert_eq!(recreated.path, alignment.path);
+    assert_eq!(recreated, alignment);
 }

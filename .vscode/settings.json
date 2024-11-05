@@ -166,5 +166,6 @@
                 "Xylopyranose",
                 "Xylulose"
         ],
-        "rust-analyzer.showUnlinkedFileNotification": false
+        "rust-analyzer.showUnlinkedFileNotification": false,
+        "r.lsp.promptToInstall": false
 }

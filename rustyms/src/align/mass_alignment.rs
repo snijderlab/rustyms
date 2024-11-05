@@ -58,13 +58,13 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
 
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
+                        let is_first_step = prev.step_a == 0 && prev.step_b == 0;
+                        let is_previous_gap =
+                            prev.step_a == 0 && len_a == 0 || prev.step_b == 0 && len_b == 0;
+                        let is_gap_start = is_first_step || !is_previous_gap;
                         // First check the score to be used for affine gaps
                         let score = scoring.gap_extend as isize
-                            + scoring.gap_start as isize
-                                * isize::from(
-                                    !(prev.step_a == 0 && len_a == 0
-                                        || prev.step_b == 0 && len_b == 0),
-                                );
+                            + scoring.gap_start as isize * isize::from(is_gap_start);
                         Some(Piece::new(
                             base_score + score,
                             score,
@@ -93,9 +93,7 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                         score(
                             unsafe {
                                 (
-                                    seq_a.sequence().get_unchecked(
-                                        (index_a - len_a).saturating_sub(1)..index_a - 1,
-                                    ),
+                                    seq_a.sequence().get_unchecked((index_a - len_a)..index_a),
                                     if len_a == 0 {
                                         &zero
                                     } else {
@@ -105,9 +103,7 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                             },
                             unsafe {
                                 (
-                                    seq_b.sequence().get_unchecked(
-                                        (index_b - len_b).saturating_sub(1)..index_b - 1,
-                                    ),
+                                    seq_b.sequence().get_unchecked((index_b - len_b)..index_b),
                                     if len_b == 0 {
                                         &zero
                                     } else {
@@ -222,8 +218,8 @@ pub(super) fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
             Piece::new(score + local, local, MatchType::IdentityMassMismatch, 1, 1)
         }
         (false, true) => Piece::new(
-            score + scoring.isobaric as isize,
-            scoring.isobaric as isize,
+            score + scoring.mass_base as isize + scoring.isobaric as isize,
+            scoring.mass_base as isize + scoring.isobaric as isize,
             MatchType::Isobaric,
             1,
             1,
@@ -263,12 +259,12 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
             }
         };
         #[allow(clippy::cast_possible_wrap)]
-        let local = if rotated {
-            scoring.mass_base as isize + scoring.rotated as isize * a.0.len() as isize
-        } else {
-            scoring.mass_base as isize
-                + scoring.isobaric as isize * (a.0.len() + b.0.len()) as isize / 2
-        };
+        let local = scoring.mass_base as isize
+            + if rotated {
+                scoring.rotated as isize * a.0.len() as isize
+            } else {
+                scoring.isobaric as isize * (a.0.len() + b.0.len()) as isize / 2
+            };
         Some(Piece::new(
             score + local,
             local,
@@ -365,8 +361,17 @@ impl Matrix {
         let max = if is_a { self.a } else { self.b };
         for index in 0..=max {
             self.value[if is_a { index } else { 0 }][if is_a { 0 } else { index }] = Piece::new(
-                (index as isize) * scoring.gap_extend as isize,
-                scoring.gap_extend as isize,
+                match index {
+                    0 => 0,
+                    _ => {
+                        scoring.gap_start as isize + (index as isize) * scoring.gap_extend as isize
+                    }
+                },
+                match index {
+                    0 => 0,
+                    1 => scoring.gap_start as isize + scoring.gap_extend as isize,
+                    _ => scoring.gap_extend as isize,
+                },
                 MatchType::Gap,
                 if is_a { u16::from(index != 0) } else { 0 },
                 if is_a { 0 } else { u16::from(index != 0) },
