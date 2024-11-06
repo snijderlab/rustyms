@@ -89,12 +89,12 @@ fn either_global_5() {
         "DTLM[oxidation]LSRTPEVTC[carbamidomethyl]VVVN[deamidated]VSHEN[deamidated]PEVK",
         AlignScoring::default(),
         AlignType::EITHER_GLOBAL,
-        "3=1X1i7=1X3=1i4=1i4=",
+        "3=1m1i7=1m3=1i4=1i4=",
     );
 }
 
 #[test]
-fn normal() {
+fn normal_1() {
     test_alignment(
         "ANNA",
         "AGGGGA",
@@ -104,6 +104,17 @@ fn normal() {
         },
         AlignType::LOCAL,
         "4X",
+    );
+}
+
+#[test]
+fn normal_2() {
+    test_alignment(
+        "ADA",
+        "AN[deamidated]A",
+        AlignScoring::default(),
+        AlignType::LOCAL,
+        "1=1i1=",
     );
 }
 

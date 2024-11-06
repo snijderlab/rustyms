@@ -126,14 +126,6 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
         align_type: AlignType,
         maximal_step: u16,
     ) -> Option<Self> {
-        #[derive(PartialEq, Eq, Debug)]
-        enum StepType {
-            Gap,
-            Match,
-            Rotation,
-            Isobaric,
-        }
-
         let mut index = 0;
         let mut steps = Vec::new();
         while index < path.len() {
@@ -141,17 +133,19 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
                 let num = u16::try_from(num).unwrap();
                 index += offset + 1;
                 match path.as_bytes()[index - 1] {
-                    b'I' => steps.push((StepType::Gap, 0, num)),
-                    b'D' => steps.push((StepType::Gap, num, 0)),
-                    b'=' | b'X' => steps.push((StepType::Match, num, num)),
-                    b'r' => steps.push((StepType::Rotation, num, num)),
-                    b'i' => steps.push((StepType::Isobaric, num, num)),
+                    b'I' => steps.push((MatchType::Gap, 0, num)),
+                    b'D' => steps.push((MatchType::Gap, num, 0)),
+                    b'X' => steps.push((MatchType::Mismatch, num, num)),
+                    b'm' => steps.push((MatchType::IdentityMassMismatch, num, num)),
+                    b'=' => steps.push((MatchType::FullIdentity, num, num)),
+                    b'r' => steps.push((MatchType::Rotation, num, num)),
+                    b'i' => steps.push((MatchType::Isobaric, num, num)),
                     b':' => {
                         if let Some((offset, num2)) = next_num(path.as_bytes(), index, false) {
                             let num2 = u16::try_from(num2).unwrap();
                             index += offset + 1;
                             match path.as_bytes()[index - 1] {
-                                b'i' => steps.push((StepType::Isobaric, num, num2)),
+                                b'i' => steps.push((MatchType::Isobaric, num, num2)),
                                 _ => return None,
                             }
                         } else {
@@ -171,7 +165,7 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
         let path = steps
             .into_iter()
             .flat_map(|(step, a, b)| match step {
-                StepType::Gap => {
+                MatchType::Gap => {
                     let step_a = u16::from(a != 0);
                     let step_b = u16::from(b != 0);
                     index_a += a as usize;
@@ -205,47 +199,49 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
                         })
                         .collect_vec()
                 }
-                StepType::Match => (0..a)
-                    .map(|_| {
-                        let mass_a = seq_a[index_a]
-                            .formulas_all(
-                                &[],
-                                &[],
-                                &mut Vec::new(),
-                                false,
-                                SequencePosition::Index(index_a),
-                                0,
-                            )
-                            .0
-                            .iter()
-                            .map(MolecularFormula::monoisotopic_mass)
-                            .collect();
-                        let mass_b = seq_b[index_b]
-                            .formulas_all(
-                                &[],
-                                &[],
-                                &mut Vec::new(),
-                                false,
-                                SequencePosition::Index(index_b),
-                                0,
-                            )
-                            .0
-                            .iter()
-                            .map(MolecularFormula::monoisotopic_mass)
-                            .collect();
-                        let piece = score_pair(
-                            (&seq_a[index_a], &mass_a),
-                            (&seq_b[index_b], &mass_b),
-                            scoring,
-                            score,
-                        );
-                        index_a += 1;
-                        index_b += 1;
-                        score += piece.local_score;
-                        piece
-                    })
-                    .collect_vec(),
-                StepType::Rotation => {
+                MatchType::FullIdentity | MatchType::IdentityMassMismatch | MatchType::Mismatch => {
+                    (0..a)
+                        .map(|_| {
+                            let mass_a = seq_a[index_a]
+                                .formulas_all(
+                                    &[],
+                                    &[],
+                                    &mut Vec::new(),
+                                    false,
+                                    SequencePosition::Index(index_a),
+                                    0,
+                                )
+                                .0
+                                .iter()
+                                .map(MolecularFormula::monoisotopic_mass)
+                                .collect();
+                            let mass_b = seq_b[index_b]
+                                .formulas_all(
+                                    &[],
+                                    &[],
+                                    &mut Vec::new(),
+                                    false,
+                                    SequencePosition::Index(index_b),
+                                    0,
+                                )
+                                .0
+                                .iter()
+                                .map(MolecularFormula::monoisotopic_mass)
+                                .collect();
+                            let piece = score_pair(
+                                (&seq_a[index_a], &mass_a),
+                                (&seq_b[index_b], &mass_b),
+                                scoring,
+                                score,
+                            );
+                            index_a += 1;
+                            index_b += 1;
+                            score += piece.local_score;
+                            piece
+                        })
+                        .collect_vec()
+                }
+                MatchType::Rotation => {
                     let local_score =
                         scoring.mass_base as isize + scoring.rotated as isize * a as isize;
                     score += local_score;
@@ -259,7 +255,7 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
                         step_b: b,
                     }]
                 }
-                StepType::Isobaric => {
+                MatchType::Isobaric => {
                     let local_score = scoring.mass_base as isize
                         + scoring.isobaric as isize * (a + b) as isize / 2;
                     score += local_score;
@@ -463,7 +459,8 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
     }
 
     /// Get a short representation of the alignment in CIGAR like format.
-    /// It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
+    /// It has three additional classes `{a}(:{b})?(r|i)` and `{a}m` denoting any special step with the given a and b step size, if b is not given it is the same as a.
+    /// `r` is rotation, `i` is isobaric, and `m` is identity but mass mismatch (modification).
     pub fn short(&self) -> String {
         #[derive(PartialEq, Eq)]
         enum StepType {
@@ -471,6 +468,7 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
             Deletion,
             Match,
             Mismatch,
+            Massmismatch,
             Special(MatchType, u16, u16),
         }
         impl std::fmt::Display for StepType {
@@ -483,6 +481,7 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
                         Self::Deletion => String::from("D"),
                         Self::Match => String::from("="),
                         Self::Mismatch => String::from("X"),
+                        Self::Massmismatch => String::from("m"),
                         Self::Special(MatchType::Rotation, a, _) => format!("{a}r"),
                         Self::Special(MatchType::Isobaric, a, b) if a == b => format!("{a}i"),
                         Self::Special(MatchType::Isobaric, a, b) => format!("{a}:{b}i"),
@@ -498,10 +497,9 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
                     (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
                     (_, 0, 1) => StepType::Insertion,
                     (_, 1, 0) => StepType::Deletion,
-                    (_, 1, 1) if self.seq_a().sequence()[a] == self.seq_b().sequence()[b] => {
-                        StepType::Match
-                    }
-                    (_, 1, 1) => StepType::Mismatch,
+                    (MatchType::IdentityMassMismatch, 1, 1) => StepType::Massmismatch,
+                    (MatchType::FullIdentity, 1, 1) => StepType::Match,
+                    (MatchType::Mismatch, 1, 1) => StepType::Mismatch,
                     (m, a, b) => StepType::Special(m, a, b),
                 };
                 let (str, last) = match last {

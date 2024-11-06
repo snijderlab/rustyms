@@ -205,16 +205,17 @@ pub(super) fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     scoring: AlignScoring<'_>,
     score: isize,
 ) -> Piece {
-    match (a.0 == b.0, scoring.tolerance.within(a.1, b.1)) {
+    match (
+        a.0.aminoacid.aminoacid() == b.0.aminoacid.aminoacid(),
+        scoring.tolerance.within(a.1, b.1),
+    ) {
         (true, true) => {
             let local = scoring.matrix[a.0.aminoacid.aminoacid() as usize]
                 [b.0.aminoacid.aminoacid() as usize] as isize;
             Piece::new(score + local, local, MatchType::FullIdentity, 1, 1)
         }
         (true, false) => {
-            let local = scoring.matrix[a.0.aminoacid.aminoacid() as usize]
-                [b.0.aminoacid.aminoacid() as usize] as isize
-                + scoring.mass_mismatch as isize;
+            let local = scoring.mass_mismatch as isize;
             Piece::new(score + local, local, MatchType::IdentityMassMismatch, 1, 1)
         }
         (false, true) => Piece::new(

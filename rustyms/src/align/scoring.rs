@@ -22,19 +22,25 @@ pub enum MatchType {
     Gap,
 }
 
-/// The scoring parameters for the mass alignment
+/// The scoring parameters for the mass alignment.
+///
+/// Design parameters for the scoring systems are as follows:
+/// * A positive `mass_base` is needed to ensure breaking up of adjecent isobaric/rotated parts.
+///   For example `IGG` vs `LN` should be `1i2:1i` not `3:2i`.
+/// * A higher score for `rotated` is needed to ensure rotation preference over `isobaric`.
+/// * The `matrix` should be chosen to have higher scores than the rotated score to prevent spurious
+///   rotations from being added.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct AlignScoring<'a> {
     /// The score for a mismatch, this is used as the full score of that step.
     ///
     /// Default: -1.
     pub mismatch: i8,
-    /// The score added to the score for a step if the amino acids are identical but the mass of
-    /// the sequence elements are not the same. This is the case if either of the peptides has a
-    /// modification at this location. The local score for the step is calculated as follows:
-    /// `matrix_score + mass_mismatch`, use a negative number to make this a penalty.
+    /// The score for a step if the amino acids are identical but the mass of the sequence elements
+    /// are not the same. This is the case if either of the peptides has a modification at this
+    /// location.
     ///
-    /// Default: -1.
+    /// Default: 2.
     pub mass_mismatch: i8,
     /// The base score for mass based steps, added to both rotated and isobaric steps.
     ///
@@ -78,7 +84,7 @@ impl Default for AlignScoring<'static> {
     fn default() -> Self {
         Self {
             mismatch: -1,
-            mass_mismatch: -1,
+            mass_mismatch: 2,
             mass_base: 1,
             rotated: 3,
             isobaric: 2,
@@ -91,8 +97,8 @@ impl Default for AlignScoring<'static> {
     }
 }
 
-/// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>
-/// The UO columns are added by me (see top left for the original matrix used by me) (B/J/Z is the rounded down average of the corresponding non ambiguous AAs) (All these are exactly the same for all matrices)
+/// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>.
+/// The UO columns are added by me (see top left for the original matrix used by me) (B/J/Z is the rounded down average of the corresponding non ambiguous AAs) (All these are exactly the same for all matrices).
 pub mod matrices {
     use crate::AminoAcid;
     /// BLOSUM45 matrix
