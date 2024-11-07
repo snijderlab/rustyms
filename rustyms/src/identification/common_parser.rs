@@ -167,6 +167,20 @@ impl<'a> Location<'a> {
         }
     }
 
+    pub fn trim_end_matches(mut self, pattern: &str) -> Self {
+        let trimmed = self.as_str().trim_end_matches(pattern);
+        let dif = self.location.len() - trimmed.len();
+        self.location = self.location.start..self.location.end - dif;
+        self
+    }
+
+    pub fn trim_start_matches(mut self, pattern: &str) -> Self {
+        let trimmed = self.as_str().trim_start_matches(pattern);
+        let dif = self.location.len() - trimmed.len();
+        self.location = self.location.start + dif..self.location.end;
+        self
+    }
+
     /// # Errors
     /// If the parse method fails. See [`FromStr::parse`].
     pub fn parse<T: FromStr>(self, base_error: (&str, &str)) -> Result<T, CustomError> {
