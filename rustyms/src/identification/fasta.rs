@@ -1,7 +1,7 @@
 use crate::{
     error::{Context, CustomError},
     peptide::SemiAmbiguous,
-    CompoundPeptidoform, LinearPeptide, SequenceElement,
+    LinearPeptide, SequenceElement,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -9,7 +9,7 @@ use std::{
     path::Path,
 };
 
-use super::{IdentifiedPeptide, MetaData};
+use super::{AminoAcid, IdentifiedPeptide, MetaData};
 
 /// A single parsed line of a fasta file
 #[allow(missing_docs)]
@@ -70,28 +70,21 @@ impl FastaData {
                 ));
                 last_sequence = Vec::new();
             } else {
-                let parsed = CompoundPeptidoform::pro_forma(&line, None)
-                    .map_err(|e| e.overwrite_line_number(line_index))?
-                    .singular()
-                    .ok_or_else(||
-                        CustomError::error(
-                            "Invalid fasta sequence", 
-                            "A sequence in a Fasta file is assumed to be a single peptide and not a chimeric compound peptidoform",
-                             Context::full_line(line_index, line.clone())))
-                    .and_then(|p|
-                        p.singular().ok_or_else(||
-                            CustomError::error(
-                                "Invalid fasta sequence", 
-                                "A sequence in a Fasta file is assumed to be a single peptide and not a cross linked peptidoform", 
-                                Context::full_line(line_index, line.clone())))
-                    )
-                    .and_then(|p| p.into_semi_ambiguous().ok_or_else(||
-                        CustomError::error(
-                            "Invalid fasta sequence", 
-                            "A sequence in a Fasta file is assumed to be a simple sequence only consisting of amino acids although this implementation allows simple modifications as well", 
-                            Context::full_line(line_index, line.clone())))
-                    )?;
-                last_sequence.extend(parsed.sequence().iter().cloned());
+                last_sequence.extend(
+                    line.char_indices()
+                        .map(|(i, c)| {
+                            c.try_into()
+                                .map(|aa: AminoAcid| SequenceElement::new(aa.into(), None))
+                                .map_err(|()| {
+                                    CustomError::error(
+                                        "Failed reading fasta file",
+                                        "Character is not an amino acid",
+                                        Context::line(Some(line_index), &line, i, 1),
+                                    )
+                                })
+                        })
+                        .collect::<Result<Vec<SequenceElement<_>>, _>>()?,
+                );
             }
         }
         if let Some((id, full_header)) = last_header {
@@ -113,4 +106,16 @@ impl From<FastaData> for IdentifiedPeptide {
             metadata: MetaData::Fasta(value),
         }
     }
+}
+
+#[test]
+#[allow(clippy::missing_panics_doc)]
+fn empty_lines() {
+    let file = ">A\naaa\n\naaa";
+    let fasta = FastaData::parse_reader(BufReader::new(file.as_bytes()), None).unwrap();
+    assert_eq!(fasta.len(), 1);
+    assert_eq!(
+        fasta[0].peptide,
+        LinearPeptide::pro_forma("AAAAAA", None).unwrap()
+    );
 }
