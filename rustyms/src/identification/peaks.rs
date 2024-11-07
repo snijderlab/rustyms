@@ -42,7 +42,7 @@ format_family!(
                             location.full_line(),
                             location.location.clone(),
                             custom_database,
-                            SloppyParsingParameters::default()
+                            &SloppyParsingParameters::default()
                         );
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         length: usize, |location: Location, _| location.parse(NUMBER_ERROR);

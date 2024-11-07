@@ -3,6 +3,7 @@
 #[macro_use]
 mod common_parser;
 
+mod deepnovo;
 mod fasta;
 mod general;
 mod helper_functions;
@@ -16,6 +17,7 @@ mod peaks;
 mod sage;
 
 use crate::*;
+pub use deepnovo::*;
 pub use fasta::*;
 pub use general::*;
 pub use identified_peptide::*;
@@ -27,6 +29,8 @@ pub use opair::*;
 pub use peaks::*;
 pub use sage::*;
 
+#[cfg(test)]
+mod deepnovo_tests;
 #[cfg(test)]
 mod maxquant_tests;
 #[cfg(test)]

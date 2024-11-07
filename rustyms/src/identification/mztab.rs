@@ -309,7 +309,7 @@ impl MZTabData {
                     line.line,
                     line.required_column("sequence")?.1,
                     custom_database,
-                    SloppyParsingParameters {
+                    &SloppyParsingParameters {
                         allow_unwrapped_modifications: true,
                         ..Default::default()
                     },

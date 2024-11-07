@@ -4,8 +4,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, system::MassOverCharge,
-    MSFraggerData, MZTabData, MaxQuantData, SageData,
+    deepnovo::DeepNovoData, fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData,
+    system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData, SageData,
 };
 use crate::{
     error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
@@ -24,6 +24,8 @@ pub struct IdentifiedPeptide {
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MetaData {
+    /// DeepNovo metadata
+    DeepNovo(DeepNovoData),
     /// Fasta metadata
     Fasta(FastaData),
     /// MaxQuant metadata
@@ -48,6 +50,7 @@ impl IdentifiedPeptide {
         match &self.metadata {
             MetaData::Peaks(PeaksData { peptide, .. })
             | MetaData::Novor(NovorData { peptide, .. })
+            | MetaData::DeepNovo(DeepNovoData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::Fasta(FastaData { peptide, .. })
@@ -60,6 +63,7 @@ impl IdentifiedPeptide {
     /// Get the name of the format
     pub const fn format_name(&self) -> &'static str {
         match &self.metadata {
+            MetaData::DeepNovo(_) => "DeepNovo",
             MetaData::Fasta(_) => "Fasta",
             MetaData::MaxQuant(_) => "MaxQuant",
             MetaData::MSFragger(_) => "MSFragger",
@@ -76,7 +80,8 @@ impl IdentifiedPeptide {
         match &self.metadata {
             MetaData::Peaks(PeaksData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
-            MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
+            MetaData::DeepNovo(DeepNovoData { scan, .. })
+            | MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
             }
@@ -91,7 +96,10 @@ impl IdentifiedPeptide {
     /// Get the local confidence, it is the same length as the peptide with a local score in 0..=1
     pub fn local_confidence(&self) -> Option<&[f64]> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData {
+            MetaData::DeepNovo(DeepNovoData {
+                local_confidence, ..
+            })
+            | MetaData::Peaks(PeaksData {
                 local_confidence, ..
             }) => Some(local_confidence),
             MetaData::Novor(NovorData {
@@ -114,7 +122,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovo(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -137,7 +145,7 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovo(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -163,7 +171,8 @@ impl IdentifiedPeptide {
                     )])
                 },
             ),
-            MetaData::Novor(NovorData { scan, .. }) => {
+            MetaData::DeepNovo(DeepNovoData { scan, .. })
+            | MetaData::Novor(NovorData { scan, .. }) => {
                 SpectrumIds::FileNotKnown(vec![SpectrumId::Index(*scan)])
             }
             MetaData::Opair(OpairData { raw_file, scan, .. }) => {
@@ -206,7 +215,7 @@ impl IdentifiedPeptide {
             }) => Some(MassOverCharge::new::<crate::system::mz>(
                 experimental_mass.value / (z.value as f64),
             )),
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovo(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -220,7 +229,7 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovo(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -250,7 +259,7 @@ impl IdentifiedPeptide {
 /// Multiple spectrum identifiers
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum SpectrumIds {
-    /// When no spectra references are knwon at all
+    /// When no spectra references are known at all
     #[default]
     None,
     /// When the source file is now known
