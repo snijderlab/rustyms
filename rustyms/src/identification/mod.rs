@@ -5,7 +5,6 @@ mod common_parser;
 
 mod fasta;
 mod general;
-mod helper_functions;
 mod identified_peptide;
 mod maxquant;
 mod msfragger;

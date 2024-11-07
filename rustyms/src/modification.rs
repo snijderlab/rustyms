@@ -527,7 +527,7 @@ impl Modification {
                             );
                             seen_peptides.extend(seen);
                             (f + link)
-                                .with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
+                                .with_label(&AmbiguousLabel::CrossLinkBound(name.clone()))
                                 .to_vec()
                         });
 
@@ -542,7 +542,7 @@ impl Modification {
                         );
                         seen.insert(name.clone());
                         (
-                            (f + link).with_label(AmbiguousLabel::CrossLinkBound(name.clone())),
+                            (f + link).with_label(&AmbiguousLabel::CrossLinkBound(name.clone())),
                             seen,
                         )
                     }

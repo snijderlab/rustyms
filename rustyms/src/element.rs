@@ -33,14 +33,17 @@ impl Element {
         if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        isotope.map_or(elemental_data()[self as usize - 1].0, |isotope| {
-            // Specific isotope do not change anything
-            elemental_data()[self as usize - 1]
-                .2
-                .iter()
-                .find(|(ii, _, _)| *ii == isotope.get())
-                .map(|(_, m, _)| *m)
-        })
+        isotope.map_or_else(
+            || elemental_data()[self as usize - 1].0,
+            |isotope| {
+                // Specific isotope do not change anything
+                elemental_data()[self as usize - 1]
+                    .2
+                    .iter()
+                    .find(|(ii, _, _)| *ii == isotope.get())
+                    .map(|(_, m, _)| *m)
+            },
+        )
     }
 
     /// The average weight of the specified isotope of this element (if that isotope exists)
@@ -48,14 +51,17 @@ impl Element {
         if self == Self::Electron {
             return Some(da(5.485_799_090_65e-4));
         }
-        isotope.map_or(elemental_data()[self as usize - 1].1, |isotope| {
-            // Specific isotope do not change anything
-            elemental_data()[self as usize - 1]
-                .2
-                .iter()
-                .find(|(ii, _, _)| *ii == isotope.get())
-                .map(|(_, m, _)| *m)
-        })
+        isotope.map_or_else(
+            || elemental_data()[self as usize - 1].1,
+            |isotope| {
+                // Specific isotope do not change anything
+                elemental_data()[self as usize - 1]
+                    .2
+                    .iter()
+                    .find(|(ii, _, _)| *ii == isotope.get())
+                    .map(|(_, m, _)| *m)
+            },
+        )
     }
 
     /// Gives the most abundant mass based on the number of this isotope
