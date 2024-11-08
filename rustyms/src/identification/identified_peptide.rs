@@ -50,10 +50,10 @@ impl IdentifiedPeptide {
             | MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::Fasta(FastaData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
+            MetaData::Fasta(f) => Some(f.peptide()),
         }
     }
 
@@ -80,7 +80,7 @@ impl IdentifiedPeptide {
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
             }
-            MetaData::Fasta(FastaData { id, .. }) => id.clone(),
+            MetaData::Fasta(f) => f.identifier().accession().to_string(),
             MetaData::MSFragger(MSFraggerData { scan, .. }) => scan.to_string(),
             MetaData::MaxQuant(MaxQuantData { id, scan, .. }) => {
                 id.map_or_else(|| scan.iter().join(";"), |id| id.to_string())
