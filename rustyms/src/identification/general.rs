@@ -3,8 +3,9 @@ use std::path::Path;
 use super::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
-    DeepNovoData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter, IdentifiedPeptideSource,
-    MSFraggerData, MZTabData, MaxQuantData, NovorData, OpairData, PeaksData, SageData,
+    DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
+    IdentifiedPeptideSource, MSFraggerData, MZTabData, MaxQuantData, NovorData, OpairData,
+    PeaksData, SageData,
 };
 
 // TODO:
@@ -77,7 +78,7 @@ pub fn open_identified_peptides_file<'a>(
                 as Box<dyn Iterator<Item = Result<IdentifiedPeptide, CustomError>> + 'a>
         }),
         Some("deepnovo_denovo") => {
-            DeepNovoData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+            DeepNovoFamilyData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
         }
         _ => Err(CustomError::error(
             "Unknown extension",
