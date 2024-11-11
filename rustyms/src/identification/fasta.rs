@@ -1,10 +1,9 @@
 use crate::{
     error::{Context, CustomError},
     helper_functions::explain_number_error,
-    identification::{AnnotatedPeptide, Annotation, Region, IdentifiedPeptide, MetaData},
+    identification::{AnnotatedPeptide, Annotation, IdentifiedPeptide, MetaData, Region},
     peptide::SemiAmbiguous,
-    LinearPeptide, SequenceElement,
-    AminoAcid
+    AminoAcid, LinearPeptide, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -356,10 +355,13 @@ impl FastaData {
             #[allow(clippy::manual_strip)]
             if line.starts_with('>') {
                 if let Some(last_header) = last_header {
-                    sequences.push(Self {
-                        peptide: last_sequence.into(),
-                        ..last_header
-                    }.validate()?);
+                    sequences.push(
+                        Self {
+                            peptide: last_sequence.into(),
+                            ..last_header
+                        }
+                        .validate()?,
+                    );
                 }
                 last_header = Some(Self::parse_header(line_index, line)?);
                 last_sequence = Vec::new();
@@ -382,10 +384,13 @@ impl FastaData {
             }
         }
         if let Some(last_header) = last_header {
-            sequences.push(Self {
-                peptide: last_sequence.into(),
-                ..last_header
-            }.validate()?);
+            sequences.push(
+                Self {
+                    peptide: last_sequence.into(),
+                    ..last_header
+                }
+                .validate()?,
+            );
         }
 
         Ok(sequences)
@@ -397,9 +402,13 @@ impl FastaData {
         let total_regions_len: usize = self.regions.iter().map(|(_, l)| *l).sum();
         if total_regions_len > 0 && total_regions_len != self.peptide.len() {
             Err(CustomError::error("Invalid regions definition", "The 'REGIONS' definition is invalid, the total length of the regions has to be identical to the length of the peptide", Context::full_line(self.line_index, &self.full_header)))
-        } else if self.annotations.iter().any(|(_, p)| *p>= self.peptide.len()){
+        } else if self
+            .annotations
+            .iter()
+            .any(|(_, p)| *p >= self.peptide.len())
+        {
             Err(CustomError::error("Invalid annotations definition", "The 'ANNOTATIONS' definition is invalid, on of the annotations is out of range of the peptide", Context::full_line(self.line_index, &self.full_header)))
-        } else if total_regions_len > 0{
+        } else if total_regions_len > 0 {
             Ok(self)
         } else {
             // Add unannotated region annotation
