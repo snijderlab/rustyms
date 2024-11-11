@@ -3,6 +3,7 @@
 #[macro_use]
 mod common_parser;
 
+mod annotated;
 mod fasta;
 mod general;
 mod identified_peptide;
@@ -15,6 +16,7 @@ mod peaks;
 mod sage;
 
 use crate::*;
+pub use annotated::*;
 pub use fasta::*;
 pub use general::*;
 pub use identified_peptide::*;

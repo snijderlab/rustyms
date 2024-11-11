@@ -1,7 +1,10 @@
 use crate::{
     error::{Context, CustomError},
+    helper_functions::explain_number_error,
+    identification::{AnnotatedPeptide, Annotation, Region, IdentifiedPeptide, MetaData},
     peptide::SemiAmbiguous,
     LinearPeptide, SequenceElement,
+    AminoAcid
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -13,8 +16,6 @@ use std::{
     str::FromStr,
 };
 
-use super::{helper_functions::explain_number_error, AminoAcid, IdentifiedPeptide, MetaData};
-
 /// A single parsed line of a fasta file
 #[allow(missing_docs)]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
@@ -22,8 +23,24 @@ pub struct FastaData {
     identifier: FastaIdentifier<Range<usize>>,
     description: Range<usize>,
     tags: Vec<(Range<usize>, Range<usize>)>,
+    line_index: usize,
     full_header: String,
     peptide: LinearPeptide<SemiAmbiguous>,
+    regions: Vec<(Region, usize)>,
+    annotations: Vec<(Annotation, usize)>,
+}
+
+impl AnnotatedPeptide for FastaData {
+    type Complexity = SemiAmbiguous;
+    fn peptide(&self) -> &LinearPeptide<SemiAmbiguous> {
+        &self.peptide
+    }
+    fn regions(&self) -> &[(Region, usize)] {
+        &self.regions
+    }
+    fn annotations(&self) -> &[(Annotation, usize)] {
+        &self.annotations
+    }
 }
 
 /// A fasta identifier following the NCBI identifier definition
@@ -338,19 +355,13 @@ impl FastaData {
             })?;
             #[allow(clippy::manual_strip)]
             if line.starts_with('>') {
-                if let Some(((identifier, description, tags), full_header)) = last_header {
+                if let Some(last_header) = last_header {
                     sequences.push(Self {
-                        identifier,
-                        description,
-                        tags,
-                        full_header,
                         peptide: last_sequence.into(),
-                    });
+                        ..last_header
+                    }.validate()?);
                 }
-                last_header = Some((
-                    Self::parse_header(line_index, &line)?,
-                    line[1..].to_string(),
-                ));
+                last_header = Some(Self::parse_header(line_index, line)?);
                 last_sequence = Vec::new();
             } else {
                 last_sequence.extend(
@@ -370,33 +381,40 @@ impl FastaData {
                 );
             }
         }
-        if let Some(((identifier, description, tags), full_header)) = last_header {
+        if let Some(last_header) = last_header {
             sequences.push(Self {
-                identifier,
-                description,
-                tags,
-                full_header,
                 peptide: last_sequence.into(),
-            });
+                ..last_header
+            }.validate()?);
         }
 
         Ok(sequences)
     }
 
     /// # Errors
+    /// If the total length of the regions is not identical to the length of the peptide, or if any of the annotations is outside of the peptide
+    fn validate(self) -> Result<Self, CustomError> {
+        let total_regions_len: usize = self.regions.iter().map(|(_, l)| *l).sum();
+        if total_regions_len > 0 && total_regions_len != self.peptide.len() {
+            Err(CustomError::error("Invalid regions definition", "The 'REGIONS' definition is invalid, the total length of the regions has to be identical to the length of the peptide", Context::full_line(self.line_index, &self.full_header)))
+        } else if self.annotations.iter().any(|(_, p)| *p>= self.peptide.len()){
+            Err(CustomError::error("Invalid annotations definition", "The 'ANNOTATIONS' definition is invalid, on of the annotations is out of range of the peptide", Context::full_line(self.line_index, &self.full_header)))
+        } else if total_regions_len > 0{
+            Ok(self)
+        } else {
+            // Add unannotated region annotation
+            Ok(Self {
+                regions: vec![(Region::None, self.peptide.len())],
+                ..self
+            })
+        }
+    }
+
+    /// # Errors
     /// When the parsing of the fasta identifier is not succesful
-    fn parse_header(
-        line_index: usize,
-        header: &str,
-    ) -> Result<
-        (
-            FastaIdentifier<Range<usize>>,
-            Range<usize>,
-            Vec<(Range<usize>, Range<usize>)>,
-        ),
-        CustomError,
-    > {
-        let first_space = header.find(' ').unwrap_or(header.len());
+    #[allow(clippy::missing_panics_doc)] // Regions and annotation parse cannot fail
+    fn parse_header(line_index: usize, full_header: String) -> Result<Self, CustomError> {
+        let first_space = full_header.find(' ').unwrap_or(full_header.len());
         let mut description = 0..0;
         let mut last_equals = None;
         let mut tags = Vec::new();
@@ -404,7 +422,7 @@ impl FastaData {
 
         loop {
             let start = last_equals.unwrap_or(first_space);
-            let slice = &header[start..];
+            let slice = &full_header[start..];
             if let Some(equals_position) = slice.find('=') {
                 let tag_end = slice[..equals_position]
                     .char_indices()
@@ -414,24 +432,80 @@ impl FastaData {
                     .map(|(i, _)| i)
                     .unwrap_or_default();
                 if let Some(last_tag) = last_tag.take() {
-                    tags.push((last_tag, trim_whitespace(header, start..start + tag_end)));
+                    tags.push((
+                        last_tag,
+                        trim_whitespace(&full_header, start..start + tag_end),
+                    ));
                 } else {
-                    description = trim_whitespace(header, start..start + tag_end);
+                    description = trim_whitespace(&full_header, start..start + tag_end);
                 }
                 last_tag = Some(start + tag_end..start + equals_position);
                 last_equals = Some(start + equals_position + 1);
             } else {
                 if let Some(last_tag) = last_tag.take() {
-                    tags.push((last_tag, trim_whitespace(header, start..header.len())));
+                    tags.push((
+                        last_tag,
+                        trim_whitespace(&full_header, start..full_header.len()),
+                    ));
                 } else {
-                    description = trim_whitespace(header, start..header.len());
+                    description = trim_whitespace(&full_header, start..full_header.len());
                 }
                 break;
             }
         }
 
-        Ok((
-            header[0..first_space]
+        let mut regions = Vec::new();
+        let mut annotations = Vec::new();
+        for tag in &tags {
+            match &full_header[tag.0.clone()] {
+                "REGIONS" => {
+                    let mut index = 0;
+                    regions =full_header[tag.1.clone()].split(';').map(|region| {
+                        let last = index;
+                        index += region.len() + usize::from(index != 0);
+                    if let Some((region, n)) = region.split_once(':') {
+                        Ok((
+                            region.parse::<Region>().unwrap(), 
+                            n.parse::<usize>().map_err(|err| CustomError::error(
+                            "Invalid regions definition", 
+                            format!("The fasta header 'REGIONS' key, should contain regions followed by a colon, e.g. 'CDR3:6', but the number is {}", explain_number_error(&err)), 
+                            Context::line(Some(line_index), &full_header, tag.1.start + last, tag.1.start+index)))?
+                        ))
+                    } else {
+                        Err(CustomError::error(
+                            "Invalid regions definition", 
+                            "The fasta header 'REGIONS' key, should contain regions followed by a colon, e.g. 'CDR3:6'", 
+                            Context::line(Some(line_index), &full_header, tag.1.start + last, tag.1.start+index)))
+                    }
+                }).collect::<Result<Vec<_>,_>>()?;
+                }
+                "ANNOTATIONS" => {
+                    let mut index = 0;
+                    annotations =full_header[tag.1.clone()].split(';').map(|region| {
+                        let last = index;
+                        index += region.len() + usize::from(index != 0);
+                    if let Some((region, n)) = region.split_once(':') {
+                        Ok((
+                            region.parse::<Annotation>().unwrap(), 
+                            n.parse::<usize>().map_err(|err| CustomError::error(
+                            "Invalid annotations definition", 
+                            format!("The fasta header 'ANNOTATIONS' key, should contain annotations followed by a colon, e.g. 'Conserved:6', but the number is {}", explain_number_error(&err)), 
+                            Context::line(Some(line_index), &full_header, tag.1.start + last, tag.1.start+index)))?
+                        ))
+                    } else {
+                        Err(CustomError::error(
+                            "Invalid annotations definition", 
+                            "The fasta header 'ANNOTATIONS' key, should contain annotations followed by a colon, e.g. 'Conserved:6'", 
+                            Context::line(Some(line_index), &full_header, tag.1.start + last, tag.1.start+index)))
+                    }
+                }).collect::<Result<Vec<_>,_>>()?;
+                }
+                _ => (),
+            }
+        }
+
+        Ok(Self {
+            identifier: full_header[0..first_space]
                 .parse::<FastaIdentifier<Range<usize>>>()
                 .map_err(|err| {
                     CustomError::error(
@@ -440,18 +514,23 @@ impl FastaData {
                             "Error occurred parsing NCBI identifier: number {}",
                             explain_number_error(&err)
                         ),
-                        Context::line(Some(line_index), header, 1, first_space - 1),
+                        Context::line(Some(line_index), &full_header, 1, first_space - 1),
                     )
                 })?,
             description,
             tags,
-        ))
+            regions,
+            annotations,
+            full_header,
+            line_index,
+            peptide: LinearPeptide::default(),
+        })
     }
 }
 
 fn trim_whitespace(line: &str, range: Range<usize>) -> Range<usize> {
-    let start = range.len() - line[range.clone()].trim_ascii_start().len();
-    let end = range.len() - line[range.clone()].trim_ascii_end().len();
+    let start = range.len() - line[range.clone()].trim_start().len();
+    let end = range.len() - line[range.clone()].trim_end().len();
     range.start + start..range.end - end
 }
 
@@ -479,13 +558,17 @@ fn empty_lines() {
 #[test]
 #[allow(clippy::missing_panics_doc)]
 fn parse_header() {
-    let header = ">sp|UniqueIdentifier|EntryName ProteinName OS=OrganismName OX=OrganismIdentifier PE=ProteinExistence SV=SequenceVersion";
-    let (identifier, description, tags) = FastaData::parse_header(0, header).unwrap();
-    let identifier = identifier.as_str(header);
+    let header = ">sp|UniqueIdentifier|EntryName ProteinName OS=OrganismName OX=OrganismIdentifier PE=ProteinExistence SV=SequenceVersion REGIONS=FR1:12;CDR1:6;FR2:13 ANNOTATIONS=C:12;Conserved:25";
+    let header = FastaData::parse_header(0, header.to_string()).unwrap();
+    let identifier = header.identifier();
     assert_eq!(identifier.name(), "EntryName");
     assert_eq!(identifier.accession(), "UniqueIdentifier");
-    assert_eq!(&header[description], "ProteinName");
-    assert!(tags
-        .iter()
-        .any(|(k, v)| &header[k.clone()] == "PE" && &header[v.clone()] == "ProteinExistence"));
+    assert_eq!(header.description(), "ProteinName");
+    assert!(header
+        .tags()
+        .any(|(k, v)| k == "PE" && v == "ProteinExistence"));
+    assert_eq!(header.regions().len(), 3);
+    assert_eq!(header.regions()[0], (Region::Framework(1), 12));
+    assert_eq!(header.annotations().len(), 2);
+    assert_eq!(header.annotations()[0], (Annotation::Conserved, 12));
 }
