@@ -15,7 +15,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    common_parser::{Location, OptionalLocation},
+    common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
     modification::SimpleModification,
     peptide::PeptideModificationSearch,
@@ -36,7 +36,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&V12, &V11, &XPLUS, &OLD, &AB, &X], b',';
+    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD], b',';
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -106,12 +106,12 @@ pub const OLD: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    fraction: None,
-    raw_file: None,
-    feature: None,
-    de_novo_score: None,
-    predicted_rt: None,
-    accession: None,
+    fraction: OptionalColumn::NotAvailable,
+    raw_file: OptionalColumn::NotAvailable,
+    feature: OptionalColumn::NotAvailable,
+    de_novo_score: OptionalColumn::NotAvailable,
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::NotAvailable,
 };
 /// Version X of PEAKS export (made for build 31 January 2019)
 pub const X: PeaksFormat = PeaksFormat {
@@ -128,12 +128,12 @@ pub const X: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    fraction: Some("fraction"),
-    raw_file: Some("source file"),
-    feature: Some("feature"),
-    de_novo_score: None,
-    predicted_rt: None,
-    accession: None,
+    fraction: OptionalColumn::Required("fraction"),
+    raw_file: OptionalColumn::Required("source file"),
+    feature: OptionalColumn::Required("feature"),
+    de_novo_score: OptionalColumn::NotAvailable,
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::NotAvailable,
 };
 /// Version X+ of PEAKS export (made for build 20 November 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
@@ -150,12 +150,12 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    fraction: Some("fraction"),
-    raw_file: Some("source file"),
-    feature: Some("feature"),
-    de_novo_score: Some("denovo score"),
-    predicted_rt: Some("predict rt"),
-    accession: None,
+    fraction: OptionalColumn::Required("fraction"),
+    raw_file: OptionalColumn::Required("source file"),
+    feature: OptionalColumn::Required("feature"),
+    de_novo_score: OptionalColumn::Required("denovo score"),
+    predicted_rt: OptionalColumn::Required("predict rt"),
+    accession: OptionalColumn::NotAvailable,
 };
 /// Version 11 of PEAKS export
 pub const V11: PeaksFormat = PeaksFormat {
@@ -172,12 +172,12 @@ pub const V11: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag(>=0.0%)",
     mode: "mode",
-    fraction: None,
-    raw_file: Some("source file"),
-    feature: Some("feature id"),
-    de_novo_score: None,
-    predicted_rt: None,
-    accession: None,
+    fraction: OptionalColumn::NotAvailable,
+    raw_file: OptionalColumn::Required("source file"),
+    feature: OptionalColumn::Required("feature id"),
+    de_novo_score: OptionalColumn::NotAvailable,
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::NotAvailable,
 };
 /// Version 12 of PEAKS export
 pub const V12: PeaksFormat = PeaksFormat {
@@ -194,12 +194,12 @@ pub const V12: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag(>=0%)",
     mode: "mode",
-    fraction: None,
-    raw_file: Some("source file"),
-    feature: Some("feature id"),
-    de_novo_score: Some("deep novo score (%)"),
-    predicted_rt: None,
-    accession: None,
+    fraction: OptionalColumn::NotAvailable,
+    raw_file: OptionalColumn::Required("source file"),
+    feature: OptionalColumn::Required("feature id"),
+    de_novo_score: OptionalColumn::Required("deep novo score (%)"),
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::NotAvailable,
 };
 /// Version Ab of PEAKS export
 pub const AB: PeaksFormat = PeaksFormat {
@@ -216,12 +216,12 @@ pub const AB: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    fraction: None,
-    raw_file: None,
-    feature: None,
-    de_novo_score: None,
-    predicted_rt: None,
-    accession: Some("accession"),
+    fraction: OptionalColumn::NotAvailable,
+    raw_file: OptionalColumn::NotAvailable,
+    feature: OptionalColumn::NotAvailable,
+    de_novo_score: OptionalColumn::NotAvailable,
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::Required("accession"),
 };
 
 /// All possible peaks versions
