@@ -26,15 +26,17 @@ static NUMBER_ERROR: (&str, &str) = (
     "Invalid Peaks line",
     "This column is not a number but it is required to be a number in this peaks format",
 );
-static ID_ERROR: (&str, &str) =  ("Invalid Peaks line",
-    "This column is not a valid peaks ID but it is required to be in this peaks format\nExamples of valid IDs: '1234', 'F2:1234', 'F2:1234 12345'");
+static ID_ERROR: (&str, &str) =  (
+    "Invalid Peaks line",
+    "This column is not a valid peaks ID but it is required to be in this peaks format\nExamples of valid IDs: '1234', 'F2:1234', 'F2:1234 12345'"
+);
 
 format_family!(
     /// The format for any Peaks file
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&V12, &V11, &X, &OLD, &XPLUS, &AB], b',';
+    PeaksVersion, [&V12, &V11, &XPLUS, &OLD, &AB, &X], b',';
     required {
         scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -45,7 +47,6 @@ format_family!(
                             SloppyParsingParameters::default()
                         );
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
-        length: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
@@ -105,7 +106,6 @@ pub const OLD: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    length: "length",
     fraction: None,
     raw_file: None,
     feature: None,
@@ -128,7 +128,6 @@ pub const X: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    length: "length",
     fraction: Some("fraction"),
     raw_file: Some("source file"),
     feature: Some("feature"),
@@ -151,7 +150,6 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    length: "length",
     fraction: Some("fraction"),
     raw_file: Some("source file"),
     feature: Some("feature"),
@@ -174,7 +172,6 @@ pub const V11: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag(>=0.0%)",
     mode: "mode",
-    length: "length",
     fraction: None,
     raw_file: Some("source file"),
     feature: Some("feature id"),
@@ -197,7 +194,6 @@ pub const V12: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag(>=0%)",
     mode: "mode",
-    length: "length",
     fraction: None,
     raw_file: Some("source file"),
     feature: Some("feature id"),
@@ -220,7 +216,6 @@ pub const AB: PeaksFormat = PeaksFormat {
     local_confidence: "local confidence (%)",
     tag: "tag (>=0%)",
     mode: "mode",
-    length: "length",
     fraction: None,
     raw_file: None,
     feature: None,

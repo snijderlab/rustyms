@@ -1,18 +1,23 @@
 #![allow(clippy::missing_panics_doc)]
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 
-use crate::Modification;
-use crate::{modification::SimpleModification, molecular_formula};
-
-use super::error::CustomError;
-use super::{IdentifiedPeptideSource, PeaksFormat};
-
-use super::{csv::parse_csv_raw, peaks, IdentifiedPeptide, PeaksData};
+use crate::{
+    identification::{test_format, IdentifiedPeptideSource, PeaksData, PeaksVersion},
+    modification::SimpleModification,
+    molecular_formula,
+};
 
 #[test]
 fn peaks_x() {
     assert_eq!(
-        open_file(BufReader::new(DATA_X.as_bytes()), &peaks::X, None).unwrap(),
+        test_format::<PeaksData>(
+            BufReader::new(DATA_X.as_bytes()),
+            None,
+            false,
+            true,
+            Some(PeaksVersion::X),
+        )
+        .unwrap(),
         19
     );
 }
@@ -20,7 +25,14 @@ fn peaks_x() {
 #[test]
 fn peaks_x_plus() {
     assert_eq!(
-        open_file(BufReader::new(DATA_XPLUS.as_bytes()), &peaks::XPLUS, None).unwrap(),
+        test_format::<PeaksData>(
+            BufReader::new(DATA_XPLUS.as_bytes()),
+            None,
+            false,
+            true,
+            Some(PeaksVersion::Xplus),
+        )
+        .unwrap(),
         19
     );
 }
@@ -28,7 +40,14 @@ fn peaks_x_plus() {
 #[test]
 fn peaks_11() {
     assert_eq!(
-        open_file(BufReader::new(DATA_11.as_bytes()), &peaks::V11, None).unwrap(),
+        test_format::<PeaksData>(
+            BufReader::new(DATA_11.as_bytes()),
+            None,
+            false,
+            true,
+            Some(PeaksVersion::V11),
+        )
+        .unwrap(),
         19
     );
 }
@@ -36,10 +55,12 @@ fn peaks_11() {
 #[test]
 fn peaks_11_all_candidates() {
     assert_eq!(
-        open_file(
+        test_format::<PeaksData>(
             BufReader::new(DATA_11_ALL_CANDIDATES.as_bytes()),
-            &peaks::V11,
-            None
+            None,
+            false,
+            true,
+            Some(PeaksVersion::V11),
         )
         .unwrap(),
         19
@@ -49,14 +70,16 @@ fn peaks_11_all_candidates() {
 #[test]
 fn peaks_11_custom_modification() {
     assert_eq!(
-        open_file(
+        test_format::<PeaksData>(
             BufReader::new(DATA_11_CUSTOM_MODIFICATION.as_bytes()),
-            &peaks::V11,
             Some(&vec![(
                 Some(0),
                 "oxidation".to_string(),
                 SimpleModification::Formula(molecular_formula!(O 1)),
-            )])
+            )]),
+            false,
+            true,
+            Some(PeaksVersion::V11)
         )
         .unwrap(),
         19
@@ -66,7 +89,14 @@ fn peaks_11_custom_modification() {
 #[test]
 fn peaks_12() {
     assert_eq!(
-        open_file(BufReader::new(DATA_12.as_bytes()), &peaks::V12, None).unwrap(),
+        test_format::<PeaksData>(
+            BufReader::new(DATA_12.as_bytes()),
+            None,
+            false,
+            true,
+            Some(PeaksVersion::V12)
+        )
+        .unwrap(),
         19
     );
 }
@@ -74,7 +104,14 @@ fn peaks_12() {
 #[test]
 fn peaks_ab() {
     assert_eq!(
-        open_file(BufReader::new(DATA_AB.as_bytes()), &peaks::AB, None).unwrap(),
+        test_format::<PeaksData>(
+            BufReader::new(DATA_AB.as_bytes()),
+            None,
+            false,
+            true,
+            Some(PeaksVersion::Ab)
+        )
+        .unwrap(),
         19
     );
 }
@@ -98,10 +135,12 @@ fn fuzz_crashes() {
         let name = path.file_name().unwrap().to_str().unwrap();
         if metadata.is_file() && name.starts_with("crash") {
             match std::panic::catch_unwind(|| {
-                open_file(
+                test_format::<PeaksData>(
                     BufReader::new(std::fs::File::open(&path).unwrap()),
-                    &peaks::V11,
                     None,
+                    false,
+                    true,
+                    Some(PeaksVersion::V11),
                 )
             }) {
                 Ok(_) => {
@@ -127,10 +166,12 @@ fn fuzz_hangs() {
         let name = path.file_name().unwrap().to_str().unwrap();
         if metadata.is_file() && name.starts_with("hang") {
             match std::panic::catch_unwind(|| {
-                open_file(
+                test_format::<PeaksData>(
                     BufReader::new(std::fs::File::open(&path).unwrap()),
-                    &peaks::V11,
                     None,
+                    false,
+                    true,
+                    Some(PeaksVersion::V11),
                 )
             }) {
                 Ok(_) => {
@@ -144,33 +185,6 @@ fn fuzz_hangs() {
         }
     }
     assert!(all_passing, "Some fuzz tests did not pass");
-}
-
-/// Open a Peaks file from the given reader.
-/// # Errors
-/// If any part of the process errors.
-fn open_file(
-    reader: impl Read,
-    format: &PeaksFormat,
-    custom_database: Option<&super::ontologies::CustomDatabase>,
-) -> Result<usize, CustomError> {
-    let lines = parse_csv_raw(reader, b',', None)?;
-    let mut num_lines = 0;
-    for line in lines {
-        let line = line?;
-        let read: IdentifiedPeptide =
-            PeaksData::parse_specific(&line, format, custom_database)?.into();
-        num_lines += 1;
-        assert!(
-            read.peptide().unwrap().sequence().iter().all(|s| s
-                .modifications
-                .iter()
-                .all(|m| !matches!(m, Modification::Simple(SimpleModification::Mass(_))))),
-            "Peptide contains mass mods: {}",
-            read.peptide().unwrap()
-        );
-    }
-    Ok(num_lines)
 }
 
 const DATA_AB: &str = r"Scan,Peptide,Tag Length,ALC (%),length,m/z,z,RT,Area,Mass,ppm,Accession,PTM,local confidence (%),tag (>=0%),mode

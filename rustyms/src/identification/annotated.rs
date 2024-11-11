@@ -98,3 +98,13 @@ impl std::str::FromStr for Annotation {
         })
     }
 }
+
+impl std::fmt::Display for Annotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Conserved => write!(f, "Conserved"),
+            Self::NGlycan => write!(f, "NGlycan"),
+            Self::Other(o) => write!(f, "{o}"),
+        }
+    }
+}

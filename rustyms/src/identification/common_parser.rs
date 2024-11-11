@@ -38,6 +38,7 @@ macro_rules! format_family {
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
+            type Version = $version;
             fn parse(source: &Self::Source, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
                 let mut errors = Vec::new();
                 for format in $versions {
