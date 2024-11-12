@@ -14,6 +14,7 @@ mod mztab;
 mod novor;
 mod opair;
 mod peaks;
+mod plink;
 mod sage;
 
 use crate::*;
@@ -28,6 +29,7 @@ pub use mztab::*;
 pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
+pub use plink::*;
 pub use sage::*;
 
 #[cfg(test)]
@@ -44,5 +46,7 @@ mod novor_tests;
 mod opair_tests;
 #[cfg(test)]
 mod peaks_tests;
+#[cfg(test)]
+mod plink_tests;
 #[cfg(test)]
 mod sage_tests;

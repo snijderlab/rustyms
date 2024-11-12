@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     deepnovofamily::DeepNovoFamilyData, fasta::FastaData, novor::NovorData, opair::OpairData,
-    peaks::PeaksData, system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData, SageData,
+    peaks::PeaksData, plink::PLinkData, system::MassOverCharge, MSFraggerData, MZTabData,
+    MaxQuantData, SageData,
 };
 
 use crate::{
@@ -41,6 +42,8 @@ pub enum MetaData {
     Opair(OpairData),
     /// Peaks metadata
     Peaks(PeaksData),
+    /// pLink metadata
+    PLink(PLinkData),
     /// Sage metadata
     Sage(SageData),
 }
@@ -58,6 +61,7 @@ impl IdentifiedPeptide {
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => peptide.as_ref(),
             MetaData::Fasta(f) => Some(f.peptide()),
+            MetaData::PLink(_) => None, //TODO: fix in one way or another
         }
     }
 
@@ -72,6 +76,7 @@ impl IdentifiedPeptide {
             MetaData::Novor(_) => "Novor",
             MetaData::Opair(_) => "OPair",
             MetaData::Peaks(_) => "PEAKS",
+            MetaData::PLink(_) => "pLink",
             MetaData::Sage(_) => "Sage",
         }
     }
@@ -87,6 +92,7 @@ impl IdentifiedPeptide {
             MetaData::Novor(NovorData { version, .. }) => version.to_string(),
             MetaData::Opair(OpairData { version, .. }) => version.to_string(),
             MetaData::Peaks(PeaksData { version, .. }) => version.to_string(),
+            MetaData::PLink(PLinkData { version, .. }) => version.to_string(),
             MetaData::Sage(SageData { version, .. }) => version.to_string(),
         }
     }
@@ -103,6 +109,7 @@ impl IdentifiedPeptide {
             }
             MetaData::Fasta(f) => f.identifier().accession().to_string(),
             MetaData::MSFragger(MSFraggerData { scan, .. }) => scan.to_string(),
+            MetaData::PLink(PLinkData { order, .. }) => order.to_string(),
             MetaData::MaxQuant(MaxQuantData { id, scan, .. }) => {
                 id.map_or_else(|| scan.iter().join(";"), |id| id.to_string())
             }
@@ -137,6 +144,7 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { z, .. })
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
+            | MetaData::PLink(PLinkData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
             MetaData::Fasta(_) => None,
@@ -162,7 +170,7 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
-            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) => None,
+            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) | MetaData::PLink(_) => None,
         }
     }
 
@@ -214,6 +222,22 @@ impl IdentifiedPeptide {
                     |raw_file| SpectrumIds::FileKnown(vec![(raw_file, vec![scan.clone()])]),
                 )
             }
+            MetaData::PLink(PLinkData {
+                raw_file,
+                scan,
+                title,
+                ..
+            }) => scan.map_or_else(
+                || SpectrumIds::FileNotKnown(vec![SpectrumId::Native(title.clone())]),
+                |scan| {
+                    raw_file.clone().map_or_else(
+                        || SpectrumIds::FileNotKnown(vec![SpectrumId::Index(scan)]),
+                        |raw_file| {
+                            SpectrumIds::FileKnown(vec![(raw_file, vec![SpectrumId::Index(scan)])])
+                        },
+                    )
+                },
+            ),
             MetaData::Sage(SageData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
             }
@@ -231,13 +255,12 @@ impl IdentifiedPeptide {
             MetaData::MZTab(MZTabData { mz, .. }) | MetaData::MaxQuant(MaxQuantData { mz, .. }) => {
                 *mz
             }
-            MetaData::Sage(SageData {
-                mass: experimental_mass,
-                z,
-                ..
-            }) => Some(MassOverCharge::new::<crate::system::mz>(
-                experimental_mass.value / (z.value as f64),
-            )),
+            MetaData::Sage(SageData { mass, z, .. })
+            | MetaData::PLink(PLinkData { mass, z, .. }) => {
+                Some(MassOverCharge::new::<crate::system::mz>(
+                    mass.value / (z.value as f64),
+                ))
+            }
             MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) => None,
         }
     }
@@ -249,6 +272,7 @@ impl IdentifiedPeptide {
             | MetaData::Novor(NovorData { mass, .. })
             | MetaData::Opair(OpairData { mass, .. })
             | MetaData::MSFragger(MSFraggerData { mass, .. })
+            | MetaData::PLink(PLinkData { mass, .. })
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),

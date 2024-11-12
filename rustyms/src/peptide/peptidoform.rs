@@ -10,7 +10,7 @@ use crate::{
     Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
 };
 /// A single peptidoform, can contain multiple linear peptides
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize, Hash)]
 pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
 impl Peptidoform {
@@ -77,6 +77,11 @@ impl Peptidoform {
     /// Get all peptides making up this peptidoform
     pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
         &self.0
+    }
+
+    /// Get all peptides making up this peptidoform
+    pub fn peptides_mut(&mut self) -> &mut [LinearPeptide<Linked>] {
+        &mut self.0
     }
 
     /// Set the charge carriers
