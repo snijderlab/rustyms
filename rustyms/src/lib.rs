@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-#![allow(dead_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 #![allow(
     clippy::must_use_candidate,
@@ -8,8 +7,8 @@
     clippy::cast_sign_loss,
     clippy::wildcard_imports,
     clippy::module_name_repetitions,
-    clippy::suboptimal_flops,
-    clippy::too_many_lines
+    clippy::too_many_lines,
+    clippy::too_long_first_doc_paragraph
 )]
 
 #[cfg(feature = "align")]

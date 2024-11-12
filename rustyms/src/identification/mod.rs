@@ -3,10 +3,10 @@
 #[macro_use]
 mod common_parser;
 
+mod annotated;
 mod deepnovofamily;
 mod fasta;
 mod general;
-mod helper_functions;
 mod identified_peptide;
 mod maxquant;
 mod msfragger;
@@ -17,6 +17,7 @@ mod peaks;
 mod sage;
 
 use crate::*;
+pub use annotated::*;
 pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;

@@ -36,16 +36,6 @@ impl Peptidoform {
             .unwrap_or_default()
     }
 
-    /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
-    /// Assumes all peptides in this peptidoform are connected.
-    /// If there are no peptides in this peptidoform it returns [`Multi::default`].
-    pub(super) fn formulas_inner(&self) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        self.0
-            .first()
-            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new(), true))
-            .unwrap_or_default()
-    }
-
     /// Generate the theoretical fragments for this peptidoform.
     pub fn generate_theoretical_fragments(
         &self,

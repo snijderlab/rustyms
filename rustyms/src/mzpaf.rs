@@ -1,4 +1,5 @@
 //! WIP: mzPAF parser
+#![allow(dead_code)]
 use std::{ops::Range, sync::OnceLock};
 
 use crate::{

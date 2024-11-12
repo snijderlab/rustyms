@@ -53,11 +53,11 @@ impl IdentifiedPeptide {
             | MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::Fasta(FastaData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => peptide.as_ref(),
+            MetaData::Fasta(f) => Some(f.peptide()),
         }
     }
 
@@ -76,6 +76,21 @@ impl IdentifiedPeptide {
         }
     }
 
+    /// Get the format version detected
+    pub fn format_version(&self) -> String {
+        match &self.metadata {
+            MetaData::Fasta(_) => "Fasta".to_string(),
+            MetaData::MaxQuant(MaxQuantData { version, .. }) => version.to_string(),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
+            MetaData::MSFragger(MSFraggerData { version, .. }) => version.to_string(),
+            MetaData::MZTab(_) => "mzTab 1.0".to_string(),
+            MetaData::Novor(NovorData { version, .. }) => version.to_string(),
+            MetaData::Opair(OpairData { version, .. }) => version.to_string(),
+            MetaData::Peaks(PeaksData { version, .. }) => version.to_string(),
+            MetaData::Sage(SageData { version, .. }) => version.to_string(),
+        }
+    }
+
     /// Get the identifier
     pub fn id(&self) -> String {
         match &self.metadata {
@@ -86,7 +101,7 @@ impl IdentifiedPeptide {
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
             }
-            MetaData::Fasta(FastaData { id, .. }) => id.clone(),
+            MetaData::Fasta(f) => f.identifier().accession().to_string(),
             MetaData::MSFragger(MSFraggerData { scan, .. }) => scan.to_string(),
             MetaData::MaxQuant(MaxQuantData { id, scan, .. }) => {
                 id.map_or_else(|| scan.iter().join(";"), |id| id.to_string())
@@ -330,6 +345,8 @@ where
     type Source;
     /// The format type
     type Format: Clone;
+    /// The version type
+    type Version;
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors
     /// When the source is not a valid peptide
@@ -482,47 +499,83 @@ where
     }
 }
 
-/// The scans identifier for a peaks identification
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-pub struct PeaksFamilyId {
-    /// The file, if defined
-    pub file: Option<usize>,
-    /// The scan(s)
-    pub scans: Vec<usize>,
-}
+/// Test a dataset for common errors in identified peptide parsing
+#[cfg(test)]
+pub(crate) fn test_format<T: IdentifiedPeptideSource + Into<IdentifiedPeptide>>(
+    reader: impl std::io::Read,
+    custom_database: Option<&CustomDatabase>,
+    allow_mass_mods: bool,
+    expect_lc: bool,
+    format: Option<T::Version>,
+) -> Result<usize, String>
+where
+    T::Format: 'static,
+    T::Version: std::fmt::Display,
+{
+    let mut number = 0;
+    for peptide in T::parse_reader(reader, custom_database).map_err(|e| e.to_string())? {
+        let peptide: IdentifiedPeptide = peptide.map_err(|e| e.to_string())?.into();
+        number += 1;
 
-impl Display for PeaksFamilyId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            self.file.map_or(String::new(), |f| format!("F{f}:")),
-            self.scans.iter().join(",")
-        )
-    }
-}
-
-impl std::str::FromStr for PeaksFamilyId {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((start, end)) = s.split_once(':') {
-            if start.is_empty() || end.is_empty() {
-                Err(())
-            } else {
-                Ok(Self {
-                    file: Some(start[1..].parse().map_err(|_| ())?),
-                    scans: end
-                        .split(' ')
-                        .map(str::parse)
-                        .collect::<Result<Vec<_>, _>>()
-                        .map_err(|_| ())?,
-                })
+        if peptide.peptide().map(LinearPeptide::len) != peptide.local_confidence().map(<[f64]>::len)
+        {
+            if expect_lc && peptide.local_confidence().is_none() {
+                return Err(format!(
+                    "No local confidence was provided for peptide {}",
+                    peptide.id()
+                ));
+            } else if peptide.local_confidence().is_some() {
+                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().map_or(0, LinearPeptide::len), peptide.id()));
             }
-        } else {
-            Ok(Self {
-                file: None,
-                scans: vec![s.parse().map_err(|_| ())?],
+        }
+        if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
+            return Err(format!(
+                "The score {} for peptide {} is outside of range",
+                peptide.score.unwrap(),
+                peptide.id()
+            ));
+        }
+        if peptide
+            .local_confidence()
+            .is_some_and(|s| s.iter().any(|s| !(-1.0..=1.0).contains(s)))
+        {
+            return Err(format!(
+                "The local score {} for peptide {} is outside of range",
+                peptide.local_confidence().unwrap().iter().join(","),
+                peptide.id()
+            ));
+        }
+        if !allow_mass_mods
+            && peptide.peptide().is_some_and(|p| {
+                p.sequence().iter().any(|s| {
+                    s.modifications.iter().any(|m| {
+                        matches!(
+                            m,
+                            crate::Modification::Simple(
+                                crate::modification::SimpleModification::Mass(_)
+                            )
+                        )
+                    })
+                })
             })
+        {
+            return Err(format!(
+                "Peptide {} contains mass modifications, sequence {}",
+                peptide.id(),
+                peptide.peptide().unwrap(),
+            ));
+        }
+        if format
+            .as_ref()
+            .is_some_and(|f| f.to_string() != peptide.format_version())
+        {
+            return Err(format!(
+                "Peptide {} was detected as the wrong version ({} instead of {})",
+                peptide.id(),
+                peptide.format_version(),
+                format.unwrap(),
+            ));
         }
     }
+    Ok(number)
 }

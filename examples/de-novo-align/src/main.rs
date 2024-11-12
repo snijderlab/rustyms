@@ -44,7 +44,7 @@ fn main() {
                         db,
                         peptide,
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
-                            &db.peptide,
+                            db.peptide(),
                             peptide.peptide().unwrap(),
                             AlignScoring::default(),
                             AlignType::EITHER_GLOBAL,
@@ -92,7 +92,7 @@ fn main() {
                     "De novo score".to_string(),
                     peptide.score.map_or(String::new(), |s| s.to_string()),
                 ),
-                ("Protein".to_string(), db.id.clone()),
+                ("Protein".to_string(), db.identifier().to_string()),
                 (
                     "Alignment score".to_string(),
                     alignment.normalised_score().to_string(),

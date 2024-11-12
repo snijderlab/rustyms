@@ -14,7 +14,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    common_parser::{Location, OptionalLocation},
+    common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
@@ -145,7 +145,7 @@ impl std::fmt::Display for MSFraggerVersion {
 pub const V21: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V21,
     scan: "spectrum",
-    raw_file: None,
+    raw_file: OptionalColumn::NotAvailable,
     spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
@@ -174,15 +174,15 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
     protein_description: "protein description",
     mapped_genes: "mapped genes",
     mapped_proteins: "mapped proteins",
-    condition: Some("condition"),
-    group: Some("group"),
+    condition: OptionalColumn::Optional("condition"),
+    group: OptionalColumn::Optional("group"),
 };
 
 /// v22
 pub const V22: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V22,
     scan: "spectrum",
-    raw_file: None,
+    raw_file: OptionalColumn::NotAvailable,
     spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
@@ -211,8 +211,8 @@ pub const V22: MSFraggerFormat = MSFraggerFormat {
     protein_description: "protein description",
     mapped_genes: "mapped genes",
     mapped_proteins: "mapped proteins",
-    condition: Some("condition"),
-    group: Some("group"),
+    condition: OptionalColumn::Optional("condition"),
+    group: OptionalColumn::Optional("group"),
 };
 
 /// The scans identifier for a MSFragger identification

@@ -157,15 +157,6 @@ impl GlycanStructure {
         )
     }
 
-    /// Get the maximal outer depth of all branches for this location
-    fn outer_depth(&self) -> usize {
-        self.branches
-            .iter()
-            .map(Self::outer_depth)
-            .max()
-            .unwrap_or(1)
-    }
-
     /// Get the composition of a `GlycanStructure`. The result is normalised (sorted and deduplicated).
     /// # Panics
     /// If one monosaccharide species has occurrence outside the range of [`isize::MIN`] to [`isize::MAX`].

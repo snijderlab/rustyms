@@ -314,8 +314,8 @@ impl<'a, M: Clone + 'a> std::iter::FromIterator<&'a M> for Multi<M> {
     }
 }
 
+#[allow(dead_code)]
 impl crate::Multi<crate::MolecularFormula> {
-    #[allow(dead_code)]
     pub(crate) fn with_labels(self, labels: &[crate::AmbiguousLabel]) -> Self {
         Self(
             self.0
@@ -326,8 +326,7 @@ impl crate::Multi<crate::MolecularFormula> {
         )
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn with_label(self, label: crate::AmbiguousLabel) -> Self {
+    pub(crate) fn with_label(self, label: &crate::AmbiguousLabel) -> Self {
         Self(
             self.0
                 .iter()

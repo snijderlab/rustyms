@@ -1,8 +1,8 @@
-use crate::{system::da, system::Mass, MolecularFormula};
+use crate::MolecularFormula;
 use itertools::Itertools;
 use ndarray::{arr1, concatenate, s, Array1, Axis};
 use probability::distribution::{Binomial, Discrete};
-use std::{cmp::Ordering, collections::HashMap};
+use std::cmp::Ordering;
 
 impl MolecularFormula {
     /// Get the isotopic distribution, using the natural distribution as defined by CIAAW.
@@ -101,40 +101,4 @@ impl MolecularFormula {
         }
         result
     }
-}
-
-fn combined_pattern(
-    isotopes: &[(MolecularFormula, f64, String)],
-) -> Vec<(Mass, f64, usize, String)> {
-    let mut combined: Vec<(Mass, f64, usize, String)> = Vec::new();
-
-    for isotope in isotopes {
-        let isotope_mass = isotope.0.monoisotopic_mass().value.round();
-        if let Some(entry) = combined
-            .iter_mut()
-            .find(|i| (i.0.value - isotope_mass).abs() < f64::EPSILON)
-        {
-            entry.1 += isotope.1;
-            entry.2 += 1;
-            entry.3 += &format!(",{}", isotope.2);
-        } else {
-            combined.push((da(isotope_mass), isotope.1, 1, isotope.2.clone()));
-        }
-    }
-    combined.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
-    combined
-}
-
-fn binom(tries: i16, total: i16, p: f64) -> f64 {
-    Binomial::new(total as usize, p).mass(tries as usize)
-}
-
-fn memoized_f64_factorial(num: u16, cache: &mut HashMap<u16, f64>) -> f64 {
-    *cache
-        .entry(num)
-        .or_insert_with(|| stupid_f64_factorial(num))
-}
-
-fn stupid_f64_factorial(num: u16) -> f64 {
-    (2..=num).fold(1.0, |acc, i| acc * f64::from(i))
 }

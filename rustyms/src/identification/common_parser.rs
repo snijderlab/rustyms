@@ -14,13 +14,14 @@ macro_rules! format_family {
      $version:ident, $versions:expr, $separator:expr;
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
      optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
-        use super::common_parser::HasLocation;
+        use super::common_parser::{HasLocation};
+
         #[non_exhaustive]
         #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default, Serialize, Deserialize)]
         #[doc = $format_doc]
         pub struct $format {
             $($rname: &'static str,)*
-            $($oname: Option<&'static str>,)*
+            $($oname: crate::identification::common_parser::OptionalColumn,)*
             version: $version
         }
 
@@ -38,6 +39,7 @@ macro_rules! format_family {
         impl IdentifiedPeptideSource for $data {
             type Source = CsvLine;
             type Format = $format;
+            type Version = $version;
             fn parse(source: &Self::Source, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<(Self, &'static Self::Format), CustomError> {
                 let mut errors = Vec::new();
                 for format in $versions {
@@ -84,12 +86,47 @@ macro_rules! format_family {
             fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
                 Ok(Self {
                     $($rname: $rf(source.column(format.$rname)?, custom_database)?,)*
-                    $($oname: format.$oname.and_then(|column| source.column(column).ok().map(|c| $of(c, custom_database))).invert()?,)*
+                    $($oname: format.$oname.open_column(source).and_then(|l: Option<Location>| l.map(|value: Location| $of(value, custom_database)).invert())?,)*
                     version: format.version.clone()
                 })
             }
         }
     };
+}
+
+/// The possible options for an optional column
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub enum OptionalColumn {
+    /// This column is not avalable in this version
+    #[default]
+    NotAvailable,
+    /// This column is optional in this version
+    Optional(&'static str),
+    /// This column is required in this version (but as it is an `OptionalColumn` not in some other version)
+    Required(&'static str),
+}
+
+impl OptionalColumn {
+    /// Open the column while creating the correct error messages for missing columns
+    pub fn open_column(self, source: &CsvLine) -> Result<Option<Location>, CustomError> {
+        match self {
+            Self::NotAvailable => Ok(None),
+            Self::Optional(s) => Ok(source.column(s).ok()),
+            Self::Required(s) => source.column(s).map(Some),
+        }
+    }
 }
 
 pub trait HasLocation {
