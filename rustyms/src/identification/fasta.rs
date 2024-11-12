@@ -480,7 +480,7 @@ impl FastaData {
                         index += region.len() + usize::from(index != 0);
                     if let Some((region, n)) = region.split_once(':') {
                         Ok((
-                            region.parse::<Region>().unwrap(), 
+                            region.parse::<Region>().unwrap(),
                             n.parse::<usize>().map_err(|err| CustomError::error(
                             "Invalid regions definition", 
                             format!("The fasta header 'REGIONS' key, should contain regions followed by a colon, e.g. 'CDR3:6', but the number is {}", explain_number_error(&err)), 
@@ -501,7 +501,7 @@ impl FastaData {
                         index += region.len() + usize::from(index != 0);
                     if let Some((region, n)) = region.split_once(':') {
                         Ok((
-                            region.parse::<Annotation>().unwrap(), 
+                            region.parse::<Annotation>().unwrap(),
                             n.parse::<usize>().map_err(|err| CustomError::error(
                             "Invalid annotations definition", 
                             format!("The fasta header 'ANNOTATIONS' key, should contain annotations followed by a colon, e.g. 'Conserved:6', but the number is {}", explain_number_error(&err)), 

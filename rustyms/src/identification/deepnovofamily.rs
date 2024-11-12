@@ -13,7 +13,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    common_parser::{Location, OptionalLocation},
+    common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
     modification::Ontology,
     AminoAcid, BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
@@ -108,8 +108,8 @@ pub const DEEPNOVO_V0_0_1: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
     peptide: "predicted_sequence",
     score: "predicted_score",
     local_confidence: "predicted_position_score",
-    mz: None,
-    z: None,
+    mz: OptionalColumn::NotAvailable,
+    z: OptionalColumn::NotAvailable,
 };
 
 /// The only known version of PGPointNovo
@@ -119,8 +119,8 @@ pub const PGPOINTNOVO_V1_0_6: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
     peptide: "predicted_sequence",
     score: "predicted_score",
     local_confidence: "predicted_position_score",
-    mz: Some("precursor_mz"),
-    z: Some("precursor_charge"),
+    mz: OptionalColumn::Required("precursor_mz"),
+    z: OptionalColumn::Required("precursor_charge"),
 };
 
 /// All possible DeepNovo versions
