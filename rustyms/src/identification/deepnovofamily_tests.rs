@@ -14,11 +14,15 @@ fn deepnovo() {
     let mut peptides = 0;
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide =
+        let read: IdentifiedPeptide =
             DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::DEEPNOVO_V0_0_1, None)
                 .unwrap()
                 .into();
         peptides += 1;
+        assert_eq!(
+            read.peptide().map(|p| p.len()),
+            read.local_confidence().map(|l| l.len())
+        );
     }
     assert_eq!(peptides, 19);
 }
@@ -30,11 +34,15 @@ fn pgpointnovo() {
     let mut peptides = 0;
     for line in lines.map(Result::unwrap) {
         println!("{line}");
-        let _read: IdentifiedPeptide =
+        let read: IdentifiedPeptide =
             DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::PGPOINTNOVO_V1_0_6, None)
                 .unwrap()
                 .into();
         peptides += 1;
+        assert_eq!(
+            read.peptide().map(|p| p.len()),
+            read.local_confidence().map(|l| l.len())
+        );
     }
     assert_eq!(peptides, 20);
 }

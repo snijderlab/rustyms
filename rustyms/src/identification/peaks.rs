@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
-    identification::PeaksRelatedId,
+    identification::PeaksFamilyId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
@@ -34,7 +34,7 @@ format_family!(
     PeaksData,
     PeaksVersion, [&V12, &V11, &X, &OLD, &XPLUS, &AB], b',';
     required {
-        scan: Vec<PeaksRelatedId>, |location: Location, _| location.or_empty()
+        scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
@@ -65,7 +65,7 @@ format_family!(
     optional {
         fraction: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         raw_file: PathBuf, |location: Location, _| Ok(Some(Path::new(&location.get_string()).to_owned()));
-        feature: PeaksRelatedId, |location: Location, _| location.or_empty().parse(ID_ERROR);
+        feature: PeaksFamilyId, |location: Location, _| location.or_empty().parse(ID_ERROR);
         de_novo_score: f64, |location: Location, _| location
                 .parse::<f64>(NUMBER_ERROR)
                 .map(|f| f / 100.0);

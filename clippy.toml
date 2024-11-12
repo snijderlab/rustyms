@@ -8,6 +8,8 @@ doc-valid-idents = [
     "MSFragger",
     "MZTab",
     "PSM_ID",
+    "DeepNovo",
+    "PGPointNovo",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

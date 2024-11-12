@@ -79,9 +79,9 @@ impl IdentifiedPeptide {
     /// Get the identifier
     pub fn id(&self) -> String {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { scan, .. }) => scan.iter().join(";"),
+            MetaData::Peaks(PeaksData { scan, .. })
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
-            MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
@@ -123,7 +123,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
-            MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => z.clone(),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
             MetaData::Fasta(_) => None,
         }
     }
@@ -484,14 +484,14 @@ where
 
 /// The scans identifier for a peaks identification
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-pub struct PeaksRelatedId {
+pub struct PeaksFamilyId {
     /// The file, if defined
     pub file: Option<usize>,
     /// The scan(s)
     pub scans: Vec<usize>,
 }
 
-impl Display for PeaksRelatedId {
+impl Display for PeaksFamilyId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -502,7 +502,7 @@ impl Display for PeaksRelatedId {
     }
 }
 
-impl std::str::FromStr for PeaksRelatedId {
+impl std::str::FromStr for PeaksFamilyId {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((start, end)) = s.split_once(':') {

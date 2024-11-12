@@ -169,6 +169,10 @@ fn open_file(
             "Peptide contains mass mods: {}",
             read.peptide().unwrap()
         );
+        assert_eq!(
+            read.peptide().map(|p| p.len()),
+            read.local_confidence().map(|l| l.len())
+        );
     }
     Ok(num_lines)
 }
