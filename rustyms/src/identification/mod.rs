@@ -4,6 +4,7 @@
 mod common_parser;
 
 mod annotated;
+mod deepnovofamily;
 mod fasta;
 mod general;
 mod identified_peptide;
@@ -17,6 +18,7 @@ mod sage;
 
 use crate::*;
 pub use annotated::*;
+pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;
 pub use identified_peptide::*;
@@ -28,6 +30,8 @@ pub use opair::*;
 pub use peaks::*;
 pub use sage::*;
 
+#[cfg(test)]
+mod deepnovofamily_tests;
 #[cfg(test)]
 mod maxquant_tests;
 #[cfg(test)]

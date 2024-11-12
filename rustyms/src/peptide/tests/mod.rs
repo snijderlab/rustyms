@@ -82,7 +82,7 @@ macro_rules! parse_sloppy_test {
                 $case,
                 0..$case.len(),
                 None,
-                SloppyParsingParameters::default(),
+                &SloppyParsingParameters::default(),
             );
             println!("{}\n{:?}", $case, res);
             assert!(res.is_err());

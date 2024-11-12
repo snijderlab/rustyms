@@ -1,12 +1,13 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    fasta::FastaData, novor::NovorData, opair::OpairData, peaks::PeaksData, system::MassOverCharge,
-    MSFraggerData, MZTabData, MaxQuantData, SageData,
+    deepnovofamily::DeepNovoFamilyData, fasta::FastaData, novor::NovorData, opair::OpairData,
+    peaks::PeaksData, system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData, SageData,
 };
+
 use crate::{
     error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
     system::Time, LinearPeptide,
@@ -24,6 +25,8 @@ pub struct IdentifiedPeptide {
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MetaData {
+    /// DeepNovo/PointNovo/PGPointNovo metadata
+    DeepNovoFamily(DeepNovoFamilyData),
     /// Fasta metadata
     Fasta(FastaData),
     /// MaxQuant metadata
@@ -52,7 +55,8 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
-            | MetaData::MaxQuant(MaxQuantData { peptide, .. }) => peptide.as_ref(),
+            | MetaData::MaxQuant(MaxQuantData { peptide, .. })
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => peptide.as_ref(),
             MetaData::Fasta(f) => Some(f.peptide()),
         }
     }
@@ -60,6 +64,7 @@ impl IdentifiedPeptide {
     /// Get the name of the format
     pub const fn format_name(&self) -> &'static str {
         match &self.metadata {
+            MetaData::DeepNovoFamily(_) => "DeepNovo Family",
             MetaData::Fasta(_) => "Fasta",
             MetaData::MaxQuant(_) => "MaxQuant",
             MetaData::MSFragger(_) => "MSFragger",
@@ -76,6 +81,7 @@ impl IdentifiedPeptide {
         match &self.metadata {
             MetaData::Fasta(_) => "Fasta".to_string(),
             MetaData::MaxQuant(MaxQuantData { version, .. }) => version.to_string(),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
             MetaData::MSFragger(MSFraggerData { version, .. }) => version.to_string(),
             MetaData::MZTab(_) => "mzTab 1.0".to_string(),
             MetaData::Novor(NovorData { version, .. }) => version.to_string(),
@@ -88,7 +94,8 @@ impl IdentifiedPeptide {
     /// Get the identifier
     pub fn id(&self) -> String {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { scan, .. }) => scan.iter().join(";"),
+            MetaData::Peaks(PeaksData { scan, .. })
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
             MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
@@ -108,7 +115,10 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData {
                 local_confidence, ..
             }) => Some(local_confidence),
-            MetaData::Novor(NovorData {
+            MetaData::DeepNovoFamily(DeepNovoFamilyData {
+                local_confidence, ..
+            })
+            | MetaData::Novor(NovorData {
                 local_confidence, ..
             })
             | MetaData::MZTab(MZTabData {
@@ -119,7 +129,7 @@ impl IdentifiedPeptide {
     }
 
     /// The charge of the precursor, if known
-    pub const fn charge(&self) -> Option<Charge> {
+    pub fn charge(&self) -> Option<Charge> {
         match &self.metadata {
             MetaData::Peaks(PeaksData { z, .. })
             | MetaData::Novor(NovorData { z, .. })
@@ -128,6 +138,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
             MetaData::Fasta(_) => None,
         }
     }
@@ -151,7 +162,7 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -180,6 +191,13 @@ impl IdentifiedPeptide {
             MetaData::Novor(NovorData { scan, .. }) => {
                 SpectrumIds::FileNotKnown(vec![SpectrumId::Index(*scan)])
             }
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => SpectrumIds::FileNotKnown(
+                scan.iter()
+                    .flat_map(|s| s.scans.clone())
+                    .map(SpectrumId::Index)
+                    .collect(),
+            ),
+
             MetaData::Opair(OpairData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
@@ -220,7 +238,7 @@ impl IdentifiedPeptide {
             }) => Some(MassOverCharge::new::<crate::system::mz>(
                 experimental_mass.value / (z.value as f64),
             )),
-            MetaData::Fasta(_) => None,
+            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) => None,
         }
     }
 
@@ -234,6 +252,9 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
+                mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
+            }
             MetaData::Fasta(_) => None,
         }
     }
@@ -264,7 +285,7 @@ impl IdentifiedPeptide {
 /// Multiple spectrum identifiers
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum SpectrumIds {
-    /// When no spectra references are knwon at all
+    /// When no spectra references are known at all
     #[default]
     None,
     /// When the source file is now known
@@ -557,4 +578,49 @@ where
         }
     }
     Ok(number)
+}
+
+/// The scans identifier for a peaks identification
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
+pub struct PeaksFamilyId {
+    /// The file, if defined
+    pub file: Option<usize>,
+    /// The scan(s)
+    pub scans: Vec<usize>,
+}
+
+impl Display for PeaksFamilyId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            self.file.map_or(String::new(), |f| format!("F{f}:")),
+            self.scans.iter().join(",")
+        )
+    }
+}
+
+impl std::str::FromStr for PeaksFamilyId {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((start, end)) = s.split_once(':') {
+            if start.is_empty() || end.is_empty() {
+                Err(())
+            } else {
+                Ok(Self {
+                    file: Some(start[1..].parse().map_err(|_| ())?),
+                    scans: end
+                        .split(' ')
+                        .map(str::parse)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|_| ())?,
+                })
+            }
+        } else {
+            Ok(Self {
+                file: None,
+                scans: vec![s.parse().map_err(|_| ())?],
+            })
+        }
+    }
 }

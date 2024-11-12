@@ -41,14 +41,14 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
+            &SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
         ));
         extended_peptide: [Option<LinearPeptide<SemiAmbiguous>>; 3], |location: Location, custom_database: Option<&CustomDatabase>| {
             let peptides = location.clone().array('.').map(|l| l.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
                 location.full_line(),
                 location.location.clone(),
                 custom_database,
-                SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
+                &SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
             ))).collect::<Result<Vec<_>,_>>()?;
             if peptides.len() == 3 {
                 Ok([peptides[0].clone(), peptides[1].clone(), peptides[2].clone()])

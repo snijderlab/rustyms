@@ -1,11 +1,9 @@
-use std::{
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use crate::{
     error::CustomError,
     helper_functions::InvertResult,
+    identification::PeaksFamilyId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
@@ -38,13 +36,13 @@ format_family!(
     PeaksData,
     PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD], b',';
     required {
-        scan: Vec<PeaksId>, |location: Location, _| location.or_empty()
+        scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
                             location.full_line(),
                             location.location.clone(),
                             custom_database,
-                            SloppyParsingParameters::default()
+                            &SloppyParsingParameters::default()
                         );
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
@@ -68,7 +66,7 @@ format_family!(
     optional {
         fraction: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         raw_file: PathBuf, |location: Location, _| Ok(Some(Path::new(&location.get_string()).to_owned()));
-        feature: PeaksId, |location: Location, _| location.or_empty().parse(ID_ERROR);
+        feature: PeaksFamilyId, |location: Location, _| location.or_empty().parse(ID_ERROR);
         de_novo_score: f64, |location: Location, _| location
                 .parse::<f64>(NUMBER_ERROR)
                 .map(|f| f / 100.0);
@@ -256,49 +254,5 @@ impl std::fmt::Display for PeaksVersion {
                 Self::V12 => "12",
             }
         )
-    }
-}
-/// The scans identifier for a peaks identification
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-pub struct PeaksId {
-    /// The file, if defined
-    pub file: Option<usize>,
-    /// The scan(s)
-    pub scans: Vec<usize>,
-}
-
-impl Display for PeaksId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            self.file.map_or(String::new(), |f| format!("F{f}:")),
-            self.scans.iter().join(",")
-        )
-    }
-}
-
-impl std::str::FromStr for PeaksId {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((start, end)) = s.split_once(':') {
-            if start.is_empty() || end.is_empty() {
-                Err(())
-            } else {
-                Ok(Self {
-                    file: Some(start[1..].parse().map_err(|_| ())?),
-                    scans: end
-                        .split(' ')
-                        .map(str::parse)
-                        .collect::<Result<Vec<_>, _>>()
-                        .map_err(|_| ())?,
-                })
-            }
-        } else {
-            Ok(Self {
-                file: None,
-                scans: vec![s.parse().map_err(|_| ())?],
-            })
-        }
     }
 }

@@ -8,22 +8,22 @@ use crate::{
     error::{Context, CustomError},
     glycan::glycan_parse_list,
     helper_functions::{end_of_enclosure, parse_named_counter, ResultExtensions},
-    modification::{Ontology, SimpleModification},
+    modification::{Modification, Ontology, SimpleModification},
     ontologies::CustomDatabase,
     peptide::*,
     system::Mass,
     AminoAcid, SequenceElement,
 };
 
-use crate::modification::Modification;
-
 /// Parameters to control the parsing of 'sloppy' ProForma sequences.
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SloppyParsingParameters {
     /// Ignore a prefix lowercase n as in `n[211]GC[779]RQSSEEK` as this indicates an N terminal modification in MSFragger
     pub ignore_prefix_lowercase_n: bool,
     /// Allow AA+12AA instead of AA[+12]AA as used by Casanovo
     pub allow_unwrapped_modifications: bool,
+    /// Allow Xmod as modification indication as used by DeepNovo
+    pub mod_indications: Vec<(AminoAcid, SimpleModification)>,
 }
 
 impl LinearPeptide<SemiAmbiguous> {
@@ -41,7 +41,7 @@ impl LinearPeptide<SemiAmbiguous> {
         line: &str,
         location: std::ops::Range<usize>,
         custom_database: Option<&CustomDatabase>,
-        parameters: SloppyParsingParameters,
+        parameters: &SloppyParsingParameters,
     ) -> Result<Self, CustomError> {
         if line[location.clone()].trim().is_empty() {
             return Err(CustomError::error(
@@ -57,7 +57,7 @@ impl LinearPeptide<SemiAmbiguous> {
         while index < chars.len() {
             match chars[index] {
                 b'n' if parameters.ignore_prefix_lowercase_n && index == 0 => index += 1, //ignore
-                b'_' => index += 1,                                                       //ignore
+                b',' | b'_' => index += 1,                                                //ignore
                 b'[' | b'(' => {
                     let (open, close) = if chars[index] == b'[' {
                         (b'[', b']')
@@ -94,6 +94,36 @@ impl LinearPeptide<SemiAmbiguous> {
                         }
                     }
                 }
+                b'm' if !parameters.mod_indications.is_empty()
+                    && index + 2 < chars.len()
+                    && chars[index + 1] == b'o'
+                    && chars[index + 2] == b'd' =>
+                {
+                    index += 3;
+
+                    match peptide.sequence_mut().last_mut() {
+                        Some(seq) => parameters
+                            .mod_indications
+                            .iter()
+                            .find(|(aa, _)| *aa == seq.aminoacid.aminoacid())
+                            .map(|(_, m)| seq.modifications.push(Modification::Simple(m.clone())))
+                            .ok_or_else(|| {
+                                CustomError::error(
+                                    "Invalid mod indication",
+                                    "There is no given mod for this amino acid.",
+                                    Context::line(None, line, location.start + index - 4, 4),
+                                )
+                            })?,
+                        None => {
+                            return Err(CustomError::error(
+                                "Invalid mod indication",
+                                "A mod indication should always follow an amino acid.",
+                                Context::line(None, line, location.start + index - 3, 3),
+                            ));
+                        }
+                    }
+                }
+
                 ch if parameters.allow_unwrapped_modifications
                     && (ch == b'-' || ch == b'+' || ch.is_ascii_digit()) =>
                 {

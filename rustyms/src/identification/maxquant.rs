@@ -40,7 +40,7 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters::default()
+            &SloppyParsingParameters::default()
         ));
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         ty: String, |location: Location, _| Ok(location.get_string());
@@ -49,7 +49,7 @@ format_family!(
     }
     optional {
         all_modified_sequences: Vec<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.array(';')
-                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database, SloppyParsingParameters::default()))
+                .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database, &SloppyParsingParameters::default()))
                 .collect::<Result<Vec<LinearPeptide<SemiAmbiguous>>, CustomError>>();
         base_peak_intensity: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         carbamidomethyl_c_probabilities: String, |location: Location, _| Ok(location.get_string());
