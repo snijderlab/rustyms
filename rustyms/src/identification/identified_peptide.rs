@@ -99,6 +99,24 @@ impl<'a> ReturnedPeptide<'a> {
             Self::Peptidoform(p) => Cow::Borrowed(p),
         }
     }
+    /// Display this peptidoform.
+    /// `specification_compliant` Displays this peptidoform either normalised to the internal representation or as fully spec compliant ProForma
+    /// (no glycan structure or custom modifications).
+    /// # Panics
+    /// When some peptides do not have the same global isotope modifications.
+    /// # Errors
+    /// If the underlying formatter errors.
+    pub fn display(
+        &self,
+        f: &mut impl std::fmt::Write,
+        show_global_mods: bool,
+        specification_compliant: bool,
+    ) -> std::fmt::Result {
+        match self {
+            Self::Linear(p) => p.display(f, show_global_mods, specification_compliant),
+            Self::Peptidoform(p) => p.display(f, show_global_mods, specification_compliant),
+        }
+    }
 }
 
 impl IdentifiedPeptide {

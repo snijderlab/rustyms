@@ -54,8 +54,8 @@ format_family!(
 
                     let mut peptidoform = Peptidoform::new(vec![pep1, pep2]).unwrap();
                     peptidoform.add_cross_link(
-                        (0, SequencePosition::Index(pos1.0)),
-                        (1, SequencePosition::Index(pos2.0)),
+                        (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
+                        (1, SequencePosition::Index(pos2.0.saturating_sub(1))),
                         SimpleModification::Mass(Mass::default().into()),
                         CrossLinkName::Name("1".to_string()),
                     );
@@ -66,8 +66,8 @@ format_family!(
 
                     let mut peptidoform = Peptidoform::new(vec![pep]).unwrap();
                     peptidoform.add_cross_link(
-                        (0, SequencePosition::Index(pos1.0)),
-                        (0, SequencePosition::Index(pos2.0)),
+                        (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
+                        (0, SequencePosition::Index(pos2.0.saturating_sub(1))),
                         SimpleModification::Mass(Mass::default().into()),
                         CrossLinkName::Name("1".to_string()),
                     );
@@ -75,7 +75,7 @@ format_family!(
                 }
                 (pep1, Some(pos1), None, None) => {
                     let mut pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
-                    pep[SequencePosition::Index(pos1.0)].modifications.push(SimpleModification::Mass(Mass::default().into()).into());
+                    pep[SequencePosition::Index(pos1.0.saturating_sub(1))].modifications.push(SimpleModification::Mass(Mass::default().into()).into());
 
                     Ok(Peptidoform::new(vec![pep]).unwrap())
                 }
@@ -87,7 +87,7 @@ format_family!(
                 _ => unreachable!()
             }
         };
-        /// All modifications with their attachement, and their index (into the full peptidoform, so anything bigger then the first peptide matches in the second)
+        /// All modifications with their attachment, and their index (into the full peptidoform, so anything bigger then the first peptide matches in the second)
         ptm: Vec<(SimpleModification, ModificationPosition, usize)>, |location: Location, custom_database: Option<&CustomDatabase>|
             location.ignore("null").array(';').map(|v| {
                 let v = v.trim();
@@ -108,7 +108,7 @@ format_family!(
                         v.context()))?;
                 let location = v.full_line()[v.location.start+location_start+1..v.location.start+position_start-1].parse::<ModificationPosition>().unwrap();
 
-                Ok((Modification::sloppy_modification(v.full_line(), v.location.start..v.location.start+location_start, None, custom_database)?, location, position - 1))
+                Ok((Modification::sloppy_modification(v.full_line(), v.location.start..v.location.start+location_start, None, custom_database)?, location, position.saturating_sub(1)))
             }
         ).collect::<Result<Vec<_>,_>>();
         refined_score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
@@ -391,11 +391,11 @@ pub enum PLinkPeptideType {
     #[default]
     /// No cross-linkers
     Common,
-    /// A cross-linker, but hydrolsed/monolinker
+    /// A cross-linker, but hydrolysed/monolinker
     Hydrolysed,
     /// A cross-linker binding to the same peptide in a loop
     LoopLink,
-    /// A cross-linker binding to a different peptide (altough the peptide can be identical)
+    /// A cross-linker binding to a different peptide (although the peptide can be identical)
     IntraLink,
 }
 
@@ -409,6 +409,21 @@ impl std::str::FromStr for PLinkPeptideType {
             "3" => Ok(Self::IntraLink),
             _ => Err(()),
         }
+    }
+}
+
+impl std::fmt::Display for PLinkPeptideType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Common => "Common",
+                Self::Hydrolysed => "Hydrolysed",
+                Self::LoopLink => "Loop link",
+                Self::IntraLink => "Intra link",
+            }
+        )
     }
 }
 
