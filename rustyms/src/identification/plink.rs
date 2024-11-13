@@ -2,6 +2,7 @@ use std::{ops::Range, path::PathBuf};
 
 use crate::{
     error::{Context, CustomError},
+    formula::Chemical,
     helper_functions::{explain_number_error, InvertResult},
     identification::{
         common_parser::{Location, OptionalColumn, OptionalLocation},
@@ -10,10 +11,13 @@ use crate::{
         BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
         Modification,
     },
+    modification::Ontology,
     molecular_formula,
     ontologies::CustomDatabase,
     system::{usize::Charge, Mass},
+    tolerance::WithinTolerance,
     CrossLinkName, LinearPeptide, Peptidoform, SequencePosition, SloppyParsingParameters,
+    Tolerance,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -133,7 +137,143 @@ format_family!(
         scan: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         raw_file: PathBuf, |location: Location, _| Ok(Some(location.get_string().into()));
     }
+
+    fn post_process(source: &CsvLine, mut parsed: Self, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
+        // Add all modifications
+        for (m, pos, index) in &parsed.ptm {
+            match pos {
+                ModificationPosition::NTerm => {
+                    if *index == 0 {
+                        parsed.peptidoform.peptides_mut()[0].set_simple_n_term(Some(m.clone()));
+                    } else if parsed.peptidoform.peptides().len() > 1
+                        && *index == parsed.peptidoform.peptides()[0].len()
+                    {
+                        parsed.peptidoform.peptides_mut()[1].set_simple_n_term(Some(m.clone()));
+                    } else {
+                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is not correctly placed on a N terminal amino acid", index+1), source.full_context()))
+                    }
+                }
+                ModificationPosition::CTerm => {
+                    if *index == parsed.peptidoform.peptides()[0].len() - 1 {
+                        parsed.peptidoform.peptides_mut()[0].set_simple_c_term(Some(m.clone()));
+                    } else if parsed.peptidoform.peptides().len() > 1
+                        && *index
+                            == parsed.peptidoform.peptides()[0].len()
+                                + parsed.peptidoform.peptides()[1].len()
+                                - 1
+                    {
+                        parsed.peptidoform.peptides_mut()[1].set_simple_c_term(Some(m.clone()));
+                    } else {
+                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is not correctly placed on a C terminal amino acid", index+1), source.full_context()))
+                    }
+                }
+                ModificationPosition::Sidechain => {
+                    let l0 = parsed.peptidoform.peptides()[0].len();
+                    if *index < l0 {
+                        parsed.peptidoform.peptides_mut()[0][SequencePosition::Index(*index)]
+                            .modifications
+                            .push(m.clone().into());
+                    } else if parsed.peptidoform.peptides().len() > 1
+                        && *index < l0 + parsed.peptidoform.peptides()[1].len()
+                    {
+                        parsed.peptidoform.peptides_mut()[1][SequencePosition::Index(index - l0)]
+                            .modifications
+                            .push(m.clone().into());
+                    } else {
+                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is out of range of the given peptides", index+1), source.full_context()))
+                    }
+                }
+            }
+        }
+
+        if parsed.peptide_type != PLinkPeptideType::Common {
+            // Find linker based on left over mass
+            let left_over = parsed.theoretical_mass
+                - molecular_formula!(H 1 Electron -1).monoisotopic_mass()
+                - parsed
+                    .peptidoform
+                    .formulas()
+                    .first()
+                    .unwrap()
+                    .monoisotopic_mass()
+                    - (parsed.peptide_type == PLinkPeptideType::Hydrolysed).then(|| molecular_formula!(H 2 O 1).monoisotopic_mass()).unwrap_or_default();
+
+            let known_linkers = KNOWN_CROSS_LINKERS
+            .get_or_init(|| [
+                Ontology::Unimod.find_id(1898, None).unwrap(), // DSS: U:Xlink:DSS[138]
+                Ontology::Xlmod.find_id(2002, None).unwrap(), // DSS heavy: X:DSS-d4
+                Ontology::Psimod.find_id(34, None).unwrap(), // Disulfide: M:L-cystine (cross-link)
+                Ontology::Unimod.find_id(1905, None).unwrap(), // BS2G: U:Xlink:BS2G[96]
+                Ontology::Xlmod.find_id(2008, None).unwrap(), // BS2G heavy: X:BS2G-d4
+                Ontology::Xlmod.find_id(2010, None).unwrap(), // DMTMM: X:1-ethyl-3-(3-Dimethylaminopropyl)carbodiimide hydrochloride
+                Ontology::Unimod.find_id(1896, None).unwrap(), // DSSO: U:Xlink:DSSO[158]
+            ].into_iter().map(|m| (m.formula().monoisotopic_mass(), m)).collect());
+            let custom_linkers = custom_database.map_or(
+                Vec::new(),
+                |c| c.iter().filter(|(_,_,m)|
+                    matches!(m, SimpleModification::Linker{..})).map(|(_,_,m)| (m.formula().monoisotopic_mass(), m.clone())
+                ).collect());
+
+            let fitting = known_linkers.iter().chain(custom_linkers.iter()).filter(|(mass, _)| Tolerance::<Mass>::new_ppm(20.0).within(mass, &left_over)).map(|(_, m)| m).collect_vec();
+
+            match fitting.len() {
+                0 => return Err(CustomError::error("Invalid pLink peptide", format!("The correct cross-linker could not be identified with mass {:.3} Da, if a non default cross-linker was used add this as a custom linker modification.", left_over.value), source.full_context())),
+                1 => {
+                    // Replace 0 mass mod + determine Nterm or side chain
+                    for p in parsed.peptidoform.peptides_mut() {
+                        let mut n_term = p.get_n_term().cloned();
+                        let mut c_term = p.get_c_term().cloned();
+                        let len = p.len();
+                        for (seq_index, seq) in p.sequence_mut().iter_mut().enumerate() {
+                            let is_n_term = seq_index == 0;
+                            let is_c_term = seq_index == len;
+                            let seq_clone = seq.clone();
+                            let mut remove = None;
+                            for (index, m) in seq.modifications.iter_mut().enumerate() {
+                                if let Modification::CrossLink{name, ref mut linker, ..} = m{
+                                    if name == &CrossLinkName::Name("1".to_string()) {
+                                        *linker = fitting[0].clone();
+
+                                        if is_n_term && m.is_possible(&seq_clone, SequencePosition::NTerm).any_possible() && n_term.is_none() {
+                                            remove = Some(index);
+                                            n_term = Some(m.clone());
+                                        } else if is_c_term && m.is_possible(&seq_clone, SequencePosition::CTerm).any_possible() && c_term.is_none() {
+                                            remove = Some(index);
+                                            c_term = Some(m.clone());
+                                        }
+                                    }
+                                } else if Modification::Simple(SimpleModification::Mass(Mass::default().into())) == *m {
+                                    *m = Modification::Simple(fitting[0].clone());
+                                }
+                            }
+                            if let Some(i) = remove {
+                                seq.modifications.remove(i);
+                            }
+                        }
+                        p.set_n_term(n_term);
+                        p.set_c_term(c_term);
+                    }
+                },
+                _ => return Err(CustomError::error("Invalid pLink peptide", "The correct cross-linker could not be identified, there are multiple cross-linkers within the tolerance bounds.", source.full_context())),
+            }
+        }
+
+        if let Some(m) = IDENTIFER_REGEX
+            .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+.\d+.\w+").unwrap())
+            .captures(&parsed.title)
+        {
+            parsed.raw_file = Some(m.get(1).unwrap().as_str().into());
+            parsed.scan = Some(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
+        }
+        Ok(parsed)
+    }
 );
+
+/// The Regex to match against pLink title fields
+static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+/// The static known cross-linkers
+static KNOWN_CROSS_LINKERS: std::sync::OnceLock<Vec<(Mass, SimpleModification)>> =
+    std::sync::OnceLock::new();
 
 fn plink_separate(
     location: Location<'_>,
@@ -236,72 +376,8 @@ fn plink_separate(
     }
 }
 
-/// The Regex to match against pLink title fields
-static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-
-#[allow(clippy::fallible_impl_from)] // Is not fallible but not guarenteed by the compiler
 impl From<PLinkData> for IdentifiedPeptide {
-    fn from(mut value: PLinkData) -> Self {
-        // Add all modifications
-        for (m, pos, index) in &value.ptm {
-            match pos {
-                ModificationPosition::NTerm => {
-                    if *index == 0 {
-                        value.peptidoform.peptides_mut()[0].set_simple_n_term(Some(m.clone()));
-                    } else if value.peptidoform.peptides().len() > 1
-                        && *index == value.peptidoform.peptides()[0].len()
-                    {
-                        value.peptidoform.peptides_mut()[1].set_simple_n_term(Some(m.clone()));
-                    }
-                }
-                ModificationPosition::CTerm => {
-                    if *index == value.peptidoform.peptides()[0].len() - 1 {
-                        value.peptidoform.peptides_mut()[0].set_simple_c_term(Some(m.clone()));
-                    } else if value.peptidoform.peptides().len() > 1
-                        && *index
-                            == value.peptidoform.peptides()[0].len()
-                                + value.peptidoform.peptides()[1].len()
-                                - 1
-                    {
-                        value.peptidoform.peptides_mut()[1].set_simple_c_term(Some(m.clone()));
-                    }
-                }
-                ModificationPosition::Sidechain => {
-                    let l0 = value.peptidoform.peptides()[0].len();
-                    if *index < l0 {
-                        value.peptidoform.peptides_mut()[0][SequencePosition::Index(*index)]
-                            .modifications
-                            .push(m.clone().into());
-                    } else if value.peptidoform.peptides().len() > 1
-                        && *index < l0 + value.peptidoform.peptides()[1].len()
-                    {
-                        value.peptidoform.peptides_mut()[1][SequencePosition::Index(index - l0)]
-                            .modifications
-                            .push(m.clone().into());
-                    }
-                }
-            }
-        }
-
-        // Find linker based on left over mass
-        let left_over = value.theoretical_mass
-            - molecular_formula!(H 1 Electron -1).monoisotopic_mass()
-            - value
-                .peptidoform
-                .formulas()
-                .first()
-                .unwrap()
-                .monoisotopic_mass();
-        dbg!(left_over);
-
-        if let Some(m) = IDENTIFER_REGEX
-            .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+.\d+.\w+").unwrap())
-            .captures(&value.title)
-        {
-            value.raw_file = Some(m.get(1).unwrap().as_str().into());
-            value.scan = Some(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
-        }
-
+    fn from(value: PLinkData) -> Self {
         Self {
             score: Some(1.0 - value.score),
             metadata: MetaData::PLink(value),

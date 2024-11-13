@@ -13,7 +13,8 @@ macro_rules! format_family {
      $data:ident,
      $version:ident, $versions:expr, $separator:expr;
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
-     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}) => {
+     optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}
+     $($post_process:item)?) => {
         use super::common_parser::{HasLocation};
 
         #[non_exhaustive]
@@ -84,12 +85,14 @@ macro_rules! format_family {
             }
             #[allow(clippy::redundant_closure_call)] // Macro magic
             fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
-                Ok(Self {
+                let parsed = Self {
                     $($rname: $rf(source.column(format.$rname)?, custom_database)?,)*
                     $($oname: format.$oname.open_column(source).and_then(|l: Option<Location>| l.map(|value: Location| $of(value, custom_database)).invert())?,)*
                     version: format.version.clone()
-                })
+                };
+                Self::post_process(source, parsed, custom_database)
             }
+            $($post_process)?
         }
     };
 }

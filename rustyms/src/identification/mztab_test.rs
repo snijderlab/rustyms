@@ -84,6 +84,8 @@ fn open_file(reader: impl BufRead) -> Result<usize, CustomError> {
         assert!(
             read.peptide()
                 .unwrap()
+                .peptide()
+                .unwrap()
                 .sequence()
                 .iter()
                 .all(|s| s.modifications.iter().all(|m| !matches!(

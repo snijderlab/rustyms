@@ -1,23 +1,27 @@
-use std::{fmt::Display, path::PathBuf};
+use std::{borrow::Cow, fmt::Display, path::PathBuf};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    deepnovofamily::DeepNovoFamilyData, fasta::FastaData, novor::NovorData, opair::OpairData,
-    peaks::PeaksData, plink::PLinkData, system::MassOverCharge, MSFraggerData, MZTabData,
-    MaxQuantData, SageData,
-};
-
 use crate::{
-    error::CustomError, ontologies::CustomDatabase, peptide::SemiAmbiguous, system::usize::Charge,
-    system::Time, LinearPeptide,
+    error::CustomError,
+    formula::MultiChemical,
+    identification::{
+        deepnovofamily::DeepNovoFamilyData, fasta::FastaData, novor::NovorData, opair::OpairData,
+        peaks::PeaksData, plink::PLinkData, system::MassOverCharge, MSFraggerData, MZTabData,
+        MaxQuantData, SageData,
+    },
+    ontologies::CustomDatabase,
+    peptide::SemiAmbiguous,
+    system::usize::Charge,
+    system::Time,
+    LinearPeptide, Peptidoform,
 };
 
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
-    /// The score -1.0..=1.0 if available in the original format
+    /// The score -1.0..=1.0 if a score was available in the original format
     pub score: Option<f64>,
     /// The full metadata of this peptide
     pub metadata: MetaData,
@@ -48,20 +52,73 @@ pub enum MetaData {
     Sage(SageData),
 }
 
+/// A peptide as stored in a identified peptide file, either a simple linear one or a cross-linked peptidoform
+#[derive(Debug, Clone, Copy)]
+pub enum ReturnedPeptide<'a> {
+    /// A simple linear peptide
+    Linear(&'a LinearPeptide<SemiAmbiguous>),
+    /// A (potentially) cross-linked peptidoform
+    Peptidoform(&'a Peptidoform),
+}
+
+impl<'a> MultiChemical for ReturnedPeptide<'a> {
+    fn formulas_inner(
+        &self,
+        _sequence_index: super::SequencePosition,
+        _peptide_index: usize,
+    ) -> super::Multi<super::MolecularFormula> {
+        match self {
+            Self::Linear(p) => p.formulas(),
+            Self::Peptidoform(p) => p.formulas(),
+        }
+    }
+}
+
+impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Linear(p) => write!(f, "{p}"),
+            Self::Peptidoform(p) => write!(f, "{p}"),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl<'a> ReturnedPeptide<'a> {
+    /// Get the underlying peptide, or None if the underlying result was a peptidoform
+    pub const fn peptide(self) -> Option<&'a LinearPeptide<SemiAmbiguous>> {
+        match self {
+            Self::Linear(p) => Some(p),
+            Self::Peptidoform(_) => None,
+        }
+    }
+    /// Get the underlying result as a peptidoform, if it was a peptide make a new peptidoform from it
+    pub fn peptidoform(self) -> Cow<'a, Peptidoform> {
+        match self {
+            Self::Linear(p) => Cow::Owned(p.clone().into()),
+            Self::Peptidoform(p) => Cow::Borrowed(p),
+        }
+    }
+}
+
 impl IdentifiedPeptide {
-    /// Get the peptide
-    pub const fn peptide(&self) -> Option<&LinearPeptide<SemiAmbiguous>> {
+    /// Get the peptide, as pLink can have cross-linked peptides the return type is either a simple peptide or a cross-linked peptidoform
+    pub fn peptide(&self) -> Option<ReturnedPeptide<'_>> {
         match &self.metadata {
             MetaData::Peaks(PeaksData { peptide, .. })
             | MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::MZTab(MZTabData { peptide, .. }) => Some(peptide),
+            | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
-            | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => peptide.as_ref(),
-            MetaData::Fasta(f) => Some(f.peptide()),
-            MetaData::PLink(_) => None, //TODO: fix in one way or another
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
+                peptide.as_ref().map(ReturnedPeptide::Linear)
+            }
+            MetaData::Fasta(f) => Some(ReturnedPeptide::Linear(f.peptide())),
+            MetaData::PLink(PLinkData { peptidoform, .. }) => {
+                Some(ReturnedPeptide::Peptidoform(peptidoform))
+            }
         }
     }
 
@@ -367,10 +424,13 @@ where
 {
     /// The source data where the peptides are parsed form
     type Source;
+
     /// The format type
     type Format: Clone;
+
     /// The version type
     type Version;
+
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors
     /// When the source is not a valid peptide
@@ -378,6 +438,7 @@ where
         source: &Self::Source,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<(Self, &'static Self::Format), CustomError>;
+
     /// Parse a single identified peptide with the given format
     /// # Errors
     /// When the source is not a valid peptide
@@ -386,6 +447,7 @@ where
         format: &Self::Format,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Self, CustomError>;
+
     /// Parse a source of multiple peptides automatically determining the format to use by the first item
     /// # Errors
     /// When the source is not a valid peptide
@@ -400,6 +462,7 @@ where
             peek: None,
         }
     }
+
     /// Parse a file with identified peptides.
     /// # Errors
     /// Returns Err when the file could not be opened
@@ -407,6 +470,7 @@ where
         path: impl AsRef<std::path::Path>,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError>;
+
     /// Parse a reader with identified peptides.
     /// # Errors
     /// When the file is empty or no headers are present.
@@ -414,6 +478,18 @@ where
         reader: impl std::io::Read + 'a,
         custom_database: Option<&'a CustomDatabase>,
     ) -> Result<BoxedIdentifiedPeptideIter<'a, Self>, CustomError>;
+
+    /// Allow post processing of the peptide
+    /// # Errors
+    /// On errors in the post processing, format specific
+    #[allow(unused_variables)]
+    fn post_process(
+        source: &Self::Source,
+        parsed: Self,
+        custom_database: Option<&CustomDatabase>,
+    ) -> Result<Self, CustomError> {
+        Ok(parsed)
+    }
 }
 
 /// Convenience type to not have to type out long iterator types
@@ -541,7 +617,11 @@ where
         let peptide: IdentifiedPeptide = peptide.map_err(|e| e.to_string())?.into();
         number += 1;
 
-        if peptide.peptide().map(LinearPeptide::len) != peptide.local_confidence().map(<[f64]>::len)
+        if peptide
+            .peptide()
+            .and_then(|p| p.peptide())
+            .map(LinearPeptide::len)
+            != peptide.local_confidence().map(<[f64]>::len)
         {
             if expect_lc && peptide.local_confidence().is_none() {
                 return Err(format!(
@@ -549,7 +629,7 @@ where
                     peptide.id()
                 ));
             } else if peptide.local_confidence().is_some() {
-                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().map_or(0, LinearPeptide::len), peptide.id()));
+                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(|p| p.peptide()).map_or(0, LinearPeptide::len), peptide.id()));
             }
         }
         if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
@@ -571,14 +651,16 @@ where
         }
         if !allow_mass_mods
             && peptide.peptide().is_some_and(|p| {
-                p.sequence().iter().any(|s| {
-                    s.modifications.iter().any(|m| {
-                        matches!(
-                            m,
-                            crate::Modification::Simple(
-                                crate::modification::SimpleModification::Mass(_)
+                p.peptidoform().peptides().iter().any(|p| {
+                    p.sequence().iter().any(|s| {
+                        s.modifications.iter().any(|m| {
+                            matches!(
+                                m,
+                                crate::Modification::Simple(
+                                    crate::modification::SimpleModification::Mass(_)
+                                )
                             )
-                        )
+                        })
                     })
                 })
             })

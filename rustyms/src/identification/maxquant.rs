@@ -30,7 +30,7 @@ format_family!(
     MaxQuantFormat,
     /// The data from any MaxQuant file
     MaxQuantData,
-    MaxQuantVersion, [&MSMS, &MSMS_SCANS, &NOVO_MSMS_SCANS, &SILAC], b'\t';
+    MaxQuantVersion, [&MSMS, &NOVO_MSMS_SCANS, &MSMS_SCANS, &SILAC], b'\t';
     required {
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan: Vec<usize>, |location: Location, _| location.or_empty().array(';').map(|s| s.parse(NUMBER_ERROR)).collect::<Result<Vec<usize>, CustomError>>();
@@ -105,7 +105,8 @@ format_family!(
 impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
-            score: Some(value.score),
+            score: (!value.score.is_nan())
+                .then(|| 2.0 * (1.0 - 1.0 / (1.0 + (-value.score).exp()))),
             metadata: MetaData::MaxQuant(value),
         }
     }
@@ -282,7 +283,7 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     dn_n_mass: OptionalColumn::Required("dn nterm mass"),
     dn_sequence: OptionalColumn::Required("dn sequence"),
     evidence_id: OptionalColumn::NotAvailable,
-    experiment: OptionalColumn::NotAvailable,
+    experiment: OptionalColumn::Optional("experiment"),
     fragmentation: OptionalColumn::Required("fragmentation"),
     genes: OptionalColumn::NotAvailable,
     id: OptionalColumn::NotAvailable,

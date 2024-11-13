@@ -1,93 +1,91 @@
 #![allow(clippy::missing_panics_doc)]
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 
-use super::error::CustomError;
-use super::{maxquant, IdentifiedPeptide, IdentifiedPeptideSource, MaxQuantData, MaxQuantFormat};
-
-use super::csv::parse_csv_raw;
+use crate::identification::{test_format, MaxQuantData, MaxQuantVersion};
 
 #[test]
 fn maxquant_msms() {
-    assert_eq!(
-        open_file(
-            BufReader::new(MAXQUANT_MSMS.as_bytes()),
-            &maxquant::MSMS,
-            None
-        )
-        .unwrap(),
-        19
-    );
+    match test_format::<MaxQuantData>(
+        BufReader::new(MAXQUANT_MSMS.as_bytes()),
+        None,
+        false,
+        false,
+        Some(MaxQuantVersion::MSMS),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
 }
 
 #[test]
 fn maxquant_msms_scans() {
-    assert_eq!(
-        open_file(
-            BufReader::new(MAXQUANT_MSMS_SCANS.as_bytes()),
-            &maxquant::MSMS_SCANS,
-            None
-        )
-        .unwrap(),
-        19
-    );
+    match test_format::<MaxQuantData>(
+        BufReader::new(MAXQUANT_MSMS_SCANS.as_bytes()),
+        None,
+        false,
+        false,
+        Some(MaxQuantVersion::MSMSScans),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
 }
 
 #[test]
 fn maxquant_novo_msms_scans() {
-    assert_eq!(
-        open_file(
-            BufReader::new(MAXQUANT_NOVO_MSMS_SCANS.as_bytes()),
-            &maxquant::NOVO_MSMS_SCANS,
-            None
-        )
-        .unwrap(),
-        19
-    );
+    match test_format::<MaxQuantData>(
+        BufReader::new(MAXQUANT_NOVO_MSMS_SCANS.as_bytes()),
+        None,
+        false,
+        false,
+        Some(MaxQuantVersion::NovoMSMSScans),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
 }
 
 #[test]
 fn maxquant_novo_msms_scans_new() {
-    assert_eq!(
-        open_file(
-            BufReader::new(MAXQUANT_NOVO_MSMS_SCANS_NEW.as_bytes()),
-            &maxquant::NOVO_MSMS_SCANS,
-            None
-        )
-        .unwrap(),
-        19
-    );
+    match test_format::<MaxQuantData>(
+        BufReader::new(MAXQUANT_NOVO_MSMS_SCANS_NEW.as_bytes()),
+        None,
+        false,
+        false,
+        Some(MaxQuantVersion::NovoMSMSScans),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
 }
 
 #[test]
 fn maxquant_silac() {
-    assert_eq!(
-        open_file(
-            BufReader::new(MAXQUANT_SILAC.as_bytes()),
-            &maxquant::SILAC,
-            None
-        )
-        .unwrap(),
-        19
-    );
-}
-
-/// Open a MaxQuant file from the given reader.
-/// # Errors
-/// If any part of the process errors.
-fn open_file(
-    reader: impl Read,
-    format: &MaxQuantFormat,
-    custom_database: Option<&super::ontologies::CustomDatabase>,
-) -> Result<usize, CustomError> {
-    let lines = parse_csv_raw(reader, b'\t', None)?;
-    let mut num_lines = 0;
-    for line in lines {
-        let line = line?;
-        let _read: IdentifiedPeptide =
-            MaxQuantData::parse_specific(&line, format, custom_database)?.into();
-        num_lines += 1;
+    match test_format::<MaxQuantData>(
+        BufReader::new(MAXQUANT_SILAC.as_bytes()),
+        None,
+        false,
+        false,
+        Some(MaxQuantVersion::Silac),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
-    Ok(num_lines)
 }
 
 const MAXQUANT_MSMS: &str = "Raw file	Scan number	Scan index	Sequence	Length	Missed cleavages	Modifications	Modified sequence	Oxidation (M) Probabilities	oxidation(w) Probabilities	Oxidation (M) Score diffs	oxidation(w) Score diffs	Gln->pyro-Glu	Glu->pyro-Glu	Oxidation (M)	oxidation(w)	Proteins	Charge	Fragmentation	Mass analyzer	Type	Scan event number	Isotope index	m/z	Mass	Mass error [ppm]	Mass error [Da]	Simple mass error [ppm]	Retention time	PEP	Score	Delta score	Score diff	Localization prob	Combinatorics	PIF	Fraction of total spectrum	Base peak fraction	Precursor full scan number	Precursor Intensity	Precursor apex fraction	Precursor apex offset	Precursor apex offset time	Matches	Intensities	Mass deviations [Da]	Mass deviations [ppm]	Masses	Number of matches	Intensity coverage	Peak coverage	Unfragmented precursor intensity	Unfragmented precursor fraction	Neutral loss level	ETD identification type	Reverse	All scores	All sequences	All modified sequences	MS3 scan numbers	Reporter PIF	Reporter fraction	id	Protein group IDs	Peptide ID	Mod. peptide ID	Evidence ID	Oxidation (M) site IDs	oxidation(w) site IDs	Mass deficit

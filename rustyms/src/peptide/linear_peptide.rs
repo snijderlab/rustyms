@@ -1201,6 +1201,16 @@ impl LinearPeptide<Linked> {
             SequencePosition::Index(index) => self.sequence[index].modifications.push(modification),
         }
     }
+
+    /// Set the N terminal modification
+    pub fn set_n_term(&mut self, modification: Option<Modification>) {
+        self.n_term = modification;
+    }
+
+    /// Set the C terminal modification
+    pub fn set_c_term(&mut self, modification: Option<Modification>) {
+        self.c_term = modification;
+    }
 }
 
 impl LinearPeptide<Linear> {
