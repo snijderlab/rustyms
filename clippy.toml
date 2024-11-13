@@ -12,6 +12,8 @@ doc-valid-idents = [
     "PGPointNovo",
     "PointNovo",
     "BiatNovo",
+    "DeepNovoFamily",
+    "PointNovoFamily",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

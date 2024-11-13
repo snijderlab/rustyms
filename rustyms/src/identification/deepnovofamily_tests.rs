@@ -33,7 +33,7 @@ fn pgpointnovo() {
     for line in lines.map(Result::unwrap) {
         println!("{line}");
         let read: IdentifiedPeptide =
-            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::PGPOINTNOVO_V1_0_6, None)
+            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::POINTNOVOFAMILY, None)
                 .unwrap()
                 .into();
         peptides += 1;
@@ -53,7 +53,7 @@ fn pointnovo() {
     for line in lines.map(Result::unwrap) {
         println!("{line}");
         let read: IdentifiedPeptide =
-            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::POINTNOVO_V0_0_1, None)
+            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::POINTNOVOFAMILY, None)
                 .unwrap()
                 .into();
         peptides += 1;
@@ -73,7 +73,7 @@ fn biatnovo() {
     for line in lines.map(Result::unwrap) {
         println!("{line}");
         let read: IdentifiedPeptide =
-            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::BIATNOVO_V0_1, None)
+            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::POINTNOVOFAMILY, None)
                 .unwrap()
                 .into();
         peptides += 1;
