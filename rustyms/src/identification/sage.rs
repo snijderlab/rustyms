@@ -82,7 +82,7 @@ impl From<SageData> for IdentifiedPeptide {
 
 /// An older version of a Sage export
 pub const VERSION_0_14: SageFormat = SageFormat {
-    version: SageVersion::Version_0_14,
+    version: SageVersion::V0_14,
     id: "psm_id",
     peptide: "peptide",
     proteins: "proteins",
@@ -127,7 +127,7 @@ pub const VERSION_0_14: SageFormat = SageFormat {
 pub enum SageVersion {
     /// Current sage version
     #[default]
-    Version_0_14,
+    V0_14,
 }
 
 impl std::fmt::Display for SageVersion {
@@ -136,7 +136,7 @@ impl std::fmt::Display for SageVersion {
             f,
             "{}",
             match self {
-                Self::Version_0_14 => "v0.14",
+                Self::V0_14 => "v0.14",
             }
         )
     }

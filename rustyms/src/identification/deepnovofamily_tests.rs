@@ -1,50 +1,40 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use crate::identification::DeepNovoFamilyData;
-
-use super::IdentifiedPeptideSource;
-
-use super::{csv::parse_csv_raw, deepnovofamily, IdentifiedPeptide};
+use crate::identification::{test_format, DeepNovoFamilyData, DeepNovoFamilyVersion};
 
 #[test]
 fn deepnovo() {
-    let reader = BufReader::new(DEEPNOVO_V0_0_1.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    let mut peptides = 0;
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let read: IdentifiedPeptide =
-            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::DEEPNOVO_V0_0_1, None)
-                .unwrap()
-                .into();
-        peptides += 1;
-        assert_eq!(
-            read.peptide().map(|p| p.len()),
-            read.local_confidence().map(|l| l.len())
-        );
+    match test_format::<DeepNovoFamilyData>(
+        BufReader::new(DEEPNOVO_V0_0_1.as_bytes()),
+        None,
+        false,
+        true,
+        Some(DeepNovoFamilyVersion::DeepNovoV0_0_1),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
-    assert_eq!(peptides, 19);
 }
 
 #[test]
 fn pgpointnovo() {
-    let reader = BufReader::new(PGPOINTNOVO_V1_0_6.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    let mut peptides = 0;
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let read: IdentifiedPeptide =
-            DeepNovoFamilyData::parse_specific(&line, &deepnovofamily::PGPOINTNOVO_V1_0_6, None)
-                .unwrap()
-                .into();
-        peptides += 1;
-        assert_eq!(
-            read.peptide().map(|p| p.len()),
-            read.local_confidence().map(|l| l.len())
-        );
+    match test_format::<DeepNovoFamilyData>(
+        BufReader::new(PGPOINTNOVO_V1_0_6.as_bytes()),
+        None,
+        false,
+        true,
+        Some(DeepNovoFamilyVersion::PGPointNovoV1_0_6),
+    ) {
+        Ok(n) => assert_eq!(n, 20),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
-    assert_eq!(peptides, 20);
 }
 
 const DEEPNOVO_V0_0_1: &str = "scan	predicted_sequence	predicted_score	predicted_position_score

@@ -1,19 +1,22 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use super::IdentifiedPeptideSource;
-
-use super::{csv::parse_csv_raw, opair, IdentifiedPeptide, OpairData};
+use crate::identification::{test_format, OpairData, OpairVersion};
 
 #[test]
 fn opair() {
-    let reader = BufReader::new(DATA.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = OpairData::parse_specific(&line, &opair::O_PAIR, None)
-            .unwrap()
-            .into();
+    match test_format::<OpairData>(
+        BufReader::new(DATA.as_bytes()),
+        None,
+        false,
+        false,
+        Some(OpairVersion::Opair),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 

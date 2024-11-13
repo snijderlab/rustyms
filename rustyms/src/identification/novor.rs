@@ -47,7 +47,6 @@ format_family!(
             }) // Skip the F of the F{num} definition
             .parse::<usize>(NUMBER_ERROR);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        length: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         peptide_no_ptm: String, |location: Location, _| Ok(Some(location.get_string()));
         protein: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         protein_start: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
@@ -122,7 +121,6 @@ pub const OLD_DENOVO: NovorFormat = NovorFormat {
     spectra_id: OptionalColumn::NotAvailable,
     fraction: OptionalColumn::Required("fraction"),
     rt: OptionalColumn::NotAvailable,
-    length: OptionalColumn::Required("length"),
     peptide_no_ptm: OptionalColumn::NotAvailable,
     protein: OptionalColumn::NotAvailable,
     protein_start: OptionalColumn::NotAvailable,
@@ -157,7 +155,6 @@ pub const OLD_PSM: NovorFormat = NovorFormat {
     spectra_id: OptionalColumn::NotAvailable,
     fraction: OptionalColumn::Required("fraction"),
     rt: OptionalColumn::NotAvailable,
-    length: OptionalColumn::NotAvailable,
     peptide_no_ptm: OptionalColumn::NotAvailable,
     protein: OptionalColumn::Required("# proteins"),
     protein_start: OptionalColumn::NotAvailable,
@@ -178,11 +175,10 @@ pub const NEW_DENOVO: NovorFormat = NovorFormat {
     peptide: "peptide",
     id: OptionalColumn::Required("# id"),
     spectra_id: OptionalColumn::NotAvailable,
-    fraction: OptionalColumn::Required("fraction"),
-    rt: OptionalColumn::NotAvailable,
-    length: OptionalColumn::NotAvailable,
+    fraction: OptionalColumn::NotAvailable,
+    rt: OptionalColumn::Required("rt"),
     peptide_no_ptm: OptionalColumn::NotAvailable,
-    protein: OptionalColumn::Required("# proteins"),
+    protein: OptionalColumn::NotAvailable,
     protein_start: OptionalColumn::NotAvailable,
     protein_origin: OptionalColumn::NotAvailable,
     protein_all: OptionalColumn::NotAvailable,
@@ -200,10 +196,9 @@ pub const NEW_PSM: NovorFormat = NovorFormat {
     score: "score",
     peptide: "peptide",
     id: OptionalColumn::Required("#id"),
-    spectra_id: OptionalColumn::NotAvailable,
-    fraction: OptionalColumn::Required("fraction"),
-    rt: OptionalColumn::NotAvailable,
-    length: OptionalColumn::Required("length"),
+    spectra_id: OptionalColumn::Required("spectraid"),
+    fraction: OptionalColumn::NotAvailable,
+    rt: OptionalColumn::Required("rt"),
     peptide_no_ptm: OptionalColumn::Required("noptmpeptide"),
     protein: OptionalColumn::Required("protein"),
     protein_start: OptionalColumn::Required("start"),

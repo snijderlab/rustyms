@@ -1,55 +1,56 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use super::IdentifiedPeptideSource;
-
-use super::{csv::parse_csv_raw, msfragger, IdentifiedPeptide, MSFraggerData};
+use crate::identification::{test_format, MSFraggerData, MSFraggerVersion};
 
 #[test]
 fn msfragger_v21() {
-    let reader = BufReader::new(DATA_V21.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21, None)
-            .unwrap()
-            .into();
-    }
-}
-
-#[test]
-fn msfragger_v22() {
-    let reader = BufReader::new(DATA_V22.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V22, None)
-            .unwrap()
-            .into();
+    match test_format::<MSFraggerData>(
+        BufReader::new(DATA_V21.as_bytes()),
+        None,
+        true,
+        false,
+        Some(MSFraggerVersion::V21),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 
 #[test]
 fn msfragger_v21_manual() {
-    let reader = BufReader::new(DATA_V21_MANUAL.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = MSFraggerData::parse_specific(&line, &msfragger::V21, None)
-            .unwrap()
-            .into();
+    match test_format::<MSFraggerData>(
+        BufReader::new(DATA_V21_MANUAL.as_bytes()),
+        None,
+        true,
+        false,
+        Some(MSFraggerVersion::V21),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 
 #[test]
-fn msfragger_detect() {
-    let reader = BufReader::new(DATA_V21.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let result = MSFraggerData::parse(&line, None).unwrap();
-        let _read: IdentifiedPeptide = result.0.into();
-        assert_eq!(result.1, &msfragger::V21);
+fn msfragger_v22() {
+    match test_format::<MSFraggerData>(
+        BufReader::new(DATA_V22.as_bytes()),
+        None,
+        true,
+        false,
+        Some(MSFraggerVersion::V22),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 

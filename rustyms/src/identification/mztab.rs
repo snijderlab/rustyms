@@ -622,6 +622,7 @@ impl MZTabData {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 struct PSMLine<'a> {
     line_index: usize,
     header: &'a [String],

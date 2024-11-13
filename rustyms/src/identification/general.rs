@@ -5,7 +5,7 @@ use super::{
     ontologies::CustomDatabase,
     DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
     IdentifiedPeptideSource, MSFraggerData, MZTabData, MaxQuantData, NovorData, OpairData,
-    PeaksData, SageData,
+    PLinkData, PeaksData, SageData,
 };
 
 // TODO:
@@ -40,13 +40,18 @@ pub fn open_identified_peptides_file<'a>(
                     .map(IdentifiedPeptideIter::into_box)
                     .map_err(|ne| (pe, ne))
             })
-            .map_err(|(pe, ne)| {
+            .or_else(|(pe, ne)| {
+                PLinkData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|le| (pe, ne, le))
+            })
+            .map_err(|(pe, ne, le)| {
                 CustomError::error(
                     "Unknown file",
-                    "Could not be recognised as either a Peaks or Novor file",
+                    "Could not be recognised as either a Peaks, Novor, or pLink file",
                     Context::show(path.to_string_lossy()),
                 )
-                .with_underlying_errors(vec![pe, ne])
+                .with_underlying_errors(vec![pe, ne, le])
             }),
         Some("tsv") => MSFraggerData::parse_file(path, custom_database)
             .map(IdentifiedPeptideIter::into_box)
@@ -92,32 +97,41 @@ pub fn open_identified_peptides_file<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::identification::{test_format, MSFraggerVersion, SageVersion};
+    use std::fs::File;
+    use std::io::BufReader;
 
     #[test]
     fn open_sage() {
-        let peptides =
-            open_identified_peptides_file("src/identification/test_files/sage_v0_14.tsv", None)
-                .unwrap();
-        let mut num_peptides = 0;
-        for peptide in peptides {
-            let read: IdentifiedPeptide = peptide.unwrap();
-            num_peptides += 1;
-            let _ = read.peptide().unwrap();
+        match test_format::<SageData>(
+            BufReader::new(File::open("src/identification/test_files/sage_v0_14.tsv").unwrap()),
+            None,
+            true,
+            false,
+            Some(SageVersion::V0_14),
+        ) {
+            Ok(n) => assert_eq!(n, 19),
+            Err(e) => {
+                println!("{e}");
+                panic!("Failed identified peptides test");
+            }
         }
-        assert_eq!(num_peptides, 19);
     }
 
     #[test]
     fn open_msfragger() {
-        let peptides =
-            open_identified_peptides_file("src/identification/test_files/msfragger_v21.tsv", None)
-                .unwrap();
-        let mut num_peptides = 0;
-        for peptide in peptides {
-            let read: IdentifiedPeptide = peptide.unwrap();
-            num_peptides += 1;
-            let _ = read.peptide().unwrap();
+        match test_format::<MSFraggerData>(
+            BufReader::new(File::open("src/identification/test_files/msfragger_v21.tsv").unwrap()),
+            None,
+            true,
+            false,
+            Some(MSFraggerVersion::V21),
+        ) {
+            Ok(n) => assert_eq!(n, 19),
+            Err(e) => {
+                println!("{e}");
+                panic!("Failed identified peptides test");
+            }
         }
-        assert_eq!(num_peptides, 19);
     }
 }

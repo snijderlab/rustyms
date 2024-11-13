@@ -36,6 +36,7 @@ fn main() {
 
     let alignments: Vec<_> = peptides
         .par_iter()
+        .filter(|p| p.peptide().and_then(|p| p.peptide()).is_some())
         .flat_map(|peptide| {
             let alignments = database
                 .iter()
@@ -45,7 +46,7 @@ fn main() {
                         peptide,
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
                             db.peptide(),
-                            peptide.peptide().unwrap(),
+                            peptide.peptide().unwrap().peptide().unwrap(),
                             AlignScoring::default(),
                             AlignType::EITHER_GLOBAL,
                         ),
@@ -108,6 +109,7 @@ fn main() {
                     "Mass".to_string(),
                     peptide
                         .peptide()
+                        .and_then(|p| p.peptide())
                         .map_or(f64::NAN, |p| {
                             p.clone()
                                 .into_unambiguous()
@@ -121,7 +123,11 @@ fn main() {
                 ),
                 (
                     "Peptide length".to_string(),
-                    peptide.peptide().map_or(0, |p| p.len()).to_string(),
+                    peptide
+                        .peptide()
+                        .and_then(|p| p.peptide())
+                        .map_or(0, |p| p.len())
+                        .to_string(),
                 ),
                 (
                     "Retention time".to_string(),

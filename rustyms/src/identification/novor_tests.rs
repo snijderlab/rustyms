@@ -1,55 +1,56 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use super::IdentifiedPeptideSource;
-
-use super::{csv::parse_csv_raw, novor, IdentifiedPeptide, NovorData};
+use crate::identification::{test_format, NovorData, NovorVersion};
 
 #[test]
 fn novor_old_denovo() {
-    let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::OLD_DENOVO, None)
-            .unwrap()
-            .into();
+    match test_format::<NovorData>(
+        BufReader::new(DATA_OLD_DENOVO.as_bytes()),
+        None,
+        false,
+        false,
+        Some(NovorVersion::OldDenovo),
+    ) {
+        Ok(n) => assert_eq!(n, 20),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 
 #[test]
 fn novor_new_denovo() {
-    let reader = BufReader::new(DATA_NEW_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_DENOVO, None)
-            .unwrap()
-            .into();
+    match test_format::<NovorData>(
+        BufReader::new(DATA_NEW_DENOVO.as_bytes()),
+        None,
+        false,
+        false,
+        Some(NovorVersion::NewDenovo),
+    ) {
+        Ok(n) => assert_eq!(n, 20),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 
 #[test]
 fn novor_new_psm() {
-    let reader = BufReader::new(DATA_NEW_PSM.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = NovorData::parse_specific(&line, &novor::NEW_PSM, None)
-            .unwrap()
-            .into();
-    }
-}
-
-#[test]
-fn novor_detect() {
-    let reader = BufReader::new(DATA_OLD_DENOVO.as_bytes());
-    let lines = parse_csv_raw(reader, b',', None).unwrap();
-    for line in lines.map(std::result::Result::unwrap) {
-        println!("{line}");
-        let result = NovorData::parse(&line, None).unwrap();
-        let _read: IdentifiedPeptide = result.0.into();
-        assert_eq!(result.1, &novor::OLD_DENOVO);
+    match test_format::<NovorData>(
+        BufReader::new(DATA_NEW_PSM.as_bytes()),
+        None,
+        false,
+        false,
+        Some(NovorVersion::NewPSM),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 
