@@ -10,6 +10,10 @@ doc-valid-idents = [
     "PSM_ID",
     "DeepNovo",
     "PGPointNovo",
+    "PointNovo",
+    "BiatNovo",
+    "DeepNovoFamily",
+    "PointNovoFamily",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

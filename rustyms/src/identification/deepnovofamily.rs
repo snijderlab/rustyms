@@ -34,7 +34,7 @@ format_family!(
     DeepNovoFamilyFormat,
     /// The data from any DeepNovoFamily file
     DeepNovoFamilyData,
-    DeepNovoFamilyVersion, [&DEEPNOVO_V0_0_1, &PGPOINTNOVO_V1_0_6], b'\t';
+    DeepNovoFamilyVersion, [&DEEPNOVO_V0_0_1, &POINTNOVOFAMILY], b'\t';
     required {
         scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
             .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -112,9 +112,9 @@ pub const DEEPNOVO_V0_0_1: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
     z: OptionalColumn::NotAvailable,
 };
 
-/// The only known version of PGPointNovo
-pub const PGPOINTNOVO_V1_0_6: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
-    version: DeepNovoFamilyVersion::PGPointNovoV1_0_6,
+/// The only known version of the PointNovo Family
+pub const POINTNOVOFAMILY: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
+    version: DeepNovoFamilyVersion::PointNovoFamily,
     scan: "scan_list_original",
     peptide: "predicted_sequence",
     score: "predicted_score",
@@ -123,15 +123,15 @@ pub const PGPOINTNOVO_V1_0_6: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
     z: OptionalColumn::Required("precursor_charge"),
 };
 
-/// All possible DeepNovo versions
+/// All possible DeepNovoFamily versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub enum DeepNovoFamilyVersion {
     #[default]
     /// DeepNovo version 0.0.1
     DeepNovoV0_0_1,
-    /// PGPointNovo version 1.0.6
-    PGPointNovoV1_0_6,
+    /// PointNovo version 0.0.1 & PGPointNovo version 1.0.6 & BiatNovo version 0.1
+    PointNovoFamily,
 }
 
 impl std::fmt::Display for DeepNovoFamilyVersion {
@@ -141,7 +141,7 @@ impl std::fmt::Display for DeepNovoFamilyVersion {
             "{}",
             match self {
                 Self::DeepNovoV0_0_1 => "DeepNovo v0.0.1",
-                Self::PGPointNovoV1_0_6 => "PGPointNovo v1.0.6",
+                Self::PointNovoFamily => "PointNovo v0.0.1 / PGPointNovo v1.0.6 / BiatNovo v0.1",
             }
         )
     }
