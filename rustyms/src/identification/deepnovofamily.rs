@@ -123,7 +123,29 @@ pub const PGPOINTNOVO_V1_0_6: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
     z: OptionalColumn::Required("precursor_charge"),
 };
 
-/// All possible DeepNovo versions
+/// The only known version of PointNovo
+pub const POINTNOVO_V0_0_1: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
+    version: DeepNovoFamilyVersion::PointNovoV_0_0_1,
+    scan: "scan_list_original",
+    peptide: "predicted_sequence",
+    score: "predicted_score",
+    local_confidence: "predicted_position_score",
+    mz: OptionalColumn::Required("precursor_mz"),
+    z: OptionalColumn::Required("precursor_charge"),
+};
+
+/// The only known version of BiatNovo
+pub const BIATNOVO_V0_1: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
+    version: DeepNovoFamilyVersion::BIATNOVO_V0_1,
+    scan: "scan_list_original",
+    peptide: "predicted_sequence",
+    score: "predicted_score",
+    local_confidence: "predicted_position_score",
+    mz: OptionalColumn::Required("precursor_mz"),
+    z: OptionalColumn::Required("precursor_charge"),
+};
+
+/// All possible DeepNovoFamily versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub enum DeepNovoFamilyVersion {
@@ -132,6 +154,10 @@ pub enum DeepNovoFamilyVersion {
     DeepNovoV0_0_1,
     /// PGPointNovo version 1.0.6
     PGPointNovoV1_0_6,
+    /// PointNovo version 0.0.1
+    PointNovoV_0_0_1,
+    /// BiatNovo version 0.1
+    BIATNOVO_V0_1,
 }
 
 impl std::fmt::Display for DeepNovoFamilyVersion {
@@ -142,6 +168,8 @@ impl std::fmt::Display for DeepNovoFamilyVersion {
             match self {
                 Self::DeepNovoV0_0_1 => "DeepNovo v0.0.1",
                 Self::PGPointNovoV1_0_6 => "PGPointNovo v1.0.6",
+                Self::PointNovoV_0_0_1 => "PointNovo v0.0.1",
+                Self::BIATNOVO_V0_1 => "BiatNovo v0.1",
             }
         )
     }
