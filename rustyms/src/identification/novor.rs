@@ -50,7 +50,7 @@ format_family!(
         peptide_no_ptm: String, |location: Location, _| Ok(Some(location.get_string()));
         protein: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         protein_start: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        protein_origin:String, |location: Location, _| Ok(Some(location.get_string()));
+        protein_origin: String, |location: Location, _| Ok(Some(location.get_string()));
         protein_all: String, |location: Location, _| Ok(Some(location.get_string()));
         database_sequence: String, |location: Location, _| Ok(Some(location.get_string()));
         local_confidence: Vec<f64>, |location: Location, _| location.array('-')

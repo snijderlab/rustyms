@@ -4,8 +4,8 @@ use super::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
     DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
-    IdentifiedPeptideSource, MSFraggerData, MZTabData, MaxQuantData, NovorData, OpairData,
-    PLinkData, PeaksData, SageData,
+    IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovorData,
+    OpairData, PLinkData, PeaksData, SageData,
 };
 
 // TODO:
@@ -41,17 +41,21 @@ pub fn open_identified_peptides_file<'a>(
                     .map_err(|ne| (pe, ne))
             })
             .or_else(|(pe, ne)| {
+                InstaNovoData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|ie| (pe, ne, ie))
+            })
+            .or_else(|(pe, ne, ie)| {
                 PLinkData::parse_file(path, custom_database)
                     .map(IdentifiedPeptideIter::into_box)
-                    .map_err(|le| (pe, ne, le))
-            })
-            .map_err(|(pe, ne, le)| {
+                    .map_err(|le| (pe, ne, ie, le))
+            }).map_err(|(pe, ne, ie, le)| {
                 CustomError::error(
                     "Unknown file",
-                    "Could not be recognised as either a Peaks, Novor, or pLink file",
+                    "Could not be recognised as either a Peaks, Novor, InstaNovo or pLink file",
                     Context::show(path.to_string_lossy()),
                 )
-                .with_underlying_errors(vec![pe, ne, le])
+                .with_underlying_errors(vec![pe, ne, ie, le])
             }),
         Some("tsv") => MSFraggerData::parse_file(path, custom_database)
             .map(IdentifiedPeptideIter::into_box)

@@ -12,6 +12,7 @@ doc-valid-idents = [
     "PGPointNovo",
     "PointNovo",
     "BiatNovo",
+    "InstaNovo",
     "DeepNovoFamily",
     "PointNovoFamily",
 ]

@@ -7,9 +7,9 @@ use crate::{
     error::CustomError,
     formula::MultiChemical,
     identification::{
-        deepnovofamily::DeepNovoFamilyData, fasta::FastaData, novor::NovorData, opair::OpairData,
-        peaks::PeaksData, plink::PLinkData, system::MassOverCharge, MSFraggerData, MZTabData,
-        MaxQuantData, SageData,
+        deepnovofamily::DeepNovoFamilyData, fasta::FastaData, instanovo::InstaNovoData,
+        novor::NovorData, opair::OpairData, peaks::PeaksData, plink::PLinkData,
+        system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData, SageData,
     },
     ontologies::CustomDatabase,
     peptide::SemiAmbiguous,
@@ -29,6 +29,7 @@ pub struct IdentifiedPeptide {
 
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum MetaData {
     /// DeepNovo/PointNovo/PGPointNovo metadata
     DeepNovoFamily(DeepNovoFamilyData),
@@ -36,6 +37,8 @@ pub enum MetaData {
     Fasta(FastaData),
     /// MaxQuant metadata
     MaxQuant(MaxQuantData),
+    /// InstaNovo metadata
+    InstaNovo(InstaNovoData),
     /// MSFragger metadata
     MSFragger(MSFraggerData),
     /// mzTab metadata
@@ -126,6 +129,7 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData { peptide, .. })
             | MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
+            | MetaData::InstaNovo(InstaNovoData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
@@ -145,6 +149,7 @@ impl IdentifiedPeptide {
         match &self.metadata {
             MetaData::DeepNovoFamily(_) => "DeepNovo Family",
             MetaData::Fasta(_) => "Fasta",
+            MetaData::InstaNovo(_) => "InstaNovo",
             MetaData::MaxQuant(_) => "MaxQuant",
             MetaData::MSFragger(_) => "MSFragger",
             MetaData::MZTab(_) => "mzTab",
@@ -160,14 +165,15 @@ impl IdentifiedPeptide {
     pub fn format_version(&self) -> String {
         match &self.metadata {
             MetaData::Fasta(_) => "Fasta".to_string(),
+            MetaData::MZTab(_) => "mzTab 1.0".to_string(),
             MetaData::MaxQuant(MaxQuantData { version, .. }) => version.to_string(),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
             MetaData::MSFragger(MSFraggerData { version, .. }) => version.to_string(),
-            MetaData::MZTab(_) => "mzTab 1.0".to_string(),
             MetaData::Novor(NovorData { version, .. }) => version.to_string(),
             MetaData::Opair(OpairData { version, .. }) => version.to_string(),
             MetaData::Peaks(PeaksData { version, .. }) => version.to_string(),
             MetaData::PLink(PLinkData { version, .. }) => version.to_string(),
+            MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
             MetaData::Sage(SageData { version, .. }) => version.to_string(),
         }
     }
@@ -178,7 +184,8 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData { scan, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
-            MetaData::Opair(OpairData { scan, .. }) => scan.to_string(),
+            MetaData::Opair(OpairData { scan, .. })
+            | MetaData::InstaNovo(InstaNovoData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
             }
@@ -196,7 +203,11 @@ impl IdentifiedPeptide {
         match &self.metadata {
             MetaData::Peaks(PeaksData {
                 local_confidence, ..
+            })
+            | MetaData::InstaNovo(InstaNovoData {
+                local_confidence, ..
             }) => Some(local_confidence),
+
             MetaData::DeepNovoFamily(DeepNovoFamilyData {
                 local_confidence, ..
             })
@@ -220,6 +231,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::PLink(PLinkData { z, .. })
+            | MetaData::InstaNovo(InstaNovoData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
             MetaData::Fasta(_) => None,
@@ -245,7 +257,10 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
-            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) | MetaData::PLink(_) => None,
+            MetaData::DeepNovoFamily(_)
+            | MetaData::InstaNovo(_)
+            | MetaData::Fasta(_)
+            | MetaData::PLink(_) => None,
         }
     }
 
@@ -281,7 +296,8 @@ impl IdentifiedPeptide {
                     .collect(),
             ),
 
-            MetaData::Opair(OpairData { raw_file, scan, .. }) => {
+            MetaData::Opair(OpairData { raw_file, scan, .. })
+            | MetaData::InstaNovo(InstaNovoData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
             MetaData::MaxQuant(MaxQuantData { raw_file, scan, .. }) => {
@@ -326,6 +342,7 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData { mz, .. })
             | MetaData::Novor(NovorData { mz, .. })
             | MetaData::Opair(OpairData { mz, .. })
+            | MetaData::InstaNovo(InstaNovoData { mz, .. })
             | MetaData::MSFragger(MSFraggerData { mz, .. }) => Some(*mz),
             MetaData::MZTab(MZTabData { mz, .. }) | MetaData::MaxQuant(MaxQuantData { mz, .. }) => {
                 *mz
@@ -351,6 +368,7 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
+            MetaData::InstaNovo(InstaNovoData { mz, z, .. }) => Some(*mz * z.to_float()),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
                 mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
             }
