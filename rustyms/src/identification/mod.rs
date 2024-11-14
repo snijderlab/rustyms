@@ -8,6 +8,7 @@ mod deepnovofamily;
 mod fasta;
 mod general;
 mod identified_peptide;
+mod instanovo;
 mod maxquant;
 mod msfragger;
 mod mztab;
@@ -23,6 +24,7 @@ pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;
 pub use identified_peptide::*;
+pub use instanovo::*;
 pub use maxquant::*;
 pub use msfragger::*;
 pub use mztab::*;
@@ -34,6 +36,8 @@ pub use sage::*;
 
 #[cfg(test)]
 mod deepnovofamily_tests;
+#[cfg(test)]
+mod instanovo_tests;
 #[cfg(test)]
 mod maxquant_tests;
 #[cfg(test)]
