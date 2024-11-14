@@ -637,7 +637,7 @@ where
 
         if peptide
             .peptide()
-            .and_then(|p| p.peptide())
+            .and_then(ReturnedPeptide::peptide)
             .map(LinearPeptide::len)
             != peptide.local_confidence().map(<[f64]>::len)
         {
@@ -647,7 +647,7 @@ where
                     peptide.id()
                 ));
             } else if peptide.local_confidence().is_some() {
-                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(|p| p.peptide()).map_or(0, LinearPeptide::len), peptide.id()));
+                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0, LinearPeptide::len), peptide.id()));
             }
         }
         if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
@@ -687,6 +687,19 @@ where
                 "Peptide {} contains mass modifications, sequence {}",
                 peptide.id(),
                 peptide.peptide().unwrap(),
+            ));
+        }
+        if let Err(err) = peptide.peptide().map_or(Ok(()), |p| {
+            p.peptidoform()
+                .peptides()
+                .iter()
+                .try_for_each(LinearPeptide::enforce_modification_rules)
+        }) {
+            return Err(format!(
+                "Peptide {} contains misplaced modifications, sequence {}\n{}",
+                peptide.id(),
+                peptide.peptide().unwrap(),
+                err
             ));
         }
         if format

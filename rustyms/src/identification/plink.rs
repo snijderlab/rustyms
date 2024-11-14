@@ -52,7 +52,7 @@ format_family!(
                     let pep1 = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
                     let pep2 = LinearPeptide::sloppy_pro_forma(location.full_line(), pep2, None, &SloppyParsingParameters::default())?;
 
-                    let mut peptidoform = Peptidoform::new(vec![pep1, pep2]).unwrap();
+                    let mut peptidoform = Peptidoform::from_vec(vec![pep1.into(), pep2.into()]).unwrap();
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (1, SequencePosition::Index(pos2.0.saturating_sub(1))),
@@ -64,7 +64,7 @@ format_family!(
                 (pep1, Some(pos1), None, Some(pos2)) => {
                     let pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
 
-                    let mut peptidoform = Peptidoform::new(vec![pep]).unwrap();
+                    let mut peptidoform = Peptidoform::from_vec(vec![pep.into()]).unwrap();
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (0, SequencePosition::Index(pos2.0.saturating_sub(1))),
@@ -77,18 +77,18 @@ format_family!(
                     let mut pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
                     pep[SequencePosition::Index(pos1.0.saturating_sub(1))].modifications.push(SimpleModification::Mass(Mass::default().into()).into());
 
-                    Ok(Peptidoform::new(vec![pep]).unwrap())
+                    Ok(Peptidoform::from_vec(vec![pep.into()]).unwrap())
                 }
                 (pep1, None, None, None) => {
                     let pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
 
-                    Ok(Peptidoform::new(vec![pep]).unwrap())
+                    Ok(Peptidoform::from_vec(vec![pep.into()]).unwrap())
                 }
                 _ => unreachable!()
             }
         };
         /// All modifications with their attachment, and their index (into the full peptidoform, so anything bigger then the first peptide matches in the second)
-        ptm: Vec<(SimpleModification, ModificationPosition, usize)>, |location: Location, custom_database: Option<&CustomDatabase>|
+        ptm: Vec<(SimpleModification, usize)>, |location: Location, custom_database: Option<&CustomDatabase>|
             location.ignore("null").array(';').map(|v| {
                 let v = v.trim();
                 let position_start = v.as_str().rfind('(').ok_or_else(||
@@ -106,9 +106,8 @@ format_family!(
                         "Invalid pLink modification",
                         format!("A pLink modification should follow the format 'Modification[AA](pos)' but the position number {}", explain_number_error(&err)),
                         v.context()))?;
-                let location = v.full_line()[v.location.start+location_start+1..v.location.start+position_start-1].parse::<ModificationPosition>().unwrap();
 
-                Ok((Modification::sloppy_modification(v.full_line(), v.location.start..v.location.start+location_start, None, custom_database)?, location, position.saturating_sub(1)))
+                Ok((Modification::sloppy_modification(v.full_line(), v.location.start..v.location.start+location_start, None, custom_database)?, position))
             }
         ).collect::<Result<Vec<_>,_>>();
         refined_score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
@@ -119,7 +118,7 @@ format_family!(
         is_decoy: bool, |location: Location, _| Ok(location.as_str() == "1");
         q_value: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         proteins: Vec<(String, Option<usize>, Option<String>, Option<usize>)>, |location: Location, _|  {
-            location.array('/').filter(|l| l.as_str().trim().is_empty()).map(|l| {
+            location.array('/').filter(|l| !l.as_str().trim().is_empty()).map(|l| {
                 let separated = plink_separate(l.clone(), "protein")?;
 
                 Ok((l.full_line()[separated.0].trim().to_string(), separated.1.map(|(a, _)| a), separated.2.map(|p| l.full_line()[p].trim().to_string()), separated.3.map(|(a, _)| a)))
@@ -140,48 +139,38 @@ format_family!(
 
     fn post_process(source: &CsvLine, mut parsed: Self, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         // Add all modifications
-        for (m, pos, index) in &parsed.ptm {
+        let pep1 = parsed.peptidoform.peptides()[0].len();
+        let pep2 = parsed.peptidoform.peptides().get(1).map_or(0, LinearPeptide::len);
+        for (m, index) in &parsed.ptm {
+            let pos = if *index == 0 {
+                (0, SequencePosition::NTerm)
+            } else if (1..=pep1).contains(index) {
+                (0, SequencePosition::Index(index-1))
+            } else if *index == pep1+1 {
+                (0, SequencePosition::CTerm)
+            } else if *index == pep1+2 {
+                unreachable!("Cannot put modificaitons on the XL")
+            } else if *index == pep1+3 {
+                (1, SequencePosition::NTerm)
+            } else if (pep1+4..=pep1+4+pep2).contains(index) {
+                (1, SequencePosition::Index(index-(pep1+4)))
+            } else if *index == pep1+4+pep2+1 {
+                (1, SequencePosition::CTerm)
+            } else {
+                unreachable!("Cannot put modificaitons beyond peptide 2")
+            };
+
             match pos {
-                ModificationPosition::NTerm => {
-                    if *index == 0 {
-                        parsed.peptidoform.peptides_mut()[0].set_simple_n_term(Some(m.clone()));
-                    } else if parsed.peptidoform.peptides().len() > 1
-                        && *index == parsed.peptidoform.peptides()[0].len()
-                    {
-                        parsed.peptidoform.peptides_mut()[1].set_simple_n_term(Some(m.clone()));
-                    } else {
-                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is not correctly placed on a N terminal amino acid", index+1), source.full_context()))
-                    }
+                (peptide, SequencePosition::NTerm) => {
+                        parsed.peptidoform.peptides_mut()[peptide].set_simple_n_term(Some(m.clone()));
                 }
-                ModificationPosition::CTerm => {
-                    if *index == parsed.peptidoform.peptides()[0].len() - 1 {
-                        parsed.peptidoform.peptides_mut()[0].set_simple_c_term(Some(m.clone()));
-                    } else if parsed.peptidoform.peptides().len() > 1
-                        && *index
-                            == parsed.peptidoform.peptides()[0].len()
-                                + parsed.peptidoform.peptides()[1].len()
-                                - 1
-                    {
-                        parsed.peptidoform.peptides_mut()[1].set_simple_c_term(Some(m.clone()));
-                    } else {
-                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is not correctly placed on a C terminal amino acid", index+1), source.full_context()))
-                    }
+                (peptide, SequencePosition::CTerm) => {
+                    parsed.peptidoform.peptides_mut()[peptide].set_simple_c_term(Some(m.clone()));
                 }
-                ModificationPosition::Sidechain => {
-                    let l0 = parsed.peptidoform.peptides()[0].len();
-                    if *index < l0 {
-                        parsed.peptidoform.peptides_mut()[0][SequencePosition::Index(*index)]
+                (peptide, index) => {
+                    parsed.peptidoform.peptides_mut()[peptide][index]
                             .modifications
                             .push(m.clone().into());
-                    } else if parsed.peptidoform.peptides().len() > 1
-                        && *index < l0 + parsed.peptidoform.peptides()[1].len()
-                    {
-                        parsed.peptidoform.peptides_mut()[1][SequencePosition::Index(index - l0)]
-                            .modifications
-                            .push(m.clone().into());
-                    } else {
-                        return Err(CustomError::error("Invalid pLink modification", format!("Modification '{m}({})' is out of range of the given peptides", index+1), source.full_context()))
-                    }
                 }
             }
         }
@@ -214,7 +203,7 @@ format_family!(
                     matches!(m, SimpleModification::Linker{..})).map(|(_,_,m)| (m.formula().monoisotopic_mass(), m.clone())
                 ).collect());
 
-            let fitting = known_linkers.iter().chain(custom_linkers.iter()).filter(|(mass, _)| Tolerance::<Mass>::new_ppm(20.0).within(mass, &left_over)).map(|(_, m)| m).collect_vec();
+            let fitting = known_linkers.iter().chain(custom_linkers.iter()).filter(|(mass, _)| Tolerance::<Mass>::Absolute(Mass::new::<crate::system::dalton>(0.001)).within(mass, &left_over)).map(|(_, m)| m).collect_vec();
 
             match fitting.len() {
                 0 => return Err(CustomError::error("Invalid pLink peptide", format!("The correct cross-linker could not be identified with mass {:.3} Da, if a non default cross-linker was used add this as a custom linker modification.", left_over.value), source.full_context())),
@@ -424,28 +413,6 @@ impl std::fmt::Display for PLinkPeptideType {
                 Self::IntraLink => "Intra link",
             }
         )
-    }
-}
-
-/// The different types of peptides a cross-link experiment can result in
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
-pub enum ModificationPosition {
-    /// Any N terminal
-    NTerm,
-    /// Any C terminal
-    CTerm,
-    /// Any side chain
-    Sidechain,
-}
-
-impl std::str::FromStr for ModificationPosition {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "ProteinN-term" | "PeptideN-term" => Ok(Self::NTerm),
-            "ProteinC-term" | "PeptideC-term" => Ok(Self::CTerm),
-            _ => Ok(Self::Sidechain),
-        }
     }
 }
 

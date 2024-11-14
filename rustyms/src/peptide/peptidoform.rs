@@ -26,6 +26,16 @@ impl Peptidoform {
         global_and_charge_equal.then_some(result)
     }
 
+    /// Create a new [`Peptidoform`] from many [`LinearPeptide`]s. This returns None if the
+    /// global isotope modifications or the charge carriers of all peptides are not identical.
+    pub fn from_vec(iter: Vec<LinearPeptide<Linked>>) -> Option<Self> {
+        let result = Self(iter);
+        let global_and_charge_equal = result.peptides().iter().tuple_windows().all(|(a, b)| {
+            a.get_global() == b.get_global() && a.get_charge_carriers() == b.get_charge_carriers()
+        });
+        global_and_charge_equal.then_some(result)
+    }
+
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
