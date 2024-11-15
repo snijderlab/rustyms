@@ -51,6 +51,9 @@ impl LinearPeptide<SemiAmbiguous> {
             ));
         }
         let mut peptide = Self::default();
+        peptide
+            .sequence_mut()
+            .reserve(line.chars().map(|c| c.is_ascii_uppercase()).count()); // Reserve approximately the right length for the vector, this will overestimate in some cases but not by a lot
         let chars: &[u8] = line[location.clone()].as_bytes();
         let mut index = 0;
 

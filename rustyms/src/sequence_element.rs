@@ -25,7 +25,7 @@ pub struct SequenceElement<T> {
     /// All ambiguous modifications (could be placed here or on another position)
     pub possible_modifications: Vec<AmbiguousModification>,
     /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in ProForma
-    pub ambiguous: Option<usize>,
+    pub ambiguous: Option<u8>,
     /// The marker indicating which level of complexity this sequence element uses as higher bound
     marker: PhantomData<T>,
 }
@@ -81,7 +81,7 @@ impl<T> SequenceElement<T> {
     }
 
     /// Create a new aminoacid without any modifications
-    pub const fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<usize>) -> Self {
+    pub const fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<u8>) -> Self {
         Self {
             aminoacid,
             modifications: Vec::new(),
@@ -111,7 +111,7 @@ impl<T> SequenceElement<T> {
         &self,
         f: &mut impl Write,
         placed: &[usize],
-        last_ambiguous: Option<usize>,
+        last_ambiguous: Option<u8>,
         specification_compliant: bool,
     ) -> Result<Vec<usize>, std::fmt::Error> {
         let mut extra_placed = Vec::new();
