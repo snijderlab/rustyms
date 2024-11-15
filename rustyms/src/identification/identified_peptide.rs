@@ -779,7 +779,11 @@ impl std::str::FromStr for PeaksFamilyId {
         } else {
             Ok(Self {
                 file: None,
-                scans: vec![s.parse().map_err(|_| ())?],
+                scans: s
+                    .split(' ')
+                    .map(str::parse)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| ())?,
             })
         }
     }
