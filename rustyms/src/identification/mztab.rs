@@ -21,6 +21,8 @@ use crate::{
     SloppyParsingParameters, Tolerance,
 };
 
+use super::modification::SimpleModificationInner;
+
 /// Peptide data from a mzTab file
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct MZTabData {
@@ -117,7 +119,7 @@ impl MZTabData {
                             m if (m.starts_with("variable_mod[") || m.starts_with("fixed_mod[")) && m.ends_with(']') => {
                                 match CVTerm::from_str(&line[fields[2].clone()]).and_then(|term|
                                         (term.id.trim() != "MS:1002453" && term.id.trim()  != "MS:1002454").then(||
-                                            SimpleModification::try_from(term.id.trim(), 0..term.id.trim().len(), &mut Vec::new(), &mut Vec::new(), custom_database)).transpose()) {
+                                            SimpleModificationInner::try_from(term.id.trim(), 0..term.id.trim().len(), &mut Vec::new(), &mut Vec::new(), custom_database)).transpose()) {
                                     Ok(Some(ReturnModification::Defined(modification))) => if !modifications.contains(&modification) { modifications.push(modification)},
                                     Ok(Some(_)) => return Some(Err(CustomError::error("Invalid modification in mzTab", "Modifications in mzTab have to be defeined, not ambiguous or cross-linkers", Context::line_range(Some(line_index), line, fields[2].clone())))),
                                     Err(err) => return Some(Err(err)),
@@ -282,7 +284,7 @@ impl MZTabData {
                         format!("The position {}", explain_number_error(&err)),
                         Context::line_range(Some(line.line_index), line.line, mod_range.clone()),
                     ))?,
-                    SimpleModification::try_from(
+                    SimpleModificationInner::try_from(
                         line.line,
                         mod_index+1+pos.len()..mod_index+definition.len(),
                         &mut Vec::new(),

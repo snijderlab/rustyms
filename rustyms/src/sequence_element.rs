@@ -6,7 +6,7 @@ use crate::{
     error::{Context, CustomError},
     modification::{
         AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, RulePossible,
-        SimpleModification,
+        SimpleModification, SimpleModificationInner,
     },
     peptide::{AtLeast, Linked},
     placement_rule::PlacementRule,
@@ -255,7 +255,7 @@ impl<T> SequenceElement<T> {
             if modification.is_possible(self, position) == RulePossible::No {
                 let rules = modification
                     .simple()
-                    .map(SimpleModification::placement_rules)
+                    .map(|s| s.placement_rules())
                     .unwrap_or_default();
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
@@ -288,32 +288,38 @@ impl<T> SequenceElement<T> {
                 Modification::CrossLink { linker, side, .. } => {
                     diagnostic_ions.extend_from_slice(&side.allowed_rules(linker).2);
                 }
-                Modification::Simple(SimpleModification::Database { specificities, .. }) => {
-                    for (rules, _, ions) in specificities {
-                        if PlacementRule::any_possible(rules, self, position) {
-                            diagnostic_ions.extend_from_slice(ions);
-                        }
-                    }
-                }
-                Modification::Simple(SimpleModification::Linker { specificities, .. }) => {
-                    for rule in specificities {
-                        match rule {
-                            LinkerSpecificity::Symmetric(rules, _, ions) => {
-                                if PlacementRule::any_possible(rules, self, position) {
-                                    diagnostic_ions.extend_from_slice(ions);
-                                }
-                            }
-                            LinkerSpecificity::Asymmetric((rules_left, rules_right), _, ions) => {
-                                if PlacementRule::any_possible(rules_left, self, position)
-                                    || PlacementRule::any_possible(rules_right, self, position)
-                                {
-                                    diagnostic_ions.extend_from_slice(ions);
-                                }
+                Modification::Simple(sim) => match &**sim {
+                    SimpleModificationInner::Database { specificities, .. } => {
+                        for (rules, _, ions) in specificities {
+                            if PlacementRule::any_possible(&rules, self, position) {
+                                diagnostic_ions.extend_from_slice(&ions);
                             }
                         }
                     }
-                }
-                Modification::Simple(_) => (),
+                    SimpleModificationInner::Linker { specificities, .. } => {
+                        for rule in specificities {
+                            match rule {
+                                LinkerSpecificity::Symmetric(rules, _, ions) => {
+                                    if PlacementRule::any_possible(&rules, self, position) {
+                                        diagnostic_ions.extend_from_slice(&ions);
+                                    }
+                                }
+                                LinkerSpecificity::Asymmetric(
+                                    (rules_left, rules_right),
+                                    _,
+                                    ions,
+                                ) => {
+                                    if PlacementRule::any_possible(&rules_left, self, position)
+                                        || PlacementRule::any_possible(&rules_right, self, position)
+                                    {
+                                        diagnostic_ions.extend_from_slice(&ions);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                },
             }
         }
         diagnostic_ions

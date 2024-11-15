@@ -1,10 +1,10 @@
-use std::{collections::HashMap, io::Write, path::Path};
+use std::{collections::HashMap, io::Write, path::Path, sync::Arc};
 
 use crate::{csv::parse_csv, glycan::*, SimpleModification};
 
 use super::{
     obo::OboOntology, ontology_modification::OntologyModificationList, GnoComposition,
-    GnoSubsumption, ModificationId,
+    GnoSubsumption, ModificationId, SimpleModificationInner,
 };
 
 pub fn build_gnome_ontology(out_dir: &Path) {
@@ -351,7 +351,7 @@ struct GNOmeModification {
 
 impl GNOmeModification {
     fn into_mod(self) -> SimpleModification {
-        SimpleModification::Gno {
+        Arc::new(SimpleModificationInner::Gno {
             composition: if let Some(structure) = self.topology {
                 GnoComposition::Topology(structure)
             } else if let Some(composition) = self.composition {
@@ -367,7 +367,7 @@ impl GNOmeModification {
             motif: self.motif,
             taxonomy: self.taxonomy,
             glycomeatlas: self.glycomeatlas,
-        }
+        })
     }
 }
 

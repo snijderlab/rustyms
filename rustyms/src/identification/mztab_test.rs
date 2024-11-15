@@ -82,16 +82,18 @@ fn open_file(reader: impl BufRead) -> Result<usize, CustomError> {
         let read: IdentifiedPeptide = read?.into();
         peptides += 1;
         assert!(
-            read.peptide()
+            !read
+                .peptide()
                 .unwrap()
                 .peptide()
                 .unwrap()
                 .sequence()
                 .iter()
-                .all(|s| s.modifications.iter().all(|m| !matches!(
-                    m,
-                    crate::Modification::Simple(crate::modification::SimpleModification::Mass(_))
-                ))),
+                .any(
+                    |s| s.modifications.iter().any(|m| m.simple().is_some_and(|m| {
+                        matches!(**m, crate::modification::SimpleModificationInner::Mass(_))
+                    }))
+                ),
             "Peptide contains mass mods: {}",
             read.peptide().unwrap()
         );

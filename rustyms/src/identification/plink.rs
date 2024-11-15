@@ -1,4 +1,4 @@
-use std::{ops::Range, path::PathBuf};
+use std::{ops::Range, path::PathBuf, sync::Arc};
 
 use crate::{
     error::{Context, CustomError},
@@ -11,7 +11,7 @@ use crate::{
         BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
         Modification,
     },
-    modification::Ontology,
+    modification::{Ontology, SimpleModificationInner},
     molecular_formula,
     ontologies::CustomDatabase,
     system::{usize::Charge, Mass},
@@ -56,7 +56,7 @@ format_family!(
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (1, SequencePosition::Index(pos2.0.saturating_sub(1))),
-                        SimpleModification::Mass(Mass::default().into()),
+                        Arc::new(SimpleModificationInner::Mass(Mass::default().into())),
                         CrossLinkName::Name("1".to_string()),
                     );
                     Ok(peptidoform)
@@ -68,14 +68,14 @@ format_family!(
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (0, SequencePosition::Index(pos2.0.saturating_sub(1))),
-                        SimpleModification::Mass(Mass::default().into()),
+                        Arc::new(SimpleModificationInner::Mass(Mass::default().into())),
                         CrossLinkName::Name("1".to_string()),
                     );
                     Ok(peptidoform)
                 }
                 (pep1, Some(pos1), None, None) => {
                     let mut pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
-                    pep[SequencePosition::Index(pos1.0.saturating_sub(1))].modifications.push(SimpleModification::Mass(Mass::default().into()).into());
+                    pep[SequencePosition::Index(pos1.0.saturating_sub(1))].modifications.push( SimpleModificationInner::Mass(Mass::default().into()).into());
 
                     Ok(Peptidoform::from_vec(vec![pep.into()]).unwrap())
                 }
@@ -200,7 +200,7 @@ format_family!(
             let custom_linkers = custom_database.map_or(
                 Vec::new(),
                 |c| c.iter().filter(|(_,_,m)|
-                    matches!(m, SimpleModification::Linker{..})).map(|(_,_,m)| (m.formula().monoisotopic_mass(), m.clone())
+                    matches!(**m, SimpleModificationInner::Linker{..})).map(|(_,_,m)| (m.formula().monoisotopic_mass(), m.clone())
                 ).collect());
 
             let fitting = known_linkers.iter().chain(custom_linkers.iter()).filter(|(mass, _)| Tolerance::<Mass>::Absolute(Mass::new::<crate::system::dalton>(0.001)).within(mass, &left_over)).map(|(_, m)| m).collect_vec();
@@ -231,7 +231,7 @@ format_family!(
                                             c_term = Some(m.clone());
                                         }
                                     }
-                                } else if Modification::Simple(SimpleModification::Mass(Mass::default().into())) == *m {
+                                } else if Modification::Simple(Arc::new(SimpleModificationInner::Mass(Mass::default().into()))) == *m {
                                     *m = Modification::Simple(fitting[0].clone());
                                 }
                             }

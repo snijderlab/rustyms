@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Context, CustomError},
-    modification::{Modification, ModificationId, Ontology, SimpleModification},
+    modification::{Modification, ModificationId, Ontology, SimpleModificationInner},
     AminoAcid, SequenceElement, SequencePosition,
 };
 
@@ -21,17 +21,21 @@ impl PlacementRule {
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
-                    if let Modification::Simple(SimpleModification::Database {
-                        id:
-                            ModificationId {
-                                ontology: Ontology::Psimod,
-                                id,
-                                ..
-                            },
-                        ..
-                    }) = m
-                    {
-                        id.is_some_and(|i| i == *mod_index)
+                    if let Modification::Simple(sim) = m {
+                        if let SimpleModificationInner::Database {
+                            id:
+                                ModificationId {
+                                    ontology: Ontology::Psimod,
+                                    id,
+                                    ..
+                                },
+                            ..
+                        } = **sim
+                        {
+                            id.is_some_and(|i| i == *mod_index)
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }

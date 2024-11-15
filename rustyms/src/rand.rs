@@ -7,23 +7,23 @@ use crate::{
     Element, MolecularFormula,
 };
 
-impl Distribution<SimpleModification> for Standard {
-    fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> SimpleModification {
-        match rng.gen_range(0..=3) {
-            0 => SimpleModification::Mass(rng.gen()),
-            1 => SimpleModification::Formula(rng.gen()),
-            2 => {
-                let mut glycans = Vec::new();
-                for _ in 0..rng.gen_range(0..32) {
-                    glycans.push(rng.gen());
-                }
-                SimpleModification::Glycan(glycans)
-            }
-            3 => SimpleModification::GlycanStructure(rng.gen()),
-            _ => todo!(),
-        }
-    }
-}
+// impl Distribution<SimpleModification> for Standard {
+//     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> SimpleModification {
+//         match rng.gen_range(0..=3) {
+//             0 => SimpleModification::Mass(rng.gen()),
+//             1 => SimpleModification::Formula(rng.gen()),
+//             2 => {
+//                 let mut glycans = Vec::new();
+//                 for _ in 0..rng.gen_range(0..32) {
+//                     glycans.push(rng.gen());
+//                 }
+//                 SimpleModification::Glycan(glycans)
+//             }
+//             3 => SimpleModification::GlycanStructure(rng.gen()),
+//             _ => todo!(),
+//         }
+//     }
+// }
 
 impl Distribution<GlycanStructure> for Standard {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> GlycanStructure {

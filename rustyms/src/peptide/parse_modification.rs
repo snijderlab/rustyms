@@ -1,10 +1,15 @@
 use crate::modification::{
     AmbiguousLookup, CrossLinkLookup, CrossLinkName, Ontology, SimpleModification,
+    SimpleModificationInner,
 };
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use std::{num::NonZeroU16, ops::Range, sync::OnceLock};
+use std::{
+    num::NonZeroU16,
+    ops::Range,
+    sync::{Arc, OnceLock},
+};
 
 use regex::Regex;
 
@@ -18,7 +23,7 @@ use crate::{
     AminoAcid, Element, MolecularFormula,
 };
 
-impl SimpleModification {
+impl SimpleModificationInner {
     /// Try to parse the modification. Any ambiguous modification will be numbered
     /// according to the lookup (which may be added to if necessary). The result
     /// is the modification, with, if applicable, its determined ambiguous group.
@@ -60,7 +65,7 @@ impl SimpleModification {
             || {
                 last_result.map(|m| {
                     m.unwrap_or_else(|| {
-                        ReturnModification::Defined(Self::Mass(OrderedMass::zero()))
+                        ReturnModification::Defined(Arc::new(Self::Mass(OrderedMass::zero())))
                     })
                 })
             },
@@ -248,22 +253,22 @@ fn parse_single_modification(
                         basic_error
                             .with_long_description("This modification cannot be read as a GNO name")
                     }),
-                ("formula", tail) => Ok(Some(SimpleModification::Formula(
+                ("formula", tail) => Ok(Some(Arc::new(SimpleModificationInner::Formula(
                     MolecularFormula::from_pro_forma(tail, .., false, false).map_err(|e| {
                         basic_error.with_long_description(format!(
                             "This modification cannot be read as a valid formula: {e}"
                         ))
                     })?,
-                ))),
-                ("glycan", tail) => Ok(Some(SimpleModification::Glycan(
+                )))),
+                ("glycan", tail) => Ok(Some(Arc::new(SimpleModificationInner::Glycan(
                     MonoSaccharide::from_composition(tail)
                         .map_err(|err| err.with_context(basic_error.context().clone()))?,
-                ))),
+                )))),
                 ("glycanstructure", _) => GlycanStructure::parse(
                     &line.to_ascii_lowercase(),
                     offset + tail.1..offset + tail.1 + tail.2,
                 )
-                .map(|g| Some(SimpleModification::GlycanStructure(g))),
+                .map(|g| Some(Arc::new(SimpleModificationInner::GlycanStructure(g)))),
                 ("info", _) => Ok(None),
                 ("obs", tail) => numerical_mod(tail).map(Some).map_err(|_| {
                     basic_error.with_long_description(
@@ -477,6 +482,10 @@ pub enum GlobalModification {
 pub(super) fn numerical_mod(text: &str) -> Result<SimpleModification, String> {
     text.parse().map_or_else(
         |_| Err("Invalid number".to_string()),
-        |n| Ok(SimpleModification::Mass(Mass::new::<dalton>(n).into())),
+        |n| {
+            Ok(Arc::new(SimpleModificationInner::Mass(
+                Mass::new::<dalton>(n).into(),
+            )))
+        },
     )
 }

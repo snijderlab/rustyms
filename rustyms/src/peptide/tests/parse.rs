@@ -1,8 +1,8 @@
-use std::num::NonZeroU16;
+use std::{num::NonZeroU16, sync::Arc};
 
 use crate::{
     model::PrimaryIonSeries,
-    modification::{self, ModificationId, SimpleModification},
+    modification::{self, ModificationId, SimpleModificationInner},
     peptide::{
         parse::{global_modifications, parse_charge_state},
         GlobalModification,
@@ -23,7 +23,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -34,7 +34,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -45,7 +45,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -56,7 +56,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -67,7 +67,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyCTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -382,7 +382,7 @@ fn parse_custom() {
         Some(&vec![(
             Some(0),
             "weee".to_string(),
-            SimpleModification::Database {
+            SimpleModificationInner::Database {
                 formula: molecular_formula!(U 1),
                 specificities: vec![(
                     vec![PlacementRule::AminoAcid(
@@ -399,6 +399,7 @@ fn parse_custom() {
                     ..ModificationId::default()
                 }
             }
+            .into()
         )])
     ));
     assert!(peptide.is_ok());

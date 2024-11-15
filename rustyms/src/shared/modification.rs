@@ -68,9 +68,11 @@ impl std::hash::Hash for CrossLinkSide {
     }
 }
 
+pub type SimpleModification = std::sync::Arc<SimpleModificationInner>;
+
 /// A modification on an amino acid
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub enum SimpleModification {
+pub enum SimpleModificationInner {
     /// A modification defined with a monoisotopic mass shift
     Mass(OrderedMass),
     /// A modification defined with a molecular formula

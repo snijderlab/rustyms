@@ -4,7 +4,9 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
+    modification::{
+        CrossLinkName, CrossLinkSide, RulePossible, SimpleModification, SimpleModificationInner,
+    },
     peptide::Linked,
     system::usize::Charge,
     Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
@@ -117,12 +119,12 @@ impl Peptidoform {
             let left = linker.is_possible(pos_1, position_1.1);
             let right = linker.is_possible(pos_2, position_1.1);
             let specificity = if matches!(
-                linker,
-                SimpleModification::Formula(_)
-                    | SimpleModification::Glycan(_)
-                    | SimpleModification::GlycanStructure(_)
-                    | SimpleModification::Gno { .. }
-                    | SimpleModification::Mass(_)
+                &*linker,
+                SimpleModificationInner::Formula(_)
+                    | SimpleModificationInner::Glycan(_)
+                    | SimpleModificationInner::GlycanStructure(_)
+                    | SimpleModificationInner::Gno { .. }
+                    | SimpleModificationInner::Mass(_)
             ) {
                 Some((
                     CrossLinkSide::Symmetric(HashSet::default()),

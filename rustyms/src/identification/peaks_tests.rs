@@ -1,9 +1,9 @@
 #![allow(clippy::missing_panics_doc)]
-use std::io::BufReader;
+use std::{io::BufReader, sync::Arc};
 
 use crate::{
     identification::{test_format, IdentifiedPeptideSource, PeaksData, PeaksVersion},
-    modification::SimpleModification,
+    modification::SimpleModificationInner,
     molecular_formula,
 };
 
@@ -75,7 +75,7 @@ fn peaks_11_custom_modification() {
             Some(&vec![(
                 Some(0),
                 "oxidation".to_string(),
-                SimpleModification::Formula(molecular_formula!(O 1)),
+                Arc::new(SimpleModificationInner::Formula(molecular_formula!(O 1))),
             )]),
             false,
             true,

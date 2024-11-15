@@ -6,8 +6,11 @@ use crate::{
     *,
 };
 
+use std::sync::Arc;
+
 use self::{
-    modification::SimpleModification, ontologies::CustomDatabase, placement_rule::PlacementRule,
+    modification::SimpleModificationInner, ontologies::CustomDatabase,
+    placement_rule::PlacementRule,
 };
 
 use itertools::Itertools;
@@ -511,7 +514,7 @@ fn custom_database() -> CustomDatabase {
         (
             Some(0),
             "dsso".to_string(),
-            SimpleModification::Linker {
+            Arc::new(SimpleModificationInner::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
                     vec![PlacementRule::AminoAcid(
                         vec![AminoAcid::Lysine],
@@ -531,12 +534,12 @@ fn custom_database() -> CustomDatabase {
                     ..ModificationId::default()
                 },
                 length: None,
-            },
+            }),
         ),
         (
             Some(1),
             "disulfide".to_string(),
-            SimpleModification::Linker {
+            Arc::new(SimpleModificationInner::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
                     vec![PlacementRule::AminoAcid(
                         vec![AminoAcid::Cysteine],
@@ -553,7 +556,7 @@ fn custom_database() -> CustomDatabase {
                     ..ModificationId::default()
                 },
                 length: None,
-            },
+            }),
         ),
     ]
 }

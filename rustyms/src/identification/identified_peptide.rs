@@ -690,12 +690,9 @@ where
                 p.peptidoform().peptides().iter().any(|p| {
                     p.sequence().iter().any(|s| {
                         s.modifications.iter().any(|m| {
-                            matches!(
-                                m,
-                                crate::Modification::Simple(
-                                    crate::modification::SimpleModification::Mass(_)
-                                )
-                            )
+                            m.simple().is_some_and(|m| {
+                                matches!(**m, crate::modification::SimpleModificationInner::Mass(_))
+                            })
                         })
                     })
                 })

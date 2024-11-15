@@ -7,7 +7,7 @@ use crate::{
     helper_functions::RangeExtension,
     modification::{
         AmbiguousModification, CrossLinkName, GnoComposition, LinkerSpecificity, Modification,
-        SimpleModification,
+        SimpleModification, SimpleModificationInner,
     },
     molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
@@ -447,23 +447,29 @@ impl<Complexity> LinearPeptide<Complexity> {
                 aa.modifications
                     .iter()
                     .filter_map(|modification| match modification {
-                        Modification::Simple(SimpleModification::Database {
-                            specificities,
-                            ..
-                        }) => Some(
-                            specificities
-                                .iter()
-                                .filter_map(move |(rules, rule_losses, _)| {
-                                    if PlacementRule::any_possible(rules, aa, pos.sequence_index) {
-                                        Some(rule_losses)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .flatten()
-                                .map(move |loss| (loss.clone(), peptide_index, pos.sequence_index))
-                                .collect_vec(),
-                        ),
+                        Modification::Simple(sim) => match &**sim {
+                            SimpleModificationInner::Database { specificities, .. } => Some(
+                                specificities
+                                    .iter()
+                                    .filter_map(move |(rules, rule_losses, _)| {
+                                        if PlacementRule::any_possible(
+                                            rules,
+                                            aa,
+                                            pos.sequence_index,
+                                        ) {
+                                            Some(rule_losses)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .flatten()
+                                    .map(move |loss| {
+                                        (loss.clone(), peptide_index, pos.sequence_index)
+                                    })
+                                    .collect_vec(),
+                            ),
+                            _ => None,
+                        },
                         Modification::CrossLink {
                             linker,
                             peptide,
@@ -481,7 +487,6 @@ impl<Complexity> LinearPeptide<Complexity> {
                                     .collect_vec(),
                             )
                         }
-                        Modification::Simple(_) => None,
                     })
                     .flatten()
                     .collect_vec()
@@ -509,8 +514,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                     })
             })
             .chain(self.labile.iter().flat_map(move |modification| {
-                match modification {
-                    SimpleModification::Database { specificities, .. } => specificities
+                match &**modification {
+                    SimpleModificationInner::Database { specificities, .. } => specificities
                         .iter()
                         .flat_map(|(_, _, diagnostic)| diagnostic)
                         .map(|diagnostic| {
@@ -520,7 +525,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                             )
                         })
                         .collect_vec(),
-                    SimpleModification::Linker { specificities, .. } => specificities
+                    SimpleModificationInner::Linker { specificities, .. } => specificities
                         .iter()
                         .flat_map(|rule| match rule {
                             LinkerSpecificity::Symmetric(_, _, ions)
@@ -918,8 +923,8 @@ impl<Complexity> LinearPeptide<Complexity> {
 
         // Add labile glycan fragments
         for modification in &self.labile {
-            match modification {
-                SimpleModification::Glycan(composition) => {
+            match &**modification {
+                SimpleModificationInner::Glycan(composition) => {
                     output.extend(MonoSaccharide::theoretical_fragments(
                         composition,
                         model,
@@ -930,8 +935,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                         None,
                     ));
                 }
-                SimpleModification::GlycanStructure(structure)
-                | SimpleModification::Gno {
+                SimpleModificationInner::GlycanStructure(structure)
+                | SimpleModificationInner::Gno {
                     composition: GnoComposition::Topology(structure),
                     ..
                 } => {

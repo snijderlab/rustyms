@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     formula::MolecularFormula, AminoAcid, DiagnosticIon, LinkerSpecificity, ModificationId,
-    NeutralLoss, SimpleModification,
+    NeutralLoss, SimpleModification, SimpleModificationInner,
 };
 
 #[derive(Debug, Default)]
@@ -109,11 +111,11 @@ impl OntologyModification {
             ModData::Mod { specificities } => (
                 Some(self.id),
                 self.name.to_ascii_lowercase(),
-                SimpleModification::Database {
+                Arc::new(SimpleModificationInner::Database {
                     id,
                     formula: self.formula,
                     specificities,
-                },
+                }),
             ),
             ModData::Linker {
                 specificities,
@@ -121,12 +123,12 @@ impl OntologyModification {
             } => (
                 Some(self.id),
                 self.name.to_ascii_lowercase(),
-                SimpleModification::Linker {
+                Arc::new(SimpleModificationInner::Linker {
                     specificities,
                     formula: self.formula,
                     id,
                     length,
-                },
+                }),
             ),
         }
     }

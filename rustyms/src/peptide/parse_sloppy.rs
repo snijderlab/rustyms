@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::{
     error::{Context, CustomError},
     glycan::glycan_parse_list,
     helper_functions::{end_of_enclosure, parse_named_counter, ResultExtensions},
-    modification::{Modification, Ontology, SimpleModification},
+    modification::{Modification, Ontology, SimpleModification, SimpleModificationInner},
     ontologies::CustomDatabase,
     peptide::*,
     system::Mass,
@@ -51,10 +51,10 @@ impl LinearPeptide<SemiAmbiguous> {
             ));
         }
         let mut peptide = Self::default();
+        let chars: &[u8] = line[location.clone()].as_bytes();
         peptide
             .sequence_mut()
-            .reserve(line.chars().map(|c| c.is_ascii_uppercase()).count()); // Reserve approximately the right length for the vector, this will overestimate in some cases but not by a lot
-        let chars: &[u8] = line[location.clone()].as_bytes();
+            .reserve(chars.iter().map(u8::is_ascii_uppercase).count()); // Reserve approximately the right length for the vector, this will overestimate in some cases but not by a lot
         let mut index = 0;
 
         while index < chars.len() {
@@ -134,7 +134,7 @@ impl LinearPeptide<SemiAmbiguous> {
                         .iter()
                         .take_while(|c| c.is_ascii_digit() || **c == b'.')
                         .count();
-                    let modification = SimpleModification::Mass(Mass::new::<crate::system::dalton>(
+                    let modification = SimpleModificationInner::Mass(Mass::new::<crate::system::dalton>(
                         line[location.start + index..location.start + index + length]
                         .parse::<f64>()
                         .map_err(|err|
@@ -142,7 +142,7 @@ impl LinearPeptide<SemiAmbiguous> {
                                 "Invalid mass shift modification", 
                                 format!("Mass shift modification must be a valid number but this number is invalid: {err}"), 
                                 Context::line(None, line, location.start + index, length))
-                            )?).into());
+                            )?).into()).into();
                     match peptide.sequence_mut().last_mut() {
                         Some(aa) => aa.modifications.push(Modification::Simple(modification)),
                         None => {
@@ -217,7 +217,7 @@ impl Modification {
                                 glycan_parse_list(),
                                 false,
                             )
-                            .map(SimpleModification::Glycan)
+                            .map(|g| Arc::new(SimpleModificationInner::Glycan(g)))
                         })
                         .flat_err()
                         .ok()

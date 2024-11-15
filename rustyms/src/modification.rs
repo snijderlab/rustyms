@@ -8,6 +8,7 @@ use std::{
     cmp::Ordering,
     collections::HashSet,
     fmt::{Display, Write},
+    sync::Arc,
 };
 
 use crate::{
@@ -96,7 +97,7 @@ impl std::iter::Sum for RulePossible {
     }
 }
 
-impl Chemical for SimpleModification {
+impl Chemical for SimpleModificationInner {
     /// Get the molecular formula for this modification.
     fn formula_inner(&self, position: SequencePosition, peptide_index: usize) -> MolecularFormula {
         match self {
@@ -126,7 +127,7 @@ impl Chemical for SimpleModification {
     }
 }
 
-impl SimpleModification {
+impl SimpleModificationInner {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
@@ -388,7 +389,7 @@ impl SimpleModification {
     }
 }
 
-impl Display for SimpleModification {
+impl Display for SimpleModificationInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true)
     }
@@ -397,6 +398,12 @@ impl Display for SimpleModification {
 impl From<SimpleModification> for Modification {
     fn from(value: SimpleModification) -> Self {
         Self::Simple(value)
+    }
+}
+
+impl From<SimpleModificationInner> for Modification {
+    fn from(value: SimpleModificationInner) -> Self {
+        Self::Simple(Arc::new(value))
     }
 }
 
@@ -417,8 +424,8 @@ impl CrossLinkSide {
         let mut stubs = Vec::new();
         let mut diagnostic = Vec::new();
 
-        match linker {
-            SimpleModification::Linker { specificities, .. } => {
+        match &**linker {
+            SimpleModificationInner::Linker { specificities, .. } => {
                 for rule in specificities
                     .iter()
                     .enumerate()
@@ -426,7 +433,7 @@ impl CrossLinkSide {
                 {
                     match rule {
                         LinkerSpecificity::Asymmetric(_, n, d) => {
-                            diagnostic.extend_from_slice(d);
+                            diagnostic.extend_from_slice(&d);
                             match self {
                                 Self::Left(_) => stubs.extend(n.iter().cloned()),
                                 Self::Right(_) => {
@@ -438,13 +445,13 @@ impl CrossLinkSide {
                             }
                         }
                         LinkerSpecificity::Symmetric(_, n, d) => {
-                            stubs.extend_from_slice(n);
-                            diagnostic.extend_from_slice(d);
+                            stubs.extend_from_slice(&n);
+                            diagnostic.extend_from_slice(&d);
                         }
                     }
                 }
             }
-            SimpleModification::Database { specificities, .. } => {
+            SimpleModificationInner::Database { specificities, .. } => {
                 for rule in specificities
                     .iter()
                     .enumerate()
@@ -473,14 +480,16 @@ impl Modification {
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
-            Self::Simple(SimpleModification::Linker { formula, .. }) => (
-                (formula.clone() + molecular_formula!(H 2 O 1)).into(),
-                HashSet::new(),
-            ),
-            Self::Simple(s) => (
-                s.formula_inner(sequence_index, peptide_index).into(),
-                HashSet::new(),
-            ),
+            Self::Simple(sim) => match &**sim {
+                SimpleModificationInner::Linker { formula, .. } => (
+                    (formula.clone() + molecular_formula!(H 2 O 1)).into(),
+                    HashSet::new(),
+                ),
+                s => (
+                    s.formula_inner(sequence_index, peptide_index).into(),
+                    HashSet::new(),
+                ),
+            },
             Self::CrossLink {
                 peptide: other_peptide,
                 linker,
@@ -623,7 +632,7 @@ impl Modification {
     }
 }
 
-impl SimpleModification {
+impl SimpleModificationInner {
     /// Generate theoretical fragments for side chains (glycans)
     pub(crate) fn generate_theoretical_fragments(
         &self,

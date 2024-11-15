@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     glycan::MonoSaccharide,
-    modification::{GnoComposition, Ontology, SimpleModification},
+    modification::{GnoComposition, Ontology, SimpleModification, SimpleModificationInner},
     ontologies::CustomDatabase,
     placement_rule::Position,
     system::{ratio::ppm, Mass, Ratio},
@@ -93,17 +93,17 @@ pub fn modification_search_glycan(
         .lookup(None)
         .iter()
         .filter(move |(_, _, m)| {
-            if let SimpleModification::Gno {
+            if let SimpleModificationInner::Gno {
                 composition: GnoComposition::Topology(structure),
                 ..
-            } = m
+            } = &**m
             {
                 search_topologies
                     && MonoSaccharide::search_composition(&structure.composition()) == *search
-            } else if let SimpleModification::Gno {
+            } else if let SimpleModificationInner::Gno {
                 composition: GnoComposition::Composition(composition),
                 ..
-            } = m
+            } = &**m
             {
                 MonoSaccharide::search_composition(composition) == *search
             } else {
@@ -385,8 +385,8 @@ impl PeptideModificationSearch {
         aminoacid: Option<AminoAcid>,
         in_place: &SimpleModification,
     ) -> Option<SimpleModification> {
-        if matches!(in_place, SimpleModification::Mass(_))
-            || self.replace_formulas && matches!(in_place, SimpleModification::Formula(_))
+        if matches!(&**in_place, SimpleModificationInner::Mass(_))
+            || self.replace_formulas && matches!(&**in_place, SimpleModificationInner::Formula(_))
         {
             self.cache
                 .entry((position, aminoacid, in_place.clone()))
@@ -424,11 +424,11 @@ impl PeptideModificationSearch {
         in_place: &SimpleModification,
     ) -> Option<SimpleModification> {
         let check_matches =
-            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
-                SimpleModification::Mass(mass) => {
+            |in_place: &SimpleModification, provided: &SimpleModification| match &**in_place {
+                SimpleModificationInner::Mass(mass) => {
                     tolerance.within(&mass.into_inner(), &provided.formula().mass(mass_mode))
                 }
-                SimpleModification::Formula(formula) if replace_formulas => {
+                SimpleModificationInner::Formula(formula) if replace_formulas => {
                     *formula == provided.formula()
                 }
                 _ => false,

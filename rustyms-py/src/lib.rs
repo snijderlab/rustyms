@@ -525,7 +525,7 @@ pub struct SimpleModification(rustyms::modification::SimpleModification);
 impl SimpleModification {
     #[new]
     fn new(name: &str) -> PyResult<Self> {
-        match rustyms::modification::SimpleModification::try_from(
+        match rustyms::modification::SimpleModificationInner::try_from(
             name,
             0..name.len(),
             &mut vec![],
