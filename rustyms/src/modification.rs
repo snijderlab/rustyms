@@ -433,7 +433,7 @@ impl CrossLinkSide {
                 {
                     match rule {
                         LinkerSpecificity::Asymmetric(_, n, d) => {
-                            diagnostic.extend_from_slice(&d);
+                            diagnostic.extend_from_slice(d);
                             match self {
                                 Self::Left(_) => stubs.extend(n.iter().cloned()),
                                 Self::Right(_) => {
@@ -445,8 +445,8 @@ impl CrossLinkSide {
                             }
                         }
                         LinkerSpecificity::Symmetric(_, n, d) => {
-                            stubs.extend_from_slice(&n);
-                            diagnostic.extend_from_slice(&d);
+                            stubs.extend_from_slice(n);
+                            diagnostic.extend_from_slice(d);
                         }
                     }
                 }

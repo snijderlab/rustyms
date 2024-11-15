@@ -1,5 +1,3 @@
-use regex::{Captures, Regex};
-
 use crate::{
     csv::CsvLine,
     error::{Context, CustomError},
@@ -122,7 +120,9 @@ pub enum OptionalColumn {
 }
 
 impl OptionalColumn {
-    /// Open the column while creating the correct error messages for missing columns
+    /// Open the column
+    /// # Errors
+    /// while creating the correct error messages for missing columns
     pub fn open_column(self, source: &CsvLine) -> Result<Option<Location>, CustomError> {
         match self {
             Self::NotAvailable => Ok(None),
@@ -243,22 +243,6 @@ impl<'a> Location<'a> {
     }
 
     /// # Errors
-    /// If the Regex does not match.
-    pub fn parse_regex(
-        &'a self,
-        regex: &Regex,
-        base_error: (&str, &str),
-    ) -> Result<Captures<'a>, CustomError> {
-        regex.captures(self.as_str()).ok_or_else(|| {
-            CustomError::error(
-                base_error.0,
-                base_error.1,
-                self.line.range_context(self.location.clone()),
-            )
-        })
-    }
-
-    /// # Errors
     /// If the text could not be read as a valid id.
     pub fn get_id(self, base_error: (&str, &str)) -> Result<(Option<usize>, usize), CustomError> {
         if let Some((start, end)) = self.as_str().split_once(':') {
@@ -319,6 +303,7 @@ impl<'a> Location<'a> {
     }
 }
 
+#[allow(dead_code)]
 pub trait OptionalLocation<'a> {
     fn or_empty(self) -> Option<Location<'a>>;
     /// # Errors

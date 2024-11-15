@@ -137,6 +137,7 @@ format_family!(
         raw_file: PathBuf, |location: Location, _| Ok(Some(location.get_string().into()));
     }
 
+    #[allow(clippy::similar_names)]
     fn post_process(source: &CsvLine, mut parsed: Self, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         // Add all modifications
         let pep1 = parsed.peptidoform.peptides()[0].len();
@@ -213,6 +214,7 @@ format_family!(
                         let mut n_term = p.get_n_term().cloned();
                         let mut c_term = p.get_c_term().cloned();
                         let len = p.len();
+
                         for (seq_index, seq) in p.sequence_mut().iter_mut().enumerate() {
                             let is_n_term = seq_index == 0;
                             let is_c_term = seq_index == len;
@@ -264,6 +266,9 @@ static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock:
 static KNOWN_CROSS_LINKERS: std::sync::OnceLock<Vec<(Mass, SimpleModification)>> =
     std::sync::OnceLock::new();
 
+/// separate the pLink format of 'pep(pos)-pep(pos)' in all possible combinations
+/// # Errors
+/// If the format is invalid
 fn plink_separate(
     location: Location<'_>,
     field: &'static str,

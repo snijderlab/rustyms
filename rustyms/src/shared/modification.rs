@@ -68,6 +68,7 @@ impl std::hash::Hash for CrossLinkSide {
     }
 }
 
+/// A modification on an amino acid, wrapped in an [`std::sync::Arc`] to not have to clone modifications from databases.
 pub type SimpleModification = std::sync::Arc<SimpleModificationInner>;
 
 /// A modification on an amino acid

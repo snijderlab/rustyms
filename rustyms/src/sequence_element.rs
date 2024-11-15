@@ -291,8 +291,8 @@ impl<T> SequenceElement<T> {
                 Modification::Simple(sim) => match &**sim {
                     SimpleModificationInner::Database { specificities, .. } => {
                         for (rules, _, ions) in specificities {
-                            if PlacementRule::any_possible(&rules, self, position) {
-                                diagnostic_ions.extend_from_slice(&ions);
+                            if PlacementRule::any_possible(rules, self, position) {
+                                diagnostic_ions.extend_from_slice(ions);
                             }
                         }
                     }
@@ -300,8 +300,8 @@ impl<T> SequenceElement<T> {
                         for rule in specificities {
                             match rule {
                                 LinkerSpecificity::Symmetric(rules, _, ions) => {
-                                    if PlacementRule::any_possible(&rules, self, position) {
-                                        diagnostic_ions.extend_from_slice(&ions);
+                                    if PlacementRule::any_possible(rules, self, position) {
+                                        diagnostic_ions.extend_from_slice(ions);
                                     }
                                 }
                                 LinkerSpecificity::Asymmetric(
@@ -309,10 +309,10 @@ impl<T> SequenceElement<T> {
                                     _,
                                     ions,
                                 ) => {
-                                    if PlacementRule::any_possible(&rules_left, self, position)
-                                        || PlacementRule::any_possible(&rules_right, self, position)
+                                    if PlacementRule::any_possible(rules_left, self, position)
+                                        || PlacementRule::any_possible(rules_right, self, position)
                                     {
-                                        diagnostic_ions.extend_from_slice(&ions);
+                                        diagnostic_ions.extend_from_slice(ions);
                                     }
                                 }
                             }
