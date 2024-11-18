@@ -689,18 +689,16 @@ impl<'a> PSMLine<'a> {
 impl From<MZTabData> for IdentifiedPeptide {
     fn from(value: MZTabData) -> Self {
         Self {
-            score: if value.search_engine.is_empty() {
-                None
-            } else {
-                Some(
-                    value
-                        .search_engine
-                        .iter()
-                        .filter_map(|(_, s, _)| *s)
-                        .sum::<f64>()
-                        / value.search_engine.len() as f64,
-                )
-            },
+            score: value.search_engine.is_empty().then(|| {
+                (value
+                    .search_engine
+                    .iter()
+                    .filter_map(|(_, s, _)| *s)
+                    .sum::<f64>()
+                    / value.search_engine.len() as f64)
+                    .clamp(-1.0, 1.0)
+            }),
+            local_confidence: value.local_confidence.clone(),
             metadata: MetaData::MZTab(value),
         }
     }

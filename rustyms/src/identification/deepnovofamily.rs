@@ -56,7 +56,7 @@ format_family!(
                 )).transpose();
         score: Option<f64>, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
         local_confidence: Option<Vec<f64>>, |location: Location, _| location.or_empty()
-                .optional_array(',').map(|array| array.map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| 2.0 / (1.0 + (-v).exp()))).collect::<Result<Vec<_>, _>>())
+                .optional_array(',').map(|array| array.map(|l| l.parse::<f64>(NUMBER_ERROR)).collect::<Result<Vec<_>, _>>())
                 .transpose();
     }
     optional {
@@ -66,18 +66,25 @@ format_family!(
             .map(Charge::new::<crate::system::e>);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
     }
+
+    fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
+        if parsed.local_confidence.as_ref().map(Vec::len)
+            != parsed.peptide.as_ref().map(LinearPeptide::len)
+        {
+            parsed.local_confidence = parsed.local_confidence.map(interpolate_lc);
+        }
+        Ok(parsed)
+    }
 );
 
 impl From<DeepNovoFamilyData> for IdentifiedPeptide {
-    fn from(mut value: DeepNovoFamilyData) -> Self {
-        if value.local_confidence.as_ref().map(Vec::len)
-            != value.peptide.as_ref().map(LinearPeptide::len)
-        {
-            value.local_confidence = value.local_confidence.map(interpolate_lc);
-        }
-
+    fn from(value: DeepNovoFamilyData) -> Self {
         Self {
             score: value.score.map(|score| (2.0 / (1.0 + (-score).exp()))),
+            local_confidence: value
+                .local_confidence
+                .as_ref()
+                .map(|lc| lc.iter().map(|v| 2.0 / (1.0 + (-v).exp())).collect()),
             metadata: MetaData::DeepNovoFamily(value),
         }
     }

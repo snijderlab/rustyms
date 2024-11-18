@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeSet, HashSet},
-    fmt::Write,
-};
+use std::{collections::BTreeSet, fmt::Write};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

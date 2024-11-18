@@ -75,6 +75,7 @@ impl From<SageData> for IdentifiedPeptide {
     fn from(value: SageData) -> Self {
         Self {
             score: Some(value.sage_discriminant_score.clamp(-1.0, 1.0)),
+            local_confidence: None,
             metadata: MetaData::Sage(value),
         }
     }

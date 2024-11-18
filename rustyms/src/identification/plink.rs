@@ -150,7 +150,11 @@ format_family!(
             } else if *index == pep1+1 {
                 (0, SequencePosition::CTerm)
             } else if *index == pep1+2 {
-                unreachable!("Cannot put modificaitons on the XL")
+                return Err(CustomError::error(
+                    "Invalid modification location",
+                    format!("A modification cannot be located here, at location {}, between the two peptides, presumable on the cross-linker", index+1),
+                    source.full_context(),
+                ));
             } else if *index == pep1+3 {
                 (1, SequencePosition::NTerm)
             } else if (pep1+4..=pep1+4+pep2).contains(index) {
@@ -158,7 +162,11 @@ format_family!(
             } else if *index == pep1+4+pep2+1 {
                 (1, SequencePosition::CTerm)
             } else {
-                unreachable!("Cannot put modificaitons beyond peptide 2")
+                return Err(CustomError::error(
+                    "Invalid modification location",
+                    format!("A modification cannot be located here, at location {}, after peptide 2 has ended (maximal valid location {})", index+1,pep1+4+pep2+2),
+                    source.full_context(),
+                ));
             };
 
             match pos {
@@ -374,6 +382,7 @@ impl From<PLinkData> for IdentifiedPeptide {
     fn from(value: PLinkData) -> Self {
         Self {
             score: Some(1.0 - value.score),
+            local_confidence: None,
             metadata: MetaData::PLink(value),
         }
     }

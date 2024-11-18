@@ -29,7 +29,7 @@ format_family!(
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
@@ -54,7 +54,7 @@ format_family!(
         protein_all: String, |location: Location, _| Ok(Some(location.get_string()));
         database_sequence: String, |location: Location, _| Ok(Some(location.get_string()));
         local_confidence: Vec<f64>, |location: Location, _| location.array('-')
-                    .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
+                    .map(|l| l.parse::<f64>(NUMBER_ERROR))
                     .collect::<Result<Vec<_>, _>>();
     }
 );
@@ -62,7 +62,11 @@ format_family!(
 impl From<NovorData> for IdentifiedPeptide {
     fn from(value: NovorData) -> Self {
         Self {
-            score: Some(value.score.clamp(-1.0, 1.0)),
+            score: Some((value.score / 100.0).clamp(-1.0, 1.0)),
+            local_confidence: value
+                .local_confidence
+                .as_ref()
+                .map(|lc| lc.iter().map(|v| *v / 100.0).collect()),
             metadata: MetaData::Novor(value),
         }
     }

@@ -44,7 +44,7 @@ format_family!(
                             custom_database,
                             &SloppyParsingParameters::default()
                         );
-        alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
@@ -58,7 +58,7 @@ format_family!(
             ).unique().collect::<Result<Vec<_>,_>>();
         local_confidence: Vec<f64>, |location: Location, _| location
                 .array(' ')
-                .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
+                .map(|l| l.parse::<f64>(NUMBER_ERROR))
                 .collect::<Result<Vec<_>, _>>();
         tag: String, |location: Location, _| Ok(location.get_string());
         mode: String, |location: Location, _| Ok(location.get_string());
@@ -68,8 +68,7 @@ format_family!(
         raw_file: PathBuf, |location: Location, _| Ok(Some(Path::new(&location.get_string()).to_owned()));
         feature: PeaksFamilyId, |location: Location, _| location.or_empty().parse(ID_ERROR);
         de_novo_score: f64, |location: Location, _| location
-                .parse::<f64>(NUMBER_ERROR)
-                .map(|f| f / 100.0);
+                .parse::<f64>(NUMBER_ERROR);
         predicted_rt: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::min>));
         accession: String, |location: Location, _|  Ok(Some(location.get_string()));
     }
@@ -83,7 +82,8 @@ impl From<PeaksData> for IdentifiedPeptide {
             .search(value.peptide);
 
         Self {
-            score: Some(value.de_novo_score.unwrap_or(value.alc)),
+            score: Some(value.de_novo_score.unwrap_or(value.alc) / 100.0),
+            local_confidence: Some(value.local_confidence.iter().map(|v| *v / 100.0).collect()),
             metadata: MetaData::Peaks(value),
         }
     }

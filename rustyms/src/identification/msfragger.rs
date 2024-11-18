@@ -89,29 +89,33 @@ format_family!(
         condition: String, |location: Location, _| Ok(Some(location.get_string()));
         group: String, |location: Location, _| Ok(Some(location.get_string()));
     }
+
+    fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
+        if let SpectrumId::Native(native) = &parsed.scan {
+            if let Some(m) = IDENTIFER_REGEX
+                .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap())
+                .captures(native)
+            {
+                parsed.raw_file = Some(m.get(1).unwrap().as_str().into());
+                parsed.scan =
+                    SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
+            }
+        }
+        if parsed.peptide.is_none() {
+            parsed.peptide = parsed.extended_peptide[1].clone();
+        }
+        Ok(parsed)
+    }
 );
 
 /// The Regex to match against MSFragger scan fields
 static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
-#[allow(clippy::fallible_impl_from)] // Not fallible thanks to regex
 impl From<MSFraggerData> for IdentifiedPeptide {
-    fn from(mut value: MSFraggerData) -> Self {
-        if let SpectrumId::Native(native) = &value.scan {
-            if let Some(m) = IDENTIFER_REGEX
-                .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap())
-                .captures(native)
-            {
-                value.raw_file = Some(m.get(1).unwrap().as_str().into());
-                value.scan =
-                    SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
-            }
-        }
-        if value.peptide.is_none() {
-            value.peptide = value.extended_peptide[1].clone();
-        }
+    fn from(value: MSFraggerData) -> Self {
         Self {
             score: Some(value.hyperscore),
+            local_confidence: None,
             metadata: MetaData::MSFragger(value),
         }
     }

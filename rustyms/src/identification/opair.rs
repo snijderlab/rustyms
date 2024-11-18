@@ -123,7 +123,7 @@ format_family!(
         );
         mod_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         theoretical_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         matched_ion_series: String, |location: Location, _| Ok(location.get_string());
         matched_ion_mz_ratios: String, |location: Location, _| Ok(location.get_string());
@@ -191,7 +191,8 @@ format_family!(
 impl From<OpairData> for IdentifiedPeptide {
     fn from(value: OpairData) -> Self {
         Self {
-            score: Some(value.score),
+            score: Some(value.score / 100.0),
+            local_confidence: None,
             metadata: MetaData::Opair(value),
         }
     }

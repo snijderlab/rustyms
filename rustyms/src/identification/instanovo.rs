@@ -42,7 +42,7 @@ format_family!(
         local_confidence: Vec<f64>, |location: Location, _| location
             .trim_start_matches("[").trim_end_matches("]")
             .array(',')
-            .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
+            .map(|l| l.parse::<f64>(NUMBER_ERROR))
             .collect::<Result<Vec<_>, _>>();
     }
     optional {
@@ -53,6 +53,7 @@ impl From<InstaNovoData> for IdentifiedPeptide {
     fn from(value: InstaNovoData) -> Self {
         Self {
             score: Some(2.0 / (1.0 + 1.01_f64.powf(-value.score))),
+            local_confidence: Some(value.local_confidence.iter().map(|v| *v / 100.0).collect()),
             metadata: MetaData::InstaNovo(value),
         }
     }

@@ -106,7 +106,8 @@ impl From<MaxQuantData> for IdentifiedPeptide {
     fn from(value: MaxQuantData) -> Self {
         Self {
             score: (!value.score.is_nan())
-                .then(|| 2.0 * (1.0 - 1.0 / (1.0 + (-value.score).exp()))),
+                .then(|| 2.0 * (1.0 / (1.0 + 1.01_f64.powf(-value.score)) - 0.5)),
+            local_confidence: None,
             metadata: MetaData::MaxQuant(value),
         }
     }

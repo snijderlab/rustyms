@@ -558,6 +558,7 @@ impl From<FastaData> for IdentifiedPeptide {
     fn from(value: FastaData) -> Self {
         Self {
             score: None,
+            local_confidence: None,
             metadata: MetaData::Fasta(value),
         }
     }

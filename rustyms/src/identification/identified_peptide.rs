@@ -23,6 +23,8 @@ use crate::{
 pub struct IdentifiedPeptide {
     /// The score -1.0..=1.0 if a score was available in the original format
     pub score: Option<f64>,
+    /// The local confidence, if available, in range -1.0..=1.0
+    pub local_confidence: Option<Vec<f64>>,
     /// The full metadata of this peptide
     pub metadata: MetaData,
 }
