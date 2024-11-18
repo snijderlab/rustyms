@@ -22,11 +22,11 @@ pub enum Modification {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum CrossLinkSide {
     /// The cross-link is symmetric, or if asymmetric it can be placed in both orientations
-    Symmetric(HashSet<usize>),
+    Symmetric(std::collections::BTreeSet<usize>),
     /// The cross-link is asymmetric and this is the 'left' side
-    Left(HashSet<usize>),
+    Left(std::collections::BTreeSet<usize>),
     /// The cross-link is asymmetric and this is the 'right' side
-    Right(HashSet<usize>),
+    Right(std::collections::BTreeSet<usize>),
 }
 
 impl PartialOrd for CrossLinkSide {
@@ -96,9 +96,9 @@ pub enum SimpleModificationInner {
         /// The underlying glycan motif, first is the human description, the second id the GNOme ID of the motif
         motif: Option<(String, String)>,
         /// Taxonomy of the animals in which this glycan is found, defined as a list of species name with taxonomy ID
-        taxonomy: Vec<(String, usize)>,
+        taxonomy: thin_vec::ThinVec<(String, usize)>,
         /// Locations of where the glycan exists
-        glycomeatlas: Vec<(String, Vec<(String, String)>)>,
+        glycomeatlas: thin_vec::ThinVec<(String, Vec<(String, String)>)>,
     },
     /// A modification from one of the modification ontologies
     Database {
@@ -134,9 +134,9 @@ pub struct ModificationId {
     /// The description, mostly for search results
     pub description: String,
     /// Any synonyms
-    pub synonyms: Vec<String>,
+    pub synonyms: thin_vec::ThinVec<String>,
     /// Cross reference IDs
-    pub cross_ids: Vec<(String, String)>,
+    pub cross_ids: thin_vec::ThinVec<(String, String)>,
 }
 
 /// The name of a cross-link

@@ -15,6 +15,7 @@ regex = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 similar = { workspace = true }
+thin-vec = { workspace = true }
 uom = { workspace = true }
 
 [features]

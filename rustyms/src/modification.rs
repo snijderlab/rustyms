@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use std::{
     cmp::Ordering,
-    collections::HashSet,
+    collections::{BTreeSet, HashSet},
     fmt::{Display, Write},
     sync::Arc,
 };
@@ -54,11 +54,11 @@ pub enum RulePossible {
     /// This modification cannot be placed
     No,
     /// This modification can be placed and if it is a cross-link it can be placed on both ends
-    Symmetric(HashSet<usize>),
+    Symmetric(BTreeSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'left' side of the cross-link
-    AsymmetricLeft(HashSet<usize>),
+    AsymmetricLeft(BTreeSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'right' side of the cross-link
-    AsymmetricRight(HashSet<usize>),
+    AsymmetricRight(BTreeSet<usize>),
 }
 
 impl RulePossible {
@@ -75,7 +75,7 @@ impl std::ops::Add for RulePossible {
             (Self::Symmetric(a), _) | (_, Self::Symmetric(a)) => Self::Symmetric(a),
             (Self::AsymmetricLeft(l), Self::AsymmetricRight(r))
             | (Self::AsymmetricRight(l), Self::AsymmetricLeft(r)) => {
-                let overlap: HashSet<usize> = l.intersection(&r).copied().collect();
+                let overlap: BTreeSet<usize> = l.intersection(&r).copied().collect();
                 if overlap.is_empty() {
                     Self::No
                 } else {
@@ -178,7 +178,7 @@ impl SimpleModificationInner {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
-                let matching: HashSet<usize> = specificities
+                let matching: BTreeSet<usize> = specificities
                     .iter()
                     .enumerate()
                     .filter_map(|(index, (rules, _, _))| {
@@ -197,7 +197,7 @@ impl SimpleModificationInner {
                 .map(|(index, spec)| match spec {
                     LinkerSpecificity::Symmetric(rules, _, _) => {
                         if PlacementRule::any_possible(rules, seq, position) {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
@@ -206,18 +206,18 @@ impl SimpleModificationInner {
                         let left = PlacementRule::any_possible(rules_left, seq, position);
                         let right = PlacementRule::any_possible(rules_right, seq, position);
                         if left && right {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else if left {
-                            RulePossible::AsymmetricLeft(HashSet::from([index]))
+                            RulePossible::AsymmetricLeft(BTreeSet::from([index]))
                         } else if right {
-                            RulePossible::AsymmetricRight(HashSet::from([index]))
+                            RulePossible::AsymmetricRight(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
                     }
                 })
                 .sum::<RulePossible>(),
-            _ => RulePossible::Symmetric(HashSet::default()),
+            _ => RulePossible::Symmetric(BTreeSet::default()),
         }
     }
 
@@ -226,7 +226,7 @@ impl SimpleModificationInner {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
-                let matching: HashSet<usize> = specificities
+                let matching: BTreeSet<usize> = specificities
                     .iter()
                     .enumerate()
                     .filter_map(|(index, (rules, _, _))| {
@@ -245,7 +245,7 @@ impl SimpleModificationInner {
                 .map(|(index, spec)| match spec {
                     LinkerSpecificity::Symmetric(rules, _, _) => {
                         if PlacementRule::any_possible_aa(rules, aa, position) {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
@@ -254,18 +254,18 @@ impl SimpleModificationInner {
                         let left = PlacementRule::any_possible_aa(rules_left, aa, position);
                         let right = PlacementRule::any_possible_aa(rules_right, aa, position);
                         if left && right {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else if left {
-                            RulePossible::AsymmetricLeft(HashSet::from([index]))
+                            RulePossible::AsymmetricLeft(BTreeSet::from([index]))
                         } else if right {
-                            RulePossible::AsymmetricRight(HashSet::from([index]))
+                            RulePossible::AsymmetricRight(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
                     }
                 })
                 .sum::<RulePossible>(),
-            _ => RulePossible::Symmetric(HashSet::default()),
+            _ => RulePossible::Symmetric(BTreeSet::default()),
         }
     }
 
@@ -601,10 +601,10 @@ impl Modification {
         seq: &SequenceElement<T>,
         position: SequencePosition,
     ) -> RulePossible {
-        self.simple()
-            .map_or(RulePossible::Symmetric(HashSet::new()), |s| {
-                s.is_possible(seq, position)
-            })
+        self.simple().map_or(
+            RulePossible::Symmetric(std::collections::BTreeSet::new()),
+            |s| s.is_possible(seq, position),
+        )
     }
 
     /// Generate theoretical fragments for side chains (glycans)

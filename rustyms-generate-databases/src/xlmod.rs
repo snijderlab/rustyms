@@ -1,6 +1,7 @@
 use std::{io::Write, path::Path};
 
 use itertools::Itertools;
+use thin_vec::ThinVec;
 
 use crate::{formula::MolecularFormula, LinkerSpecificity};
 
@@ -51,8 +52,8 @@ fn parse_xlmod() -> Vec<OntologyModification> {
         let mut origins = (Vec::new(), Vec::new());
         let mut diagnostic_ions = Vec::new();
         let mut description = String::new();
-        let mut cross_ids = Vec::new();
-        let mut synonyms = Vec::new();
+        let mut cross_ids = ThinVec::new();
+        let mut synonyms = ThinVec::new();
         if let Some(values) = obj.lines.get("def") {
             assert!(values.len() == 1);
             let line = values[0][1..].split_once('\"').unwrap();

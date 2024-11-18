@@ -9,6 +9,8 @@ use crate::{
     NeutralLoss, SimpleModification, SimpleModificationInner,
 };
 
+use thin_vec::ThinVec;
+
 #[derive(Debug, Default)]
 pub struct OntologyModification {
     pub formula: MolecularFormula,
@@ -16,8 +18,8 @@ pub struct OntologyModification {
     pub ontology: Ontology,
     pub id: usize,
     pub description: String,
-    pub synonyms: Vec<String>,
-    pub cross_ids: Vec<(String, String)>,
+    pub synonyms: ThinVec<String>,
+    pub cross_ids: ThinVec<(String, String)>,
     pub data: ModData,
 }
 

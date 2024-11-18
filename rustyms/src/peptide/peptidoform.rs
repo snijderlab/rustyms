@@ -1,4 +1,7 @@
-use std::{collections::HashSet, fmt::Write};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fmt::Write,
+};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -127,13 +130,13 @@ impl Peptidoform {
                     | SimpleModificationInner::Mass(_)
             ) {
                 Some((
-                    CrossLinkSide::Symmetric(HashSet::default()),
-                    CrossLinkSide::Symmetric(HashSet::default()),
+                    CrossLinkSide::Symmetric(std::collections::BTreeSet::default()),
+                    CrossLinkSide::Symmetric(std::collections::BTreeSet::default()),
                 ))
             } else {
                 match (left, right) {
                     (RulePossible::Symmetric(a), RulePossible::Symmetric(b)) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {
@@ -147,7 +150,7 @@ impl Peptidoform {
                         RulePossible::AsymmetricLeft(a),
                         RulePossible::AsymmetricRight(b) | RulePossible::Symmetric(b),
                     ) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {
@@ -161,7 +164,7 @@ impl Peptidoform {
                         RulePossible::AsymmetricRight(a),
                         RulePossible::AsymmetricLeft(b) | RulePossible::Symmetric(b),
                     ) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {

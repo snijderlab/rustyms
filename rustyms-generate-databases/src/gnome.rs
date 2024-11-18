@@ -7,6 +7,8 @@ use super::{
     GnoSubsumption, ModificationId, SimpleModificationInner,
 };
 
+use thin_vec::ThinVec;
+
 pub fn build_gnome_ontology(out_dir: &Path) {
     // Get all the basic info
     let mut mods = parse_gnome();
@@ -33,8 +35,8 @@ pub fn build_gnome_ontology(out_dir: &Path) {
                     .push(("PubChemCID".to_string(), pubchem.to_string()));
             }
             modification.motif = structure.motif.clone();
-            modification.taxonomy = structure.taxonomy.clone();
-            modification.glycomeatlas = structure.glycomeatlas.clone();
+            modification.taxonomy = structure.taxonomy.clone().into();
+            modification.glycomeatlas = structure.glycomeatlas.clone().into();
         } else if let Some(id) = &modification.topology_id {
             modification.topology = structures.get(id).map(|s| s.structure.clone());
         }
@@ -134,7 +136,7 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
                     d[0].trim_matches("\"[] ".chars().collect_vec().as_slice())
                         .to_string()
                 }),
-                synonyms: obj.lines.get("synonym").map_or(Vec::new(), |s| {
+                synonyms: obj.lines.get("synonym").map_or(ThinVec::new(), |s| {
                     s.iter()
                         .filter_map(|s| s[1..].split_once('"').map(|(s, _)| s.to_string()))
                         .collect()
@@ -196,8 +198,8 @@ fn parse_gnome() -> HashMap<String, GNOmeModification> {
                 .map(|lines| MonoSaccharide::from_composition(&lines[0].to_string()).unwrap()),
             topology: None, // Will be looked up later
             motif: None,
-            taxonomy: Vec::new(),
-            glycomeatlas: Vec::new(),
+            taxonomy: ThinVec::new(),
+            glycomeatlas: ThinVec::new(),
         };
 
         mods.insert(modification.id.name.clone(), modification);
@@ -344,9 +346,9 @@ struct GNOmeModification {
     /// The underlying glycan motifs
     motif: Option<(String, String)>,
     /// Taxonomy of where the glycan exists
-    taxonomy: Vec<(String, usize)>,
+    taxonomy: ThinVec<(String, usize)>,
     /// Locations of where the glycan exists
-    glycomeatlas: Vec<(String, Vec<(String, String)>)>,
+    glycomeatlas: ThinVec<(String, Vec<(String, String)>)>,
 }
 
 impl GNOmeModification {

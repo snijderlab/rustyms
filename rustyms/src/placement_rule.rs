@@ -210,7 +210,7 @@ mod tests {
                 &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::CTerm
             ),
-            RulePossible::Symmetric(std::collections::HashSet::from([0])),
+            RulePossible::Symmetric(std::collections::BTreeSet::from([0])),
             "unimod deamidated at end"
         );
     }
