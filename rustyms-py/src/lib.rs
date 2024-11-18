@@ -850,7 +850,7 @@ impl SequenceElement {
     /// int | None
     ///
     #[getter]
-    fn ambiguous(&self) -> Option<u8> {
+    fn ambiguous(&self) -> Option<std::num::NonZeroU32> {
         self.0.ambiguous
     }
 }

@@ -32,6 +32,7 @@ rayon = { workspace = true, optional = true }
 regex = { workspace = true }
 serde = { workspace = true }
 similar = { workspace = true }
+thin-vec = { workspace = true }
 uom = { workspace = true }
 
 [dev-dependencies]

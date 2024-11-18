@@ -209,7 +209,7 @@ impl CompoundPeptidoform {
         let mut peptide = LinearPeptide::default();
         let chars: &[u8] = line.as_bytes();
         let mut c_term = false;
-        let mut ambiguous_aa_counter = 0;
+        let mut ambiguous_aa_counter = std::num::NonZeroU32::MIN;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
         let mut cross_link_found_positions: Vec<(usize, SequencePosition)> = Vec::new();
@@ -294,7 +294,11 @@ impl CompoundPeptidoform {
                         ));
                     }
                     ambiguous_aa = Some(ambiguous_aa_counter);
-                    ambiguous_aa_counter += 1;
+                    ambiguous_aa_counter = ambiguous_aa_counter.checked_add(1).ok_or_else(|| CustomError::error(
+                        "Invalid ambiguous amino acid set",
+                        format!("There are too many ambiguous amino acid sets, there can only be {} in one linear peptide", std::num::NonZeroU32::MAX),
+                        Context::line(None, line, index, 1),
+                    ))?;
                     index += 2;
                 }
                 (false, b')') if ambiguous_aa.is_some() => {

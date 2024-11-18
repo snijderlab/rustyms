@@ -1,6 +1,6 @@
 #![warn(dead_code)]
 
-use std::{collections::HashSet, fmt::Write, marker::PhantomData};
+use std::{collections::HashSet, fmt::Write, marker::PhantomData, num::NonZeroU32};
 
 use crate::{
     error::{Context, CustomError},
@@ -14,6 +14,7 @@ use crate::{
     MultiChemical, SequencePosition,
 };
 use serde::{Deserialize, Serialize};
+use thin_vec::ThinVec;
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
 #[derive(Default, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -21,11 +22,11 @@ pub struct SequenceElement<T> {
     /// The aminoacid
     pub aminoacid: CheckedAminoAcid<T>,
     /// All present modifications
-    pub modifications: Vec<Modification>,
+    pub modifications: ThinVec<Modification>,
     /// All ambiguous modifications (could be placed here or on another position)
-    pub possible_modifications: Vec<AmbiguousModification>,
+    pub possible_modifications: ThinVec<AmbiguousModification>,
     /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in ProForma
-    pub ambiguous: Option<u8>,
+    pub ambiguous: Option<NonZeroU32>,
     /// The marker indicating which level of complexity this sequence element uses as higher bound
     marker: PhantomData<T>,
 }
@@ -81,11 +82,11 @@ impl<T> SequenceElement<T> {
     }
 
     /// Create a new aminoacid without any modifications
-    pub const fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<u8>) -> Self {
+    pub fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<NonZeroU32>) -> Self {
         Self {
             aminoacid,
-            modifications: Vec::new(),
-            possible_modifications: Vec::new(),
+            modifications: ThinVec::new(),
+            possible_modifications: ThinVec::new(),
             ambiguous,
             marker: PhantomData,
         }
@@ -111,7 +112,7 @@ impl<T> SequenceElement<T> {
         &self,
         f: &mut impl Write,
         placed: &[usize],
-        last_ambiguous: Option<u8>,
+        last_ambiguous: Option<NonZeroU32>,
         specification_compliant: bool,
     ) -> Result<Vec<usize>, std::fmt::Error> {
         let mut extra_placed = Vec::new();
