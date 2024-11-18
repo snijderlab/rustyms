@@ -159,6 +159,10 @@ pub struct Location<'a> {
 }
 
 impl<'a> Location<'a> {
+    pub fn len(&self) -> usize {
+        self.location.len()
+    }
+
     #[allow(dead_code)]
     pub fn column(column: usize, source: &'a CsvLine) -> Self {
         Location {
