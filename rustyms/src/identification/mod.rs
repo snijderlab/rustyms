@@ -16,6 +16,7 @@ mod novor;
 mod opair;
 mod peaks;
 mod plink;
+mod powernovo;
 mod sage;
 
 use crate::*;
@@ -32,6 +33,7 @@ pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
 pub use plink::*;
+pub use powernovo::*;
 pub use sage::*;
 
 #[cfg(test)]
@@ -52,5 +54,7 @@ mod opair_tests;
 mod peaks_tests;
 #[cfg(test)]
 mod plink_tests;
+#[cfg(test)]
+mod powernovo_tests;
 #[cfg(test)]
 mod sage_tests;

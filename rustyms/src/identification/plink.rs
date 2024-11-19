@@ -3,7 +3,7 @@ use std::{ops::Range, path::PathBuf, sync::Arc};
 use crate::{
     error::{Context, CustomError},
     formula::Chemical,
-    helper_functions::{explain_number_error, InvertResult},
+    helper_functions::explain_number_error,
     identification::{
         common_parser::{Location, OptionalColumn, OptionalLocation},
         csv::{parse_csv, CsvLine},

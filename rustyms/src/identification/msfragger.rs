@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 //Spectrum	Spectrum.File	Peptide	Modified sequence	Extended.Peptide	Prev.AA	Next.AA	Peptide.Length	Charge	Retention	Observed.Mass	Calibrated.Observed.Mass	Observed.M.Z	Calibrated.Observed.M.Z	Calculated.Peptide.Mass	Calculated.M.Z	Delta.Mass	Expectation	Hyperscore	Nextscore	PeptideProphet.Probability	Number.of.Enzymatic.Termini	Number.of.Missed.Cleavages	Protein.Start	Protein.End	Intensity	Assigned.Modifications	Observed.Modifications	Purity	Is.Unique	Protein	Protein.ID	Entry.Name	Gene	Protein.Description	Mapped.Genes	Mapped.Proteins	condition	group
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{explain_number_error, InvertResult},
+    helper_functions::explain_number_error,
     identification::SpectrumId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
