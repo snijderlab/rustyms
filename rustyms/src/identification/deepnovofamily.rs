@@ -2,7 +2,6 @@ use std::sync::OnceLock;
 
 use crate::{
     error::CustomError,
-    helper_functions::*,
     identification::PeaksFamilyId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
