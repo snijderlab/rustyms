@@ -10,7 +10,7 @@ fn powernovo() {
         None,
         false,
         true,
-        Some(PowerNovoVersion::PowerNovo_v1_0_1),
+        Some(PowerNovoVersion::V1_0_1),
     ) {
         Ok(n) => assert_eq!(n, 20),
         Err(e) => {

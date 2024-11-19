@@ -10,7 +10,7 @@ fn pepnet() {
         None,
         false,
         true,
-        Some(PepNetVersion::PepNet_v1_0),
+        Some(PepNetVersion::V1_0),
     ) {
         Ok(n) => assert_eq!(n, 20),
         Err(e) => {

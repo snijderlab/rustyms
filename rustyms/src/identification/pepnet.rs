@@ -55,7 +55,7 @@ impl From<PepNetData> for IdentifiedPeptide {
 
 /// The only known version of PepNet
 pub const PEPNET_V1_0: PepNetFormat = PepNetFormat {
-    version: PepNetVersion::PepNet_v1_0,
+    version: PepNetVersion::V1_0,
     peptide: "denovo",
     score: "score",
     local_confidence: "positional score",
@@ -68,7 +68,7 @@ pub const PEPNET_V1_0: PepNetFormat = PepNetFormat {
 pub enum PepNetVersion {
     #[default]
     /// PepNet version 1.0
-    PepNet_v1_0,
+    V1_0,
 }
 
 impl std::fmt::Display for PepNetVersion {
@@ -77,7 +77,7 @@ impl std::fmt::Display for PepNetVersion {
             f,
             "{}",
             match self {
-                Self::PepNet_v1_0 => "Pepnet v1.0",
+                Self::V1_0 => "v1.0",
             }
         )
     }

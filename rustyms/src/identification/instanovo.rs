@@ -45,8 +45,7 @@ format_family!(
             .map(|l| l.parse::<f64>(NUMBER_ERROR))
             .collect::<Result<Vec<_>, _>>();
     }
-    optional {
-    }
+    optional { }
 );
 
 impl From<InstaNovoData> for IdentifiedPeptide {
@@ -61,7 +60,7 @@ impl From<InstaNovoData> for IdentifiedPeptide {
 
 /// The only known version of InstaNovo
 pub const INSTANOVO_V1_0_0: InstaNovoFormat = InstaNovoFormat {
-    version: InstaNovoVersion::InstaNovo_v1_0_0,
+    version: InstaNovoVersion::V1_0_0,
     scan: "scan_number",
     mz: "precursor_mz",
     z: "precursor_charge",
@@ -77,7 +76,7 @@ pub const INSTANOVO_V1_0_0: InstaNovoFormat = InstaNovoFormat {
 pub enum InstaNovoVersion {
     #[default]
     /// InstaNovo version 1.0.0
-    InstaNovo_v1_0_0,
+    V1_0_0,
 }
 
 impl std::fmt::Display for InstaNovoVersion {
@@ -86,7 +85,7 @@ impl std::fmt::Display for InstaNovoVersion {
             f,
             "{}",
             match self {
-                Self::InstaNovo_v1_0_0 => "InstaNovo v1.0.0",
+                Self::V1_0_0 => "v1.0.0",
             }
         )
     }

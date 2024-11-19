@@ -9,7 +9,7 @@ fn instanovo() {
         None,
         true,
         true,
-        Some(InstaNovoVersion::InstaNovo_v1_0_0),
+        Some(InstaNovoVersion::V1_0_0),
     ) {
         Ok(n) => assert_eq!(n, 21),
         Err(e) => {

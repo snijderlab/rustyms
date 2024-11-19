@@ -77,7 +77,7 @@ impl From<PowerNovoData> for IdentifiedPeptide {
 
 /// The only known version of PowerNovo
 pub const POWERNOVO_V1_0_1: PowerNovoFormat = PowerNovoFormat {
-    version: PowerNovoVersion::PowerNovo_v1_0_1,
+    version: PowerNovoVersion::V1_0_1,
     scan: OptionalColumn::NotAvailable,
     raw_file: "spectrum name",
     peptide: "powernovo peptides",
@@ -91,7 +91,7 @@ pub const POWERNOVO_V1_0_1: PowerNovoFormat = PowerNovoFormat {
 pub enum PowerNovoVersion {
     #[default]
     /// PowerNovo version 1.0.1
-    PowerNovo_v1_0_1,
+    V1_0_1,
 }
 
 impl std::fmt::Display for PowerNovoVersion {
@@ -100,7 +100,7 @@ impl std::fmt::Display for PowerNovoVersion {
             f,
             "{}",
             match self {
-                Self::PowerNovo_v1_0_1 => "PowerNovo v1.0.1",
+                Self::V1_0_1 => "v1.0.1",
             }
         )
     }
