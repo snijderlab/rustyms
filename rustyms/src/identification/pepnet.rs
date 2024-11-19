@@ -47,7 +47,7 @@ impl From<PepNetData> for IdentifiedPeptide {
     fn from(value: PepNetData) -> Self {
         Self {
             score: Some(value.score),
-            local_confidence: Some(value.local_confidence.iter().map(|v| *v / 100.0).collect()),
+            local_confidence: Some(value.local_confidence.clone()),
             metadata: MetaData::PepNet(value),
         }
     }

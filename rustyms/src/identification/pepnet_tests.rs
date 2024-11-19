@@ -9,7 +9,7 @@ fn pepnet() {
         BufReader::new(PEPNET_V1_0.as_bytes()),
         None,
         false,
-        false,
+        true,
         Some(PepNetVersion::PepNet_v1_0),
     ) {
         Ok(n) => assert_eq!(n, 20),
