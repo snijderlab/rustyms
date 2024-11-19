@@ -85,8 +85,31 @@ impl LinearPeptide<SemiAmbiguous> {
                     .map(Modification::Simple)?;
                     index = end_index + 1;
 
+                    let pep_len = peptide.len();
+                    let n_term_mod = peptide.get_n_term().is_some();
                     match peptide.sequence_mut().last_mut() {
-                        Some(aa) => aa.modifications.push(modification),
+                        Some(aa) => {
+                            if pep_len == 1
+                                && !modification
+                                    .is_possible(aa, crate::SequencePosition::Index(0))
+                                    .any_possible()
+                                && modification
+                                    .is_possible(aa, crate::SequencePosition::NTerm)
+                                    .any_possible()
+                                && !n_term_mod
+                            {
+                                peptide.set_simple_n_term(Some(
+                                    modification
+                                        .simple()
+                                        .expect(
+                                            "Can only put a simple modification on an N terminus.",
+                                        )
+                                        .clone(),
+                                ));
+                            } else {
+                                aa.modifications.push(modification);
+                            }
+                        }
                         None => {
                             peptide.set_simple_n_term(Some(
                                 modification

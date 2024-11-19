@@ -467,7 +467,7 @@ where
     type Format: Clone;
 
     /// The version type
-    type Version;
+    type Version: Display;
 
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors

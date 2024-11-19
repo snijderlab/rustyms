@@ -44,7 +44,7 @@ macro_rules! format_family {
                 for format in $versions {
                     match Self::parse_specific(source, format, custom_database) {
                         Ok(peptide) => return Ok((peptide, format)),
-                        Err(err) => errors.push(err),
+                        Err(err) => errors.push(err.with_version(&format.version)),
                     }
                 }
                 Err(CustomError::error(

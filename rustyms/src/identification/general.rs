@@ -51,8 +51,8 @@ pub fn open_identified_peptides_file<'a>(
                     .map_err(|le| (pe, ne, ie, le))
             }).map_err(|(pe, ne, ie, le)| {
                 CustomError::error(
-                    "Unknown file",
-                    "Could not be recognised as either a Peaks, Novor, InstaNovo or pLink file",
+                    "Unknown file format",
+                    "Could not be recognised as either a Peaks, Novor, InstaNovo, or pLink file",
                     Context::show(path.to_string_lossy()),
                 )
                 .with_underlying_errors(vec![pe, ne, ie, le])
@@ -66,7 +66,7 @@ pub fn open_identified_peptides_file<'a>(
             })
             .map_err(|(me, se)| {
                 CustomError::error(
-                    "Unknown file",
+                    "Unknown file format",
                     "Could not be recognised as either a MSFragger or Sage file",
                     Context::show(path.to_string_lossy()),
                 )
