@@ -56,7 +56,7 @@ pub fn open_identified_peptides_file<'a>(
             }).map_err(|(pe, ne, ie, le, pne)| {
                 CustomError::error(
                     "Unknown file",
-                    "Could not be recognised as either a Peaks, Novor, InstaNovo, pLink or PowerNovo file",
+                    "Could not be recognised as either a Peaks, Novor, InstaNovo, pLink, or PowerNovo file",
                     Context::show(path.to_string_lossy()),
                 )
                 .with_underlying_errors(vec![pe, ne, ie, le, pne])

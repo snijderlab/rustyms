@@ -204,7 +204,7 @@ impl IdentifiedPeptide {
                 id.map_or_else(|| scan.iter().join(";"), |id| id.to_string())
             }
             MetaData::PowerNovo(PowerNovoData { scan, .. }) => {
-                scan.as_ref().map_or("-".to_string(), |s| s.to_string())
+                scan.as_ref().map_or("-".to_string(), ToString::to_string)
             }
         }
     }
