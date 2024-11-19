@@ -83,6 +83,9 @@ macro_rules! format_family {
             }
             #[allow(clippy::redundant_closure_call)] // Macro magic
             fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
+                #[allow(unused_imports)]
+                use crate::helper_functions::InvertResult;
+
                 let parsed = Self {
                     $($rname: $rf(source.column(format.$rname)?, custom_database)?,)*
                     $($oname: format.$oname.open_column(source).and_then(|l: Option<Location>| l.map(|value: Location| $of(value, custom_database)).invert())?,)*

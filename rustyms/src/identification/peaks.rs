@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::CustomError,
-    helper_functions::InvertResult,
     identification::PeaksFamilyId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},

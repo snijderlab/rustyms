@@ -15,6 +15,9 @@ doc-valid-idents = [
     "InstaNovo",
     "DeepNovoFamily",
     "PointNovoFamily",
+    "PowerNovo",
+    "pi-PrimeNovo",
+    "π-PrimeNovo",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true
