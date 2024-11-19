@@ -5,7 +5,7 @@ use super::{
     ontologies::CustomDatabase,
     DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
     IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovorData,
-    OpairData, PLinkData, PeaksData, PowerNovoData, SageData,
+    OpairData, PLinkData, PeaksData, PepNetData, PowerNovoData, SageData,
 };
 
 // TODO:
@@ -68,13 +68,18 @@ pub fn open_identified_peptides_file<'a>(
                     .map(IdentifiedPeptideIter::into_box)
                     .map_err(|se| (me, se))
             })
-            .map_err(|(me, se)| {
+            .or_else(|(me, se)| {
+                PepNetData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|pe| (me, se, pe))
+            })
+            .map_err(|(me, se, pe)| {
                 CustomError::error(
                     "Unknown file format",
-                    "Could not be recognised as either a MSFragger or Sage file",
+                    "Could not be recognised a MSFragger, PepNet or Sage file",
                     Context::show(path.to_string_lossy()),
                 )
-                .with_underlying_errors(vec![me, se])
+                .with_underlying_errors(vec![me, se, pe])
             }),
         Some("psmtsv") => {
             OpairData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)

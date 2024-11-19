@@ -8,7 +8,7 @@ use crate::{
     formula::MultiChemical,
     identification::{
         deepnovofamily::DeepNovoFamilyData, fasta::FastaData, instanovo::InstaNovoData,
-        novor::NovorData, opair::OpairData, peaks::PeaksData, plink::PLinkData,
+        novor::NovorData, opair::OpairData, peaks::PeaksData, pepnet::PepNetData, plink::PLinkData,
         powernovo::PowerNovoData, system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData,
         SageData,
     },
@@ -52,6 +52,8 @@ pub enum MetaData {
     Opair(OpairData),
     /// Peaks metadata
     Peaks(PeaksData),
+    /// PepNet metadata
+    PepNet(PepNetData),
     /// pLink metadata
     PLink(PLinkData),
     /// PowerNovo metadata
@@ -135,6 +137,7 @@ impl IdentifiedPeptide {
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::InstaNovo(InstaNovoData { peptide, .. })
             | MetaData::PowerNovo(PowerNovoData { peptide, .. })
+            | MetaData::PepNet(PepNetData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
             MetaData::Peaks(PeaksData { peptide, .. }) => Some(ReturnedPeptide::Linear(&peptide.1)),
@@ -162,6 +165,7 @@ impl IdentifiedPeptide {
             MetaData::Novor(_) => "Novor",
             MetaData::Opair(_) => "OPair",
             MetaData::Peaks(_) => "PEAKS",
+            MetaData::PepNet(_) => "PepNet",
             MetaData::PLink(_) => "pLink",
             MetaData::PowerNovo(_) => "PowerNovo",
             MetaData::Sage(_) => "Sage",
@@ -183,6 +187,7 @@ impl IdentifiedPeptide {
             MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
             MetaData::PowerNovo(PowerNovoData { version, .. }) => version.to_string(),
             MetaData::Sage(SageData { version, .. }) => version.to_string(),
+            MetaData::PepNet(PepNetData { version, .. }) => version.to_string(),
         }
     }
 
@@ -206,6 +211,7 @@ impl IdentifiedPeptide {
             MetaData::PowerNovo(PowerNovoData { scan, .. }) => {
                 scan.as_ref().map_or("-".to_string(), ToString::to_string)
             }
+            MetaData::PepNet(_) => "-".to_string(),
         }
     }
 
@@ -216,6 +222,9 @@ impl IdentifiedPeptide {
                 local_confidence, ..
             })
             | MetaData::PowerNovo(PowerNovoData {
+                local_confidence, ..
+            })
+            | MetaData::PepNet(PepNetData {
                 local_confidence, ..
             }) => Some(local_confidence),
 
@@ -248,7 +257,7 @@ impl IdentifiedPeptide {
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::Peaks(PeaksData { z, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
-            MetaData::Fasta(_) | MetaData::PowerNovo(_) => None,
+            MetaData::Fasta(_) | MetaData::PowerNovo(_) | MetaData::PepNet(_) => None,
         }
     }
 
@@ -275,6 +284,7 @@ impl IdentifiedPeptide {
             | MetaData::InstaNovo(_)
             | MetaData::Fasta(_)
             | MetaData::PowerNovo(_)
+            | MetaData::PepNet(_)
             | MetaData::PLink(_) => None,
         }
     }
@@ -353,7 +363,7 @@ impl IdentifiedPeptide {
             MetaData::Sage(SageData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
             }
-            MetaData::Fasta(_) => SpectrumIds::None,
+            MetaData::Fasta(_) | MetaData::PepNet(_) => SpectrumIds::None,
         }
     }
 
@@ -374,7 +384,10 @@ impl IdentifiedPeptide {
                     mass.value / (z.value as f64),
                 ))
             }
-            MetaData::DeepNovoFamily(_) | MetaData::Fasta(_) | MetaData::PowerNovo(_) => None,
+            MetaData::DeepNovoFamily(_)
+            | MetaData::Fasta(_)
+            | MetaData::PowerNovo(_)
+            | MetaData::PepNet(_) => None,
         }
     }
 
@@ -393,12 +406,16 @@ impl IdentifiedPeptide {
             MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
                 mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
             }
-            MetaData::Fasta(_) | MetaData::PowerNovo(_) => None,
+            MetaData::Fasta(_) | MetaData::PowerNovo(_) | MetaData::PepNet(_) => None,
         }
     }
 
     /// Get the absolute ppm error between the experimental and theoretical precursor mass
     pub fn ppm_error(&self) -> Option<crate::system::Ratio> {
+        if let MetaData::PepNet(p) = &self.metadata {
+            return Some(p.ppm_diff);
+        }
+
         let exp_mass = self.experimental_mass()?;
         let theo_mass = self
             .peptide()
