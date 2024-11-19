@@ -33,7 +33,7 @@ format_family!(
     MSFraggerFormat,
     /// The data from any MSFragger file
     MSFraggerData,
-    MSFraggerVersion, [&V21, &V22], b'\t';
+    MSFraggerVersion, [&V21, &V22], b'\t', None;
     required {
         scan: SpectrumId, |location: Location, _| Ok(SpectrumId::Native(location.get_string()));
         spectrum_file: PathBuf, |location: Location, _| Ok(location.get_string().into());

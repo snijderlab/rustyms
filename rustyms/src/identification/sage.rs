@@ -27,7 +27,7 @@ format_family!(
     SageFormat,
     /// The data from any Sage file
     SageData,
-    SageVersion, [&VERSION_0_14], b'\t';
+    SageVersion, [&VERSION_0_14], b'\t', None;
     required {
         aligned_rt: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         decoy: bool, |location: Location, _| location.parse::<i8>(NUMBER_ERROR).map(|v| v == -1);

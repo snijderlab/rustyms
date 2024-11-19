@@ -33,7 +33,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',';
+    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
     required {
         scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());

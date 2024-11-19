@@ -28,7 +28,7 @@ format_family!(
     PowerNovoFormat,
     /// The data from any PowerNovo file
     PowerNovoData,
-    PowerNovoVersion, [&POWERNOVO_V1_0_1], b',';
+    PowerNovoVersion, [&POWERNOVO_V1_0_1], b',', None;
     required {
         raw_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(

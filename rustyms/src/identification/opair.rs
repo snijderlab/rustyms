@@ -23,7 +23,7 @@ format_family!(
     OpairFormat,
     /// The data for OPair data
     OpairData,
-    OpairVersion, [&O_PAIR], b'\t';
+    OpairVersion, [&O_PAIR], b'\t', None;
     required {
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);

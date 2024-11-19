@@ -36,7 +36,7 @@ format_family!(
     PLinkFormat,
     /// The data from any pLink file
     PLinkData,
-    PLinkVersion, [&V2_3], b',';
+    PLinkVersion, [&V2_3], b',', None;
     required {
         order: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         title: String, |location: Location, _| Ok(location.get_string());

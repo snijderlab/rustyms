@@ -26,7 +26,7 @@ format_family!(
     InstaNovoFormat,
     /// The data from any InstaNovo file
     InstaNovoData,
-    InstaNovoVersion, [&INSTANOVO_V1_0_0], b',';
+    InstaNovoVersion, [&INSTANOVO_V1_0_0], b',', None;
     required {
         scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);

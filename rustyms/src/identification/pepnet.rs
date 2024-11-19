@@ -24,7 +24,7 @@ format_family!(
     PepNetFormat,
     /// The data from any PepNet file
     PepNetData,
-    PepNetVersion, [&PEPNET_V1_0], b'\t';
+    PepNetVersion, [&PEPNET_V1_0], b'\t', None;
     required {
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),

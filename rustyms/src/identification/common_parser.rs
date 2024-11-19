@@ -9,7 +9,7 @@ macro_rules! format_family {
      $format:ident,
      #[doc = $data_doc:expr]
      $data:ident,
-     $version:ident, $versions:expr, $separator:expr;
+     $version:ident, $versions:expr, $separator:expr, $header:expr;
      required { $($(#[doc = $rdoc:expr])? $rname:ident: $rtyp:ty, $rf:expr;)* }
      optional { $($(#[doc = $odoc:expr])? $oname:ident: $otyp:ty, $of:expr;)*}
      $($post_process:item)?) => {
@@ -57,7 +57,7 @@ macro_rules! format_family {
                 path: impl AsRef<std::path::Path>,
                 custom_database: Option<&crate::ontologies::CustomDatabase>,
             ) -> Result<BoxedIdentifiedPeptideIter<Self>, CustomError> {
-                parse_csv(path, $separator, None).and_then(|lines| {
+                parse_csv(path, $separator, $header).and_then(|lines| {
                     let mut i = Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(
                         Box::new(lines), custom_database);
                     if let Some(Err(e)) = i.peek() {
@@ -71,7 +71,7 @@ macro_rules! format_family {
                 reader: impl std::io::Read + 'a,
                 custom_database: Option<&'a crate::ontologies::CustomDatabase>,
             ) -> Result<BoxedIdentifiedPeptideIter<'a, Self>, CustomError> {
-                crate::csv::parse_csv_raw(reader, $separator, None).and_then(move |lines| {
+                crate::csv::parse_csv_raw(reader, $separator, $header).and_then(move |lines| {
                     let mut i = Self::parse_many::<Box<dyn Iterator<Item = Result<Self::Source, CustomError>>>>(
                         Box::new(lines), custom_database);
                     if let Some(Err(e)) = i.peek() {
