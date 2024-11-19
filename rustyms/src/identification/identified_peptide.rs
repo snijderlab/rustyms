@@ -669,12 +669,12 @@ where
             .map(LinearPeptide::len)
             != peptide.local_confidence().map(<[f64]>::len)
         {
-            if expect_lc && peptide.local_confidence().is_none() {
+            if expect_lc && peptide.local_confidence.is_none() {
                 return Err(format!(
                     "No local confidence was provided for peptide {}",
                     peptide.id()
                 ));
-            } else if peptide.local_confidence().is_some() {
+            } else if peptide.local_confidence.is_some() {
                 return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0, LinearPeptide::len), peptide.id()));
             }
         }
@@ -686,7 +686,8 @@ where
             ));
         }
         if peptide
-            .local_confidence()
+            .local_confidence
+            .as_ref()
             .is_some_and(|s| s.iter().any(|s| !(-1.0..=1.0).contains(s)))
         {
             return Err(format!(
