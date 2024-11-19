@@ -281,10 +281,11 @@ impl Modification {
     ) -> Option<SimpleModification> {
         let name = name.trim().to_lowercase();
         match name.as_str() {
-            "o" => Ontology::Unimod.find_id(35, None), // oxidation
+            "o" | "ox" => Ontology::Unimod.find_id(35, None), // oxidation
             "cam" | "carbamidomethylation" => Ontology::Unimod.find_id(4, None), // carbamidomethyl
-            "nem" => Ontology::Unimod.find_id(108, None), // Nethylmaleimide
-            "deamidation" => Ontology::Unimod.find_id(7, None), // deamidation
+            "nem" => Ontology::Unimod.find_id(108, None),     // Nethylmaleimide
+            "deamidation" => Ontology::Unimod.find_id(7, None), // deamidated
+            "formylation" => Ontology::Unimod.find_id(122, None), // formyl
             "pyro-glu" => Ontology::Unimod.find_id(
                 if position.is_some_and(|p| p.aminoacid.aminoacid() == AminoAcid::GlutamicAcid) {
                     27
