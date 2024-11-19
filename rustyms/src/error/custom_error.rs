@@ -21,20 +21,22 @@ struct InnerError {
     long_description: String,
     /// Possible suggestion(s) for the indicated text
     suggestions: Vec<String>,
+    /// Version if applicable
+    version: String,
     /// The context, in the most general sense this produces output which leads the user to the right place in the code or file
     context: Context,
     /// Underlying errors
     underlying_errors: Vec<CustomError>,
 }
 
-#[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
+#[allow(clippy::needless_pass_by_value, dead_code)] // The impl ToString should be passed like this, otherwise &str gives errors
 impl CustomError {
-    /// Create a new `CustomError`
+    /// Create a new `CustomError`.
     ///
     /// ## Arguments
-    /// * `short_desc` - A short description of the error, generally used as title line
-    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
-    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
+    /// * `short_desc` - A short description of the error, generally used as title line.
+    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback.
+    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file.
     pub fn error(
         short_desc: impl std::string::ToString,
         long_desc: impl std::string::ToString,
@@ -46,17 +48,18 @@ impl CustomError {
                 short_description: short_desc.to_string(),
                 long_description: long_desc.to_string(),
                 suggestions: Vec::new(),
+                version: String::new(),
                 context,
                 underlying_errors: Vec::new(),
             }),
         }
     }
-    /// Create a new `CustomError`
+    /// Create a new `CustomError`.
     ///
     /// ## Arguments
-    /// * `short_desc` - A short description of the error, generally used as title line
-    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
-    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
+    /// * `short_desc` - A short description of the error, generally used as title line.
+    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback.
+    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file.
     pub fn warning(
         short_desc: impl std::string::ToString,
         long_desc: impl std::string::ToString,
@@ -68,6 +71,7 @@ impl CustomError {
                 short_description: short_desc.to_string(),
                 long_description: long_desc.to_string(),
                 suggestions: Vec::new(),
+                version: String::new(),
                 context,
                 underlying_errors: Vec::new(),
             }),
@@ -124,6 +128,17 @@ impl CustomError {
             content: Box::new(InnerError {
                 suggestions: suggestions.into_iter().map(|s| s.to_string()).collect(),
                 ..(*self.content).clone()
+            }),
+        }
+    }
+
+    /// Set the version of the underlying format
+    #[must_use]
+    pub fn with_version(self, version: impl std::string::ToString) -> Self {
+        Self {
+            content: Box::new(InnerError {
+                version: version.to_string(),
+                ..(*self.content)
             }),
         }
     }
@@ -189,8 +204,10 @@ impl fmt::Debug for CustomError {
                 "Did you mean any of: {}?",
                 self.content.suggestions.join(", ")
             ),
+        }?;
+        if !self.content.version.is_empty() {
+            writeln!(f, "Version: {}", self.content.version)?;
         }
-        .unwrap();
         match self.content.underlying_errors.len() {
             0 => Ok(()),
             1 => writeln!(

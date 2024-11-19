@@ -131,13 +131,13 @@ impl IdentifiedPeptide {
     /// Get the peptide, as pLink can have cross-linked peptides the return type is either a simple peptide or a cross-linked peptidoform
     pub fn peptide(&self) -> Option<ReturnedPeptide<'_>> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { peptide, .. })
-            | MetaData::Novor(NovorData { peptide, .. })
+            MetaData::Novor(NovorData { peptide, .. })
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::InstaNovo(InstaNovoData { peptide, .. })
             | MetaData::PowerNovo(PowerNovoData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
+            MetaData::Peaks(PeaksData { peptide, .. }) => Some(ReturnedPeptide::Linear(&peptide.1)),
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
@@ -209,19 +209,20 @@ impl IdentifiedPeptide {
         }
     }
 
-    /// Get the local confidence, it is the same length as the peptide with a local score in 0..=1
+    /// Get the original local confidence, it is the same length as the peptide with a local score
     pub fn local_confidence(&self) -> Option<&[f64]> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData {
-                local_confidence, ..
-            })
-            | MetaData::InstaNovo(InstaNovoData {
+            MetaData::InstaNovo(InstaNovoData {
                 local_confidence, ..
             })
             | MetaData::PowerNovo(PowerNovoData {
                 local_confidence, ..
             }) => Some(local_confidence),
-            MetaData::DeepNovoFamily(DeepNovoFamilyData {
+
+            MetaData::Peaks(PeaksData {
+                local_confidence, ..
+            })
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData {
                 local_confidence, ..
             })
             | MetaData::Novor(NovorData {
@@ -237,8 +238,7 @@ impl IdentifiedPeptide {
     /// The charge of the precursor, if known
     pub fn charge(&self) -> Option<Charge> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { z, .. })
-            | MetaData::Novor(NovorData { z, .. })
+            MetaData::Novor(NovorData { z, .. })
             | MetaData::Opair(OpairData { z, .. })
             | MetaData::Sage(SageData { z, .. })
             | MetaData::MSFragger(MSFraggerData { z, .. })
@@ -246,7 +246,8 @@ impl IdentifiedPeptide {
             | MetaData::PLink(PLinkData { z, .. })
             | MetaData::InstaNovo(InstaNovoData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
-            MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
+            MetaData::Peaks(PeaksData { z, .. })
+            | MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
             MetaData::Fasta(_) | MetaData::PowerNovo(_) => None,
         }
     }
@@ -254,7 +255,7 @@ impl IdentifiedPeptide {
     /// Which fragmentation mode was used, if known
     pub fn mode(&self) -> Option<&str> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { mode, .. }) => Some(mode),
+            MetaData::Peaks(PeaksData { mode, .. }) => mode.as_deref(),
             MetaData::MaxQuant(MaxQuantData { fragmentation, .. }) => fragmentation.as_deref(),
             _ => None,
         }
@@ -485,7 +486,7 @@ where
     type Format: Clone;
 
     /// The version type
-    type Version;
+    type Version: Display;
 
     /// Parse a single identified peptide from its source and return the detected format
     /// # Errors
