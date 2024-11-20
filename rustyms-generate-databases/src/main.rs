@@ -49,7 +49,6 @@ use crate::system::OrderedMass;
 
 use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
-use std::collections::HashSet;
 
 include!("../../rustyms/src/shared/neutral_loss.rs");
 include!("../../rustyms/src/shared/modification.rs");

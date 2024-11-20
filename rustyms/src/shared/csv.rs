@@ -169,13 +169,33 @@ pub fn parse_csv(
 /// Parse a CSV file from a raw `BufReader`
 /// # Errors
 /// If no header is provided and the first line could not be read as a header line.
+/// Or if the 'sep=C' uses a character that is more than 1 byte wide in utf8.
 pub fn parse_csv_raw<T: std::io::Read>(
     reader: T,
-    separator: u8,
+    mut separator: u8,
     provided_header: Option<Vec<String>>,
 ) -> Result<CsvLineIter<T>, CustomError> {
     let reader = BufReader::new(reader);
-    let mut lines = reader.lines().enumerate();
+    let mut lines = reader.lines().enumerate().peekable();
+    let mut skip = false;
+    if let Some(sep) = lines
+        .peek()
+        .and_then(|(_, l)| l.as_ref().ok())
+        .and_then(|l| l.strip_prefix("sep="))
+    {
+        skip = true;
+        if let Some(c) = sep.chars().next() {
+            if c.len_utf8() == 1 {
+                separator = c as u8;
+            } else {
+                return Err(CustomError::error("Unicode value separators not supported", "This is a character that takes more than 1 byte to represent in Unicode, this is not supported in parsing CSV files.", Context::line(Some(0), format!("sep={sep}"), 4, sep.len())));
+            }
+        }
+    }
+    if skip {
+        // Actually consume this line
+        let _ = lines.next();
+    }
     let column_headers = if let Some(header) = provided_header {
         header
     } else {
@@ -199,7 +219,7 @@ pub fn parse_csv_raw<T: std::io::Read>(
 
 /// An iterator returning CSV lines
 pub struct CsvLineIter<T: std::io::Read> {
-    lines: std::iter::Enumerate<std::io::Lines<BufReader<T>>>,
+    lines: std::iter::Peekable<std::iter::Enumerate<std::io::Lines<BufReader<T>>>>,
     header: Vec<String>,
     separator: u8,
 }

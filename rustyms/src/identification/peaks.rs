@@ -33,7 +33,7 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
+    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X_PATCHED, &X, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
     required {
         scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
                         .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
@@ -130,8 +130,8 @@ impl From<PeaksData> for IdentifiedPeptide {
 }
 
 /// An older version of a PEAKS export
-pub const OLD: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::Old,
+pub const X: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::X,
     scan: "scan",
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
@@ -166,8 +166,8 @@ pub const OLD: PeaksFormat = PeaksFormat {
     end: OptionalColumn::NotAvailable,
 };
 /// Version X of PEAKS export (made for build 31 January 2019)
-pub const X: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::X,
+pub const X_PATCHED: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::XPatched,
     scan: "scan",
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
@@ -203,7 +203,7 @@ pub const X: PeaksFormat = PeaksFormat {
 };
 /// Version X+ of PEAKS export (made for build 20 November 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::Xplus,
+    version: PeaksVersion::XPlus,
     scan: "scan",
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
@@ -459,11 +459,11 @@ pub const DB_PROTEIN_PEPTIDE: PeaksFormat = PeaksFormat {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum PeaksVersion {
     /// An older version of a PEAKS export
-    Old,
-    /// Version X of PEAKS export (made for build 31 January 2019)
     X,
+    /// Version X of PEAKS export (made for build 31 January 2019)
+    XPatched,
     /// Version X+ of PEAKS export (made for build 20 November 2019)
-    Xplus,
+    XPlus,
     /// Version DB peptide of PEAKS export
     DBPeptide,
     /// Version DB PSM of PEAKS export
@@ -485,9 +485,9 @@ impl std::fmt::Display for PeaksVersion {
             f,
             "{}",
             match self {
-                Self::Old => "Old",
                 Self::X => "X",
-                Self::Xplus => "X+",
+                Self::XPatched => "X patched",
+                Self::XPlus => "X+",
                 Self::DBPeptide => "DB peptide",
                 Self::DBPSM => "DB PSM",
                 Self::DBProteinPeptide => "DB protein peptide",
