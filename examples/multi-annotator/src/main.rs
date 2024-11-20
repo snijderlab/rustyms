@@ -121,12 +121,7 @@ fn main() {
                             .count();
                         row.insert(
                             "ion_Y_charge_independent".to_string(),
-                            format!(
-                                "{}({}/{})",
-                                (unique_Y_found as f64 / unique_Y as f64),
-                                unique_Y_found,
-                                unique_Y
-                            ),
+                            format!("{}", (unique_Y_found as f64 / unique_Y as f64),),
                         );
                     }
                     row.insert(
@@ -135,20 +130,10 @@ fn main() {
                             Score::Position {
                                 theoretical_positions,
                                 ..
-                            } => format!(
-                                "{}({}/{})",
-                                theoretical_positions.fraction(),
-                                theoretical_positions.found,
-                                theoretical_positions.total
-                            ),
+                            } => format!("{}", theoretical_positions.fraction(),),
                             Score::UniqueFormulas {
                                 unique_formulas, ..
-                            } => format!(
-                                "{}({}/{})",
-                                unique_formulas.fraction(),
-                                unique_formulas.found,
-                                unique_formulas.total
-                            ),
+                            } => format!("{}", unique_formulas.fraction(),),
                         },
                     );
 
@@ -162,15 +147,7 @@ fn main() {
                                 unique_formulas, ..
                             } => unique_formulas,
                         };
-                        row.insert(
-                            format!("ion_{ion}"),
-                            format!(
-                                "{}({}/{})",
-                                recovered.fraction(),
-                                recovered.found,
-                                recovered.total
-                            ),
-                        );
+                        row.insert(format!("ion_{ion}"), format!("{}", recovered.fraction(),));
                     }
                     Some(row)
                 } else {

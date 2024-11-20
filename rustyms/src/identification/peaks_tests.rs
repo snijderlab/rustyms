@@ -83,6 +83,23 @@ fn peaks_11() {
 }
 
 #[test]
+fn peaks_11_features() {
+    match test_format::<PeaksData>(
+        BufReader::new(DATA_11_FEATURES.as_bytes()),
+        None,
+        true,
+        false,
+        Some(PeaksVersion::V11Features),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
+}
+
+#[test]
 fn peaks_11_all_candidates() {
     assert_eq!(
         test_format::<PeaksData>(
@@ -146,15 +163,15 @@ fn peaks_ab() {
     );
 }
 
-// #[test]
-fn peaks_unknown() {
+#[test]
+fn peaks_x_plus_sep() {
     assert_eq!(
         test_format::<PeaksData>(
-            BufReader::new(DATA_UNKNOWN.as_bytes()),
+            BufReader::new(DATA_X_PLUS_SEP.as_bytes()),
             None,
             false,
             true,
-            None
+            Some(PeaksVersion::XPlus)
         )
         .unwrap(),
         19
@@ -388,6 +405,27 @@ const DATA_11: &str = r#""Source File","Scan","Peptide","Tag length","ALC (%)","
 "20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",3880,ADSVFKGR,8,97.5,8,440.23810,2,20.6071,27530.41,878.4610,0.7,"",96 99 100 100 99 98 95 93,HCD,ADSVFKGR,6714
 "20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",4217,HEYTHYLQAR,10,97.5,10,439.88297,3,22.4412,1841098.6,1316.6262,0.7,"",94 97 99 100 100 100 100 100 100 84,ETHCD,HEYTHYLQAR,6678"#;
 
+const DATA_11_FEATURES: &str = r#""Source File","Feature Id","m/z","z","RT","RT Begin","RT End","Area","Quality","Denovo Peptide","ALC (%)","ppm"
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",14223,616.61450,3,35.1011,35.0728,35.1775,190625.72,0.00,YSSDEKVLGEDFSDTR,99.9,-0.2
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",14572,626.96686,3,36.1993,35.9724,36.6269,794748.8,0.00,DLQMTQSPSSLSASVGDR;DLQMTQSPSSLSASVGDR,99.2,-0.1
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",22869,947.94415,2,30.1547,29.8533,30.5004,548587.2,0.00,LDQM(+15.99)TQSPSSLSASVGDR;DLQM(+15.99)TQSPSSLSASVGDR,99.0,0.0
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",10540,513.75372,2,35.6492,35.6235,35.8589,60834.707,0.00,EVNSQFFR,98.8,-0.1
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",17359,724.36444,2,51.1627,51.0134,51.3298,83370.51,0.00,TYTFDNGTFLLR,98.7,0.0
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",14598,628.00598,3,42.2104,42.0118,42.5021,298160.3,0.00,EVQLVESGGGLVQPGGSLR,98.6,0.3
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",12617,569.77283,2,31.8568,31.7728,32.0192,18040.87,0.00,VLGEDFSDTR,98.0,0.8
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",17378,724.85663,2,51.3811,51.2976,51.5511,43949.74,0.00,TYTFDDGTFLLR,98.0,0.3
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",9583,492.58188,3,19.8131,19.7241,19.9643,29103.092,0.00,SRSGGGGNGLGSGGSLR,97.9,0.1
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",1074,365.21625,2,22.6110,22.4246,22.9395,744909.94,0.00,TSGVLPR;TSGVLPR,97.8,-0.2
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",6395,435.21124,3,22.1258,22.0404,22.4412,218619.0,0.00,HEYTHYLQGR,97.6,1.1
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",1361,368.86447,3,19.3037,19.2492,19.3908,9257.09,0.00,TKESLSHFR,97.6,-0.7
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",23416,967.94916,2,64.9324,64.7688,65.3386,66995.53,0.00,LTWFDEGTAEFFAGSTR,97.6,-0.4
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",5808,426.21838,2,25.4288,25.2470,25.7630,115568.0,0.00,DTLM(+15.99)LSR,97.6,0.4
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",3284,393.54752,3,28.9093,28.7614,29.1429,54173.0,0.00,GRGDSVVYGLR,97.6,0.3
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",19182,787.40173,2,45.8671,45.5640,46.2526,242945.9,0.00,DSTYSLSSGRFVVR;DSTYSLSSTLTSRR,97.5,9.3
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",6714,440.23810,2,20.6071,20.5252,20.8115,27530.41,0.00,ADSVFKGR,97.5,0.7
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",6678,439.88297,3,22.4412,22.3549,22.7358,1841098.6,0.00,HEYTHYLQAR;HEYTHYLQAR,97.5,0.7
+"20191211_F1_Ag5_peng0013_SA_her_Arg_C.raw",16579,696.69293,3,42.1785,42.0943,42.3913,145613.02,0.00,VVGNDKALEVGNADDVLGFR,97.4,-3.7"#;
+
 const DATA_11_ALL_CANDIDATES: &str = r#""Source File","Scan","Peptide","Tag length","ALC (%)","Length","m/z","z","RT","Area","Mass","ppm","PTM","local confidence (%)","mode",tag(>=0.0%),"Feature Id"
 "20240903_SA_HTA_KR40_500ng_CID_130min.wiff",16281,Q(-17.03)PEDF,5,99.9,5,618.24072,1,48.7702,59523.16,617.2333,0.3,"Pyro-glu from Q",100 100 100 100 100,CID,Q(-17.03)PEDF,16481
 "20240903_SA_HTA_KR40_500ng_CID_130min.wiff",16265,Q(-17.03)PEDF,5,99.9,5,618.24072,1,48.7702,59523.16,617.2333,0.3,"Pyro-glu from Q",100 100 100 100 100,CID,Q(-17.03)PEDF,16481
@@ -451,7 +489,8 @@ const DATA_12: &str = r#""Source File","Scan","Peptide","Tag length","Deep Novo 
 "9661_weiwei_mabs_novo_chymo.raw",3222;3229,SGALTSGVH,9,99.9,99.9,9,414.71368,2,14.7044,6212751.5,827.4137,-1.1,"",100 100 100 100 100 100 100 100 100,MIX,SGALTSGVH,1268
 "9661_weiwei_mabs_novo_chymo.raw",4947;4951,TFRNY,5,99.9,99.9,5,350.67383,2,25.7710,,699.3340,-1.3,"",100 100 100 100 100,MIX,TFRNY,0"#;
 
-const DATA_UNKNOWN: &str = r"Fraction	Source File	Feature	Peptide	Scan	Tag Length	Denovo Score	ALC (%)	length	m/z	z	RT	Predict RT	Area	Mass	ppm	PTM	local confidence (%)	tag (>=0%)	mode
+const DATA_X_PLUS_SEP: &str = r"sep=	
+Fraction	Source File	Feature	Peptide	Scan	Tag Length	Denovo Score	ALC (%)	length	m/z	z	RT	Predict RT	Area	Mass	ppm	PTM	local confidence (%)	tag (>=0%)	mode
 1	20221121_F1_UM4_Peng0013_SA_EXT00_MIX3_SP3_LysN_1h.raw	6857	KVYAC(+58.01)EVTHQGLSSPVT	10653	17	99	99	17	938.9585	2	60.14	-	1.52E+09	1875.9036	-0.6	Carboxymethyl	96 100 100 100 100 100 100 100 100 99 100 100 100 100 100 99 99	KVYAC(+58.01)EVTHQGLSSPVT	HCD
 1	20221121_F1_UM4_Peng0013_SA_EXT00_MIX3_SP3_LysN_1h.raw	6520	KVYAAEVTHQGLSSPVT	10831	17	99	99	17	893.9703	2	61.3	-	1.90E+07	1785.926	0		96 100 100 100 100 100 100 100 99 99 99 100 100 100 100 99 99	KVYAAEVTHQGLSSPVT	HCD
 1	20221121_F1_UM4_Peng0013_SA_EXT00_MIX3_SP3_LysN_1h.raw	1606	KALPAPLEKTLSKA	13189	14	98	98	14	489.6371	3	74.21	-	2.78E+08	1465.8867	2		92 100 100 100 100 100 100 100 100 99 99 100 98 99	KALPAPLEKTLSKA	HCD
