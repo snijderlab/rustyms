@@ -111,8 +111,8 @@ format_family!(
         start: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         end: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         quality: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
-        rt_begin: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::min>));
-        rt_end: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::min>));
+        rt_begin: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
+        rt_end: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
     }
 );
 
