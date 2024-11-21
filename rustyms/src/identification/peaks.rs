@@ -33,11 +33,9 @@ format_family!(
     PeaksFormat,
     /// The data from any peaks file
     PeaksData,
-    PeaksVersion, [&V12, &V11, &XPLUS, &AB, &X, &OLD, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
+    PeaksVersion, [&V12, &V11, &V11_FEATURES, &XPLUS, &AB, &X_PATCHED, &X, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
     required {
-        scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
-                        .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
-        peptide: (Option<crate::AminoAcid>, LinearPeptide<SemiAmbiguous>, Option<crate::AminoAcid>), |location: Location, custom_database: Option<&CustomDatabase>| {
+        peptide: (Option<crate::AminoAcid>, Vec<LinearPeptide<SemiAmbiguous>>, Option<crate::AminoAcid>), |location: Location, custom_database: Option<&CustomDatabase>| {
             let n_flanking: Option<crate::AminoAcid> =
                 (location.as_str().chars().nth(1) == Some('.'))
                 .then(|| location.as_str().chars().next().unwrap().try_into().map_err(|()|
@@ -53,24 +51,36 @@ format_family!(
                         "Invalid amino acid",
                         "This flanking residue is not a valid amino acid",
                         crate::error::Context::line(Some(location.line.line_index()), location.full_line(), location.location.end-1, location.location.end)))).transpose()?;
-
+            if c_flanking.is_none() && n_flanking.is_none() {
+                location.array(';').map(|l| LinearPeptide::sloppy_pro_forma(
+                    l.full_line(),
+                    l.location.clone(),
+                    custom_database,
+                    &SloppyParsingParameters::default()
+                )).unique()
+                .collect::<Result<Vec<_>,_>>()
+                .map(|sequences| (n_flanking, sequences, c_flanking))
+            } else {
             LinearPeptide::sloppy_pro_forma(
                 location.full_line(),
                 n_flanking.map_or(location.location.start, |_| location.location.start+2)..c_flanking.map_or(location.location.end, |_| location.location.end-2),
                 custom_database,
                 &SloppyParsingParameters::default()
-            ).map(|p| (n_flanking, p, c_flanking))};
+            ).map(|p| (n_flanking, vec![p], c_flanking))
+        }};
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
-        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         area: Option<f64>, |location: Location, _| location.or_empty().parse(NUMBER_ERROR);
-        ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
-        location.or_empty().array(';').map(|v| {
-            let v = v.trim();
-            Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
-        }).unique().collect::<Result<Vec<_>,_>>();
     }
     optional {
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        ptm: Vec<SimpleModification>, |location: Location, custom_database: Option<&CustomDatabase>|
+            location.or_empty().array(';').map(|v| {
+                let v = v.trim();
+                Modification::sloppy_modification(v.full_line(), v.location.clone(), None, custom_database)
+            }).unique().collect::<Result<Vec<_>,_>>();
+        scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
+                        .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         alc: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         local_confidence: Vec<f64>, |location: Location, _| location
@@ -100,15 +110,22 @@ format_family!(
         protein_accession: String, |location: Location, _|  Ok(Some(location.get_string()));
         start: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         end: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
+        quality: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        rt_begin: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
+        rt_end: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
     }
 );
 
 impl From<PeaksData> for IdentifiedPeptide {
     fn from(mut value: PeaksData) -> Self {
         // Add the meaningful modifications to replace mass modifications
-        value.peptide.1 = PeptideModificationSearch::in_modifications(value.ptm.clone())
-            .tolerance(super::Tolerance::Absolute(super::system::da(0.05)))
-            .search(value.peptide.1);
+        if let Some(ptm) = value.ptm.clone() {
+            for pep in &mut value.peptide.1 {
+                *pep = PeptideModificationSearch::in_modifications(ptm.clone())
+                    .tolerance(super::Tolerance::Absolute(super::system::da(0.05)))
+                    .search(pep.clone());
+            }
+        }
 
         Self {
             score: value
@@ -130,17 +147,17 @@ impl From<PeaksData> for IdentifiedPeptide {
 }
 
 /// An older version of a PEAKS export
-pub const OLD: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::Old,
-    scan: "scan",
+pub const X: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::X,
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag (>=0%)"),
     mode: OptionalColumn::Required("mode"),
@@ -164,19 +181,22 @@ pub const OLD: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version X of PEAKS export (made for build 31 January 2019)
-pub const X: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::X,
-    scan: "scan",
+pub const X_PATCHED: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::XPatched,
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag (>=0%)"),
     mode: OptionalColumn::Required("mode"),
@@ -200,19 +220,22 @@ pub const X: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version X+ of PEAKS export (made for build 20 November 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
-    version: PeaksVersion::Xplus,
-    scan: "scan",
+    version: PeaksVersion::XPlus,
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag (>=0%)"),
     mode: OptionalColumn::Required("mode"),
@@ -236,22 +259,67 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version 11 of PEAKS export
 pub const V11: PeaksFormat = PeaksFormat {
     version: PeaksVersion::V11,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag(>=0.0%)"),
     mode: OptionalColumn::Required("mode"),
+    fraction: OptionalColumn::NotAvailable,
+    raw_file: OptionalColumn::Required("source file"),
+    feature: OptionalColumn::Required("feature id"),
+    de_novo_score: OptionalColumn::NotAvailable,
+    predicted_rt: OptionalColumn::NotAvailable,
+    accession: OptionalColumn::NotAvailable,
+    ascore: OptionalColumn::NotAvailable,
+    found_by: OptionalColumn::NotAvailable,
+    logp: OptionalColumn::NotAvailable,
+    feature_tryp_cid: OptionalColumn::NotAvailable,
+    feature_tryp_ead: OptionalColumn::NotAvailable,
+    area_tryp_ead: OptionalColumn::NotAvailable,
+    id: OptionalColumn::NotAvailable,
+    from_chimera: OptionalColumn::NotAvailable,
+    unique: OptionalColumn::NotAvailable,
+    protein_group: OptionalColumn::NotAvailable,
+    protein_id: OptionalColumn::NotAvailable,
+    protein_accession: OptionalColumn::NotAvailable,
+    start: OptionalColumn::NotAvailable,
+    end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
+};
+/// Version 11 of PEAKS export
+pub const V11_FEATURES: PeaksFormat = PeaksFormat {
+    version: PeaksVersion::V11Features,
+    scan: OptionalColumn::NotAvailable,
+    peptide: "denovo peptide",
+    alc: OptionalColumn::Required("alc (%)"),
+    quality: OptionalColumn::Required("quality"),
+    mz: "m/z",
+    z: OptionalColumn::Required("z"),
+    mass: OptionalColumn::NotAvailable,
+    rt: "rt",
+    rt_begin: OptionalColumn::Required("rt begin"),
+    rt_end: OptionalColumn::Required("rt end"),
+    area: "area",
+    ptm: OptionalColumn::NotAvailable,
+    local_confidence: OptionalColumn::NotAvailable,
+    tag: OptionalColumn::NotAvailable,
+    mode: OptionalColumn::NotAvailable,
     fraction: OptionalColumn::NotAvailable,
     raw_file: OptionalColumn::Required("source file"),
     feature: OptionalColumn::Required("feature id"),
@@ -276,15 +344,15 @@ pub const V11: PeaksFormat = PeaksFormat {
 /// Version 12 of PEAKS export
 pub const V12: PeaksFormat = PeaksFormat {
     version: PeaksVersion::V12,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag(>=0%)"),
     mode: OptionalColumn::Required("mode"),
@@ -308,19 +376,22 @@ pub const V12: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version Ab of PEAKS export
 pub const AB: PeaksFormat = PeaksFormat {
     version: PeaksVersion::Ab,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::Required("alc (%)"),
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::Required("local confidence (%)"),
     tag: OptionalColumn::Required("tag (>=0%)"),
     mode: OptionalColumn::Required("mode"),
@@ -344,19 +415,22 @@ pub const AB: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version DB peptide of PEAKS export
 pub const DB_PEPTIDE: PeaksFormat = PeaksFormat {
     version: PeaksVersion::DBPeptide,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::NotAvailable,
     mz: "m/z",
     z: OptionalColumn::NotAvailable,
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area tryp-cid",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::NotAvailable,
     tag: OptionalColumn::NotAvailable,
     mode: OptionalColumn::NotAvailable,
@@ -380,19 +454,22 @@ pub const DB_PEPTIDE: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version DB psm of PEAKS export
 pub const DB_PSM: PeaksFormat = PeaksFormat {
     version: PeaksVersion::DBPSM,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::NotAvailable,
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::NotAvailable,
     tag: OptionalColumn::NotAvailable,
     mode: OptionalColumn::NotAvailable,
@@ -416,20 +493,23 @@ pub const DB_PSM: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 /// Version DB protein peptide of PEAKS export
 /// protein group, protein id, protein accession, unique, start, end,
 pub const DB_PROTEIN_PEPTIDE: PeaksFormat = PeaksFormat {
     version: PeaksVersion::DBProteinPeptide,
-    scan: "scan",
+    scan: OptionalColumn::Required("scan"),
     peptide: "peptide",
     alc: OptionalColumn::NotAvailable,
     mz: "m/z",
     z: OptionalColumn::Required("z"),
-    mass: "mass",
+    mass: OptionalColumn::Required("mass"),
     rt: "rt",
     area: "area tryp-cid",
-    ptm: "ptm",
+    ptm: OptionalColumn::Required("ptm"),
     local_confidence: OptionalColumn::NotAvailable,
     tag: OptionalColumn::NotAvailable,
     mode: OptionalColumn::NotAvailable,
@@ -453,17 +533,20 @@ pub const DB_PROTEIN_PEPTIDE: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::Required("protein accession"),
     start: OptionalColumn::Required("start"),
     end: OptionalColumn::Required("end"),
+    quality: OptionalColumn::NotAvailable,
+    rt_begin: OptionalColumn::NotAvailable,
+    rt_end: OptionalColumn::NotAvailable,
 };
 
 /// All possible peaks versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub enum PeaksVersion {
     /// An older version of a PEAKS export
-    Old,
-    /// Version X of PEAKS export (made for build 31 January 2019)
     X,
+    /// Version X of PEAKS export (made for build 31 January 2019)
+    XPatched,
     /// Version X+ of PEAKS export (made for build 20 November 2019)
-    Xplus,
+    XPlus,
     /// Version DB peptide of PEAKS export
     DBPeptide,
     /// Version DB PSM of PEAKS export
@@ -472,8 +555,10 @@ pub enum PeaksVersion {
     DBProteinPeptide,
     /// Version Ab of PEAKS export
     Ab,
-    /// Version 11
+    /// Version 11 denovo file
     V11,
+    /// Version 11 features file
+    V11Features,
     /// Version 12
     #[default]
     V12,
@@ -485,14 +570,15 @@ impl std::fmt::Display for PeaksVersion {
             f,
             "{}",
             match self {
-                Self::Old => "Old",
                 Self::X => "X",
-                Self::Xplus => "X+",
+                Self::XPatched => "X patched",
+                Self::XPlus => "X+",
                 Self::DBPeptide => "DB peptide",
                 Self::DBPSM => "DB PSM",
                 Self::DBProteinPeptide => "DB protein peptide",
                 Self::Ab => "Ab",
                 Self::V11 => "11",
+                Self::V11Features => "11 features",
                 Self::V12 => "12",
             }
         )

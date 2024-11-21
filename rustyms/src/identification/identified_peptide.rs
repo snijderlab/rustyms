@@ -19,6 +19,8 @@ use crate::{
     LinearPeptide, Peptidoform,
 };
 
+use super::CompoundPeptidoform;
+
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct IdentifiedPeptide {
@@ -65,12 +67,14 @@ pub enum MetaData {
 }
 
 /// A peptide as stored in a identified peptide file, either a simple linear one or a cross-linked peptidoform
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ReturnedPeptide<'a> {
     /// A simple linear peptide
     Linear(&'a LinearPeptide<SemiAmbiguous>),
     /// A (potentially) cross-linked peptidoform
     Peptidoform(&'a Peptidoform),
+    /// A (potentially) cross-linked chimeric set of peptidoforms
+    CompoundPeptidoform(Cow<'a, CompoundPeptidoform>),
 }
 
 impl<'a> MultiChemical for ReturnedPeptide<'a> {
@@ -82,6 +86,7 @@ impl<'a> MultiChemical for ReturnedPeptide<'a> {
         match self {
             Self::Linear(p) => p.formulas(),
             Self::Peptidoform(p) => p.formulas(),
+            Self::CompoundPeptidoform(p) => p.formulas(),
         }
     }
 }
@@ -91,6 +96,7 @@ impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
         match self {
             Self::Linear(p) => write!(f, "{p}"),
             Self::Peptidoform(p) => write!(f, "{p}"),
+            Self::CompoundPeptidoform(p) => write!(f, "{p}"),
         }
     }
 }
@@ -98,17 +104,26 @@ impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
 #[allow(dead_code)]
 impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying peptide, or None if the underlying result was a peptidoform
-    pub const fn peptide(self) -> Option<&'a LinearPeptide<SemiAmbiguous>> {
+    pub fn peptide(self) -> Option<&'a LinearPeptide<SemiAmbiguous>> {
         match self {
             Self::Linear(p) => Some(p),
-            Self::Peptidoform(_) => None,
+            Self::Peptidoform(_) | Self::CompoundPeptidoform(_) => None,
         }
     }
     /// Get the underlying result as a peptidoform, if it was a peptide make a new peptidoform from it
-    pub fn peptidoform(self) -> Cow<'a, Peptidoform> {
+    pub fn peptidoform(self) -> Option<Cow<'a, Peptidoform>> {
+        match self {
+            Self::Linear(p) => Some(Cow::Owned(p.clone().into())),
+            Self::Peptidoform(p) => Some(Cow::Borrowed(p)),
+            Self::CompoundPeptidoform(_) => None,
+        }
+    }
+    /// Get the underlying result as a compound peptidoform, if it was a peptide make a new peptidoform from it
+    pub fn compound_peptidoform(self) -> Cow<'a, CompoundPeptidoform> {
         match self {
             Self::Linear(p) => Cow::Owned(p.clone().into()),
-            Self::Peptidoform(p) => Cow::Borrowed(p),
+            Self::Peptidoform(p) => Cow::Owned(p.clone().into()),
+            Self::CompoundPeptidoform(p) => p,
         }
     }
     /// Display this peptidoform.
@@ -127,6 +142,7 @@ impl<'a> ReturnedPeptide<'a> {
         match self {
             Self::Linear(p) => p.display(f, show_global_mods, specification_compliant),
             Self::Peptidoform(p) => p.display(f, show_global_mods, specification_compliant),
+            Self::CompoundPeptidoform(p) => p.display(f, specification_compliant),
         }
     }
 }
@@ -142,7 +158,15 @@ impl IdentifiedPeptide {
             | MetaData::PepNet(PepNetData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
-            MetaData::Peaks(PeaksData { peptide, .. }) => Some(ReturnedPeptide::Linear(&peptide.1)),
+            MetaData::Peaks(PeaksData { peptide, .. }) => {
+                if peptide.1.len() == 1 {
+                    Some(ReturnedPeptide::Linear(&peptide.1[0]))
+                } else {
+                    Some(ReturnedPeptide::CompoundPeptidoform(Cow::Owned(
+                        peptide.1.clone().into(),
+                    )))
+                }
+            }
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
@@ -211,8 +235,18 @@ impl IdentifiedPeptide {
     /// Get the identifier
     pub fn id(&self) -> String {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { scan, .. })
-            | MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
+            MetaData::Peaks(PeaksData {
+                id, scan, feature, ..
+            }) => id.map_or(
+                scan.as_ref().map_or(
+                    feature
+                        .as_ref()
+                        .map_or("-".to_string(), ToString::to_string),
+                    |s| s.iter().join(";"),
+                ),
+                |i| i.to_string(),
+            ),
+            MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
             MetaData::Opair(OpairData { scan, .. })
             | MetaData::NovoB(NovoBData { scan, .. })
@@ -312,25 +346,29 @@ impl IdentifiedPeptide {
     /// The scans per rawfile that are at the basis for this identified peptide, if the rawfile is unknown there will be one
     pub fn scans(&self) -> SpectrumIds {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { raw_file, scan, .. }) => raw_file.clone().map_or_else(
-                || {
-                    SpectrumIds::FileNotKnown(
-                        scan.iter()
-                            .flat_map(|s| s.scans.clone())
-                            .map(SpectrumId::Index)
-                            .collect(),
+            MetaData::Peaks(PeaksData { raw_file, scan, .. }) => {
+                scan.as_ref().map_or(SpectrumIds::None, |scan| {
+                    raw_file.clone().map_or_else(
+                        || {
+                            SpectrumIds::FileNotKnown(
+                                scan.iter()
+                                    .flat_map(|s| s.scans.clone())
+                                    .map(SpectrumId::Index)
+                                    .collect(),
+                            )
+                        },
+                        |raw_file| {
+                            SpectrumIds::FileKnown(vec![(
+                                raw_file,
+                                scan.iter()
+                                    .flat_map(|s| s.scans.clone())
+                                    .map(SpectrumId::Index)
+                                    .collect(),
+                            )])
+                        },
                     )
-                },
-                |raw_file| {
-                    SpectrumIds::FileKnown(vec![(
-                        raw_file,
-                        scan.iter()
-                            .flat_map(|s| s.scans.clone())
-                            .map(SpectrumId::Index)
-                            .collect(),
-                    )])
-                },
-            ),
+                })
+            }
             MetaData::Novor(NovorData { scan, .. }) | MetaData::NovoB(NovoBData { scan, .. }) => {
                 SpectrumIds::FileNotKnown(vec![SpectrumId::Index(*scan)])
             }
@@ -346,10 +384,11 @@ impl IdentifiedPeptide {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
 
-            MetaData::PowerNovo(PowerNovoData { raw_file, scan, .. }) => scan.clone().map_or_else(
-                || SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone().unwrap()])]),
-                |_| SpectrumIds::None,
-            ),
+            MetaData::PowerNovo(PowerNovoData { raw_file, scan, .. }) => {
+                scan.clone().map_or(SpectrumIds::None, |scan| {
+                    SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan])])
+                })
+            }
 
             MetaData::MaxQuant(MaxQuantData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(
@@ -415,8 +454,10 @@ impl IdentifiedPeptide {
     /// Get the mass as experimentally determined
     pub fn experimental_mass(&self) -> Option<crate::system::Mass> {
         match &self.metadata {
-            MetaData::Peaks(PeaksData { mass, .. })
-            | MetaData::Novor(NovorData { mass, .. })
+            MetaData::Peaks(PeaksData { mass, mz, z, .. }) => {
+                mass.map_or(z.map_or(None, |z| Some(*mz * z.to_float())), Some)
+            }
+            MetaData::Novor(NovorData { mass, .. })
             | MetaData::Opair(OpairData { mass, .. })
             | MetaData::NovoB(NovoBData { mass, .. })
             | MetaData::MSFragger(MSFraggerData { mass, .. })
@@ -703,12 +744,12 @@ where
 
 /// Test a dataset for common errors in identified peptide parsing
 /// # Errors
-/// * If the local confidence has to be there and is not there (see parameter)
-/// * If the local confidence is not the same length as the peptide
-/// * If the score of the peptide is outside of the range -1.0..=1.0
-/// * If any of the local scores is outdise of range -1.0..=1.0
-/// * If the peptide contains mass modifications (see parameters)
-/// * If the peptide was not identified as the correct version of the format (see parameters)
+/// * If the local confidence has to be there and is not there (see parameter).
+/// * If the local confidence is not the same length as the peptide.
+/// * If the score of the peptide is outside of the range -1.0..=1.0.
+/// * If any of the local scores is outdise of range -1.0..=1.0.
+/// * If the peptide contains mass modifications (see parameters).
+/// * If the peptide was not identified as the correct version of the format (see parameters).
 #[allow(clippy::missing_panics_doc)]
 #[cfg(test)]
 pub fn test_format<T: IdentifiedPeptideSource + Into<IdentifiedPeptide>>(
@@ -762,7 +803,7 @@ where
         }
         if !allow_mass_mods
             && peptide.peptide().is_some_and(|p| {
-                p.peptidoform().peptides().iter().any(|p| {
+                p.compound_peptidoform().peptides().any(|p| {
                     p.sequence().iter().any(|s| {
                         s.modifications.iter().any(|m| {
                             m.simple().is_some_and(|m| {
@@ -780,9 +821,8 @@ where
             ));
         }
         if let Err(err) = peptide.peptide().map_or(Ok(()), |p| {
-            p.peptidoform()
+            p.compound_peptidoform()
                 .peptides()
-                .iter()
                 .try_for_each(LinearPeptide::enforce_modification_rules)
         }) {
             return Err(format!(
