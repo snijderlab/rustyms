@@ -4,8 +4,8 @@ use super::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
     DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
-    IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovorData,
-    OpairData, PLinkData, PeaksData, PepNetData, PowerNovoData, SageData,
+    IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovoBData,
+    NovorData, OpairData, PLinkData, PeaksData, PepNetData, PowerNovoData, SageData,
 };
 
 // TODO:
@@ -89,7 +89,21 @@ pub fn open_identified_peptides_file<'a>(
                 as Box<dyn Iterator<Item = Result<IdentifiedPeptide, CustomError>> + 'a>
         }),
         Some("txt") => {
-            MaxQuantData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+            MaxQuantData::parse_file(path, custom_database)
+            .map(IdentifiedPeptideIter::into_box)
+            .or_else(|me| {
+                NovoBData::parse_file(path, custom_database)
+                    .map(IdentifiedPeptideIter::into_box)
+                    .map_err(|ne| (me, ne))
+            })
+            .map_err(|(me, ne)| {
+                CustomError::error(
+                    "Unknown file format",
+                    "Could not be recognised as either a MaxQuant or NovoB file",
+                    Context::show(path.to_string_lossy()),
+                )
+                .with_underlying_errors(vec![me, ne])
+            })
         }
         Some("mztab") => MZTabData::parse_file(path, custom_database).map(|peptides| {
             Box::new(peptides.into_iter().map(|p| p.map(Into::into)))

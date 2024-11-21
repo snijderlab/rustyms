@@ -17,13 +17,16 @@ use crate::{
 
 /// Parameters to control the parsing of 'sloppy' ProForma sequences.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct SloppyParsingParameters {
     /// Ignore a prefix lowercase n as in `n[211]GC[779]RQSSEEK` as this indicates an N terminal modification in MSFragger
     pub ignore_prefix_lowercase_n: bool,
     /// Allow AA+12AA instead of AA[+12]AA as used by Casanovo
     pub allow_unwrapped_modifications: bool,
     /// Allow Xmod as modification indication as used by DeepNovo
-    pub mod_indications: Vec<(AminoAcid, SimpleModification)>,
+    pub mod_indications: (Option<&'static str>, Vec<(AminoAcid, SimpleModification)>),
+    /// Support for custom encodings, e.g. `AAAmAAA` instead of `AAAM[oxidation]AAA` as used by NovoB
+    pub custom_alphabet: Vec<(u8, SequenceElement<SemiAmbiguous>)>,
 }
 
 impl LinearPeptide<SemiAmbiguous> {
@@ -120,16 +123,20 @@ impl LinearPeptide<SemiAmbiguous> {
                         }
                     }
                 }
-                b'm' if !parameters.mod_indications.is_empty()
-                    && index + 2 < chars.len()
-                    && chars[index + 1] == b'o'
-                    && chars[index + 2] == b'd' =>
+                _ if parameters.mod_indications.0.is_some_and(|pattern| {
+                    line[location.start + index..location.end].starts_with(pattern)
+                }) =>
                 {
-                    index += 3;
+                    index += parameters
+                        .mod_indications
+                        .0
+                        .map(|p| p.len())
+                        .unwrap_or_default();
 
                     match peptide.sequence_mut().last_mut() {
                         Some(seq) => parameters
                             .mod_indications
+                            .1
                             .iter()
                             .find(|(aa, _)| *aa == seq.aminoacid.aminoacid())
                             .map(|(_, m)| seq.modifications.push(Modification::Simple(m.clone())))
@@ -175,16 +182,24 @@ impl LinearPeptide<SemiAmbiguous> {
                     index += length;
                 }
                 ch => {
-                    peptide.sequence_mut().push(SequenceElement::new(
-                        ch.try_into().map_err(|()| {
-                            CustomError::error(
-                                "Invalid amino acid",
-                                "This character is not a valid amino acid",
-                                Context::line(None, line, location.start + index, 1),
-                            )
-                        })?,
-                        None,
-                    ));
+                    if let Some(seq) = parameters
+                        .custom_alphabet
+                        .iter()
+                        .find_map(|(c, seq)| (*c == ch).then_some(seq))
+                    {
+                        peptide.sequence_mut().push(seq.clone());
+                    } else {
+                        peptide.sequence_mut().push(SequenceElement::new(
+                            ch.try_into().map_err(|()| {
+                                CustomError::error(
+                                    "Invalid amino acid",
+                                    "This character is not a valid amino acid",
+                                    Context::line(None, line, location.start + index, 1),
+                                )
+                            })?,
+                            None,
+                        ));
+                    }
                     index += 1;
                 }
             }

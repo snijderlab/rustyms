@@ -44,12 +44,12 @@ format_family!(
                     location.location.clone(),
                     custom_database,
                     PARAMETERS_LOCK.get_or_init(|| SloppyParsingParameters{
-                        mod_indications: vec![
+                        mod_indications: (Some("mod"), vec![
                             (AminoAcid::Asparagine, Ontology::Unimod.find_id(7, None).unwrap()),
                             (AminoAcid::Glutamine, Ontology::Unimod.find_id(7, None).unwrap()),
                             (AminoAcid::Cysteine, Ontology::Unimod.find_id(6, None).unwrap()),
                             (AminoAcid::Methionine, Ontology::Unimod.find_id(35, None).unwrap()),
-                        ],
+                        ]),
                         ..Default::default()
                     })
                 )).transpose();

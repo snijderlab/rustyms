@@ -12,6 +12,7 @@ mod instanovo;
 mod maxquant;
 mod msfragger;
 mod mztab;
+mod novob;
 mod novor;
 mod opair;
 mod peaks;
@@ -30,6 +31,7 @@ pub use instanovo::*;
 pub use maxquant::*;
 pub use msfragger::*;
 pub use mztab::*;
+pub use novob::*;
 pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
@@ -48,6 +50,8 @@ mod maxquant_tests;
 mod msfragger_tests;
 #[cfg(test)]
 mod mztab_test;
+#[cfg(test)]
+mod novob_tests;
 #[cfg(test)]
 mod novor_tests;
 #[cfg(test)]

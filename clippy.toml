@@ -17,6 +17,7 @@ doc-valid-idents = [
     "PointNovoFamily",
     "PowerNovo",
     "PepNet",
+    "NovoB",
     "pi-PrimeNovo",
     "π-PrimeNovo",
 ]
