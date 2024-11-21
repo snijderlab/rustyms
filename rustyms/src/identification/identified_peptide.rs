@@ -8,9 +8,9 @@ use crate::{
     formula::MultiChemical,
     identification::{
         deepnovofamily::DeepNovoFamilyData, fasta::FastaData, instanovo::InstaNovoData,
-        novor::NovorData, opair::OpairData, peaks::PeaksData, pepnet::PepNetData, plink::PLinkData,
-        powernovo::PowerNovoData, system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData,
-        SageData,
+        novob::NovoBData, novor::NovorData, opair::OpairData, peaks::PeaksData, pepnet::PepNetData,
+        plink::PLinkData, powernovo::PowerNovoData, system::MassOverCharge, MSFraggerData,
+        MZTabData, MaxQuantData, SageData,
     },
     ontologies::CustomDatabase,
     peptide::SemiAmbiguous,
@@ -46,6 +46,8 @@ pub enum MetaData {
     MSFragger(MSFraggerData),
     /// mzTab metadata
     MZTab(MZTabData),
+    /// NovoB metadata
+    NovoB(NovoBData),
     /// Novor metadata
     Novor(NovorData),
     /// OPair metadata
@@ -150,6 +152,19 @@ impl IdentifiedPeptide {
             MetaData::PLink(PLinkData { peptidoform, .. }) => {
                 Some(ReturnedPeptide::Peptidoform(peptidoform))
             }
+            MetaData::NovoB(NovoBData {
+                score_forward,
+                score_reverse,
+                peptide_forward,
+                peptide_reverse,
+                ..
+            }) => {
+                if score_forward >= score_reverse {
+                    Some(ReturnedPeptide::Linear(peptide_forward))
+                } else {
+                    Some(ReturnedPeptide::Linear(peptide_reverse))
+                }
+            }
         }
     }
 
@@ -164,6 +179,7 @@ impl IdentifiedPeptide {
             MetaData::MZTab(_) => "mzTab",
             MetaData::Novor(_) => "Novor",
             MetaData::Opair(_) => "OPair",
+            MetaData::NovoB(_) => "NovoB",
             MetaData::Peaks(_) => "PEAKS",
             MetaData::PepNet(_) => "PepNet",
             MetaData::PLink(_) => "pLink",
@@ -188,6 +204,7 @@ impl IdentifiedPeptide {
             MetaData::PowerNovo(PowerNovoData { version, .. }) => version.to_string(),
             MetaData::Sage(SageData { version, .. }) => version.to_string(),
             MetaData::PepNet(PepNetData { version, .. }) => version.to_string(),
+            MetaData::NovoB(NovoBData { version, .. }) => version.to_string(),
         }
     }
 
@@ -198,6 +215,7 @@ impl IdentifiedPeptide {
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => scan.iter().join(";"),
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
             MetaData::Opair(OpairData { scan, .. })
+            | MetaData::NovoB(NovoBData { scan, .. })
             | MetaData::InstaNovo(InstaNovoData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
@@ -252,6 +270,7 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { z, .. })
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
+            | MetaData::NovoB(NovoBData { z, .. })
             | MetaData::PLink(PLinkData { z, .. })
             | MetaData::InstaNovo(InstaNovoData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
@@ -283,6 +302,7 @@ impl IdentifiedPeptide {
             MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
             | MetaData::Fasta(_)
+            | MetaData::NovoB(_)
             | MetaData::PowerNovo(_)
             | MetaData::PepNet(_)
             | MetaData::PLink(_) => None,
@@ -311,7 +331,7 @@ impl IdentifiedPeptide {
                     )])
                 },
             ),
-            MetaData::Novor(NovorData { scan, .. }) => {
+            MetaData::Novor(NovorData { scan, .. }) | MetaData::NovoB(NovoBData { scan, .. }) => {
                 SpectrumIds::FileNotKnown(vec![SpectrumId::Index(*scan)])
             }
             MetaData::DeepNovoFamily(DeepNovoFamilyData { scan, .. }) => SpectrumIds::FileNotKnown(
@@ -379,6 +399,7 @@ impl IdentifiedPeptide {
                 *mz
             }
             MetaData::Sage(SageData { mass, z, .. })
+            | MetaData::NovoB(NovoBData { mass, z, .. })
             | MetaData::PLink(PLinkData { mass, z, .. }) => {
                 Some(MassOverCharge::new::<crate::system::mz>(
                     mass.value / (z.value as f64),
@@ -397,6 +418,7 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData { mass, .. })
             | MetaData::Novor(NovorData { mass, .. })
             | MetaData::Opair(OpairData { mass, .. })
+            | MetaData::NovoB(NovoBData { mass, .. })
             | MetaData::MSFragger(MSFraggerData { mass, .. })
             | MetaData::PLink(PLinkData { mass, .. })
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
@@ -412,17 +434,23 @@ impl IdentifiedPeptide {
 
     /// Get the absolute ppm error between the experimental and theoretical precursor mass
     pub fn ppm_error(&self) -> Option<crate::system::Ratio> {
-        if let MetaData::PepNet(p) = &self.metadata {
-            return Some(p.ppm_diff);
+        match &self.metadata {
+            MetaData::PepNet(p) => Some(p.ppm_diff),
+            MetaData::NovoB(p) => Some(if p.score_forward >= p.score_reverse {
+                p.ppm_diff_forward
+            } else {
+                p.ppm_diff_reverse
+            }),
+            _ => {
+                let exp_mass = self.experimental_mass()?;
+                let theo_mass = self
+                    .peptide()
+                    .and_then(|p| p.formulas().to_vec().pop())
+                    .map(|f| f.monoisotopic_mass())?;
+
+                Some(theo_mass.ppm(exp_mass))
+            }
         }
-
-        let exp_mass = self.experimental_mass()?;
-        let theo_mass = self
-            .peptide()
-            .and_then(|p| p.formulas().to_vec().pop())
-            .map(|f| f.monoisotopic_mass())?;
-
-        Some(theo_mass.ppm(exp_mass))
     }
 
     /// Get the absolute mass error between the experimental and theoretical precursor mass
