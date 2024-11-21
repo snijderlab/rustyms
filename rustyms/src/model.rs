@@ -535,7 +535,7 @@ impl Model {
                     end: ChargePoint::Relative(0),
                 },
             ),
-            immonium: (false, ChargeRange::ONE),
+            immonium: (true, ChargeRange::ONE),
             m: false,
             modification_specific_neutral_losses: true,
             modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
