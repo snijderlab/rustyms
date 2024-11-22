@@ -8,11 +8,15 @@ members = [
     "examples/*",
 ]
 resolver = "2"
-package.authors = ["Douwe Schulte <d.schulte@uu.nl>", "Ralf Gabriels"]
+package.authors = [
+    "Douwe Schulte <d.schulte@uu.nl>",
+    "Ralf Gabriels",
+    "Auke Heerdink",
+]
 package.edition = "2021"
 package.license = "MIT OR Apache-2.0"
 package.rust-version = "1.75.0"
-package.version = "0.9.0-alpha.2"
+package.version = "0.9.0-alpha.3"
 
 [profile.release]
 debug = true
@@ -33,7 +37,7 @@ mzdata = "0.36"
 ndarray = "0.16"
 ordered-float = { version = "4.5", features = ["serde"] }
 probability = "0.20"
-pyo3 = "0.22"
+pyo3 = "0.23"
 rand = "0.8"
 rayon = "1.9"
 regex = "1.11"
