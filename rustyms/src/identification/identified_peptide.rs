@@ -184,9 +184,9 @@ impl IdentifiedPeptide {
                 ..
             }) => {
                 if score_forward >= score_reverse {
-                    Some(ReturnedPeptide::Linear(peptide_forward))
+                    peptide_forward.as_ref().map(ReturnedPeptide::Linear)
                 } else {
-                    Some(ReturnedPeptide::Linear(peptide_reverse))
+                    peptide_reverse.as_ref().map(ReturnedPeptide::Linear)
                 }
             }
         }
