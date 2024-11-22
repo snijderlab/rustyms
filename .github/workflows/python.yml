@@ -28,7 +28,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter --manifest-path ./rustyms-py/Cargo.toml
-          sccache: "true"
+          sccache: "false"
           manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v3
