@@ -94,25 +94,23 @@ format_family!(
 
         score_forward: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         ppm_diff_forward: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        peptide_forward: LinearPeptide<SemiAmbiguous>, | location: Location, custom_database: Option<&CustomDatabase>| {
-            let location = location.trim_start_matches("['").trim_end_matches("']");
-            LinearPeptide::sloppy_pro_forma(
-            location.full_line(),
-            location.location.clone(),
-            custom_database,
-            parameters(),
-        )};
+        peptide_forward: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>|
+            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| LinearPeptide::sloppy_pro_forma(
+                location.full_line(),
+                location.location.clone(),
+                custom_database,
+                parameters()
+            )).transpose();
 
         score_reverse: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         ppm_diff_reverse: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        peptide_reverse: LinearPeptide<SemiAmbiguous>, | location: Location, custom_database: Option<&CustomDatabase>| {
-            let location = location.trim_start_matches("['").trim_end_matches("']");
-            LinearPeptide::sloppy_pro_forma(
-            location.full_line(),
-            location.location.clone(),
-            custom_database,
-            parameters(),
-        )};
+        peptide_reverse: Option<LinearPeptide<SemiAmbiguous>>, | location: Location, custom_database: Option<&CustomDatabase>|
+            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| LinearPeptide::sloppy_pro_forma(
+                location.full_line(),
+                location.location.clone(),
+                custom_database,
+                parameters(),
+            )).transpose();
     }
     optional { }
 );
