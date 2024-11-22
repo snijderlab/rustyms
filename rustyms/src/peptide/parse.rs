@@ -8,6 +8,7 @@ use crate::{
     helper_functions::*,
     modification::{
         AmbiguousLookup, AmbiguousModification, CrossLinkLookup, Modification, SimpleModification,
+        SimpleModificationInner,
     },
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
@@ -208,7 +209,7 @@ impl CompoundPeptidoform {
         let mut peptide = LinearPeptide::default();
         let chars: &[u8] = line.as_bytes();
         let mut c_term = false;
-        let mut ambiguous_aa_counter = 0;
+        let mut ambiguous_aa_counter = std::num::NonZeroU32::MIN;
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
         let mut cross_link_found_positions: Vec<(usize, SequencePosition)> = Vec::new();
@@ -249,7 +250,7 @@ impl CompoundPeptidoform {
                     Context::line(None, line, index, 1),
                 ))?;
             peptide.set_simple_n_term(
-                SimpleModification::try_from(
+                SimpleModificationInner::try_from(
                     line,
                     index + 1..end_index - 1,
                     &mut ambiguous_lookup,
@@ -293,7 +294,11 @@ impl CompoundPeptidoform {
                         ));
                     }
                     ambiguous_aa = Some(ambiguous_aa_counter);
-                    ambiguous_aa_counter += 1;
+                    ambiguous_aa_counter = ambiguous_aa_counter.checked_add(1).ok_or_else(|| CustomError::error(
+                        "Invalid ambiguous amino acid set",
+                        format!("There are too many ambiguous amino acid sets, there can only be {} in one linear peptide", std::num::NonZeroU32::MAX),
+                        Context::line(None, line, index, 1),
+                    ))?;
                     index += 2;
                 }
                 (false, b')') if ambiguous_aa.is_some() => {
@@ -328,7 +333,7 @@ impl CompoundPeptidoform {
                             "No valid closing delimiter",
                             Context::line(None, line, index, 1),
                         ))?;
-                        let modification = SimpleModification::try_from(
+                        let modification = SimpleModificationInner::try_from(
                             line, index + 1..end_index,
                             &mut ambiguous_lookup, cross_link_lookup, custom_database,
                         )?.defined().ok_or_else(|| CustomError::error(
@@ -366,7 +371,7 @@ impl CompoundPeptidoform {
                         "No valid closing delimiter",
                         Context::line(None, line, index, 1),
                     ))?;
-                    let modification = SimpleModification::try_from(
+                    let modification = SimpleModificationInner::try_from(
                         line, index + 1..end_index,
                         &mut ambiguous_lookup, cross_link_lookup, custom_database,
                     )?;
@@ -561,7 +566,7 @@ pub(super) fn global_modifications(
                     Context::line(None, line, index + 1, at_index - index - 2),
                 ));
             }
-            let modification = SimpleModification::try_from(
+            let modification = SimpleModificationInner::try_from(
                 line,
                 index + 2..at_index - 2,
                 &mut Vec::new(),
@@ -712,7 +717,7 @@ pub(super) fn unknown_position_mods(
     while chars.get(index) == Some(&b'[') {
         let start_index = index;
         index = next_char(chars, index + 1, b']')? + 1;
-        let modification = match SimpleModification::try_from(
+        let modification = match SimpleModificationInner::try_from(
             std::str::from_utf8(chars).unwrap(),
             start_index + 1..index - 1,
             ambiguous_lookup,
@@ -790,7 +795,7 @@ fn labile_modifications(
         })?;
 
         labile.push(
-            SimpleModification::try_from(
+            SimpleModificationInner::try_from(
                 line,
                 index + 1..end_index,
                 &mut Vec::new(),

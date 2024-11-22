@@ -6,20 +6,19 @@ use serde::{Deserialize, Serialize};
 
 use std::{
     cmp::Ordering,
-    collections::HashSet,
+    collections::{BTreeSet, HashSet},
     fmt::{Display, Write},
+    sync::Arc,
 };
 
 use crate::{
     glycan::{GlycanStructure, MonoSaccharide},
     molecular_charge::CachedCharge,
-    ontologies::CustomDatabase,
     peptide::Linked,
-    placement_rule::PlacementRule,
-    system::{Mass, OrderedMass},
+    placement_rule::{PlacementRule, Position},
+    system::OrderedMass,
     AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, Model,
-    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition, Tolerance,
-    WithinTolerance,
+    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition,
 };
 
 include!("shared/modification.rs");
@@ -30,19 +29,19 @@ impl ModificationId {
         match self.ontology {
             Ontology::Unimod => Some(format!(
                 "https://www.unimod.org/modifications_view.php?editid1={}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Psimod => Some(format!(
                 "https://ontobee.org/ontology/MOD?iri=http://purl.obolibrary.org/obo/MOD_{:05}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Gnome => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={}",
+                "http://glytoucan.org/Structures/Glycans/{}",
                 self.name
             )),
             Ontology::Resid => Some(format!(
                 "https://proteininformationresource.org/cgi-bin/resid?id=AA{:04}",
-                self.id
+                self.id.unwrap_or_default()
             )),
             Ontology::Xlmod | Ontology::Custom => None,
         }
@@ -55,11 +54,11 @@ pub enum RulePossible {
     /// This modification cannot be placed
     No,
     /// This modification can be placed and if it is a cross-link it can be placed on both ends
-    Symmetric(HashSet<usize>),
+    Symmetric(BTreeSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'left' side of the cross-link
-    AsymmetricLeft(HashSet<usize>),
+    AsymmetricLeft(BTreeSet<usize>),
     /// This modification can be placed and if it is a cross-link it can only be placed on the 'right' side of the cross-link
-    AsymmetricRight(HashSet<usize>),
+    AsymmetricRight(BTreeSet<usize>),
 }
 
 impl RulePossible {
@@ -76,7 +75,7 @@ impl std::ops::Add for RulePossible {
             (Self::Symmetric(a), _) | (_, Self::Symmetric(a)) => Self::Symmetric(a),
             (Self::AsymmetricLeft(l), Self::AsymmetricRight(r))
             | (Self::AsymmetricRight(l), Self::AsymmetricLeft(r)) => {
-                let overlap: HashSet<usize> = l.intersection(&r).copied().collect();
+                let overlap: BTreeSet<usize> = l.intersection(&r).copied().collect();
                 if overlap.is_empty() {
                     Self::No
                 } else {
@@ -98,38 +97,75 @@ impl std::iter::Sum for RulePossible {
     }
 }
 
-impl Chemical for SimpleModification {
+impl Chemical for SimpleModificationInner {
     /// Get the molecular formula for this modification.
     fn formula_inner(&self, position: SequencePosition, peptide_index: usize) -> MolecularFormula {
         match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
-            Self::Formula(elements) => elements.clone(),
-            Self::Glycan(monosaccharides) => monosaccharides
+            Self::Mass(m)
+            | Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
+            Self::Gno {
+                composition: GnoComposition::Composition(monosaccharides),
+                ..
+            }
+            | Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
                     acc + i.0.formula_inner(position, peptide_index) * i.1 as i32
                 }),
-            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula_inner(position, peptide_index)
-            }
-            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => {
-                MolecularFormula::with_additional_mass(m.value)
-            }
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan.formula_inner(position, peptide_index),
+            Self::Formula(formula)
+            | Self::Database { formula, .. }
+            | Self::Linker { formula, .. } => formula.clone(),
         }
     }
 }
 
-impl SimpleModification {
+impl SimpleModificationInner {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
-            Self::Database { id, .. } | Self::Linker { id, .. } => id.url(),
-            Self::Gno(_, name) => Some(format!(
-                "https://gnome.glyomics.org/StructureBrowser.html?focus={name}",
-            )),
+            Self::Database { id, .. } | Self::Linker { id, .. } | Self::Gno { id, .. } => id.url(),
+        }
+    }
+
+    /// Internal formula code with the logic to make all labels right
+    pub(crate) fn formula_inner(
+        &self,
+        sequence_index: SequencePosition,
+        peptide_index: usize,
+    ) -> MolecularFormula {
+        match self {
+            Self::Mass(m)
+            | Self::Gno {
+                composition: GnoComposition::Weight(m),
+                ..
+            } => MolecularFormula::with_additional_mass(m.value),
+            Self::Gno {
+                composition: GnoComposition::Composition(monosaccharides),
+                ..
+            }
+            | Self::Glycan(monosaccharides) => monosaccharides
+                .iter()
+                .fold(MolecularFormula::default(), |acc, i| {
+                    acc + i.0.formula_inner(sequence_index, peptide_index) * i.1 as i32
+                }),
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan.formula_inner(sequence_index, peptide_index),
+            Self::Formula(formula)
+            | Self::Database { formula, .. }
+            | Self::Linker { formula, .. } => formula.clone(),
         }
     }
 
@@ -166,7 +202,7 @@ impl SimpleModification {
         match self {
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
-                let matching: HashSet<usize> = specificities
+                let matching: BTreeSet<usize> = specificities
                     .iter()
                     .enumerate()
                     .filter_map(|(index, (rules, _, _))| {
@@ -185,7 +221,7 @@ impl SimpleModification {
                 .map(|(index, spec)| match spec {
                     LinkerSpecificity::Symmetric(rules, _, _) => {
                         if PlacementRule::any_possible(rules, seq, position) {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
@@ -194,18 +230,66 @@ impl SimpleModification {
                         let left = PlacementRule::any_possible(rules_left, seq, position);
                         let right = PlacementRule::any_possible(rules_right, seq, position);
                         if left && right {
-                            RulePossible::Symmetric(HashSet::from([index]))
+                            RulePossible::Symmetric(BTreeSet::from([index]))
                         } else if left {
-                            RulePossible::AsymmetricLeft(HashSet::from([index]))
+                            RulePossible::AsymmetricLeft(BTreeSet::from([index]))
                         } else if right {
-                            RulePossible::AsymmetricRight(HashSet::from([index]))
+                            RulePossible::AsymmetricRight(BTreeSet::from([index]))
                         } else {
                             RulePossible::No
                         }
                     }
                 })
                 .sum::<RulePossible>(),
-            _ => RulePossible::Symmetric(HashSet::default()),
+            _ => RulePossible::Symmetric(BTreeSet::default()),
+        }
+    }
+
+    /// Check to see if this modification can be placed on the specified element
+    pub fn is_possible_aa(&self, aa: AminoAcid, position: Position) -> RulePossible {
+        match self {
+            Self::Database { specificities, .. } => {
+                // If any of the rules match the current situation then it can be placed
+                let matching: BTreeSet<usize> = specificities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, (rules, _, _))| {
+                        PlacementRule::any_possible_aa(rules, aa, position).then_some(index)
+                    })
+                    .collect();
+                if matching.is_empty() {
+                    RulePossible::No
+                } else {
+                    RulePossible::Symmetric(matching)
+                }
+            }
+            Self::Linker { specificities, .. } => specificities
+                .iter()
+                .enumerate()
+                .map(|(index, spec)| match spec {
+                    LinkerSpecificity::Symmetric(rules, _, _) => {
+                        if PlacementRule::any_possible_aa(rules, aa, position) {
+                            RulePossible::Symmetric(BTreeSet::from([index]))
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                    LinkerSpecificity::Asymmetric((rules_left, rules_right), _, _) => {
+                        let left = PlacementRule::any_possible_aa(rules_left, aa, position);
+                        let right = PlacementRule::any_possible_aa(rules_right, aa, position);
+                        if left && right {
+                            RulePossible::Symmetric(BTreeSet::from([index]))
+                        } else if left {
+                            RulePossible::AsymmetricLeft(BTreeSet::from([index]))
+                        } else if right {
+                            RulePossible::AsymmetricRight(BTreeSet::from([index]))
+                        } else {
+                            RulePossible::No
+                        }
+                    }
+                })
+                .sum::<RulePossible>(),
+            _ => RulePossible::Symmetric(BTreeSet::default()),
         }
     }
 
@@ -263,11 +347,9 @@ impl SimpleModification {
             } if specification_compliant => {
                 write!(f, "C:{name}")?;
             }
-            Self::Database { id, .. } => {
+            Self::Database { id, .. } | Self::Gno { id, .. } | Self::Linker { id, .. } => {
                 write!(f, "{}:{}", id.ontology.char(), id.name)?;
             }
-            Self::Gno(_, name) => write!(f, "{}:{name}", Ontology::Gnome.char())?,
-            Self::Linker { id, .. } => write!(f, "{}:{}", id.ontology.char(), id.name)?,
         }
         Ok(())
     }
@@ -331,7 +413,7 @@ impl SimpleModification {
     }
 }
 
-impl Display for SimpleModification {
+impl Display for SimpleModificationInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true)
     }
@@ -340,6 +422,12 @@ impl Display for SimpleModification {
 impl From<SimpleModification> for Modification {
     fn from(value: SimpleModification) -> Self {
         Self::Simple(value)
+    }
+}
+
+impl From<SimpleModificationInner> for Modification {
+    fn from(value: SimpleModificationInner) -> Self {
+        Self::Simple(Arc::new(value))
     }
 }
 
@@ -360,8 +448,8 @@ impl CrossLinkSide {
         let mut stubs = Vec::new();
         let mut diagnostic = Vec::new();
 
-        match linker {
-            SimpleModification::Linker { specificities, .. } => {
+        match &**linker {
+            SimpleModificationInner::Linker { specificities, .. } => {
                 for rule in specificities
                     .iter()
                     .enumerate()
@@ -387,7 +475,7 @@ impl CrossLinkSide {
                     }
                 }
             }
-            SimpleModification::Database { specificities, .. } => {
+            SimpleModificationInner::Database { specificities, .. } => {
                 for rule in specificities
                     .iter()
                     .enumerate()
@@ -416,14 +504,16 @@ impl Modification {
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             // A linker that is not cross-linked is hydrolysed
-            Self::Simple(SimpleModification::Linker { formula, .. }) => (
-                (formula.clone() + molecular_formula!(H 2 O 1)).into(),
-                HashSet::new(),
-            ),
-            Self::Simple(s) => (
-                s.formula_inner(sequence_index, peptide_index).into(),
-                HashSet::new(),
-            ),
+            Self::Simple(sim) => match &**sim {
+                SimpleModificationInner::Linker { formula, .. } => (
+                    (formula.clone() + molecular_formula!(H 2 O 1)).into(),
+                    HashSet::new(),
+                ),
+                s => (
+                    s.formula_inner(sequence_index, peptide_index).into(),
+                    HashSet::new(),
+                ),
+            },
             Self::CrossLink {
                 peptide: other_peptide,
                 linker,
@@ -436,7 +526,10 @@ impl Modification {
                 } else if visited_peptides.contains(other_peptide) {
                     applied_cross_links.push(name.clone());
                     (
-                        linker.formula_inner(sequence_index, peptide_index).into(),
+                        linker
+                            .formula_inner(sequence_index, peptide_index)
+                            .with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
+                            .into(),
                         HashSet::from([name.clone()]),
                     )
                 } else {
@@ -448,10 +541,10 @@ impl Modification {
                         let mut options: Vec<MolecularFormula> = stubs
                             .iter()
                             .map(|s| {
-                                s.0.clone().with_labels(&[AmbiguousLabel::CrossLinkBroken(
+                                s.0.clone().with_label(AmbiguousLabel::CrossLinkBroken(
                                     name.clone(),
                                     s.0.clone(),
-                                )])
+                                ))
                             })
                             .unique()
                             .collect();
@@ -467,7 +560,7 @@ impl Modification {
                             );
                             seen_peptides.extend(seen);
                             (f + link)
-                                .with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())])
+                                .with_label(&AmbiguousLabel::CrossLinkBound(name.clone()))
                                 .to_vec()
                         });
 
@@ -482,7 +575,7 @@ impl Modification {
                         );
                         seen.insert(name.clone());
                         (
-                            (f + link).with_labels(&[AmbiguousLabel::CrossLinkBound(name.clone())]),
+                            (f + link).with_label(&AmbiguousLabel::CrossLinkBound(name.clone())),
                             seen,
                         )
                     }
@@ -532,10 +625,10 @@ impl Modification {
         seq: &SequenceElement<T>,
         position: SequencePosition,
     ) -> RulePossible {
-        self.simple()
-            .map_or(RulePossible::Symmetric(HashSet::new()), |s| {
-                s.is_possible(seq, position)
-            })
+        self.simple().map_or(
+            RulePossible::Symmetric(std::collections::BTreeSet::new()),
+            |s| s.is_possible(seq, position),
+        )
     }
 
     /// Generate theoretical fragments for side chains (glycans)
@@ -563,81 +656,7 @@ impl Modification {
     }
 }
 
-impl SimpleModification {
-    /// Search matching modification based on what modification is provided. If a mass modification is provided
-    /// it returns all modifications with that mass (within the tolerance). If a formula is provided it returns
-    /// all modifications with that formula. If a glycan composition is provided it returns all glycans with
-    /// that composition. Otherwise it returns the modification itself.
-    pub fn search(
-        modification: &Self,
-        tolerance: Tolerance<Mass>,
-        custom_database: Option<&CustomDatabase>,
-    ) -> ModificationSearchResult {
-        match modification {
-            Self::Mass(mass) => ModificationSearchResult::Mass(
-                mass.into_inner(),
-                tolerance,
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
-                })
-                .filter(|(_, _, _, m)| {
-                    tolerance.within(&mass.into_inner(), &m.formula().monoisotopic_mass())
-                })
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Formula(formula) => ModificationSearchResult::Formula(
-                formula.clone(),
-                [
-                    Ontology::Unimod,
-                    Ontology::Psimod,
-                    Ontology::Gnome,
-                    Ontology::Xlmod,
-                    Ontology::Custom,
-                ]
-                .iter()
-                .flat_map(|o| {
-                    o.lookup(custom_database)
-                        .iter()
-                        .map(|(i, n, m)| (*o, *i, n, m))
-                })
-                .filter(|(_, _, _, m)| *formula == m.formula())
-                .map(|(o, i, n, m)| (o, i, n.clone(), m.clone()))
-                .collect(),
-            ),
-            Self::Glycan(glycan) => {
-                let search = MonoSaccharide::search_composition(glycan.clone());
-                ModificationSearchResult::Glycan(
-                    glycan.clone(),
-                    Ontology::Gnome
-                        .lookup(custom_database)
-                        .iter()
-                        .filter(|(_, _, m)| {
-                            if let Self::Gno(GnoComposition::Structure(structure), _) = m {
-                                MonoSaccharide::search_composition(structure.composition())
-                                    == *search
-                            } else {
-                                false
-                            }
-                        })
-                        .map(|(i, n, m)| (Ontology::Gnome, *i, n.clone(), m.clone()))
-                        .collect(),
-                )
-            }
-            m => ModificationSearchResult::Single(m.clone()),
-        }
-    }
-
+impl SimpleModificationInner {
     /// Generate theoretical fragments for side chains (glycans)
     pub(crate) fn generate_theoretical_fragments(
         &self,
@@ -648,8 +667,12 @@ impl SimpleModification {
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
-        if let Self::GlycanStructure(glycan) = self {
-            glycan
+        match self {
+            Self::GlycanStructure(glycan)
+            | Self::Gno {
+                composition: GnoComposition::Topology(glycan),
+                ..
+            } => glycan
                 .clone()
                 .determine_positions()
                 .generate_theoretical_fragments(
@@ -659,21 +682,12 @@ impl SimpleModification {
                     charge_carriers,
                     full_formula,
                     attachment,
-                )
-        } else if let Self::Gno(GnoComposition::Structure(glycan), _) = self {
-            glycan
-                .clone()
-                .determine_positions()
-                .generate_theoretical_fragments(
-                    model,
-                    peptidoform_index,
-                    peptide_index,
-                    charge_carriers,
-                    full_formula,
-                    attachment,
-                )
-        } else if let Self::Glycan(composition) = self {
-            MonoSaccharide::theoretical_fragments(
+                ),
+            Self::Glycan(composition)
+            | Self::Gno {
+                composition: GnoComposition::Composition(composition),
+                ..
+            } => MonoSaccharide::theoretical_fragments(
                 composition,
                 model,
                 peptidoform_index,
@@ -681,33 +695,10 @@ impl SimpleModification {
                 charge_carriers,
                 full_formula,
                 attachment,
-            )
-        } else {
-            Vec::new()
+            ),
+            _ => Vec::new(),
         }
     }
-}
-
-/// The result of a modification search, see [`SimpleModification::search`].
-pub enum ModificationSearchResult {
-    /// The modification was already defined
-    Single(SimpleModification),
-    /// All modifications with the same mass, within the tolerance
-    Mass(
-        Mass,
-        Tolerance<Mass>,
-        Vec<(Ontology, usize, String, SimpleModification)>,
-    ),
-    /// All modifications with the same formula
-    Formula(
-        MolecularFormula,
-        Vec<(Ontology, usize, String, SimpleModification)>,
-    ),
-    /// All modifications with the same glycan composition
-    Glycan(
-        Vec<(MonoSaccharide, isize)>,
-        Vec<(Ontology, usize, String, SimpleModification)>,
-    ),
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)

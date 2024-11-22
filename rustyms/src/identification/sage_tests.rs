@@ -1,19 +1,22 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use super::IdentifiedPeptideSource;
-
-use super::{csv::parse_csv_raw, sage, IdentifiedPeptide, SageData};
+use crate::identification::{test_format, SageData, SageVersion};
 
 #[test]
 fn sage() {
-    let reader = BufReader::new(DATA.as_bytes());
-    let lines = parse_csv_raw(reader, b'\t', None).unwrap();
-    for line in lines.map(Result::unwrap) {
-        println!("{line}");
-        let _read: IdentifiedPeptide = SageData::parse_specific(&line, &sage::VERSION_0_14, None)
-            .unwrap()
-            .into();
+    match test_format::<SageData>(
+        BufReader::new(DATA.as_bytes()),
+        None,
+        true,
+        false,
+        Some(SageVersion::V0_14),
+    ) {
+        Ok(n) => assert_eq!(n, 19),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
     }
 }
 

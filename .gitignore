@@ -4,13 +4,11 @@ Cargo.lock
 errors.dat
 imgt.dat.Z
 imgt.dat
+GNOme.obo
+glycosmos_glycans_list.csv
 .venv/
 docs/**/_build/
 out
 out_peaks
 out_pro_forma
 out_sloppy_pro_forma
-/rustyms/databases/*.csv
-/rustyms/databases/*.obo
-/rustyms/databases/*.xml
-/rustyms/databases/*.XML

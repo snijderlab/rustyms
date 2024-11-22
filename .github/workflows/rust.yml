@@ -49,6 +49,8 @@ jobs:
       
   test:
     runs-on: ubuntu-latest
+    env: 
+      CARGO_ENCODED_RUSTFLAGS: --cfg=github_action
     
     needs: build
     steps:

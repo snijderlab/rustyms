@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{
     checked_aminoacid::CheckedAminoAcid,
-    modification::{Modification, SimpleModification},
+    modification::{Modification, SimpleModification, SimpleModificationInner},
     peptide::SimpleLinear,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
@@ -36,7 +36,7 @@ pub fn building_blocks(
         seq: &SequenceElement<SemiAmbiguous>,
         position: SequencePosition,
     ) -> bool {
-        if let SimpleModification::Database { specificities, .. } = modification {
+        if let SimpleModificationInner::Database { specificities, .. } = &**modification {
             specificities.is_empty()
                 || specificities
                     .iter()
@@ -86,7 +86,9 @@ pub fn building_blocks(
             .flat_map(|(modification, rule)| {
                 rule.as_ref().map_or_else(
                     || {
-                        if let SimpleModification::Database { specificities, .. } = modification {
+                        if let SimpleModificationInner::Database { specificities, .. } =
+                            &**modification
+                        {
                             specificities
                                 .iter()
                                 .flat_map(|(rules, _, _)| {

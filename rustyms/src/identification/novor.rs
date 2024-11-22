@@ -1,14 +1,13 @@
 use super::{
-    common_parser::Location,
+    common_parser::{Location, OptionalColumn},
     csv::{parse_csv, CsvLine},
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 use crate::{
     error::CustomError,
-    helper_functions::InvertResult,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
-    system::{usize::Charge, Mass, MassOverCharge, Ratio, Time},
+    system::{usize::Charge, Mass, MassOverCharge, Time},
     LinearPeptide,
 };
 use serde::{Deserialize, Serialize};
@@ -23,19 +22,18 @@ format_family!(
     NovorFormat,
     /// The Novor data
     NovorData,
-    NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',';
+    NovorVersion, [&OLD_DENOVO, &OLD_PSM, &NEW_DENOVO, &NEW_PSM], b',', None;
     required {
         scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters::default(),
+            &SloppyParsingParameters::default(),
         );
     }
     optional {
@@ -48,16 +46,14 @@ format_family!(
             }) // Skip the F of the F{num} definition
             .parse::<usize>(NUMBER_ERROR);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        mass_err: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        length: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         peptide_no_ptm: String, |location: Location, _| Ok(Some(location.get_string()));
         protein: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         protein_start: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        protein_origin:String, |location: Location, _| Ok(Some(location.get_string()));
+        protein_origin: String, |location: Location, _| Ok(Some(location.get_string()));
         protein_all: String, |location: Location, _| Ok(Some(location.get_string()));
         database_sequence: String, |location: Location, _| Ok(Some(location.get_string()));
         local_confidence: Vec<f64>, |location: Location, _| location.array('-')
-                    .map(|l| l.parse::<f64>(NUMBER_ERROR).map(|v| v / 100.0))
+                    .map(|l| l.parse::<f64>(NUMBER_ERROR))
                     .collect::<Result<Vec<_>, _>>();
     }
 );
@@ -65,7 +61,11 @@ format_family!(
 impl From<NovorData> for IdentifiedPeptide {
     fn from(value: NovorData) -> Self {
         Self {
-            score: Some(value.score.clamp(-1.0, 1.0)),
+            score: Some((value.score / 100.0).clamp(-1.0, 1.0)),
+            local_confidence: value
+                .local_confidence
+                .as_ref()
+                .map(|lc| lc.iter().map(|v| *v / 100.0).collect()),
             metadata: MetaData::Novor(value),
         }
     }
@@ -118,22 +118,19 @@ pub const OLD_DENOVO: NovorFormat = NovorFormat {
     mz: "m/z",
     z: "z",
     mass: "peptide mass",
-    ppm: "error (ppm)",
     score: "score",
     peptide: "de novo peptide",
-    id: None,
-    spectra_id: None,
-    fraction: Some("fraction"),
-    rt: None,
-    mass_err: None,
-    length: Some("length"),
-    peptide_no_ptm: None,
-    protein: None,
-    protein_start: None,
-    protein_origin: None,
-    protein_all: None,
-    database_sequence: Some("db sequence"),
-    local_confidence: None,
+    id: OptionalColumn::NotAvailable,
+    spectra_id: OptionalColumn::NotAvailable,
+    fraction: OptionalColumn::Required("fraction"),
+    rt: OptionalColumn::NotAvailable,
+    peptide_no_ptm: OptionalColumn::NotAvailable,
+    protein: OptionalColumn::NotAvailable,
+    protein_start: OptionalColumn::NotAvailable,
+    protein_origin: OptionalColumn::NotAvailable,
+    protein_all: OptionalColumn::NotAvailable,
+    database_sequence: OptionalColumn::Required("db sequence"),
+    local_confidence: OptionalColumn::NotAvailable,
 };
 
 /// The older supported format for psms.csv files from Novor
@@ -155,22 +152,19 @@ pub const OLD_PSM: NovorFormat = NovorFormat {
     mz: "m/z",
     z: "z",
     mass: "mass",
-    ppm: "error (ppm)",
     score: "score",
     peptide: "sequence",
-    id: Some("id"),
-    spectra_id: None,
-    fraction: Some("fraction"),
-    rt: None,
-    mass_err: None,
-    length: None,
-    peptide_no_ptm: None,
-    protein: Some("# proteins"),
-    protein_start: None,
-    protein_origin: None,
-    protein_all: None,
-    database_sequence: None,
-    local_confidence: None,
+    id: OptionalColumn::Required("id"),
+    spectra_id: OptionalColumn::NotAvailable,
+    fraction: OptionalColumn::Required("fraction"),
+    rt: OptionalColumn::NotAvailable,
+    peptide_no_ptm: OptionalColumn::NotAvailable,
+    protein: OptionalColumn::Required("# proteins"),
+    protein_start: OptionalColumn::NotAvailable,
+    protein_origin: OptionalColumn::NotAvailable,
+    protein_all: OptionalColumn::NotAvailable,
+    database_sequence: OptionalColumn::NotAvailable,
+    local_confidence: OptionalColumn::NotAvailable,
 };
 
 /// denovo: `# id, scanNum, RT, mz(data), z, pepMass(denovo), err(data-denovo), ppm(1e6*err/(mz*z)), score, peptide, aaScore,`
@@ -180,22 +174,19 @@ pub const NEW_DENOVO: NovorFormat = NovorFormat {
     mz: "mz(data)",
     z: "z",
     mass: "pepmass(denovo)",
-    ppm: "ppm(1e6*err/(mz*z))",
     score: "score",
     peptide: "peptide",
-    id: Some("# id"),
-    spectra_id: None,
-    fraction: Some("fraction"),
-    rt: None,
-    mass_err: Some("err(data-denovo)"),
-    length: None,
-    peptide_no_ptm: None,
-    protein: Some("# proteins"),
-    protein_start: None,
-    protein_origin: None,
-    protein_all: None,
-    database_sequence: None,
-    local_confidence: Some("aascore"),
+    id: OptionalColumn::Required("# id"),
+    spectra_id: OptionalColumn::NotAvailable,
+    fraction: OptionalColumn::NotAvailable,
+    rt: OptionalColumn::Required("rt"),
+    peptide_no_ptm: OptionalColumn::NotAvailable,
+    protein: OptionalColumn::NotAvailable,
+    protein_start: OptionalColumn::NotAvailable,
+    protein_origin: OptionalColumn::NotAvailable,
+    protein_all: OptionalColumn::NotAvailable,
+    database_sequence: OptionalColumn::NotAvailable,
+    local_confidence: OptionalColumn::Required("aascore"),
 };
 
 /// PSM: `#id, spectraId, scanNum, RT, mz, z, pepMass, err, ppm, score, protein, start, length, origin, peptide, noPTMPeptide, aac, allProteins`
@@ -205,20 +196,17 @@ pub const NEW_PSM: NovorFormat = NovorFormat {
     mz: "mz",
     z: "z",
     mass: "pepmass",
-    ppm: "ppm",
     score: "score",
     peptide: "peptide",
-    id: Some("#id"),
-    spectra_id: None,
-    fraction: Some("fraction"),
-    rt: None,
-    mass_err: Some("err(data-denovo)"),
-    length: Some("length"),
-    peptide_no_ptm: Some("noptmpeptide"),
-    protein: Some("protein"),
-    protein_start: Some("start"),
-    protein_origin: Some("origin"),
-    protein_all: Some("allproteins"),
-    database_sequence: None,
-    local_confidence: Some("aac"),
+    id: OptionalColumn::Required("#id"),
+    spectra_id: OptionalColumn::Required("spectraid"),
+    fraction: OptionalColumn::NotAvailable,
+    rt: OptionalColumn::Required("rt"),
+    peptide_no_ptm: OptionalColumn::Required("noptmpeptide"),
+    protein: OptionalColumn::Required("protein"),
+    protein_start: OptionalColumn::Required("start"),
+    protein_origin: OptionalColumn::Required("origin"),
+    protein_all: OptionalColumn::Required("allproteins"),
+    database_sequence: OptionalColumn::NotAvailable,
+    local_confidence: OptionalColumn::Required("aac"),
 };

@@ -23,7 +23,7 @@ format_family!(
     OpairFormat,
     /// The data for OPair data
     OpairData,
-    OpairVersion, [&O_PAIR], b'\t';
+    OpairVersion, [&O_PAIR], b'\t', None;
     required {
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan: usize, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -119,11 +119,11 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters::default()
+            &SloppyParsingParameters::default()
         );
         mod_number: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         theoretical_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(|f| f / 100.0);
+        score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         matched_ion_series: String, |location: Location, _| Ok(location.get_string());
         matched_ion_mz_ratios: String, |location: Location, _| Ok(location.get_string());
@@ -191,7 +191,8 @@ format_family!(
 impl From<OpairData> for IdentifiedPeptide {
     fn from(value: OpairData) -> Self {
         Self {
-            score: Some(value.score),
+            score: Some(value.score / 100.0),
+            local_confidence: None,
             metadata: MetaData::Opair(value),
         }
     }

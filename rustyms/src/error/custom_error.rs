@@ -4,9 +4,15 @@ use serde::*;
 use std::error;
 use std::fmt;
 
-/// An error
-#[derive(Serialize, Deserialize, PartialEq, Clone, Eq)]
+/// An error. Stored as a pointer to a structure on the heap to prevent large sizes which could be
+/// detremental to performance for the happy path.
+#[derive(Serialize, Deserialize, PartialEq, Clone, Eq, Hash)]
 pub struct CustomError {
+    content: Box<InnerError>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Eq, Hash)]
+struct InnerError {
     /// The level of the error, defining how it should be handled
     warning: bool,
     /// A short description of the error, generally used as title line
@@ -14,106 +20,101 @@ pub struct CustomError {
     /// A longer description of the error, presented below the context to give more information and helpful feedback
     long_description: String,
     /// Possible suggestion(s) for the indicated text
-    pub(crate) suggestions: Vec<String>,
+    suggestions: Vec<String>,
+    /// Version if applicable
+    version: String,
     /// The context, in the most general sense this produces output which leads the user to the right place in the code or file
     context: Context,
     /// Underlying errors
     underlying_errors: Vec<CustomError>,
 }
 
-#[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
+#[allow(clippy::needless_pass_by_value, dead_code)] // The impl ToString should be passed like this, otherwise &str gives errors
 impl CustomError {
-    /// Create a new `CustomError`
+    /// Create a new `CustomError`.
     ///
     /// ## Arguments
-    /// * `short_desc` - A short description of the error, generally used as title line
-    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
-    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
+    /// * `short_desc` - A short description of the error, generally used as title line.
+    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback.
+    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file.
     pub fn error(
         short_desc: impl std::string::ToString,
         long_desc: impl std::string::ToString,
         context: Context,
     ) -> Self {
         Self {
-            warning: false,
-            short_description: short_desc.to_string(),
-            long_description: long_desc.to_string(),
-            suggestions: Vec::new(),
-            context,
-            underlying_errors: Vec::new(),
+            content: Box::new(InnerError {
+                warning: false,
+                short_description: short_desc.to_string(),
+                long_description: long_desc.to_string(),
+                suggestions: Vec::new(),
+                version: String::new(),
+                context,
+                underlying_errors: Vec::new(),
+            }),
         }
     }
-    /// Create a new `CustomError`
+    /// Create a new `CustomError`.
     ///
     /// ## Arguments
-    /// * `short_desc` - A short description of the error, generally used as title line
-    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
-    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
-    pub(crate) const fn const_error(
-        short_desc: String,
-        long_desc: String,
-        context: Context,
-    ) -> Self {
-        Self {
-            warning: false,
-            short_description: short_desc,
-            long_description: long_desc,
-            suggestions: Vec::new(),
-            context,
-            underlying_errors: Vec::new(),
-        }
-    }
-    /// Create a new `CustomError`
-    ///
-    /// ## Arguments
-    /// * `short_desc` - A short description of the error, generally used as title line
-    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback
-    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file
+    /// * `short_desc` - A short description of the error, generally used as title line.
+    /// * `long_desc` -  A longer description of the error, presented below the context to give more information and helpful feedback.
+    /// * `context` - The context, in the most general sense this produces output which leads the user to the right place in the code or file.
     pub fn warning(
         short_desc: impl std::string::ToString,
         long_desc: impl std::string::ToString,
         context: Context,
     ) -> Self {
         Self {
-            warning: true,
-            short_description: short_desc.to_string(),
-            long_description: long_desc.to_string(),
-            suggestions: Vec::new(),
-            context,
-            underlying_errors: Vec::new(),
+            content: Box::new(InnerError {
+                warning: true,
+                short_description: short_desc.to_string(),
+                long_description: long_desc.to_string(),
+                suggestions: Vec::new(),
+                version: String::new(),
+                context,
+                underlying_errors: Vec::new(),
+            }),
         }
     }
 
     /// The level of the error
     pub const fn level(&self) -> &str {
-        if self.warning {
+        if self.content.warning {
             "warning"
         } else {
             "error"
         }
     }
 
+    /// The suggestions
+    pub fn suggestions(&self) -> &[String] {
+        &self.content.suggestions
+    }
+
     /// Tests if this errors is a warning
     pub const fn is_warning(&self) -> bool {
-        self.warning
+        self.content.warning
     }
 
     /// Gives the short description or title for this error
     pub fn short_description(&self) -> &str {
-        &self.short_description
+        &self.content.short_description
     }
 
     /// Gives the long description for this error
     pub fn long_description(&self) -> &str {
-        &self.long_description
+        &self.content.long_description
     }
 
     /// Create a copy of the error with a new long description
     #[must_use]
     pub fn with_long_description(&self, long_desc: impl std::string::ToString) -> Self {
         Self {
-            long_description: long_desc.to_string(),
-            ..self.clone()
+            content: Box::new(InnerError {
+                long_description: long_desc.to_string(),
+                ..(*self.content).clone()
+            }),
         }
     }
 
@@ -124,8 +125,21 @@ impl CustomError {
         suggestions: impl IntoIterator<Item = impl std::string::ToString>,
     ) -> Self {
         Self {
-            suggestions: suggestions.into_iter().map(|s| s.to_string()).collect(),
-            ..self.clone()
+            content: Box::new(InnerError {
+                suggestions: suggestions.into_iter().map(|s| s.to_string()).collect(),
+                ..(*self.content).clone()
+            }),
+        }
+    }
+
+    /// Set the version of the underlying format
+    #[must_use]
+    pub fn with_version(self, version: impl std::string::ToString) -> Self {
+        Self {
+            content: Box::new(InnerError {
+                version: version.to_string(),
+                ..(*self.content)
+            }),
         }
     }
 
@@ -133,8 +147,10 @@ impl CustomError {
     #[must_use]
     pub fn with_context(&self, context: Context) -> Self {
         Self {
-            context,
-            ..self.clone()
+            content: Box::new(InnerError {
+                context,
+                ..(*self.content).clone()
+            }),
         }
     }
 
@@ -142,8 +158,10 @@ impl CustomError {
     #[must_use]
     pub fn with_underlying_errors(&self, underlying_errors: Vec<Self>) -> Self {
         Self {
-            underlying_errors,
-            ..self.clone()
+            content: Box::new(InnerError {
+                underlying_errors,
+                ..(*self.content).clone()
+            }),
         }
     }
 
@@ -151,14 +169,20 @@ impl CustomError {
     #[must_use]
     pub fn overwrite_line_number(&self, line_number: usize) -> Self {
         Self {
-            context: self.context.clone().overwrite_line_number(line_number),
-            ..self.clone()
+            content: Box::new(InnerError {
+                context: self
+                    .content
+                    .context
+                    .clone()
+                    .overwrite_line_number(line_number),
+                ..(*self.content).clone()
+            }),
         }
     }
 
     /// Gives the context for this error
     pub const fn context(&self) -> &Context {
-        &self.context
+        &self.content.context
     }
 }
 
@@ -168,23 +192,33 @@ impl fmt::Debug for CustomError {
             f,
             "{}: {}{}\n{}",
             self.level(),
-            self.short_description,
-            self.context,
-            self.long_description
+            self.content.short_description,
+            self.content.context,
+            self.content.long_description
         )?;
-        match self.suggestions.len() {
+        match self.content.suggestions.len() {
             0 => Ok(()),
-            1 => writeln!(f, "Did you mean: {}?", self.suggestions[0]),
-            _ => writeln!(f, "Did you mean any of: {}?", self.suggestions.join(", ")),
+            1 => writeln!(f, "Did you mean: {}?", self.content.suggestions[0]),
+            _ => writeln!(
+                f,
+                "Did you mean any of: {}?",
+                self.content.suggestions.join(", ")
+            ),
+        }?;
+        if !self.content.version.is_empty() {
+            writeln!(f, "Version: {}", self.content.version)?;
         }
-        .unwrap();
-        match self.underlying_errors.len() {
+        match self.content.underlying_errors.len() {
             0 => Ok(()),
-            1 => writeln!(f, "Underlying error:\n{}", self.underlying_errors[0]),
+            1 => writeln!(
+                f,
+                "Underlying error:\n{}",
+                self.content.underlying_errors[0]
+            ),
             _ => writeln!(
                 f,
                 "Underlying errors:\n{}",
-                self.underlying_errors.iter().join("\n")
+                self.content.underlying_errors.iter().join("\n")
             ),
         }
     }

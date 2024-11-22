@@ -1,16 +1,18 @@
-use std::{collections::HashSet, fmt::Write};
+use std::{collections::BTreeSet, fmt::Write};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    modification::{CrossLinkName, CrossLinkSide, RulePossible, SimpleModification},
+    modification::{
+        CrossLinkName, CrossLinkSide, RulePossible, SimpleModification, SimpleModificationInner,
+    },
     peptide::Linked,
     system::usize::Charge,
     Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
 };
 /// A single peptidoform, can contain multiple linear peptides
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize, Hash)]
 pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
 
 impl Peptidoform {
@@ -26,6 +28,16 @@ impl Peptidoform {
         global_and_charge_equal.then_some(result)
     }
 
+    /// Create a new [`Peptidoform`] from many [`LinearPeptide`]s. This returns None if the
+    /// global isotope modifications or the charge carriers of all peptides are not identical.
+    pub fn from_vec(iter: Vec<LinearPeptide<Linked>>) -> Option<Self> {
+        let result = Self(iter);
+        let global_and_charge_equal = result.peptides().iter().tuple_windows().all(|(a, b)| {
+            a.get_global() == b.get_global() && a.get_charge_carriers() == b.get_charge_carriers()
+        });
+        global_and_charge_equal.then_some(result)
+    }
+
     /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
     /// Assumes all peptides in this peptidoform are connected.
     /// If there are no peptides in this peptidoform it returns [`Multi::default`].
@@ -33,16 +45,6 @@ impl Peptidoform {
         self.0
             .first()
             .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new(), true).0)
-            .unwrap_or_default()
-    }
-
-    /// Gives all possible formulas for this peptidoform (including breakage of cross-links that can break).
-    /// Assumes all peptides in this peptidoform are connected.
-    /// If there are no peptides in this peptidoform it returns [`Multi::default`].
-    pub(super) fn formulas_inner(&self) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
-        self.0
-            .first()
-            .map(|p| p.formulas_inner(0, &self.0, &[], &mut Vec::new(), true))
             .unwrap_or_default()
     }
 
@@ -89,6 +91,11 @@ impl Peptidoform {
         &self.0
     }
 
+    /// Get all peptides making up this peptidoform
+    pub fn peptides_mut(&mut self) -> &mut [LinearPeptide<Linked>] {
+        &mut self.0
+    }
+
     /// Set the charge carriers
     #[allow(clippy::needless_pass_by_value)]
     pub fn set_charge_carriers(&mut self, charge_carriers: Option<MolecularCharge>) {
@@ -112,21 +119,21 @@ impl Peptidoform {
             let left = linker.is_possible(pos_1, position_1.1);
             let right = linker.is_possible(pos_2, position_1.1);
             let specificity = if matches!(
-                linker,
-                SimpleModification::Formula(_)
-                    | SimpleModification::Glycan(_)
-                    | SimpleModification::GlycanStructure(_)
-                    | SimpleModification::Gno(_, _)
-                    | SimpleModification::Mass(_)
+                &*linker,
+                SimpleModificationInner::Formula(_)
+                    | SimpleModificationInner::Glycan(_)
+                    | SimpleModificationInner::GlycanStructure(_)
+                    | SimpleModificationInner::Gno { .. }
+                    | SimpleModificationInner::Mass(_)
             ) {
                 Some((
-                    CrossLinkSide::Symmetric(HashSet::default()),
-                    CrossLinkSide::Symmetric(HashSet::default()),
+                    CrossLinkSide::Symmetric(std::collections::BTreeSet::default()),
+                    CrossLinkSide::Symmetric(std::collections::BTreeSet::default()),
                 ))
             } else {
                 match (left, right) {
                     (RulePossible::Symmetric(a), RulePossible::Symmetric(b)) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {
@@ -140,7 +147,7 @@ impl Peptidoform {
                         RulePossible::AsymmetricLeft(a),
                         RulePossible::AsymmetricRight(b) | RulePossible::Symmetric(b),
                     ) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {
@@ -154,7 +161,7 @@ impl Peptidoform {
                         RulePossible::AsymmetricRight(a),
                         RulePossible::AsymmetricLeft(b) | RulePossible::Symmetric(b),
                     ) => {
-                        let intersection: HashSet<usize> = a.intersection(&b).copied().collect();
+                        let intersection: BTreeSet<usize> = a.intersection(&b).copied().collect();
                         if intersection.is_empty() {
                             None
                         } else {

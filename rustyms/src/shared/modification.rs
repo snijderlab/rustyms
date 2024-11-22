@@ -22,11 +22,11 @@ pub enum Modification {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum CrossLinkSide {
     /// The cross-link is symmetric, or if asymmetric it can be placed in both orientations
-    Symmetric(HashSet<usize>),
+    Symmetric(std::collections::BTreeSet<usize>),
     /// The cross-link is asymmetric and this is the 'left' side
-    Left(HashSet<usize>),
+    Left(std::collections::BTreeSet<usize>),
     /// The cross-link is asymmetric and this is the 'right' side
-    Right(HashSet<usize>),
+    Right(std::collections::BTreeSet<usize>),
 }
 
 impl PartialOrd for CrossLinkSide {
@@ -68,9 +68,12 @@ impl std::hash::Hash for CrossLinkSide {
     }
 }
 
+/// A modification on an amino acid, wrapped in an [`std::sync::Arc`] to not have to clone modifications from databases.
+pub type SimpleModification = std::sync::Arc<SimpleModificationInner>;
+
 /// A modification on an amino acid
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-pub enum SimpleModification {
+pub enum SimpleModificationInner {
     /// A modification defined with a monoisotopic mass shift
     Mass(OrderedMass),
     /// A modification defined with a molecular formula
@@ -81,10 +84,22 @@ pub enum SimpleModification {
     /// A glycan with a defined structure
     GlycanStructure(GlycanStructure),
     /// A modification from the GNOme ontology
-    Gno(
-        GnoComposition,
-        String, // Name
-    ),
+    Gno {
+        /// The composition, weight/composition/topology
+        composition: GnoComposition,
+        /// The id/name
+        id: ModificationId,
+        /// The structure score
+        structure_score: Option<usize>,
+        /// The subsumption level
+        subsumption_level: GnoSubsumption,
+        /// The underlying glycan motif, first is the human description, the second id the GNOme ID of the motif
+        motif: Option<(String, String)>,
+        /// Taxonomy of the animals in which this glycan is found, defined as a list of species name with taxonomy ID
+        taxonomy: thin_vec::ThinVec<(String, usize)>,
+        /// Locations of where the glycan exists
+        glycomeatlas: thin_vec::ThinVec<(String, Vec<(String, String)>)>,
+    },
     /// A modification from one of the modification ontologies
     Database {
         /// The placement rules, neutral losses, and diagnostic ions
@@ -115,13 +130,13 @@ pub struct ModificationId {
     /// The name
     pub name: String,
     /// The id
-    pub id: usize,
+    pub id: Option<usize>,
     /// The description, mostly for search results
     pub description: String,
     /// Any synonyms
-    pub synonyms: Vec<String>,
+    pub synonyms: thin_vec::ThinVec<String>,
     /// Cross reference IDs
-    pub cross_ids: Vec<(String, String)>,
+    pub cross_ids: thin_vec::ThinVec<(String, String)>,
 }
 
 /// The name of a cross-link
@@ -158,7 +173,39 @@ pub enum LinkerSpecificity {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
 pub enum GnoComposition {
     /// Only the mass is known
-    Mass(OrderedMass),
+    Weight(OrderedMass),
+    /// The composition,
+    Composition(Vec<(MonoSaccharide, isize)>),
     /// The (full) structure is known
-    Structure(GlycanStructure),
+    Topology(GlycanStructure),
+}
+
+/// All possible subsumption levels in the GNOme database indicating different levels of description for a glycan species
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
+pub enum GnoSubsumption {
+    /// Indicates only the average weight is defined
+    #[default]
+    AverageWeight,
+    /// Indicates the basic composition, without isomeric information
+    BaseComposition,
+    /// Indicates the composition, with isomeric information
+    Composition,
+    /// Indicates the topology, without linkage and anomeric information
+    Topology,
+    /// Indicates the topology, without reducing end ring and anomeric information
+    Saccharide,
+}
+
+impl std::fmt::Display for GnoSubsumption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AverageWeight => write!(f, "Average weight"),
+            Self::BaseComposition => write!(f, "Base composition (no isomeric information)"),
+            Self::Composition => write!(f, "Composition"),
+            Self::Topology => write!(f, "Topology (no linkage)"),
+            Self::Saccharide => write!(f, "Saccharide"),
+        }
+    }
 }

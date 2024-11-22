@@ -20,8 +20,7 @@
 //! use rustyms::{*, align::*};
 //! let a = LinearPeptide::pro_forma("ANA", None).unwrap().into_simple_linear().unwrap();
 //! let b = LinearPeptide::pro_forma("AGGA", None).unwrap().into_simple_linear().unwrap();
-//! let alignment = align::<4, SimpleLinear, SimpleLinear>(&a, &b, &matrix::BLOSUM62,
-//!                    Tolerance::new_ppm(10.0), AlignType::GLOBAL);
+//! let alignment = align::<4, SimpleLinear, SimpleLinear>(&a, &b, AlignScoring::default(), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm().value, 0.0);
 //! ```
@@ -34,6 +33,8 @@ mod diagonal_array;
 mod mass_alignment;
 mod piece;
 mod scoring;
+#[cfg(test)]
+mod test_alignments;
 
 #[cfg(feature = "imgt")]
 mod consecutive;
@@ -44,7 +45,7 @@ pub use align_type::{AlignType, Side};
 pub use alignment::{Alignment, Score, Stats};
 pub use mass_alignment::align;
 pub use piece::Piece;
-pub use scoring::MatchType;
+pub use scoring::{AlignScoring, MatchType};
 
 /// Different scoring matrices that can be used.
 /// Matrices from: <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/util/tables/> and <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/>
@@ -60,7 +61,7 @@ pub mod matrix {
 mod tests {
     use crate::{peptide::SimpleLinear, LinearPeptide};
 
-    use super::{AlignType, Alignment};
+    use super::{scoring::AlignScoring, AlignType, Alignment};
 
     fn align<'a, const STEPS: u16>(
         a: &'a LinearPeptide<SimpleLinear>,
@@ -69,8 +70,7 @@ mod tests {
         super::align::<STEPS, SimpleLinear, SimpleLinear>(
             a,
             b,
-            super::matrix::BLOSUM62,
-            crate::Tolerance::new_ppm(10.0),
+            AlignScoring::default(),
             AlignType::GLOBAL,
         )
     }
@@ -88,6 +88,20 @@ mod tests {
         let b = linear("AGGQRS");
         let c = dbg!(align::<1>(&a, &b));
         assert_eq!(c.short(), "1=1X1=1X2=");
+        assert_eq!(
+            Alignment::create_from_path(
+                &a,
+                &b,
+                0,
+                0,
+                &c.short(),
+                AlignScoring::default(),
+                AlignType::GLOBAL,
+                1
+            )
+            .unwrap(),
+            c
+        );
     }
 
     #[test]
@@ -96,6 +110,20 @@ mod tests {
         let b = linear("AGGQRS");
         let c = dbg!(align::<4>(&a, &b));
         assert_eq!(c.short(), "1=1:2i2:1i2=");
+        assert_eq!(
+            Alignment::create_from_path(
+                &a,
+                &b,
+                0,
+                0,
+                &c.short(),
+                AlignScoring::default(),
+                AlignType::GLOBAL,
+                4
+            )
+            .unwrap(),
+            c
+        );
     }
 
     #[test]
@@ -104,5 +132,19 @@ mod tests {
         let b = linear("AGGQRS");
         let c = dbg!(align::<{ u16::MAX }>(&a, &b));
         assert_eq!(c.short(), "1=1:2i2:1i2=");
+        assert_eq!(
+            Alignment::create_from_path(
+                &a,
+                &b,
+                0,
+                0,
+                &c.short(),
+                AlignScoring::default(),
+                AlignType::GLOBAL,
+                u16::MAX
+            )
+            .unwrap(),
+            c
+        );
     }
 }

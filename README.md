@@ -1,9 +1,9 @@
-🦀 Rust:  [![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms) [![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
+🦀 Rust: [![Crates.io](https://img.shields.io/crates/v/rustyms.svg)](https://crates.io/crates/rustyms) [![rustyms documentation](https://docs.rs/rustyms/badge.svg)](https://docs.rs/rustyms)
 🐍 Python: [![PyPI version](https://badge.fury.io/py/rustyms.svg)](https://badge.fury.io/py/rustyms) [![Python Docs](https://readthedocs.org/projects/rustyms/badge/?version=latest)](https://rustyms.readthedocs.io/)
 
 # Match those fragments!
 
-A peptide fragmentation matching library for Rust.
+A peptide fragmentation matching library for Rust. Built to handle very complex peptides in a sensible way.
 
 ## Features
 
@@ -41,9 +41,13 @@ The harness to fuzz test the library for increased stability, see the readme for
 
 This Rust library provides python bindings (using pyO3) for rustyms.
 
-## rustyms-imgt-generate
+## rustyms-generate-databases
 
-Using the `rustyms-imgt-generate` the definitions for the germlines can be updated. Put the imgt.dat.Z file in the `rustyms-imgt-generate/data` directory and unpack it (this can be downloaded from https://www.imgt.org/download/LIGM-DB/imgt.dat.Z). Then run `cargo run --release -p rustyms-imgt-generate` (from the root folder of this repository).
+Using the `rustyms-generate-databases` the definitions for the databases can be updated. See the readme on the download locations for all databases. Then run `cargo run -p rustyms-generate-databases` (from the root folder of this repository).
+
+## rustyms-generate-imgt
+
+Using the `rustyms-generate-imgt` the definitions for the germlines can be updated. Put the imgt.dat.Z file in the `rustyms-generate-imgt/data` directory and unpack it (this can be downloaded from https://www.imgt.org/download/LIGM-DB/imgt.dat.Z). Then run `cargo run -p rustyms-generate-imgt` (from the root folder of this repository).
 
 # Contributing
 

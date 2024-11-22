@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-#![allow(dead_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 #![allow(
     clippy::must_use_candidate,
@@ -8,8 +7,8 @@
     clippy::cast_sign_loss,
     clippy::wildcard_imports,
     clippy::module_name_repetitions,
-    clippy::suboptimal_flops,
-    clippy::too_many_lines
+    clippy::too_many_lines,
+    clippy::too_long_first_doc_paragraph
 )]
 
 #[cfg(feature = "align")]
@@ -79,8 +78,10 @@ pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;
 pub use crate::peptide::{
-    AtLeast, AtMax, CompoundPeptidoform, HighestOf, Linear, LinearPeptide, Linked, Peptidoform,
-    ReturnModification, SemiAmbiguous, SimpleLinear, SloppyParsingParameters, UnAmbiguous,
+    modification_search_formula, modification_search_glycan, modification_search_mass, AtLeast,
+    AtMax, CompoundPeptidoform, HighestOf, Linear, LinearPeptide, Linked,
+    PeptideModificationSearch, Peptidoform, ReturnModification, SemiAmbiguous, SimpleLinear,
+    SloppyParsingParameters, UnAmbiguous,
 };
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;

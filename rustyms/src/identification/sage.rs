@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::CustomError,
+    identification::SpectrumId,
     ontologies::CustomDatabase,
     peptide::SemiAmbiguous,
     system::{usize::Charge, Mass, Ratio, Time},
@@ -26,7 +27,7 @@ format_family!(
     SageFormat,
     /// The data from any Sage file
     SageData,
-    SageVersion, [&VERSION_0_14], b'\t';
+    SageVersion, [&VERSION_0_14], b'\t', None;
     required {
         aligned_rt: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         decoy: bool, |location: Location, _| location.parse::<i8>(NUMBER_ERROR).map(|v| v == -1);
@@ -34,7 +35,8 @@ format_family!(
         delta_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         delta_next: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         delta_rt_model: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        /// Experimental mass
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         fragment_ppm: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         hyperscore: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         ion_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -45,17 +47,17 @@ format_family!(
         matched_peaks: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         missed_cleavages: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         ms2_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        native_id: String, |location: Location, _|Ok(location.get_string());
+        scan: SpectrumId, |location: Location, _|Ok(SpectrumId::Native(location.get_string()));
         peptide_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
         poisson: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         posterior_error: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        precursor_ppm: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
         predicted_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         predicted_rt: Ratio, |location: Location, _| location.parse(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::fraction>);
         protein_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(';').map(ToString::to_string).collect_vec());
-        psm_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
+        /// PSM ID
+        id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
@@ -73,6 +75,7 @@ impl From<SageData> for IdentifiedPeptide {
     fn from(value: SageData) -> Self {
         Self {
             score: Some(value.sage_discriminant_score.clamp(-1.0, 1.0)),
+            local_confidence: None,
             metadata: MetaData::Sage(value),
         }
     }
@@ -80,21 +83,20 @@ impl From<SageData> for IdentifiedPeptide {
 
 /// An older version of a Sage export
 pub const VERSION_0_14: SageFormat = SageFormat {
-    version: SageVersion::Version_0_14,
-    psm_id: "psm_id",
+    version: SageVersion::V0_14,
+    id: "psm_id",
     peptide: "peptide",
     proteins: "proteins",
     raw_file: "filename",
-    native_id: "scannr",
+    scan: "scannr",
     rank: "rank",
     decoy: "label",
-    experimental_mass: "expmass",
+    mass: "expmass",
     theoretical_mass: "calcmass",
     z: "charge",
     missed_cleavages: "missed_cleavages",
     semi_enzymatic: "semi_enzymatic",
     isotope_error: "isotope_error",
-    precursor_ppm: "precursor_ppm",
     fragment_ppm: "fragment_ppm",
     hyperscore: "hyperscore",
     delta_next: "delta_next",
@@ -126,7 +128,7 @@ pub const VERSION_0_14: SageFormat = SageFormat {
 pub enum SageVersion {
     /// Current sage version
     #[default]
-    Version_0_14,
+    V0_14,
 }
 
 impl std::fmt::Display for SageVersion {
@@ -135,7 +137,7 @@ impl std::fmt::Display for SageVersion {
             f,
             "{}",
             match self {
-                Self::Version_0_14 => "v0.14",
+                Self::V0_14 => "v0.14",
             }
         )
     }

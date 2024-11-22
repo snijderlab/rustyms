@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Context, CustomError},
-    modification::{Modification, ModificationId, Ontology, SimpleModification},
+    modification::{Modification, ModificationId, Ontology, SimpleModificationInner},
     AminoAcid, SequenceElement, SequencePosition,
 };
 
@@ -21,17 +21,21 @@ impl PlacementRule {
             }
             Self::PsiModification(mod_index, r_pos) => {
                 seq.modifications.iter().any(|m| {
-                    if let Modification::Simple(SimpleModification::Database {
-                        id:
-                            ModificationId {
-                                ontology: Ontology::Psimod,
-                                id,
-                                ..
-                            },
-                        ..
-                    }) = m
-                    {
-                        id == mod_index
+                    if let Modification::Simple(sim) = m {
+                        if let SimpleModificationInner::Database {
+                            id:
+                                ModificationId {
+                                    ontology: Ontology::Psimod,
+                                    id,
+                                    ..
+                                },
+                            ..
+                        } = **sim
+                        {
+                            id.is_some_and(|i| i == *mod_index)
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }
@@ -45,6 +49,20 @@ impl PlacementRule {
         }
     }
 
+    /// Check if this rule fits with the given location
+    pub fn is_possible_aa(&self, aa: AminoAcid, position: Position) -> bool {
+        match self {
+            Self::AminoAcid(allowed_aa, r_pos) => {
+                allowed_aa.iter().any(|a| *a == aa) && r_pos.is_possible_position(position)
+            }
+            Self::PsiModification(_, _) => false,
+            Self::Terminal(r_pos) => {
+                r_pos.is_possible_position(position) && (position != Position::Anywhere)
+            }
+            Self::Anywhere => true,
+        }
+    }
+
     /// Check if any of the given rules are possible
     pub fn any_possible<T>(
         rules: &[Self],
@@ -52,6 +70,11 @@ impl PlacementRule {
         position: SequencePosition,
     ) -> bool {
         rules.iter().any(|r| r.is_possible(seq, position))
+    }
+
+    /// Check if any of the given rules are possible
+    pub fn any_possible_aa(rules: &[Self], aa: AminoAcid, position: Position) -> bool {
+        rules.iter().any(|r| r.is_possible_aa(aa, position))
     }
 }
 
@@ -104,6 +127,17 @@ impl Position {
             Self::Anywhere => true,
             Self::AnyNTerm | Self::ProteinNTerm => position == SequencePosition::NTerm,
             Self::AnyCTerm | Self::ProteinCTerm => position == SequencePosition::CTerm,
+        }
+    }
+
+    /// See if the given position is a valid position given this [`Position`] as placement rule.
+    pub fn is_possible_position(self, position: Self) -> bool {
+        match self {
+            Self::Anywhere => true,
+            Self::AnyNTerm => position == Self::AnyNTerm || position == Self::ProteinNTerm,
+            Self::ProteinNTerm => position == Self::ProteinNTerm,
+            Self::AnyCTerm => position == Self::AnyCTerm || position == Self::ProteinCTerm,
+            Self::ProteinCTerm => position == Self::ProteinCTerm,
         }
     }
 }
@@ -176,7 +210,7 @@ mod tests {
                 &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::CTerm
             ),
-            RulePossible::Symmetric(std::collections::HashSet::from([0])),
+            RulePossible::Symmetric(std::collections::BTreeSet::from([0])),
             "unimod deamidated at end"
         );
     }

@@ -1,12 +1,12 @@
 #![warn(dead_code)]
 
-use std::{collections::HashSet, fmt::Write, marker::PhantomData};
+use std::{collections::HashSet, fmt::Write, marker::PhantomData, num::NonZeroU32};
 
 use crate::{
     error::{Context, CustomError},
     modification::{
         AmbiguousModification, CrossLinkName, LinkerSpecificity, Modification, RulePossible,
-        SimpleModification,
+        SimpleModification, SimpleModificationInner,
     },
     peptide::{AtLeast, Linked},
     placement_rule::PlacementRule,
@@ -14,6 +14,7 @@ use crate::{
     MultiChemical, SequencePosition,
 };
 use serde::{Deserialize, Serialize};
+use thin_vec::ThinVec;
 
 /// One block in a sequence meaning an aminoacid and its accompanying modifications
 #[derive(Default, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -21,11 +22,11 @@ pub struct SequenceElement<T> {
     /// The aminoacid
     pub aminoacid: CheckedAminoAcid<T>,
     /// All present modifications
-    pub modifications: Vec<Modification>,
+    pub modifications: ThinVec<Modification>,
     /// All ambiguous modifications (could be placed here or on another position)
-    pub possible_modifications: Vec<AmbiguousModification>,
+    pub possible_modifications: ThinVec<AmbiguousModification>,
     /// If this aminoacid is part of an ambiguous sequence group `(QA)?` in ProForma
-    pub ambiguous: Option<usize>,
+    pub ambiguous: Option<NonZeroU32>,
     /// The marker indicating which level of complexity this sequence element uses as higher bound
     marker: PhantomData<T>,
 }
@@ -81,11 +82,11 @@ impl<T> SequenceElement<T> {
     }
 
     /// Create a new aminoacid without any modifications
-    pub const fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<usize>) -> Self {
+    pub fn new(aminoacid: CheckedAminoAcid<T>, ambiguous: Option<NonZeroU32>) -> Self {
         Self {
             aminoacid,
-            modifications: Vec::new(),
-            possible_modifications: Vec::new(),
+            modifications: ThinVec::new(),
+            possible_modifications: ThinVec::new(),
             ambiguous,
             marker: PhantomData,
         }
@@ -111,7 +112,7 @@ impl<T> SequenceElement<T> {
         &self,
         f: &mut impl Write,
         placed: &[usize],
-        last_ambiguous: Option<usize>,
+        last_ambiguous: Option<NonZeroU32>,
         specification_compliant: bool,
     ) -> Result<Vec<usize>, std::fmt::Error> {
         let mut extra_placed = Vec::new();
@@ -255,7 +256,7 @@ impl<T> SequenceElement<T> {
             if modification.is_possible(self, position) == RulePossible::No {
                 let rules = modification
                     .simple()
-                    .map(SimpleModification::placement_rules)
+                    .map(|s| s.placement_rules())
                     .unwrap_or_default();
                 return Err(CustomError::error(
                     "Modification incorrectly placed",
@@ -288,32 +289,38 @@ impl<T> SequenceElement<T> {
                 Modification::CrossLink { linker, side, .. } => {
                     diagnostic_ions.extend_from_slice(&side.allowed_rules(linker).2);
                 }
-                Modification::Simple(SimpleModification::Database { specificities, .. }) => {
-                    for (rules, _, ions) in specificities {
-                        if PlacementRule::any_possible(rules, self, position) {
-                            diagnostic_ions.extend_from_slice(ions);
-                        }
-                    }
-                }
-                Modification::Simple(SimpleModification::Linker { specificities, .. }) => {
-                    for rule in specificities {
-                        match rule {
-                            LinkerSpecificity::Symmetric(rules, _, ions) => {
-                                if PlacementRule::any_possible(rules, self, position) {
-                                    diagnostic_ions.extend_from_slice(ions);
-                                }
-                            }
-                            LinkerSpecificity::Asymmetric((rules_left, rules_right), _, ions) => {
-                                if PlacementRule::any_possible(rules_left, self, position)
-                                    || PlacementRule::any_possible(rules_right, self, position)
-                                {
-                                    diagnostic_ions.extend_from_slice(ions);
-                                }
+                Modification::Simple(sim) => match &**sim {
+                    SimpleModificationInner::Database { specificities, .. } => {
+                        for (rules, _, ions) in specificities {
+                            if PlacementRule::any_possible(rules, self, position) {
+                                diagnostic_ions.extend_from_slice(ions);
                             }
                         }
                     }
-                }
-                Modification::Simple(_) => (),
+                    SimpleModificationInner::Linker { specificities, .. } => {
+                        for rule in specificities {
+                            match rule {
+                                LinkerSpecificity::Symmetric(rules, _, ions) => {
+                                    if PlacementRule::any_possible(rules, self, position) {
+                                        diagnostic_ions.extend_from_slice(ions);
+                                    }
+                                }
+                                LinkerSpecificity::Asymmetric(
+                                    (rules_left, rules_right),
+                                    _,
+                                    ions,
+                                ) => {
+                                    if PlacementRule::any_possible(rules_left, self, position)
+                                        || PlacementRule::any_possible(rules_right, self, position)
+                                    {
+                                        diagnostic_ions.extend_from_slice(ions);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                },
             }
         }
         diagnostic_ions

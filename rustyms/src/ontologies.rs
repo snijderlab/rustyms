@@ -110,7 +110,7 @@ impl Ontology {
         custom_database: Option<&CustomDatabase>,
     ) -> Option<SimpleModification> {
         for option in self.lookup(custom_database) {
-            if option.0 == id {
+            if option.0.is_some_and(|i| i == id) {
                 return Some(option.2.clone());
             }
         }
@@ -122,41 +122,33 @@ impl Ontology {
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
 fn unimod_ontology() -> &'static OntologyModificationList {
-    UNIMOD_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/unimod.dat"))).unwrap()
-    })
+    UNIMOD_CELL
+        .get_or_init(|| bincode::deserialize(include_bytes!("databases/unimod.dat")).unwrap())
 }
 /// Get the PSI-MOD ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
 fn psimod_ontology() -> &'static OntologyModificationList {
-    PSIMOD_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/psimod.dat"))).unwrap()
-    })
+    PSIMOD_CELL
+        .get_or_init(|| bincode::deserialize(include_bytes!("databases/psimod.dat")).unwrap())
 }
 /// Get the Gnome ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
 fn gnome_ontology() -> &'static OntologyModificationList {
-    GNOME_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/gnome.dat"))).unwrap()
-    })
+    GNOME_CELL.get_or_init(|| bincode::deserialize(include_bytes!("databases/gnome.dat")).unwrap())
 }
 /// Get the Resid ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
 fn resid_ontology() -> &'static OntologyModificationList {
-    RESID_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/resid.dat"))).unwrap()
-    })
+    RESID_CELL.get_or_init(|| bincode::deserialize(include_bytes!("databases/resid.dat")).unwrap())
 }
 /// Get the Xlmod ontology
 /// # Panics
 /// Panics when the modifications are not correctly provided at compile time, always report a panic if it occurs here.
 fn xlmod_ontology() -> &'static OntologyModificationList {
-    XLMOD_CELL.get_or_init(|| {
-        bincode::deserialize(include_bytes!(concat!(env!("OUT_DIR"), "/xlmod.dat"))).unwrap()
-    })
+    XLMOD_CELL.get_or_init(|| bincode::deserialize(include_bytes!("databases/xlmod.dat")).unwrap())
 }
 static UNIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();
 static PSIMOD_CELL: OnceLock<OntologyModificationList> = OnceLock::new();

@@ -8,8 +8,7 @@ publish = false
 
 [dependencies]
 rustyms = { path = "../../rustyms" }
-clap = { workspace = true, features = ["derive", "cargo"] }
+clap = { workspace = true }
 itertools = { workspace = true }
 rayon = { workspace = true }
 serde_json = { workspace = true }
-ordered-float = { workspace = true }

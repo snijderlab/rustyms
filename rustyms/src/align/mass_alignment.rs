@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use crate::{
     peptide::{AtMax, SimpleLinear},
     system::Mass,
-    AminoAcid, LinearPeptide, MolecularFormula, Multi, SequenceElement, SequencePosition,
-    Tolerance, WithinTolerance,
+    LinearPeptide, MassMode, MolecularFormula, Multi, SequenceElement, SequencePosition,
+    WithinTolerance,
 };
 
 use super::{
@@ -12,6 +12,7 @@ use super::{
 };
 
 // TODO: no way of handling terminal modifications yet
+// TODO: potentially allow any gap to match to a list of aminoacids also if the mass difference is exactly a common modification
 /// Create an alignment of two peptides based on mass and homology.
 /// The substitution matrix is in the exact same order as the definition of [`AminoAcid`].
 /// The [`Tolerance`] sets the tolerance for two sets of amino acids to be regarded as the same mass.
@@ -22,8 +23,7 @@ use super::{
 pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     seq_a: &'lifetime LinearPeptide<A>,
     seq_b: &'lifetime LinearPeptide<B>,
-    scoring_matrix: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
-    tolerance: Tolerance<Mass>,
+    scoring: AlignScoring<'lifetime>,
     align_type: AlignType,
 ) -> Alignment<'lifetime, A, B> {
     assert!(isize::try_from(seq_a.len()).is_ok());
@@ -31,15 +31,15 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
 
     let mut matrix = Matrix::new(seq_a.len(), seq_b.len());
     let mut global_highest = (0, 0, 0);
-    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_a);
-    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b);
+    let masses_a: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_a, scoring.mass_mode);
+    let masses_b: DiagonalArray<Multi<Mass>> = calculate_masses::<STEPS>(seq_b, scoring.mass_mode);
     let zero: Multi<Mass> = Multi::default();
 
     if align_type.left.global_a() {
-        matrix.global_start(true);
+        matrix.global_start(true, scoring);
     }
     if align_type.left.global_b() {
-        matrix.global_start(false);
+        matrix.global_start(false, scoring);
     }
 
     for index_a in 1..=seq_a.len() {
@@ -58,13 +58,13 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
 
                     // len_a and b are always <= STEPS
                     let piece = if len_a == 0 || len_b == 0 {
+                        let is_first_step = prev.step_a == 0 && prev.step_b == 0;
+                        let is_previous_gap =
+                            prev.step_a == 0 && len_a == 0 || prev.step_b == 0 && len_b == 0;
+                        let is_gap_start = is_first_step || !is_previous_gap;
                         // First check the score to be used for affine gaps
-                        let score = GAP_EXTEND_PENALTY
-                            + GAP_START_PENALTY
-                                * isize::from(
-                                    prev.step_a == 0 && len_a == 0
-                                        || prev.step_b == 0 && len_b == 0,
-                                );
+                        let score = scoring.gap_extend as isize
+                            + scoring.gap_start as isize * isize::from(is_gap_start);
                         Some(Piece::new(
                             base_score + score,
                             score,
@@ -86,17 +86,14 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                                     masses_b.get_unchecked([index_b - 1, 0]),
                                 )
                             },
-                            scoring_matrix,
+                            scoring,
                             base_score,
-                            tolerance,
                         ))
                     } else {
                         score(
                             unsafe {
                                 (
-                                    seq_a.sequence().get_unchecked(
-                                        (index_a - len_a).saturating_sub(1)..index_a - 1,
-                                    ),
+                                    seq_a.sequence().get_unchecked((index_a - len_a)..index_a),
                                     if len_a == 0 {
                                         &zero
                                     } else {
@@ -106,9 +103,7 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                             },
                             unsafe {
                                 (
-                                    seq_b.sequence().get_unchecked(
-                                        (index_b - len_b).saturating_sub(1)..index_b - 1,
-                                    ),
+                                    seq_b.sequence().get_unchecked((index_b - len_b)..index_b),
                                     if len_b == 0 {
                                         &zero
                                     } else {
@@ -116,8 +111,8 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                                     },
                                 )
                             },
+                            scoring,
                             base_score,
-                            tolerance,
                         )
                     };
                     if let Some(p) = piece {
@@ -149,42 +144,19 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
                             seq_b.sequence().get_unchecked(index_b - 1),
                             masses_b.get_unchecked([index_b - 1, 0]),
                         ),
-                        scoring_matrix,
+                        scoring,
                         matrix.get_unchecked([index_a - 1, index_b - 1]).score,
-                        tolerance,
                     );
                 }
             }
         }
     }
-    let (absolute_score, start_a, start_b, path) = matrix.trace_path(align_type, global_highest);
-
-    let maximal_score = (seq_a.sequence()
-        [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
-        .iter()
-        .map(|a| {
-            scoring_matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
-                as isize
-        })
-        .sum::<isize>()
-        + seq_b.sequence()
-            [start_b..start_b + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
-            .iter()
-            .map(|a| {
-                scoring_matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
-                    as isize
-            })
-            .sum::<isize>())
-        / 2;
+    let (start_a, start_b, path) = matrix.trace_path(align_type, global_highest);
 
     Alignment {
         seq_a: std::borrow::Cow::Borrowed(seq_a),
         seq_b: std::borrow::Cow::Borrowed(seq_b),
-        score: Score {
-            absolute: absolute_score,
-            normalised: ordered_float::OrderedFloat(absolute_score as f64 / maximal_score as f64),
-            max: maximal_score,
-        },
+        score: determine_final_score(seq_a, seq_b, start_a, start_b, &path, scoring),
         path,
         start_a,
         start_b,
@@ -193,31 +165,73 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
     }
 }
 
+pub(super) fn determine_final_score<A, B>(
+    seq_a: &LinearPeptide<A>,
+    seq_b: &LinearPeptide<B>,
+    start_a: usize,
+    start_b: usize,
+    path: &[Piece],
+    scoring: AlignScoring<'_>,
+) -> Score {
+    let maximal_score = (seq_a.sequence()
+        [start_a..start_a + path.iter().map(|p| p.step_a as usize).sum::<usize>()]
+        .iter()
+        .map(|a| {
+            scoring.matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
+                as isize
+        })
+        .sum::<isize>()
+        + seq_b.sequence()
+            [start_b..start_b + path.iter().map(|p| p.step_b as usize).sum::<usize>()]
+            .iter()
+            .map(|a| {
+                scoring.matrix[a.aminoacid.aminoacid() as usize][a.aminoacid.aminoacid() as usize]
+                    as isize
+            })
+            .sum::<isize>())
+        / 2;
+    let absolute_score = path.last().map(|p| p.score).unwrap_or_default();
+    Score {
+        absolute: absolute_score,
+        normalised: ordered_float::OrderedFloat(absolute_score as f64 / maximal_score as f64),
+        max: maximal_score,
+    }
+}
+
 /// Score a pair of sequence elements (AA + mods)
-fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
+pub(super) fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     a: (&SequenceElement<A>, &Multi<Mass>),
     b: (&SequenceElement<B>, &Multi<Mass>),
-    alphabet: &[[i8; AminoAcid::TOTAL_NUMBER]; AminoAcid::TOTAL_NUMBER],
+    scoring: AlignScoring<'_>,
     score: isize,
-    tolerance: Tolerance<Mass>,
 ) -> Piece {
-    match (a.0 == b.0, tolerance.within(a.1, b.1)) {
+    match (
+        a.0.aminoacid.aminoacid() == b.0.aminoacid.aminoacid(),
+        scoring.tolerance.within(a.1, b.1),
+    ) {
         (true, true) => {
-            let local = alphabet[a.0.aminoacid.aminoacid() as usize]
+            let local = scoring.matrix[a.0.aminoacid.aminoacid() as usize]
                 [b.0.aminoacid.aminoacid() as usize] as isize;
             Piece::new(score + local, local, MatchType::FullIdentity, 1, 1)
         }
         (true, false) => {
-            let local = alphabet[a.0.aminoacid.aminoacid() as usize]
-                [b.0.aminoacid.aminoacid() as usize] as isize
-                + MASS_MISMATCH_PENALTY;
+            let local = scoring.mass_mismatch as isize;
             Piece::new(score + local, local, MatchType::IdentityMassMismatch, 1, 1)
         }
-        (false, true) => {
-            // println!("isobaric: {:?} vs {:?}", a.1, b.1);
-            Piece::new(score + ISOBARIC, ISOBARIC, MatchType::Isobaric, 1, 1)
-        }
-        (false, false) => Piece::new(score + MISMATCH, MISMATCH, MatchType::Mismatch, 1, 1),
+        (false, true) => Piece::new(
+            score + scoring.mass_base as isize + scoring.isobaric as isize,
+            scoring.mass_base as isize + scoring.isobaric as isize,
+            MatchType::Isobaric,
+            1,
+            1,
+        ),
+        (false, false) => Piece::new(
+            score + scoring.mismatch as isize,
+            scoring.mismatch as isize,
+            MatchType::Mismatch,
+            1,
+            1,
+        ),
     }
 }
 
@@ -226,10 +240,10 @@ fn score_pair<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
 fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     a: (&[SequenceElement<A>], &Multi<Mass>),
     b: (&[SequenceElement<B>], &Multi<Mass>),
+    scoring: AlignScoring<'_>,
     score: isize,
-    tolerance: Tolerance<Mass>,
 ) -> Option<Piece> {
-    if tolerance.within(a.1, b.1) {
+    if scoring.tolerance.within(a.1, b.1) {
         let rotated = {
             a.0.len() == b.0.len() && {
                 let mut b_copy = vec![false; b.0.len()];
@@ -246,15 +260,14 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
             }
         };
         #[allow(clippy::cast_possible_wrap)]
-        let local = if rotated {
-            // println!("rotated: {:?} vs {:?}", a.1, b.1);
-            BASE_SPECIAL + ROTATED * a.0.len() as isize
-        } else {
-            // println!("isobaric: {:?} vs {:?}", a.1, b.1);
-            BASE_SPECIAL + ISOBARIC * (a.0.len() + b.0.len()) as isize / 2
-        };
+        let local = scoring.mass_base as isize
+            + if rotated {
+                scoring.rotated as isize * a.0.len() as isize
+            } else {
+                scoring.isobaric as isize * (a.0.len() + b.0.len()) as isize / 2
+            };
         Some(Piece::new(
-            score + local as isize,
+            score + local,
             local,
             if rotated {
                 MatchType::Rotation
@@ -272,11 +285,10 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
 /// Get the masses of all sequence elements
 fn calculate_masses<const STEPS: u16>(
     sequence: &LinearPeptide<impl AtMax<SimpleLinear>>,
+    mass_mode: MassMode,
 ) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);
-    // dbg!(&array, format!("{sequence}"));
     for i in 0..sequence.len() {
-        // dbg!(i, 0..=i.min(max_depth));
         for j in 0..=i.min(STEPS as usize) {
             array[[i, j]] = sequence.sequence()[i - j..=i]
                 .iter()
@@ -293,7 +305,7 @@ fn calculate_masses<const STEPS: u16>(
                 })
                 .sum::<Multi<MolecularFormula>>()
                 .iter()
-                .map(MolecularFormula::monoisotopic_mass)
+                .map(|f| f.mass(mass_mode))
                 .collect();
         }
     }
@@ -346,12 +358,21 @@ impl Matrix {
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    pub fn global_start(&mut self, is_a: bool) {
+    pub fn global_start(&mut self, is_a: bool, scoring: AlignScoring<'_>) {
         let max = if is_a { self.a } else { self.b };
         for index in 0..=max {
             self.value[if is_a { index } else { 0 }][if is_a { 0 } else { index }] = Piece::new(
-                (index as isize) * GAP_EXTEND_PENALTY,
-                GAP_EXTEND_PENALTY,
+                match index {
+                    0 => 0,
+                    _ => {
+                        scoring.gap_start as isize + (index as isize) * scoring.gap_extend as isize
+                    }
+                },
+                match index {
+                    0 => 0,
+                    1 => scoring.gap_start as isize + scoring.gap_extend as isize,
+                    _ => scoring.gap_extend as isize,
+                },
                 MatchType::Gap,
                 if is_a { u16::from(index != 0) } else { 0 },
                 if is_a { 0 } else { u16::from(index != 0) },
@@ -363,10 +384,9 @@ impl Matrix {
         &self,
         ty: AlignType,
         high: (isize, usize, usize),
-    ) -> (isize, usize, usize, Vec<Piece>) {
+    ) -> (usize, usize, Vec<Piece>) {
         let mut path = Vec::new();
         let mut high = self.find_end(ty, high);
-        let high_score = high.0;
 
         // Loop back to left side
         while ty.left.global() || !(high.1 == 0 && high.2 == 0) {
@@ -381,7 +401,7 @@ impl Matrix {
             );
             path.push(value);
         }
-        (high_score, high.1, high.2, path.into_iter().rev().collect())
+        (high.1, high.2, path.into_iter().rev().collect())
     }
 
     fn find_end(&self, ty: AlignType, high: (isize, usize, usize)) -> (isize, usize, usize) {
@@ -459,6 +479,7 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::score;
+    use crate::align::scoring::AlignScoring;
     use crate::{CheckedAminoAcid, SequencePosition};
     use crate::{MolecularFormula, Multi, SequenceElement};
 
@@ -504,8 +525,8 @@ mod tests {
                     .monoisotopic_mass()
                     .into()
             ),
+            AlignScoring::default(),
             0,
-            crate::Tolerance::new_ppm(10.0)
         ));
         assert!(pair.is_some());
     }

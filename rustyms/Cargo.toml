@@ -25,24 +25,15 @@ flate2 = { workspace = true }
 itertools = { workspace = true }
 mzdata = { workspace = true, optional = true }
 ndarray = { workspace = true, optional = true }
-ordered-float = { workspace = true, features = ["serde"] }
+ordered-float = { workspace = true }
 probability = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 regex = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"] }
+serde = { workspace = true }
 similar = { workspace = true }
-uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
-
-[build-dependencies]
-bincode = { workspace = true }
-flate2 = { workspace = true }
-itertools = { workspace = true }
-ordered-float = { workspace = true, features = ["serde"] }
-regex = { workspace = true }
-roxmltree = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"] }
-uom = { workspace = true, features = ["use_serde", "usize", "isize"] }
+thin-vec = { workspace = true }
+uom = { workspace = true }
 
 [dev-dependencies]
 iai-callgrind = { workspace = true }
@@ -66,3 +57,6 @@ isotopes = ["probability", "ndarray"]
 [[bench]]
 name = "iai"
 harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(github_action)'] }

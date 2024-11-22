@@ -5,7 +5,7 @@ use std::{
 };
 
 /// A struct to define the context of an error message
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Context {
     /// When no context can be given
     None,
@@ -113,20 +113,24 @@ impl Context {
             (Bound::Unbounded, Bound::Unbounded) => {
                 line_index.map_or_else(|| Self::show(&line), |i| Self::full_line(i, &line))
             }
-            (start, end) => Self::line(
-                line_index,
-                &line,
-                match start {
+            (start, end) => {
+                let start = match start {
                     Bound::Excluded(n) => n + 1,
                     Bound::Included(n) => *n,
                     Bound::Unbounded => 0,
-                },
-                match end {
-                    Bound::Excluded(n) => n - 1,
-                    Bound::Included(n) => *n,
-                    Bound::Unbounded => line.chars().count(),
-                },
-            ),
+                };
+                Self::line(
+                    line_index,
+                    &line,
+                    start,
+                    match end {
+                        Bound::Excluded(n) => n - 1,
+                        Bound::Included(n) => *n,
+                        Bound::Unbounded => line.chars().count(),
+                    }
+                    .saturating_sub(start),
+                )
+            }
         }
     }
 

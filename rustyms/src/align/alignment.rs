@@ -11,6 +11,9 @@ use super::align_type::*;
 use super::piece::*;
 use super::scoring::*;
 
+use crate::align::mass_alignment::determine_final_score;
+use crate::align::mass_alignment::score_pair;
+use crate::helper_functions::next_num;
 use crate::peptide::AtMax;
 use crate::peptide::Linear;
 use crate::system::Mass;
@@ -19,6 +22,7 @@ use crate::LinearPeptide;
 use crate::MolecularFormula;
 use crate::Multi;
 use crate::SequencePosition;
+use crate::SimpleLinear;
 
 /// An alignment of two reads. It has either a reference to the two sequences to prevent overzealous use of memory, or if needed use [`Self::to_owned`] to get a variant that clones the sequences and so can be used in more places.
 #[derive(Debug)]
@@ -109,8 +113,178 @@ impl<'lifetime, A, B> Ord for Alignment<'lifetime, A, B> {
     }
 }
 
-/// A generalised alignment with all behaviour.
-#[allow(private_bounds)] // Intended behaviour no one should build on the inner structure
+impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifetime, A, B> {
+    /// Recreate an alignment from a path, the path is [`Self::short`].
+    #[allow(clippy::missing_panics_doc)]
+    pub fn create_from_path(
+        seq_a: &'lifetime LinearPeptide<A>,
+        seq_b: &'lifetime LinearPeptide<B>,
+        start_a: usize,
+        start_b: usize,
+        path: &str,
+        scoring: AlignScoring,
+        align_type: AlignType,
+        maximal_step: u16,
+    ) -> Option<Self> {
+        let mut index = 0;
+        let mut steps = Vec::new();
+        while index < path.len() {
+            if let Some((offset, num)) = next_num(path.as_bytes(), index, false) {
+                let num = u16::try_from(num).unwrap();
+                index += offset + 1;
+                match path.as_bytes()[index - 1] {
+                    b'I' => steps.push((MatchType::Gap, 0, num)),
+                    b'D' => steps.push((MatchType::Gap, num, 0)),
+                    b'X' => steps.push((MatchType::Mismatch, num, num)),
+                    b'm' => steps.push((MatchType::IdentityMassMismatch, num, num)),
+                    b'=' => steps.push((MatchType::FullIdentity, num, num)),
+                    b'r' => steps.push((MatchType::Rotation, num, num)),
+                    b'i' => steps.push((MatchType::Isobaric, num, num)),
+                    b':' => {
+                        if let Some((offset, num2)) = next_num(path.as_bytes(), index, false) {
+                            let num2 = u16::try_from(num2).unwrap();
+                            index += offset + 1;
+                            match path.as_bytes()[index - 1] {
+                                b'i' => steps.push((MatchType::Isobaric, num, num2)),
+                                _ => return None,
+                            }
+                        } else {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                }
+            } else {
+                return None;
+            }
+        }
+
+        let mut index_a = start_a;
+        let mut index_b = start_b;
+        let mut score = 0;
+        let path = steps
+            .into_iter()
+            .flat_map(|(step, a, b)| match step {
+                MatchType::Gap => {
+                    let step_a = u16::from(a != 0);
+                    let step_b = u16::from(b != 0);
+                    index_a += a as usize;
+                    index_b += b as usize;
+
+                    (0..a.max(b))
+                        .map(|i| {
+                            // The first gap will have the gap_start score
+                            if i == 0 {
+                                let local_score =
+                                    scoring.gap_start as isize + scoring.gap_extend as isize;
+                                score += local_score;
+                                Piece {
+                                    score,
+                                    local_score,
+                                    match_type: MatchType::Gap,
+                                    step_a,
+                                    step_b,
+                                }
+                            } else {
+                                let local_score = scoring.gap_extend as isize;
+                                score += scoring.gap_extend as isize;
+                                Piece {
+                                    score,
+                                    local_score,
+                                    match_type: MatchType::Gap,
+                                    step_a,
+                                    step_b,
+                                }
+                            }
+                        })
+                        .collect_vec()
+                }
+                MatchType::FullIdentity | MatchType::IdentityMassMismatch | MatchType::Mismatch => {
+                    (0..a)
+                        .map(|_| {
+                            let mass_a = seq_a[index_a]
+                                .formulas_all(
+                                    &[],
+                                    &[],
+                                    &mut Vec::new(),
+                                    false,
+                                    SequencePosition::Index(index_a),
+                                    0,
+                                )
+                                .0
+                                .iter()
+                                .map(MolecularFormula::monoisotopic_mass)
+                                .collect();
+                            let mass_b = seq_b[index_b]
+                                .formulas_all(
+                                    &[],
+                                    &[],
+                                    &mut Vec::new(),
+                                    false,
+                                    SequencePosition::Index(index_b),
+                                    0,
+                                )
+                                .0
+                                .iter()
+                                .map(MolecularFormula::monoisotopic_mass)
+                                .collect();
+                            let piece = score_pair(
+                                (&seq_a[index_a], &mass_a),
+                                (&seq_b[index_b], &mass_b),
+                                scoring,
+                                score,
+                            );
+                            index_a += 1;
+                            index_b += 1;
+                            score += piece.local_score;
+                            piece
+                        })
+                        .collect_vec()
+                }
+                MatchType::Rotation => {
+                    let local_score =
+                        scoring.mass_base as isize + scoring.rotated as isize * a as isize;
+                    score += local_score;
+                    index_a += a as usize;
+                    index_b += b as usize;
+                    vec![Piece {
+                        score,
+                        local_score,
+                        match_type: MatchType::Rotation,
+                        step_a: a,
+                        step_b: b,
+                    }]
+                }
+                MatchType::Isobaric => {
+                    let local_score = scoring.mass_base as isize
+                        + scoring.isobaric as isize * (a + b) as isize / 2;
+                    score += local_score;
+                    index_a += a as usize;
+                    index_b += b as usize;
+                    vec![Piece {
+                        score,
+                        local_score,
+                        match_type: MatchType::Isobaric,
+                        step_a: a,
+                        step_b: b,
+                    }]
+                }
+            })
+            .collect_vec();
+
+        Some(Self {
+            seq_a: Cow::Borrowed(seq_a),
+            seq_b: Cow::Borrowed(seq_b),
+            score: determine_final_score(seq_a, seq_b, start_a, start_b, &path, scoring),
+            path,
+            start_a,
+            start_b,
+            align_type,
+            maximal_step,
+        })
+    }
+}
+
 impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     /// The first sequence
     pub fn seq_a(&self) -> &LinearPeptide<A> {
@@ -285,7 +459,8 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
     }
 
     /// Get a short representation of the alignment in CIGAR like format.
-    /// It has one additional class `{a}(:{b})?(r|i)` denoting any special step with the given a and b step size, if b is not given it is the same as a.
+    /// It has three additional classes `{a}(:{b})?(r|i)` and `{a}m` denoting any special step with the given a and b step size, if b is not given it is the same as a.
+    /// `r` is rotation, `i` is isobaric, and `m` is identity but mass mismatch (modification).
     pub fn short(&self) -> String {
         #[derive(PartialEq, Eq)]
         enum StepType {
@@ -293,6 +468,7 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
             Deletion,
             Match,
             Mismatch,
+            Massmismatch,
             Special(MatchType, u16, u16),
         }
         impl std::fmt::Display for StepType {
@@ -305,8 +481,8 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
                         Self::Deletion => String::from("D"),
                         Self::Match => String::from("="),
                         Self::Mismatch => String::from("X"),
-                        Self::Special(MatchType::Rotation, a, b) if a == b => format!("{a}r"),
-                        Self::Special(MatchType::Rotation, a, b) => format!("{a}:{b}r"),
+                        Self::Massmismatch => String::from("m"),
+                        Self::Special(MatchType::Rotation, a, _) => format!("{a}r"),
                         Self::Special(MatchType::Isobaric, a, b) if a == b => format!("{a}i"),
                         Self::Special(MatchType::Isobaric, a, b) => format!("{a}:{b}i"),
                         Self::Special(..) => panic!("A special match cannot be of this match type"),
@@ -321,10 +497,9 @@ impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
                     (MatchType::Isobaric, a, b) => StepType::Special(MatchType::Isobaric, a, b), // Catch any 1/1 isobaric sets before they are counted as Match/Mismatch
                     (_, 0, 1) => StepType::Insertion,
                     (_, 1, 0) => StepType::Deletion,
-                    (_, 1, 1) if self.seq_a().sequence()[a] == self.seq_b().sequence()[b] => {
-                        StepType::Match
-                    }
-                    (_, 1, 1) => StepType::Mismatch,
+                    (MatchType::IdentityMassMismatch, 1, 1) => StepType::Massmismatch,
+                    (MatchType::FullIdentity, 1, 1) => StepType::Match,
+                    (MatchType::Mismatch, 1, 1) => StepType::Mismatch,
                     (m, a, b) => StepType::Special(m, a, b),
                 };
                 let (str, last) = match last {
@@ -404,9 +579,8 @@ pub struct Score {
 #[allow(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
-        align::{align, matrix::BLOSUM62, AlignType},
+        align::{align, AlignScoring, AlignType},
         peptide::SimpleLinear,
-        system::da,
         AminoAcid, LinearPeptide, MultiChemical,
     };
 
@@ -435,8 +609,7 @@ mod tests {
             align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &b,
-                BLOSUM62,
-                crate::Tolerance::new_absolute(da(0.1)),
+                AlignScoring::default(),
                 AlignType::GLOBAL
             )
             .mass_difference()
@@ -448,8 +621,7 @@ mod tests {
             align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &c,
-                BLOSUM62,
-                crate::Tolerance::new_absolute(da(0.1)),
+                AlignScoring::default(),
                 AlignType::GLOBAL
             )
             .mass_difference()
@@ -461,8 +633,7 @@ mod tests {
             align::<1, SimpleLinear, SimpleLinear>(
                 &a,
                 &d,
-                BLOSUM62,
-                crate::Tolerance::new_absolute(da(0.1)),
+                AlignScoring::default(),
                 AlignType::GLOBAL_B
             )
             .mass_difference()
@@ -477,8 +648,7 @@ mod tests {
         let mass_diff_bc = align::<1, SimpleLinear, SimpleLinear>(
             &b,
             &c,
-            BLOSUM62,
-            crate::Tolerance::new_absolute(da(0.1)),
+            AlignScoring::default(),
             AlignType::GLOBAL_B,
         )
         .mass_difference()

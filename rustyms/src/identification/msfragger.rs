@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 //Spectrum	Spectrum.File	Peptide	Modified sequence	Extended.Peptide	Prev.AA	Next.AA	Peptide.Length	Charge	Retention	Observed.Mass	Calibrated.Observed.Mass	Observed.M.Z	Calibrated.Observed.M.Z	Calculated.Peptide.Mass	Calculated.M.Z	Delta.Mass	Expectation	Hyperscore	Nextscore	PeptideProphet.Probability	Number.of.Enzymatic.Termini	Number.of.Missed.Cleavages	Protein.Start	Protein.End	Intensity	Assigned.Modifications	Observed.Modifications	Purity	Is.Unique	Protein	Protein.ID	Entry.Name	Gene	Protein.Description	Mapped.Genes	Mapped.Proteins	condition	group
 use crate::{
     error::{Context, CustomError},
-    helper_functions::{explain_number_error, InvertResult},
+    helper_functions::explain_number_error,
+    identification::SpectrumId,
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
@@ -13,7 +14,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    common_parser::{Location, OptionalLocation},
+    common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
@@ -32,22 +33,36 @@ format_family!(
     MSFraggerFormat,
     /// The data from any MSFragger file
     MSFraggerData,
-    MSFraggerVersion, [&V21, &V22], b'\t';
+    MSFraggerVersion, [&V21, &V22], b'\t', None;
     required {
-        spectrum: MSFraggerID, |location: Location, _| location.as_str().parse::<MSFraggerID>().map_err(|err| err.with_context(location.context()));
-        spectrum_file: String, |location: Location, _| Ok(location.get_string());
+        scan: SpectrumId, |location: Location, _| Ok(SpectrumId::Native(location.get_string()));
+        spectrum_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
         peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            SloppyParsingParameters {ignore_prefix_lowercase_n: true},
+            &SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
         ));
-        extended_peptide: String, |location: Location, _| Ok(location.get_string());
+        extended_peptide: Box<[Option<LinearPeptide<SemiAmbiguous>>; 3]>, |location: Location, custom_database: Option<&CustomDatabase>| {
+            let peptides = location.clone().array('.').map(|l| l.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+                location.full_line(),
+                location.location.clone(),
+                custom_database,
+                &SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
+            ))).collect::<Result<Vec<_>,_>>()?;
+            if peptides.len() == 3 {
+                Ok(Box::new([peptides[0].clone(), peptides[1].clone(), peptides[2].clone()]))
+            } else {
+                Err(CustomError::error("Invalid extened peptide", "The extended peptide should contain the prefix.peptide.suffix for all peptides.", location.context()))
+            }
+        };
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
-        experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        /// Experimental mass
+        mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         calibrated_experimental_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
+        /// Experimental mz
+        mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         calibrated_experimental_mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         expectation: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         hyperscore: f64, |location: Location, _| location.parse(NUMBER_ERROR).map(|s: f64| s / 100.0);
@@ -70,15 +85,37 @@ format_family!(
         mapped_proteins: Vec<String>, |location: Location, _| Ok(location.get_string().split(',').map(|s| s.trim().to_string()).collect_vec());
     }
     optional {
+        raw_file: PathBuf, |location: Location, _| Ok(Some(location.get_string().into()));
         condition: String, |location: Location, _| Ok(Some(location.get_string()));
         group: String, |location: Location, _| Ok(Some(location.get_string()));
     }
+
+    fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
+        if let SpectrumId::Native(native) = &parsed.scan {
+            if let Some(m) = IDENTIFER_REGEX
+                .get_or_init(|| regex::Regex::new(r"([^/]+)\.(\d+)\.\d+.\d+").unwrap())
+                .captures(native)
+            {
+                parsed.raw_file = Some(m.get(1).unwrap().as_str().into());
+                parsed.scan =
+                    SpectrumId::Index(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
+            }
+        }
+        if parsed.peptide.is_none() {
+            parsed.peptide = parsed.extended_peptide[1].clone();
+        }
+        Ok(parsed)
+    }
 );
+
+/// The Regex to match against MSFragger scan fields
+static IDENTIFER_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
 impl From<MSFraggerData> for IdentifiedPeptide {
     fn from(value: MSFraggerData) -> Self {
         Self {
             score: Some(value.hyperscore),
+            local_confidence: None,
             metadata: MetaData::MSFragger(value),
         }
     }
@@ -111,15 +148,16 @@ impl std::fmt::Display for MSFraggerVersion {
 /// v21
 pub const V21: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V21,
-    spectrum: "spectrum",
+    scan: "spectrum",
+    raw_file: OptionalColumn::NotAvailable,
     spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",
     rt: "retention",
-    experimental_mass: "observed mass",
+    mass: "observed mass",
     calibrated_experimental_mass: "calibrated observed mass",
-    experimental_mz: "observed m/z",
+    mz: "observed m/z",
     calibrated_experimental_mz: "calibrated observed m/z",
     expectation: "expectation",
     hyperscore: "hyperscore",
@@ -140,22 +178,23 @@ pub const V21: MSFraggerFormat = MSFraggerFormat {
     protein_description: "protein description",
     mapped_genes: "mapped genes",
     mapped_proteins: "mapped proteins",
-    condition: Some("condition"),
-    group: Some("group"),
+    condition: OptionalColumn::Optional("condition"),
+    group: OptionalColumn::Optional("group"),
 };
 
 /// v22
 pub const V22: MSFraggerFormat = MSFraggerFormat {
     version: MSFraggerVersion::V22,
-    spectrum: "spectrum",
+    scan: "spectrum",
+    raw_file: OptionalColumn::NotAvailable,
     spectrum_file: "spectrum file",
     peptide: "modified peptide",
     extended_peptide: "extended peptide",
     z: "charge",
     rt: "retention",
-    experimental_mass: "observed mass",
+    mass: "observed mass",
     calibrated_experimental_mass: "calibrated observed mass",
-    experimental_mz: "observed m/z",
+    mz: "observed m/z",
     calibrated_experimental_mz: "calibrated observed m/z",
     expectation: "expectation",
     hyperscore: "hyperscore",
@@ -176,8 +215,8 @@ pub const V22: MSFraggerFormat = MSFraggerFormat {
     protein_description: "protein description",
     mapped_genes: "mapped genes",
     mapped_proteins: "mapped proteins",
-    condition: Some("condition"),
-    group: Some("group"),
+    condition: OptionalColumn::Optional("condition"),
+    group: OptionalColumn::Optional("group"),
 };
 
 /// The scans identifier for a MSFragger identification

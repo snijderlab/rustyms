@@ -525,7 +525,7 @@ pub struct SimpleModification(rustyms::modification::SimpleModification);
 impl SimpleModification {
     #[new]
     fn new(name: &str) -> PyResult<Self> {
-        match rustyms::modification::SimpleModification::try_from(
+        match rustyms::modification::SimpleModificationInner::try_from(
             name,
             0..name.len(),
             &mut vec![],
@@ -850,7 +850,7 @@ impl SequenceElement {
     /// int | None
     ///
     #[getter]
-    fn ambiguous(&self) -> Option<usize> {
+    fn ambiguous(&self) -> Option<std::num::NonZeroU32> {
         self.0.ambiguous
     }
 }
@@ -894,6 +894,18 @@ impl CompoundPeptidoform {
         rustyms::CompoundPeptidoform::pro_forma(proforma, None)
             .map(CompoundPeptidoform)
             .map_err(CustomError)
+    }
+
+    /// Create a new peptide from a peptidoform.
+    #[staticmethod]
+    fn from_peptidoform(peptidoform: Peptidoform) -> Self {
+        CompoundPeptidoform(peptidoform.0.into())
+    }
+
+    /// Create a new peptide from a linear peptide.
+    #[staticmethod]
+    fn from_peptide(peptide: LinearPeptide) -> Self {
+        CompoundPeptidoform(peptide.0.into())
     }
 
     /// Get all peptidoforms making up this compound peptidoform.
@@ -968,12 +980,18 @@ pub struct Peptidoform(rustyms::Peptidoform);
 
 #[pymethods]
 impl Peptidoform {
-    /// Create a new peptide from a ProForma string. Panics
+    /// Create a new peptidoform from a ProForma string. Panics
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
         rustyms::Peptidoform::pro_forma(proforma, None)
             .map(Peptidoform)
             .map_err(CustomError)
+    }
+
+    /// Create a new peptidoform from a linear peptide.
+    #[staticmethod]
+    fn from_peptide(peptide: LinearPeptide) -> Self {
+        Peptidoform(peptide.0.clone().into())
     }
 
     /// Get all peptides making up this peptidoform.
@@ -991,7 +1009,7 @@ impl Peptidoform {
             .collect()
     }
 
-    /// Generate the theoretical fragments for this compound peptidoform, with the given maximal charge of the fragments,
+    /// Generate the theoretical fragments for this peptidoform, with the given maximal charge of the fragments,
     /// and the given model. With the global isotope modifications applied.
     ///
     /// Parameters

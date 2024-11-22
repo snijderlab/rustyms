@@ -7,15 +7,14 @@ use crate::{
     helper_functions::RangeExtension,
     modification::{
         AmbiguousModification, CrossLinkName, GnoComposition, LinkerSpecificity, Modification,
-        SimpleModification,
+        SimpleModification, SimpleModificationInner,
     },
     molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
     placement_rule::PlacementRule,
-    system::{dalton, usize::Charge, Mass},
+    system::usize::Charge,
     AmbiguousLabel, Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi,
-    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition, Tolerance,
-    WithinTolerance,
+    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -448,23 +447,29 @@ impl<Complexity> LinearPeptide<Complexity> {
                 aa.modifications
                     .iter()
                     .filter_map(|modification| match modification {
-                        Modification::Simple(SimpleModification::Database {
-                            specificities,
-                            ..
-                        }) => Some(
-                            specificities
-                                .iter()
-                                .filter_map(move |(rules, rule_losses, _)| {
-                                    if PlacementRule::any_possible(rules, aa, pos.sequence_index) {
-                                        Some(rule_losses)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .flatten()
-                                .map(move |loss| (loss.clone(), peptide_index, pos.sequence_index))
-                                .collect_vec(),
-                        ),
+                        Modification::Simple(sim) => match &**sim {
+                            SimpleModificationInner::Database { specificities, .. } => Some(
+                                specificities
+                                    .iter()
+                                    .filter_map(move |(rules, rule_losses, _)| {
+                                        if PlacementRule::any_possible(
+                                            rules,
+                                            aa,
+                                            pos.sequence_index,
+                                        ) {
+                                            Some(rule_losses)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .flatten()
+                                    .map(move |loss| {
+                                        (loss.clone(), peptide_index, pos.sequence_index)
+                                    })
+                                    .collect_vec(),
+                            ),
+                            _ => None,
+                        },
                         Modification::CrossLink {
                             linker,
                             peptide,
@@ -482,7 +487,6 @@ impl<Complexity> LinearPeptide<Complexity> {
                                     .collect_vec(),
                             )
                         }
-                        Modification::Simple(_) => None,
                     })
                     .flatten()
                     .collect_vec()
@@ -510,8 +514,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                     })
             })
             .chain(self.labile.iter().flat_map(move |modification| {
-                match modification {
-                    SimpleModification::Database { specificities, .. } => specificities
+                match &**modification {
+                    SimpleModificationInner::Database { specificities, .. } => specificities
                         .iter()
                         .flat_map(|(_, _, diagnostic)| diagnostic)
                         .map(|diagnostic| {
@@ -521,7 +525,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                             )
                         })
                         .collect_vec(),
-                    SimpleModification::Linker { specificities, .. } => specificities
+                    SimpleModificationInner::Linker { specificities, .. } => specificities
                         .iter()
                         .flat_map(|rule| match rule {
                             LinkerSpecificity::Symmetric(_, _, ions)
@@ -919,8 +923,8 @@ impl<Complexity> LinearPeptide<Complexity> {
 
         // Add labile glycan fragments
         for modification in &self.labile {
-            match modification {
-                SimpleModification::Glycan(composition) => {
+            match &**modification {
+                SimpleModificationInner::Glycan(composition) => {
                     output.extend(MonoSaccharide::theoretical_fragments(
                         composition,
                         model,
@@ -931,8 +935,11 @@ impl<Complexity> LinearPeptide<Complexity> {
                         None,
                     ));
                 }
-                SimpleModification::GlycanStructure(structure)
-                | SimpleModification::Gno(GnoComposition::Structure(structure), _) => {
+                SimpleModificationInner::GlycanStructure(structure)
+                | SimpleModificationInner::Gno {
+                    composition: GnoComposition::Topology(structure),
+                    ..
+                } => {
                     output.extend(
                         structure
                             .clone()
@@ -1164,52 +1171,6 @@ impl<Complexity> LinearPeptide<Complexity> {
         Ok(())
     }
 
-    /// Look at the provided modifications and see if they match any modification on this peptide with
-    /// more information and replace those. Replaces any mass modification within 0.1 Da or any precise
-    /// matching formula with the provided modifications.
-    pub(crate) fn inject_modifications(&mut self, modifications: &[SimpleModification]) {
-        let replace_simple =
-            |in_place: &SimpleModification, provided: &SimpleModification| match in_place {
-                SimpleModification::Mass(mass) => Tolerance::Absolute(Mass::new::<dalton>(0.1))
-                    .within(&mass.into_inner(), &provided.formula().monoisotopic_mass()),
-                SimpleModification::Formula(formula) => *formula == provided.formula(),
-                _ => false,
-            };
-        let possibly_replace_simple = |in_place: &SimpleModification| {
-            for provided in modifications {
-                if replace_simple(in_place, provided) {
-                    return provided.clone();
-                }
-            }
-            in_place.clone()
-        };
-        let replace = |in_place: &Modification, provided: &SimpleModification| match in_place {
-            Modification::Simple(simple) => replace_simple(simple, provided),
-            Modification::CrossLink { .. } => false,
-        };
-        let possibly_replace = |in_place: &Modification| {
-            for provided in modifications {
-                if replace(in_place, provided) {
-                    return Modification::Simple(provided.clone());
-                }
-            }
-            in_place.clone()
-        };
-        self.n_term = self.n_term.as_ref().map(possibly_replace);
-        self.c_term = self.c_term.as_ref().map(possibly_replace);
-        for position in &mut self.sequence {
-            for m in &mut position.modifications {
-                *m = possibly_replace(m);
-            }
-            for m in &mut position.possible_modifications {
-                m.modification = possibly_replace_simple(&m.modification);
-            }
-        }
-        for m in &mut self.labile {
-            *m = possibly_replace_simple(m);
-        }
-    }
-
     /// Get the reverse of this peptide
     #[must_use]
     pub fn reverse(&self) -> Self {
@@ -1226,6 +1187,10 @@ impl<Complexity> LinearPeptide<Complexity> {
             ..self.clone()
         }
     }
+    /// Get all labile modifications
+    pub(super) fn get_labile_mut_inner(&mut self) -> &mut Vec<SimpleModification> {
+        &mut self.labile
+    }
 }
 
 impl LinearPeptide<Linked> {
@@ -1240,6 +1205,16 @@ impl LinearPeptide<Linked> {
             SequencePosition::CTerm => self.c_term = Some(modification),
             SequencePosition::Index(index) => self.sequence[index].modifications.push(modification),
         }
+    }
+
+    /// Set the N terminal modification
+    pub fn set_n_term(&mut self, modification: Option<Modification>) {
+        self.n_term = modification;
+    }
+
+    /// Set the C terminal modification
+    pub fn set_c_term(&mut self, modification: Option<Modification>) {
+        self.c_term = modification;
     }
 }
 
@@ -1382,6 +1357,11 @@ impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
         &self.global
     }
 
+    /// Get the global isotope modifications
+    pub fn get_global_mut(&mut self) -> &mut Vec<(Element, Option<NonZeroU16>)> {
+        &mut self.global
+    }
+
     /// Add the global isotope modification, if any is invalid it returns false
     #[must_use]
     pub fn add_global(&mut self, modification: (Element, Option<NonZeroU16>)) -> bool {
@@ -1398,9 +1378,19 @@ impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
         &self.labile
     }
 
+    /// Get all labile modifications
+    pub fn get_labile_mut(&mut self) -> &mut Vec<SimpleModification> {
+        &mut self.labile
+    }
+
     /// Get the charge carriers, if there are any
     pub const fn get_charge_carriers(&self) -> Option<&MolecularCharge> {
         self.charge_carriers.as_ref()
+    }
+
+    /// Get the charge carriers, if there are any
+    pub fn get_charge_carriers_mut(&mut self) -> Option<&mut MolecularCharge> {
+        self.charge_carriers.as_mut()
     }
 }
 

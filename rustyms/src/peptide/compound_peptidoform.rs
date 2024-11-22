@@ -54,6 +54,11 @@ impl CompoundPeptidoform {
         &self.0
     }
 
+    /// Get all peptides making up this compound peptidoform.
+    pub fn peptides(&self) -> impl Iterator<Item = &LinearPeptide<Linked>> {
+        self.0.iter().flat_map(Peptidoform::peptides)
+    }
+
     /// Generate the theoretical fragments for this compound peptidoform.
     pub fn generate_theoretical_fragments(
         &self,
@@ -118,5 +123,11 @@ impl<Complexity> From<LinearPeptide<Complexity>> for CompoundPeptidoform {
 impl From<Peptidoform> for CompoundPeptidoform {
     fn from(value: Peptidoform) -> Self {
         Self(vec![value])
+    }
+}
+
+impl<Complexity> From<Vec<LinearPeptide<Complexity>>> for CompoundPeptidoform {
+    fn from(value: Vec<LinearPeptide<Complexity>>) -> Self {
+        Self(value.into_iter().map(|p| p.into()).collect())
     }
 }

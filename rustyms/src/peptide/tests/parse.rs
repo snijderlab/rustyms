@@ -1,8 +1,8 @@
-use std::num::NonZeroU16;
+use std::{num::NonZeroU16, sync::Arc};
 
 use crate::{
     model::PrimaryIonSeries,
-    modification::{self, ModificationId, SimpleModification},
+    modification::{self, ModificationId, SimpleModificationInner},
     peptide::{
         parse::{global_modifications, parse_charge_state},
         GlobalModification,
@@ -10,6 +10,7 @@ use crate::{
     placement_rule::{self, PlacementRule},
     system::{da, usize::Charge},
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
+    Peptidoform,
 };
 
 #[test]
@@ -22,7 +23,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -33,7 +34,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::Anywhere,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -44,7 +45,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -55,7 +56,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyNTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -66,7 +67,7 @@ fn parse_global_modifications() {
             vec![GlobalModification::Fixed(
                 crate::placement_rule::Position::AnyCTerm,
                 Some(AminoAcid::AsparticAcid),
-                SimpleModification::Mass(da(5.0).into())
+                Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
     );
@@ -379,9 +380,9 @@ fn parse_custom() {
     let peptide = dbg!(CompoundPeptidoform::pro_forma(
         "A[C:WEEE]",
         Some(&vec![(
-            0,
+            Some(0),
             "weee".to_string(),
-            SimpleModification::Database {
+            SimpleModificationInner::Database {
                 formula: molecular_formula!(U 1),
                 specificities: vec![(
                     vec![PlacementRule::AminoAcid(
@@ -394,10 +395,11 @@ fn parse_custom() {
                 id: ModificationId {
                     ontology: modification::Ontology::Custom,
                     name: "WEEE".to_string(),
-                    id: 0,
+                    id: Some(0),
                     ..ModificationId::default()
                 }
             }
+            .into()
         )])
     ));
     assert!(peptide.is_ok());
@@ -413,37 +415,31 @@ fn parse_custom() {
 
 #[test]
 fn parse_xl_intra() {
-    let peptide = CompoundPeptidoform::pro_forma("A[XLMOD:02001#XLTEST]A[#XLTEST]", None).unwrap();
-    let singular = peptide
-        .singular()
-        .expect("Peptide is not a singular peptide");
+    let peptide = Peptidoform::pro_forma("A[XLMOD:02001#XLTEST]A[#XLTEST]", None).unwrap();
+    println!("{peptide}");
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        singular.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        peptide.formulas().to_vec()[0],
+        (AminoAcid::Alanine.single_formula().unwrap() * 2)
             + molecular_formula!(C 8 H 10 O 2)
-            + molecular_formula!(H 2 O 1))
-        .elements()
+            + molecular_formula!(H 2 O 1).with_label(crate::AmbiguousLabel::CrossLinkBound(
+                crate::CrossLinkName::Name("test".to_string())
+            ))
     );
 }
 
 #[test]
 fn parse_xl_inter() {
-    let peptide =
-        CompoundPeptidoform::pro_forma("A[XLMOD:02001#XLTEST]//A[#XLTEST]", None).unwrap();
-    let peptidoform = peptide.singular();
-    assert!(
-        peptidoform.is_some(),
-        "Peptide is not a singular peptidoform"
-    );
-    let peptidoform = peptidoform.unwrap();
+    let peptide = Peptidoform::pro_forma("A[XLMOD:02001#XLTEST]//A[#XLTEST]", None).unwrap();
     //dbg!(&singular.sequence[0].modifications);
     assert_eq!(
-        peptidoform.formulas().to_vec()[0].elements(),
-        (AminoAcid::Alanine.formulas().to_vec().pop().unwrap() * 2
+        peptide.formulas().to_vec()[0],
+        (AminoAcid::Alanine.single_formula().unwrap() * 2
             + molecular_formula!(C 8 H 10 O 2)
             + molecular_formula!(H 2 O 1) * 2)
-            .elements()
+            .with_label(crate::AmbiguousLabel::CrossLinkBound(
+                crate::CrossLinkName::Name("test".to_string())
+            ))
     );
 }
 

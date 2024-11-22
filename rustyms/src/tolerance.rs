@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uom::fmt::DisplayStyle;
 
 use crate::{
-    system::{da, Mass, MassOverCharge, OrderedRatio, Ratio},
+    system::{da, Mass, MassOverCharge, OrderedMass, OrderedRatio, Ratio},
     Multi,
 };
 
@@ -32,6 +32,14 @@ impl<T> Tolerance<T> {
     /// Create a new absolute value
     pub fn new_absolute(value: impl Into<T>) -> Self {
         Self::Absolute(value.into())
+    }
+
+    /// Convert this tolerance into another absolute type.
+    pub fn convert<O: From<T>>(self) -> Tolerance<O> {
+        match self {
+            Self::Relative(r) => Tolerance::Relative(r),
+            Self::Absolute(a) => Tolerance::Absolute(a.into()),
+        }
     }
 }
 
@@ -166,6 +174,35 @@ impl WithinTolerance<Multi<Mass>, Mass> for Tolerance<Mass> {
 }
 
 impl WithinTolerance<Mass, Multi<Mass>> for Tolerance<Mass> {
+    fn within(&self, a: &Mass, b: &Multi<Mass>) -> bool {
+        b.iter().any(|b| self.within(a, b))
+    }
+}
+
+impl WithinTolerance<Mass, Mass> for Tolerance<OrderedMass> {
+    fn within(&self, a: &Mass, b: &Mass) -> bool {
+        match self {
+            Self::Absolute(tol) => (a.value - b.value).abs() <= tol.value,
+            Self::Relative(tolerance) => a.ppm(*b) <= tolerance.into_inner(),
+        }
+    }
+}
+
+impl WithinTolerance<Multi<Mass>, Multi<Mass>> for Tolerance<OrderedMass> {
+    fn within(&self, a: &Multi<Mass>, b: &Multi<Mass>) -> bool {
+        a.iter()
+            .cartesian_product(b.iter())
+            .any(|(a, b)| self.within(a, b))
+    }
+}
+
+impl WithinTolerance<Multi<Mass>, Mass> for Tolerance<OrderedMass> {
+    fn within(&self, a: &Multi<Mass>, b: &Mass) -> bool {
+        a.iter().any(|a| self.within(a, b))
+    }
+}
+
+impl WithinTolerance<Mass, Multi<Mass>> for Tolerance<OrderedMass> {
     fn within(&self, a: &Mass, b: &Multi<Mass>) -> bool {
         b.iter().any(|b| self.within(a, b))
     }

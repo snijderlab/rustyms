@@ -6,6 +6,20 @@ doc-valid-idents = [
     "ProForma",
     "OPair",
     "MSFragger",
+    "MZTab",
+    "PSM_ID",
+    "DeepNovo",
+    "PGPointNovo",
+    "PointNovo",
+    "BiatNovo",
+    "InstaNovo",
+    "DeepNovoFamily",
+    "PointNovoFamily",
+    "PowerNovo",
+    "PepNet",
+    "NovoB",
+    "pi-PrimeNovo",
+    "π-PrimeNovo",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

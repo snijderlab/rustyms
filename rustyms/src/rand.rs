@@ -2,24 +2,24 @@ use rand::distributions::{Distribution, Standard};
 
 use crate::{
     glycan::{BaseSugar, GlycanStructure, GlycanSubstituent, MonoSaccharide},
-    modification::SimpleModification,
+    modification::SimpleModificationInner,
     system::{dalton, Mass, OrderedMass},
     Element, MolecularFormula,
 };
 
-impl Distribution<SimpleModification> for Standard {
-    fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> SimpleModification {
+impl Distribution<SimpleModificationInner> for Standard {
+    fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> SimpleModificationInner {
         match rng.gen_range(0..=3) {
-            0 => SimpleModification::Mass(rng.gen()),
-            1 => SimpleModification::Formula(rng.gen()),
+            0 => SimpleModificationInner::Mass(rng.gen()),
+            1 => SimpleModificationInner::Formula(rng.gen()),
             2 => {
                 let mut glycans = Vec::new();
                 for _ in 0..rng.gen_range(0..32) {
                     glycans.push(rng.gen());
                 }
-                SimpleModification::Glycan(glycans)
+                SimpleModificationInner::Glycan(glycans)
             }
-            3 => SimpleModification::GlycanStructure(rng.gen()),
+            3 => SimpleModificationInner::GlycanStructure(rng.gen()),
             _ => todo!(),
         }
     }

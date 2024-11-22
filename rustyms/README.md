@@ -51,19 +51,21 @@ assert!(fdr.peaks_sigma() > 2.0);
 # fn main() -> Result<(), rustyms::error::CustomError> {
 use rustyms::{*, align::*};
 // Check how this peptide compares to a similar peptide (using the feature `align`)
-let first_peptide = LinearPeptide::pro_forma("IVQEVS", None)?.into_simple_linear().unwrap();
-let second_peptide = LinearPeptide::pro_forma("LEVQVES", None)?.into_simple_linear().unwrap();
+let first_peptide = LinearPeptide::pro_forma("IVQEVT", None)?.into_simple_linear().unwrap();
+let second_peptide = LinearPeptide::pro_forma("LVQVET", None)?.into_simple_linear().unwrap();
 // Align the two peptides using mass based alignment
-// I-VQEVS A
-// LEVQVES B
-// ─+  ╶─ 
-let alignment = align::<4, SimpleLinear, SimpleLinear>(&first_peptide, &second_peptide,
-                 matrix::BLOSUM62, Tolerance::new_ppm(10.0), AlignType::GLOBAL);
+// IVQEVT A
+// LVQVET B
+// ─  ╶╴
+let alignment = align::<4, SimpleLinear, SimpleLinear>(
+                  &first_peptide, 
+                  &second_peptide,
+                  AlignScoring::default(), 
+                  AlignType::GLOBAL);
 # dbg!(&alignment);
 // Calculate some more statistics on this alignment
 let stats = alignment.stats();
-assert_eq!(stats.mass_similar, 6); // 6 out of the 7 positions are mass similar
-assert_eq!(stats.gaps, 1); // 1 position is an insertion
+assert_eq!(stats.mass_similar, 6); // 6 out of the 6 positions are mass similar
 # Ok(()) }
 ```
 
@@ -78,26 +80,3 @@ It has multiple features which allow you to slim it down if needed (all are enab
 * `rand` - allows the generation of random peptides.
 * `rayon` - enables parallel iterators using rayon, mostly for `imgt` but also in consecutive align.
 * `mzdata` - enables integration with [mzdata](https://github.com/mobiusklein/mzdata) which has more advanced raw file support.
-
-## Sources for the downloaded files
-
-- PSI-MOD: https://github.com/HUPO-PSI/psi-mod-CV (2021-06-13 v1.031.6)
-- Unimod: http://www.unimod.org/obo/unimod.obo (2024-08-12 11:33)
-- RESID: ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ (2018-04-31 RESIDUES.XML)
-- XL-MOD: https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo (2021-03-23 1.1.12)
-- GNO: http://purl.obolibrary.org/obo/gno.obo (2024-05-21) structures: https://glycosmos.org/download/ ('List of all GlyCosmos Glycans data.') (downloaded 2024-07-02)
-  - To save space (crates.io has a hard limit on crate size) the unused columns of the structures csv are remove (only 0 and 1 are kept) and the `gno.obo` is trimmed using the following regex: `(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)|(synonym: .*$\n)|(name: [^ ]*$\n)` (any matching line is removed) and the following replacement regex `(is_a: [^ ]*) ! .*\n` with `$1\n`.
-  - The structures csv file has only the first two columns kept for the same reason, also remove the two lines starting with `"`
-- Isotopic atomic masses: https://ciaaw.org/data/IUPAC-atomic-masses.csv (2021-03-17)
-
-## Ontologies
-
-| Name    | Modifications | Numbered | Rules | Diagnostic ions / neutral losses | Description / synonyms / cross ids |
-| ------- | ------------- | -------- | ----- | -------------------------------- | ---------------------------------- |
-| Unimod  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
-| PSI-MOD | Yes           | Yes      | Yes   | NA                               | Yes                                |
-| RESID   | Yes           | Yes      | Yes   | NA                               | Yes                                |
-| XL-MOD  | Yes           | Yes      | Yes   | Yes                              | Yes                                |
-| GNO     | Yes           | NA       | NA    | NA (solved for all glycans)      | NA                                 |
-
-Note some modifications that do not fit the assumptions of rustyms might be missing from the ontologies. Examples of these are cross-links with more then 2 positions from XL-MOD and RESID, and modifications with different diff_formulas based on which location they bound from RESID. Additionally only the Glycans of a specific mass or with a structure.

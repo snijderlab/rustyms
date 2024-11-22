@@ -7,7 +7,7 @@ fn main() {
                 s,
                 0..s.len(),
                 None,
-                rustyms::SloppyParsingParameters::default(),
+                &rustyms::SloppyParsingParameters::default(),
             );
         }
     });

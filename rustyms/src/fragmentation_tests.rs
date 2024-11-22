@@ -6,8 +6,11 @@ use crate::{
     *,
 };
 
+use std::sync::Arc;
+
 use self::{
-    modification::SimpleModification, ontologies::CustomDatabase, placement_rule::PlacementRule,
+    modification::SimpleModificationInner, ontologies::CustomDatabase,
+    placement_rule::PlacementRule,
 };
 
 use itertools::Itertools;
@@ -509,9 +512,9 @@ fn glycan_composition_fragmentation() {
 fn custom_database() -> CustomDatabase {
     vec![
         (
-            0,
+            Some(0),
             "dsso".to_string(),
-            SimpleModification::Linker {
+            Arc::new(SimpleModificationInner::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
                     vec![PlacementRule::AminoAcid(
                         vec![AminoAcid::Lysine],
@@ -526,17 +529,17 @@ fn custom_database() -> CustomDatabase {
                 formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
                 id: ModificationId {
                     name: "DSSO".to_string(),
-                    id: 0,
+                    id: Some(0),
                     ontology: modification::Ontology::Custom,
                     ..ModificationId::default()
                 },
                 length: None,
-            },
+            }),
         ),
         (
-            1,
+            Some(1),
             "disulfide".to_string(),
-            SimpleModification::Linker {
+            Arc::new(SimpleModificationInner::Linker {
                 specificities: vec![modification::LinkerSpecificity::Symmetric(
                     vec![PlacementRule::AminoAcid(
                         vec![AminoAcid::Cysteine],
@@ -548,12 +551,12 @@ fn custom_database() -> CustomDatabase {
                 formula: molecular_formula!(C 6 O 5 H 2 N -2 S 1),
                 id: ModificationId {
                     name: "Disulfide".to_string(),
-                    id: 1,
+                    id: Some(1),
                     ontology: modification::Ontology::Custom,
                     ..ModificationId::default()
                 },
                 length: None,
-            },
+            }),
         ),
     ]
 }
@@ -606,7 +609,17 @@ fn ensure_no_double_xl_labels_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.labels().len()
+            > f.formula
+                .labels()
+                .iter()
+                .map(|l| match l {
+                    AmbiguousLabel::CrossLinkBound(n) | AmbiguousLabel::CrossLinkBroken(n, _) =>
+                        n.to_string(),
+                    _ => String::new(),
+                })
+                .unique()
+                .count())
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
@@ -624,7 +637,17 @@ fn ensure_no_double_xl_labels_non_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.labels().len()
+            > f.formula
+                .labels()
+                .iter()
+                .map(|l| match l {
+                    AmbiguousLabel::CrossLinkBound(n) | AmbiguousLabel::CrossLinkBroken(n, _) =>
+                        n.to_string(),
+                    _ => String::new(),
+                })
+                .unique()
+                .count())
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
