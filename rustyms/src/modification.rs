@@ -169,30 +169,6 @@ impl SimpleModificationInner {
         }
     }
 
-    /// Internal formula code with the logic to make all labels right
-    pub(crate) fn formula_inner(
-        &self,
-        sequence_index: SequencePosition,
-        peptide_index: usize,
-    ) -> MolecularFormula {
-        match self {
-            Self::Mass(m) => MolecularFormula::with_additional_mass(m.value),
-            Self::Formula(elements) => elements.clone(),
-            Self::Glycan(monosaccharides) => monosaccharides
-                .iter()
-                .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula_inner(sequence_index, peptide_index) * i.1 as i32
-                }),
-            Self::GlycanStructure(glycan) | Self::Gno(GnoComposition::Structure(glycan), _) => {
-                glycan.formula_inner(sequence_index, peptide_index)
-            }
-            Self::Database { formula, .. } | Self::Linker { formula, .. } => formula.clone(),
-            Self::Gno(GnoComposition::Mass(m), _) => {
-                MolecularFormula::with_additional_mass(m.value)
-            }
-        }
-    }
-
     /// Check to see if this modification can be placed on the specified element
     pub fn is_possible<T>(
         &self,

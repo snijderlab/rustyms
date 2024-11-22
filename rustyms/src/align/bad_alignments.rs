@@ -1,8 +1,8 @@
 #![allow(clippy::missing_panics_doc)]
 
 use crate::{
-    align::{align, matrix, AlignType},
-    LinearPeptide, SimpleLinear, Tolerance,
+    align::{align, AlignScoring, AlignType},
+    LinearPeptide, SimpleLinear,
 };
 
 #[test]
@@ -22,8 +22,7 @@ fn test_alignment(peptide_one: &str, peptide_two: &str, path: &str) {
     let alignment = align::<4, SimpleLinear, SimpleLinear>(
         &first_peptide,
         &second_peptide,
-        matrix::BLOSUM62,
-        Tolerance::new_ppm(10.0),
+        AlignScoring::default(),
         AlignType::GLOBAL,
     );
     assert_eq!(
