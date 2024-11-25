@@ -2,6 +2,7 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 
+use crate::identification::{AnnotatedPeptide, Annotation, Region};
 use crate::peptide::UnAmbiguous;
 use crate::LinearPeptide;
 
@@ -188,30 +189,18 @@ impl<'a> Allele<'a> {
     pub fn fancy_name(&self) -> String {
         format!("{}*{:02}", self.gene.to_fancy_string(), self.number)
     }
+}
 
-    /// Get the region for a specific index into the sequence, None if outside range,
-    /// the additional bool indicates if this is the starting position for the region
-    pub const fn region(&self, index: usize) -> Option<(Region, bool)> {
-        let mut left = index;
-        let mut regions_index = 0;
-        let mut next = self.regions[regions_index];
-        while left > next.1 {
-            left -= next.1;
-            regions_index += 1;
-            if regions_index == self.regions.len() {
-                return None;
-            }
-            next = self.regions[regions_index];
-        }
-        Some((next.0, left == 1))
+impl<'a> AnnotatedPeptide for Allele<'a> {
+    type Complexity = UnAmbiguous;
+    fn peptide(&self) -> &LinearPeptide<Self::Complexity> {
+        self.sequence
     }
-
-    /// Get all annotations for this position
-    pub fn annotations(&self, index: usize) -> impl Iterator<Item = Annotation> + 'a {
+    fn annotations(&self) -> &[(Annotation, usize)] {
         self.annotations
-            .iter()
-            .filter(move |a| a.1 == index)
-            .map(|a| a.0)
+    }
+    fn regions(&self) -> &[(Region, usize)] {
+        self.regions
     }
 }
 

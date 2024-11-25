@@ -2,8 +2,8 @@
 Cargo.lock
 */target/
 errors.dat
-imgt.dat.Z
-imgt.dat
+*.dat.Z
+*.dat
 GNOme.obo
 glycosmos_glycans_list.csv
 .venv/

@@ -1,6 +1,7 @@
 use crate::{
     align::AlignScoring,
     align::*,
+    identification::{AnnotatedPeptide, Region},
     imgt::*,
     peptide::{AtMax, SimpleLinear, UnAmbiguous},
     *,
@@ -37,13 +38,15 @@ impl<'lifetime, A: AtMax<Linear>> ConsecutiveAlignment<'lifetime, A> {
                     let mut index_a = alignment.start_a;
                     let mut start_region_b = alignment.start_b;
                     let mut index_b = alignment.start_b;
-                    let mut region = allele.region(index_a).map_or(Region::FR1, |(r, _)| r);
+                    let mut region = allele
+                        .get_region(index_a)
+                        .map_or(&Region::Framework(1), |(r, _)| r);
                     let mut ranges = Vec::new();
 
                     for step in &alignment.path {
                         let new_region = allele
-                            .region(index_a + step.step_a as usize)
-                            .map_or(Region::FR1, |(r, _)| r);
+                            .get_region(index_a + step.step_a as usize)
+                            .map_or(&Region::Framework(1), |(r, _)| r);
                         if region != new_region {
                             ranges.push((b_offset + start_region_b, b_offset + index_b, region));
                             start_region_b = index_b + 1;
@@ -68,7 +71,7 @@ impl<'lifetime, A: AtMax<Linear>> ConsecutiveAlignment<'lifetime, A> {
                         .1
                         .seq_b()
                         .sub_peptide(first.0..=last.1),
-                    region,
+                    region.clone(),
                 )
             })
             .collect()

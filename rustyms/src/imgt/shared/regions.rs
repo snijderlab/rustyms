@@ -1,5 +1,8 @@
 #![allow(dead_code)]
-use crate::{LinearPeptide, UnAmbiguous};
+use crate::{
+    identification::{Annotation, Region},
+    LinearPeptide, UnAmbiguous,
+};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
@@ -610,127 +613,6 @@ impl Display for GeneType {
                 // Self::C(Some(Constant::DD)) => "DD",
                 // Self::C(Some(Constant::MD)) => "MD",
                 Self::C(Some(Constant::T)) => "T",
-            }
-        )
-    }
-}
-
-/// Any region in a germline, eg FR1, CDR1
-#[allow(missing_docs, non_camel_case_types, clippy::upper_case_acronyms)]
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Region {
-    CDR1,
-    CDR2,
-    CDR3,
-    FR1,
-    FR2,
-    FR3,
-    FR4,
-    CH1,
-    H,
-    H1,
-    H2,
-    H3,
-    H4,
-    H_CH2,
-    CH2,
-    CH3,
-    CH4,
-    CH5,
-    CH6,
-    CH7,
-    CH8,
-    CH9,
-    CH2_CHS,
-    CH3_CHS,
-    CH4_CHS,
-    CH5_CHS,
-    CH6_CHS,
-    CH7_CHS,
-    CH8_CHS,
-    CH9_CHS,
-    CHS,
-    CL,
-    M,
-    M1,
-    M2,
-}
-
-impl Display for Region {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::CDR1 => "CDR1",
-                Self::CDR2 => "CDR2",
-                Self::CDR3 => "CDR3",
-                Self::FR1 => "FR1",
-                Self::FR2 => "FR2",
-                Self::FR3 => "FR3",
-                Self::FR4 => "FR4",
-                Self::CH1 => "CH1",
-                Self::H => "H",
-                Self::H1 => "H1",
-                Self::H2 => "H2",
-                Self::H3 => "H3",
-                Self::H4 => "H4",
-                Self::H_CH2 => "H-CH2",
-                Self::CH2 => "CH2",
-                Self::CH3 => "CH3",
-                Self::CH4 => "CH4",
-                Self::CH5 => "CH5",
-                Self::CH6 => "CH6",
-                Self::CH7 => "CH7",
-                Self::CH8 => "CH8",
-                Self::CH9 => "CH9",
-                Self::CH2_CHS => "CH2-CHS",
-                Self::CH3_CHS => "CH3-CHS",
-                Self::CH4_CHS => "CH4-CHS",
-                Self::CH5_CHS => "CH5-CHS",
-                Self::CH6_CHS => "CH6-CHS",
-                Self::CH7_CHS => "CH7-CHS",
-                Self::CH8_CHS => "CH8-CHS",
-                Self::CH9_CHS => "CH9-CHS",
-                Self::CHS => "CHS",
-                Self::CL => "CL",
-                Self::M => "M",
-                Self::M1 => "M1",
-                Self::M2 => "M2",
-            }
-        )
-    }
-}
-
-/// Any annotation in a germline, eg conserved residues
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
-pub enum Annotation {
-    /// First conserved cysteine
-    Cysteine1,
-    /// Second conserved cysteine
-    Cysteine2,
-    /// Conserved tryptophan of the J motif
-    Tryptophan,
-    /// Conserved phenylalanine of the J motif
-    Phenylalanine,
-    /// Any of the conserved glycines of the J motif
-    Glycine,
-    /// A potential N linked glycan position
-    NGlycan,
-}
-
-impl Display for Annotation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Cysteine1 => "Cys1",
-                Self::Cysteine2 => "Cys2",
-                Self::Tryptophan => "Trp",
-                Self::Phenylalanine => "Phe",
-                Self::Glycine => "Gly",
-                Self::NGlycan => "NGly",
             }
         )
     }

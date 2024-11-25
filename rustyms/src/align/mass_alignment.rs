@@ -193,7 +193,11 @@ pub(super) fn determine_final_score<A, B>(
     let absolute_score = path.last().map(|p| p.score).unwrap_or_default();
     Score {
         absolute: absolute_score,
-        normalised: ordered_float::OrderedFloat(absolute_score as f64 / maximal_score as f64),
+        normalised: if maximal_score == 0 {
+            ordered_float::OrderedFloat::default()
+        } else {
+            ordered_float::OrderedFloat(absolute_score as f64 / maximal_score as f64)
+        },
         max: maximal_score,
     }
 }

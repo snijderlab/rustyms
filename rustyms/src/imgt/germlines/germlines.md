@@ -24,7 +24,7 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|2/2|0/0|1/1|
+|IGHV|26/26|7/7|11/11|
 |IGKV|10/10|5/5|1/1|
 |IGLV|0/0|0/0|0/0|
 |IGIV|0/0|0/0|0/0|
@@ -222,7 +222,7 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|81/323|9/21|12/95|
+|IGHV|81/322|9/22|12/95|
 |IGKV|62/109|5/9|1/5|
 |IGLV|51/114|7/10|7/15|
 |IGIV|0/0|0/0|0/0|
@@ -398,7 +398,7 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|356/499|4/9|9/40|
+|IGHV|356/498|4/9|9/40|
 |IGKV|120/142|5/10|1/1|
 |IGLV|3/5|6/6|4/5|
 |IGIV|0/0|0/0|0/0|
@@ -497,9 +497,20 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|42/42|7/7|5/5|
+|IGHV|43/43|7/7|5/5|
 |IGKV|42/42|5/5|1/1|
 |IGLV|46/46|8/8|7/7|
+|IGIV|0/0|0/0|0/0|
+
+_Number of genes / number of alleles_
+
+## Neogale vison / American mink
+
+| Kind | V | J | C |
+|------|---|---|---|
+|IGHV|25/25|6/6|6/6|
+|IGKV|0/0|0/0|0/0|
+|IGLV|0/0|0/0|0/0|
 |IGIV|0/0|0/0|0/0|
 
 _Number of genes / number of alleles_
@@ -618,7 +629,7 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|66/95|7/9|13/17|
+|IGHV|70/99|7/9|13/17|
 |IGKV|37/37|4/4|1/1|
 |IGLV|33/33|7/7|5/5|
 |IGIV|0/0|0/0|0/0|

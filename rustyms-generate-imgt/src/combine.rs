@@ -3,13 +3,14 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::AlignScoring;
+use rustyms::identification::{Annotation, Region};
 use rustyms::LinearPeptide;
 use rustyms::UnAmbiguous;
 
 use crate::imgt_gene::IMGTGene;
 use crate::structs::DataItem;
 
-use crate::shared::{AnnotatedSequence, Annotation, Gene, Germline, Germlines, Species};
+use crate::shared::{AnnotatedSequence, Gene, Germline, Germlines, Species};
 use crate::structs::SingleSeq;
 
 pub fn combine(
@@ -287,7 +288,7 @@ impl std::fmt::Display for TemporaryGermline {
 struct TemporarySequence {
     acc: Vec<String>,
     sequence: LinearPeptide<UnAmbiguous>,
-    regions: HashMap<Vec<(crate::shared::Region, usize)>, Vec<usize>>,
+    regions: HashMap<Vec<(Region, usize)>, Vec<usize>>,
     annotations: HashMap<Vec<(Annotation, usize)>, Vec<usize>>,
     dna: HashMap<String, Vec<usize>>,
 }
@@ -325,7 +326,7 @@ impl TemporarySequence {
         }
     }
 
-    fn regions(&self) -> Vec<(Vec<(crate::shared::Region, usize)>, Vec<usize>)> {
+    fn regions(&self) -> Vec<(Vec<(Region, usize)>, Vec<usize>)> {
         let mut vec = self
             .regions
             .iter()
