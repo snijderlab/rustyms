@@ -17,7 +17,10 @@ mod structs;
 use crate::shared::*;
 
 use itertools::Itertools;
-use rustyms::*;
+use rustyms::{
+    identification::{Annotation, Region},
+    *,
+};
 use structs::{Location, SequenceRegion};
 
 fn main() {
@@ -222,20 +225,21 @@ fn fix_j(
     );
 
     let mut annotations = Vec::new();
-    if fr4.0[0] == AminoAcid::Tryptophan {
-        annotations.push((Annotation::Tryptophan, cdr3_length));
-    } else if fr4.0[0] == AminoAcid::Phenylalanine {
-        annotations.push((Annotation::Phenylalanine, cdr3_length));
+    if fr4.0[0] == AminoAcid::Tryptophan || fr4.0[0] == AminoAcid::Phenylalanine {
+        annotations.push((Annotation::Conserved, cdr3_length));
     }
     if fr4.0[1] == AminoAcid::Glycine {
-        annotations.push((Annotation::Glycine, cdr3_length + 1));
+        annotations.push((Annotation::Conserved, cdr3_length + 1));
     }
     if fr4.0[3] == AminoAcid::Glycine {
-        annotations.push((Annotation::Glycine, cdr3_length + 3));
+        annotations.push((Annotation::Conserved, cdr3_length + 3));
     }
 
     (
-        vec![(shared::Region::CDR3, cdr3), (shared::Region::FR4, fr4)],
+        vec![
+            (Region::ComplementarityDeterminingRegion(3), cdr3),
+            (Region::Framework(4), fr4),
+        ],
         annotations,
     )
 }

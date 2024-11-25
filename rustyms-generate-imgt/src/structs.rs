@@ -63,7 +63,10 @@ impl Display for Region {
     }
 }
 
-pub type SequenceRegion = (crate::shared::Region, (Vec<AminoAcid>, Location, String));
+pub type SequenceRegion = (
+    rustyms::identification::Region,
+    (Vec<AminoAcid>, Location, String),
+);
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Location {

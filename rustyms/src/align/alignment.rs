@@ -544,22 +544,38 @@ pub struct Stats {
 impl Stats {
     /// Get the identity as fraction.
     pub fn identity(&self) -> f64 {
-        self.identical as f64 / self.length as f64
+        if self.length == 0 {
+            0.0
+        } else {
+            self.identical as f64 / self.length as f64
+        }
     }
 
     /// Get the mass similarity as fraction.
     pub fn mass_similarity(&self) -> f64 {
-        self.mass_similar as f64 / self.length as f64
+        if self.length == 0 {
+            0.0
+        } else {
+            self.mass_similar as f64 / self.length as f64
+        }
     }
 
     /// Get the similarity as fraction.
     pub fn similarity(&self) -> f64 {
-        self.similar as f64 / self.length as f64
+        if self.length == 0 {
+            0.0
+        } else {
+            self.similar as f64 / self.length as f64
+        }
     }
 
     /// Get the gaps as fraction.
     pub fn gaps_fraction(&self) -> f64 {
-        self.gaps as f64 / self.length as f64
+        if self.length == 0 {
+            0.0
+        } else {
+            self.gaps as f64 / self.length as f64
+        }
     }
 }
 

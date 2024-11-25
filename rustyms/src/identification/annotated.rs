@@ -1,5 +1,4 @@
 use crate::LinearPeptide;
-use serde::{Deserialize, Serialize};
 
 /// An annotated peptide
 pub trait AnnotatedPeptide {
@@ -7,13 +6,42 @@ pub trait AnnotatedPeptide {
     type Complexity;
     /// Get the peptide
     fn peptide(&self) -> &LinearPeptide<Self::Complexity>;
-    /// Get the regions, as a list of the regions in order with th length of each region, these are
+    /// Get the regions, as a list of the regions in order with the length of each region, these are
     /// required to be as long as the full peptide.
     fn regions(&self) -> &[(Region, usize)];
-    /// Get the annotations, specified as the annotation and the into into the peptide where it is
+    /// Get the annotations, specified as the annotation and the into the peptide where it is
     /// located.
     fn annotations(&self) -> &[(Annotation, usize)];
+
+    /// Get the region for a specific index into the sequence, None if outside range,
+    /// the additional bool indicates if this is the starting position for the region.
+    fn get_region(&self, index: usize) -> Option<(&Region, bool)> {
+        let regions = self.regions();
+        let mut left = index;
+        let mut regions_index = 0;
+        let mut next = &regions[regions_index];
+        while left > next.1 {
+            left -= next.1;
+            regions_index += 1;
+            if regions_index == regions.len() {
+                return None;
+            }
+            next = &regions[regions_index];
+        }
+        Some((&next.0, left == 1))
+    }
+
+    /// Get all annotations for this position
+    fn get_annotations(&self, index: usize) -> impl Iterator<Item = &Annotation> + '_ {
+        self.annotations()
+            .iter()
+            .filter(move |a| a.1 == index)
+            .map(|a| &a.0)
+    }
 }
+
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 /// A region on an antibody
 #[allow(missing_docs)]
@@ -27,7 +55,20 @@ pub enum Region {
     SecratoryTail,
     MembraneTail(Option<usize>),
     Other(String),
+    /// When multiple regions are joined, or when the exact boundary is not known
+    Joined(Vec<Region>),
     None,
+}
+
+/// A sequence annotation
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
+pub enum Annotation {
+    /// A conserved residue
+    Conserved,
+    /// A potential N linked glycan position
+    NGlycan,
+    /// Any other annotation
+    Other(String),
 }
 
 impl std::fmt::Display for Region {
@@ -41,6 +82,7 @@ impl std::fmt::Display for Region {
             Self::SecratoryTail => write!(f, "CHS"),
             Self::MembraneTail(n) => write!(f, "M{}", n.map_or(String::new(), |n| n.to_string())),
             Self::Other(o) => write!(f, "{o}"),
+            Self::Joined(o) => write!(f, "{}", o.iter().join("-")),
             Self::None => Ok(()),
         }
     }
@@ -75,17 +117,6 @@ impl std::str::FromStr for Region {
             o => Self::Other(o.to_string()),
         })
     }
-}
-
-/// A sequence annotation
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
-pub enum Annotation {
-    /// A conserved residue
-    Conserved,
-    /// A potential N linked glycan position
-    NGlycan,
-    /// Any other annotation
-    Other(String),
 }
 
 impl std::str::FromStr for Annotation {

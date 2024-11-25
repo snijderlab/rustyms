@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use itertools::Itertools;
-use rustyms::{AminoAcid, CheckedAminoAcid};
+use rustyms::{
+    identification::{Annotation, Region},
+    AminoAcid, CheckedAminoAcid,
+};
 
-use crate::shared::{AnnotatedSequence, Annotation, Gene, Region};
+use crate::shared::{AnnotatedSequence, Gene};
 use crate::structs::{Location, SequenceRegion, SingleSeq};
 use crate::{find_possible_n_glycan_locations, fix_j};
 
@@ -23,13 +26,16 @@ impl IMGTGene {
 
         let sequence: Vec<AminoAcid> = regions.iter().flat_map(|reg| reg.1 .0.clone()).collect();
         let dna: String = regions.iter().map(|reg| reg.1 .2.clone()).collect();
-        let region_lengths = regions.iter().map(|reg| (reg.0, reg.1 .0.len())).collect();
+        let region_lengths = regions
+            .iter()
+            .map(|reg| (reg.0.clone(), reg.1 .0.len()))
+            .collect();
         let conserved_map = HashMap::from([
-            ("1st-CYS", Annotation::Cysteine1),
-            ("2nd-CYS", Annotation::Cysteine2),
-            ("CONSERVED-TRP", Annotation::Tryptophan),
-            ("J-PHE", Annotation::Phenylalanine),
-            ("J-TRP", Annotation::Tryptophan),
+            ("1st-CYS", Annotation::Conserved),
+            ("2nd-CYS", Annotation::Conserved),
+            ("CONSERVED-TRP", Annotation::Conserved),
+            ("J-PHE", Annotation::Conserved),
+            ("J-TRP", Annotation::Conserved),
         ]);
         let mut conserved = self
             .regions
@@ -41,7 +47,7 @@ impl IMGTGene {
                 region
                     .location
                     .find_aa_location(&regions)
-                    .map(|index| (conserved_map[key.as_str()], index))
+                    .map(|index| (conserved_map[key.as_str()].clone(), index))
                     .ok_or(format!("Cannot find location of '{key}' '{region}'"))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -76,16 +82,16 @@ impl IMGTGene {
         let regions = match self.key.as_str() {
             "V-GENE" => {
                 vec![
-                    self.get_region(Region::FR1, "FR1-IMGT")?,
-                    self.get_region(Region::CDR1, "CDR1-IMGT")?,
-                    self.get_region(Region::FR2, "FR2-IMGT")?,
-                    self.get_region(Region::CDR2, "CDR2-IMGT")?,
-                    self.get_region(Region::FR3, "FR3-IMGT")?,
-                    self.get_region(Region::CDR3, "CDR3-IMGT")?,
+                    self.get_region(&Region::Framework(1), "FR1-IMGT")?,
+                    self.get_region(&Region::ComplementarityDeterminingRegion(1), "CDR1-IMGT")?,
+                    self.get_region(&Region::Framework(2), "FR2-IMGT")?,
+                    self.get_region(&Region::ComplementarityDeterminingRegion(2), "CDR2-IMGT")?,
+                    self.get_region(&Region::Framework(3), "FR3-IMGT")?,
+                    self.get_region(&Region::ComplementarityDeterminingRegion(3), "CDR3-IMGT")?,
                 ]
             }
             "J-GENE" => {
-                let j = self.get_region(Region::FR4, "J-REGION")?;
+                let j = self.get_region(&Region::Framework(4), "J-REGION")?;
                 let motif = j.1 .0.iter().tuple_windows().position(|(a, b, _, d)| {
                     (*a == AminoAcid::Tryptophan || *a == AminoAcid::Phenylalanine)
                         && *b == AminoAcid::Glycine
@@ -100,53 +106,80 @@ impl IMGTGene {
                 }
             }
             "D-GENE" => {
-                vec![self.get_region(Region::CDR3, "D-REGION")?]
+                vec![self.get_region(&Region::ComplementarityDeterminingRegion(3), "D-REGION")?]
             }
             "C-GENE" => {
                 let mut seq = Vec::new();
 
                 // Heavy chain
-                seq.extend(self.get_region(Region::CH1, "CH1").ok());
+                seq.extend(self.get_region(&Region::ConstantHeavy(1), "CH1").ok());
                 // Try to detect the best H/CH2
                 if self.regions.contains_key("H") && self.regions.contains_key("CH2") {
-                    seq.extend(self.get_region(Region::H, "H").ok());
-                    seq.extend(self.get_region(Region::CH2, "CH2").ok());
+                    seq.extend(self.get_region(&Region::Hinge(None), "H").ok());
+                    seq.extend(self.get_region(&Region::ConstantHeavy(2), "CH2").ok());
                 } else if self.regions.contains_key("H-CH2") {
-                    seq.extend(self.get_region(Region::H_CH2, "H-CH2").ok());
+                    seq.extend(
+                        self.get_region(
+                            &Region::Joined(vec![Region::Hinge(None), Region::ConstantHeavy(2)]),
+                            "H-CH2",
+                        )
+                        .ok(),
+                    );
                 } else {
-                    seq.extend(self.get_region(Region::H1, "H1").ok());
-                    seq.extend(self.get_region(Region::H2, "H2").ok());
-                    seq.extend(self.get_region(Region::H3, "H3").ok());
-                    seq.extend(self.get_region(Region::H4, "H4").ok());
-                    seq.extend(self.get_region(Region::CH2, "CH2").ok());
+                    seq.extend(self.get_region(&Region::Hinge(Some(1)), "H1").ok());
+                    seq.extend(self.get_region(&Region::Hinge(Some(2)), "H2").ok());
+                    seq.extend(self.get_region(&Region::Hinge(Some(3)), "H3").ok());
+                    seq.extend(self.get_region(&Region::Hinge(Some(4)), "H4").ok());
+                    seq.extend(self.get_region(&Region::ConstantHeavy(2), "CH2").ok());
                 }
                 let mut secretory_added = false;
 
                 for (region, with_chs) in [
-                    (Region::CH3, Region::CH3_CHS),
-                    (Region::CH4, Region::CH4_CHS),
-                    (Region::CH5, Region::CH5_CHS),
-                    (Region::CH6, Region::CH6_CHS),
-                    (Region::CH7, Region::CH7_CHS),
-                    (Region::CH8, Region::CH8_CHS),
-                    (Region::CH9, Region::CH9_CHS),
+                    (
+                        Region::ConstantHeavy(3),
+                        Region::Joined(vec![Region::ConstantHeavy(3), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(4),
+                        Region::Joined(vec![Region::ConstantHeavy(4), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(5),
+                        Region::Joined(vec![Region::ConstantHeavy(5), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(6),
+                        Region::Joined(vec![Region::ConstantHeavy(6), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(7),
+                        Region::Joined(vec![Region::ConstantHeavy(7), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(8),
+                        Region::Joined(vec![Region::ConstantHeavy(8), Region::SecratoryTail]),
+                    ),
+                    (
+                        Region::ConstantHeavy(9),
+                        Region::Joined(vec![Region::ConstantHeavy(9), Region::SecratoryTail]),
+                    ),
                 ] {
                     if self.regions.contains_key(&region.to_string())
                         && self.regions.contains_key("CHS")
                     {
                         // If this region is stored separately and the CHS is available
-                        seq.extend(self.get_region(region, &region.to_string()).ok());
+                        seq.extend(self.get_region(&region, &region.to_string()).ok());
                     } else if self.regions.contains_key(&with_chs.to_string()) {
                         // If this region is stored together with the CHS
-                        seq.extend(self.get_region(with_chs, &with_chs.to_string()).ok());
+                        seq.extend(self.get_region(&with_chs, &with_chs.to_string()).ok());
                         secretory_added = true;
                     } else {
                         // If this region is stored separately but some later region is combined with CHS
-                        seq.extend(self.get_region(region, &region.to_string()).ok());
+                        seq.extend(self.get_region(&region, &region.to_string()).ok());
                     }
                 }
                 if !secretory_added {
-                    seq.extend(self.get_region(Region::CHS, "CHS").ok());
+                    seq.extend(self.get_region(&Region::SecratoryTail, "CHS").ok());
                 }
                 // possibly_add(Region::M, "M")?; // TODO: Potentially find a way to also allow the membrane bound version to be stored
                 // possibly_add(Region::M1, "M1")?;
@@ -154,10 +187,10 @@ impl IMGTGene {
 
                 // Otherwise assume light chain
                 if seq.is_empty() {
-                    seq.extend(self.get_region(Region::CL, "CL").ok());
+                    seq.extend(self.get_region(&Region::ConstantLight, "CL").ok());
                 }
                 if seq.is_empty() {
-                    seq.extend(self.get_region(Region::CL, "C-REGION").ok());
+                    seq.extend(self.get_region(&Region::ConstantLight, "C-REGION").ok());
                 }
 
                 if seq.is_empty() {
@@ -171,7 +204,7 @@ impl IMGTGene {
         Ok((regions, additional_annotations))
     }
 
-    fn get_region(&self, region: Region, key: &str) -> Result<SequenceRegion, String> {
+    fn get_region(&self, region: &Region, key: &str) -> Result<SequenceRegion, String> {
         self.regions
             .get(key)
             .ok_or(format!("Could not find {key}"))
@@ -190,7 +223,7 @@ impl IMGTGene {
                     })
                     .map_err(|e| e.to_owned())
             })
-            .map(|res| (region, res))
+            .map(|res| (region.clone(), res))
     }
 }
 

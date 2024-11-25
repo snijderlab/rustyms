@@ -76,6 +76,7 @@ macro_rules! species {
                     "Expression vector pHIN-TRI" |
                     "Expression vector pSFV4" |
                     "Expression vector pTH-HIN" |
+                    "Hepacivirus hominis" |
                     "Phagemid vector pGALD7" |
                     "Phagemid vector pGALD7DL" |
                     "Phagemid vector pGALD7DLFN" |
