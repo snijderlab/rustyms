@@ -27,7 +27,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter --manifest-path ./rustyms-py/Cargo.toml
+          args: --release --out dist --find-interpreter --manifest-path ./rustyms-py/Cargo.toml --jobs 1
           sccache: "false"
           manylinux: auto
       - name: Upload wheels
