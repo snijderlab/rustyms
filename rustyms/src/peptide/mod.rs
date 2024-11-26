@@ -1,3 +1,6 @@
+//! Module concerned with peptide related processing
+
+mod annotated;
 mod complexity;
 mod compound_peptidoform;
 mod find_modifications;
@@ -10,6 +13,7 @@ mod peptidoform;
 mod tests;
 mod validate;
 
+pub use annotated::*;
 pub use complexity::*;
 pub use compound_peptidoform::*;
 pub use find_modifications::*;

@@ -18,7 +18,7 @@ use crate::shared::*;
 
 use itertools::Itertools;
 use rustyms::{
-    identification::{Annotation, Region},
+    peptide::{Annotation, Region},
     *,
 };
 use structs::{Location, SequenceRegion};

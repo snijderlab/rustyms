@@ -1,8 +1,8 @@
 use crate::{
     error::{Context, CustomError},
     helper_functions::explain_number_error,
-    identification::{AnnotatedPeptide, Annotation, IdentifiedPeptide, MetaData, Region},
-    peptide::SemiAmbiguous,
+    identification::{IdentifiedPeptide, MetaData},
+    peptide::{AnnotatedPeptide, Annotation, Region, SemiAmbiguous},
     AminoAcid, LinearPeptide, SequenceElement,
 };
 use itertools::Itertools;

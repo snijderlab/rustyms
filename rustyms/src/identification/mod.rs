@@ -3,7 +3,6 @@
 #[macro_use]
 mod common_parser;
 
-mod annotated;
 mod deepnovofamily;
 mod fasta;
 mod general;
@@ -22,7 +21,6 @@ mod powernovo;
 mod sage;
 
 use crate::*;
-pub use annotated::*;
 pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;

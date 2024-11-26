@@ -132,7 +132,7 @@ impl LinearPeptide<SemiAmbiguous> {
                     index += parameters
                         .mod_indications
                         .0
-                        .map(|p| p.len())
+                        .map(str::len)
                         .unwrap_or_default();
 
                     match peptide.sequence_mut().last_mut() {
