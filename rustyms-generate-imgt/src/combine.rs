@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::AlignScoring;
-use rustyms::identification::{Annotation, Region};
+use rustyms::peptide::{Annotation, Region};
 use rustyms::LinearPeptide;
 use rustyms::UnAmbiguous;
 

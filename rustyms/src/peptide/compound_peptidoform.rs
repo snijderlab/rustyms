@@ -128,6 +128,6 @@ impl From<Peptidoform> for CompoundPeptidoform {
 
 impl<Complexity> From<Vec<LinearPeptide<Complexity>>> for CompoundPeptidoform {
     fn from(value: Vec<LinearPeptide<Complexity>>) -> Self {
-        Self(value.into_iter().map(|p| p.into()).collect())
+        Self(value.into_iter().map(Into::into).collect())
     }
 }

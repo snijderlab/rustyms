@@ -9,7 +9,6 @@ use std::fmt::Write;
 mod formula_shared;
 
 pub use formula_shared::*;
-use ordered_float::OrderedFloat;
 
 impl From<&MolecularFormula> for OrderedMass {
     /// Create an ordered mass from the monoisotopic mass (needed for [`Multi<MolecularFormula>`](crate::Multi))
@@ -57,7 +56,7 @@ impl MolecularFormula {
         let max = isotopes
             .iter()
             .enumerate()
-            .max_by_key(|s| OrderedFloat(*s.1));
+            .max_by_key(|s| ordered_float::OrderedFloat(*s.1));
         self.monoisotopic_mass() + da(max.map_or(0, |f| f.0) as f64)
     }
 

@@ -2,8 +2,7 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 
-use crate::identification::{AnnotatedPeptide, Annotation, Region};
-use crate::peptide::UnAmbiguous;
+use crate::peptide::{AnnotatedPeptide, Annotation, Region, UnAmbiguous};
 use crate::LinearPeptide;
 
 pub use super::fancy::FancyDisplay;

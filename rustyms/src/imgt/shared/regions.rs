@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::{
-    identification::{Annotation, Region},
+    peptide::{Annotation, Region},
     LinearPeptide, UnAmbiguous,
 };
 use serde::{Deserialize, Serialize};
