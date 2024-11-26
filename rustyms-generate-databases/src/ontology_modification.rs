@@ -45,57 +45,64 @@ impl Default for ModData {
 impl OntologyModification {
     /// Simplify the placement rules
     pub fn simplify_rules(&mut self) {
-        if let ModData::Mod {
-            specificities: ref mut rules,
-            ..
-        } = self.data
-        {
-            let mut new = Vec::new();
-            for rule in rules.iter() {
-                let rule = (
-                    rule.0.clone(),
-                    rule.1.iter().unique().sorted().cloned().collect(),
-                    rule.2.iter().unique().sorted().cloned().collect(),
-                ); // Remove duplicate neutral losses and diagnostic ions, and sort for a better guarantee of equality
-                if new.is_empty() {
-                    new.push(rule.clone());
-                } else {
-                    let mut found = false;
-                    for new_rule in &mut new {
-                        // Check if there is a rule with the same neutral loss and diagnostic ions (these can be location specific)
-                        if new_rule.1 == rule.1 && new_rule.2 == rule.2 {
-                            found = true;
-                            // Check if there are other rules in this set of neutral&diagnostic that also use AA placements
-                            // If there are, and they are on the same position, merge the AA set
-                            for position in &rule.0 {
-                                let mut pos_found = false;
-                                for new_position in &mut new_rule.0 {
-                                    if let (
-                                        PlacementRule::AminoAcid(new_aa, new_pos),
-                                        PlacementRule::AminoAcid(aa, pos),
-                                    ) = (new_position, position)
-                                    {
-                                        if *new_pos == *pos {
-                                            new_aa.extend(aa);
-                                            new_aa.sort_unstable();
-                                            pos_found = true;
-                                            break;
+        match &mut self.data {
+            ModData::Mod {
+                specificities: ref mut rules,
+            } => {
+                let mut new = Vec::new();
+                for rule in rules.iter() {
+                    let rule = (
+                        rule.0.clone(),
+                        rule.1.iter().unique().sorted().cloned().collect(),
+                        rule.2.iter().unique().sorted().cloned().collect(),
+                    ); // Remove duplicate neutral losses and diagnostic ions, and sort for a better guarantee of equality
+                    if new.is_empty() {
+                        new.push(rule.clone());
+                    } else {
+                        let mut found = false;
+                        for new_rule in &mut new {
+                            // Check if there is a rule with the same neutral loss and diagnostic ions (these can be location specific)
+                            if new_rule.1 == rule.1 && new_rule.2 == rule.2 {
+                                found = true;
+                                // Check if there are other rules in this set of neutral&diagnostic that also use AA placements
+                                // If there are, and they are on the same position, merge the AA set
+                                for position in &rule.0 {
+                                    let mut pos_found = false;
+                                    for new_position in &mut new_rule.0 {
+                                        if let (
+                                            PlacementRule::AminoAcid(new_aa, new_pos),
+                                            PlacementRule::AminoAcid(aa, pos),
+                                        ) = (new_position, position)
+                                        {
+                                            if *new_pos == *pos {
+                                                for a in aa {
+                                                    if !new_aa.contains(a) {
+                                                        new_aa.push(*a);
+                                                    }
+                                                }
+                                                new_aa.sort_unstable();
+                                                pos_found = true;
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                if !pos_found {
-                                    new_rule.0.push(position.clone());
+                                    if !pos_found {
+                                        new_rule.0.push(position.clone());
+                                    }
                                 }
                             }
                         }
-                    }
-                    if !found {
-                        new.push(rule.clone());
+                        if !found {
+                            new.push(rule.clone());
+                        }
                     }
                 }
+                rules.clear();
+                rules.extend(new);
             }
-            rules.clear();
-            rules.extend(new);
+            ModData::Linker { specificities, .. } => {
+                *specificities = specificities.iter().unique().sorted().cloned().collect();
+            }
         }
     }
 
