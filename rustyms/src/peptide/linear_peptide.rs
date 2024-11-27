@@ -1402,6 +1402,41 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
         self.ambiguous_modifications.as_ref()
     }
 
+    /// Add a new global modification of unknown position
+    pub fn add_unknown_position_modification(
+        &mut self,
+        modification: SimpleModification,
+        positions: Option<Vec<PlacementRule>>,
+    ) {
+        let possible_positions = self
+            .iter(..)
+            .filter(|(position, seq)| {
+                modification
+                    .is_possible(seq, position.sequence_index)
+                    .any_possible()
+                    && (positions.is_none()
+                        || positions.as_ref().is_some_and(|rules| {
+                            rules
+                                .iter()
+                                .any(|rule| rule.is_possible(seq, position.sequence_index))
+                        }))
+            })
+            .map(|(position, _)| (position.sequence_index, None))
+            .collect_vec();
+
+        self.add_ambiguous_modification(
+            &AmbiguousModification {
+                id: self.ambiguous_modifications.len(),
+                modification,
+                localisation_score: None,
+                group: String::new(),
+                preferred: false,
+            },
+            &possible_positions,
+            None,
+        );
+    }
+
     /// Add an ambiguous modification on the given positions, the placement rules are NOT checked.
     /// The `positions` contains all sequence indices where that ambiguous modification is
     /// potentially located alongside the placement probability if known. If there is a preferred
@@ -1409,25 +1444,34 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
     pub fn add_ambiguous_modification(
         &mut self,
         modification: &AmbiguousModification,
-        positions: &[(usize, Option<OrderedFloat<f64>>)],
+        positions: &[(SequencePosition, Option<OrderedFloat<f64>>)],
         preferred_position: Option<usize>,
     ) {
         // The sorting guarantees a defined order in ambiguous modifications which
         for (pos, score) in positions {
-            self.sequence[*pos]
-                .possible_modifications
-                .push(AmbiguousModification {
-                    localisation_score: *score,
-                    preferred: preferred_position.is_some_and(|p| p == *pos),
-                    ..modification.clone()
-                });
-            self.sequence[*pos]
-                .possible_modifications
-                .sort_unstable_by(|a, b| a.id.cmp(&b.id));
+            if let SequencePosition::Index(pos) = pos {
+                self.sequence[*pos]
+                    .possible_modifications
+                    .push(AmbiguousModification {
+                        localisation_score: *score,
+                        preferred: preferred_position.is_some_and(|p| p == *pos),
+                        ..modification.clone()
+                    });
+                self.sequence[*pos]
+                    .possible_modifications
+                    .sort_unstable_by(|a, b| a.id.cmp(&b.id));
+            } // TODO: fix applying ambiguous mods to terminal positions at some point
         }
-        self.ambiguous_modifications
-            .push(positions.iter().map(|(p, _)| *p).collect());
-        self.ambiguous_modifications.sort_unstable();
+        self.ambiguous_modifications.push(
+            positions
+                .iter()
+                .filter_map(|(p, _)| match p {
+                    SequencePosition::Index(i) => Some(*i),
+                    _ => None,
+                })
+                .sorted_unstable()
+                .collect(),
+        );
     }
 }
 

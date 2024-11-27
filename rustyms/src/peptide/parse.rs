@@ -508,7 +508,7 @@ impl CompoundPeptidoform {
             };
             let positions = ambiguous
                 .iter()
-                .map(|(index, _, _, score)| (*index, *score))
+                .map(|(index, _, _, score)| (SequencePosition::Index(*index), *score))
                 .collect_vec();
             let preferred = ambiguous.iter().find(|p| p.1).map(|p| p.0);
             peptide.add_ambiguous_modification(&modification, &positions, preferred);

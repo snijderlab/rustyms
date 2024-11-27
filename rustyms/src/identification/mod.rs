@@ -16,6 +16,7 @@ mod novor;
 mod opair;
 mod peaks;
 mod pepnet;
+mod plgs;
 mod plink;
 mod powernovo;
 mod sage;
@@ -34,6 +35,7 @@ pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
 pub use pepnet::*;
+pub use plgs::*;
 pub use plink::*;
 pub use powernovo::*;
 pub use sage::*;
@@ -58,6 +60,8 @@ mod opair_tests;
 mod peaks_tests;
 #[cfg(test)]
 mod pepnet_tests;
+#[cfg(test)]
+mod plgs_tests;
 #[cfg(test)]
 mod plink_tests;
 #[cfg(test)]

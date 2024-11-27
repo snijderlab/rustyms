@@ -172,7 +172,7 @@ impl LinearPeptide<Linear> {
                         .is_possible(&self.sequence()[*i], SequencePosition::Index(*i))
                         .any_possible()
                 })
-                .map(|p| (p, None))
+                .map(|p| (SequencePosition::Index(p), None))
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
@@ -213,7 +213,7 @@ impl LinearPeptide<Linear> {
                         .any_possible()
                         .then_some(i)
                 })
-                .map(|p| (p, None))
+                .map(|p| (SequencePosition::Index(p), None))
                 .collect_vec();
             if positions.is_empty() {
                 return Err(CustomError::error("Modification of unknown position on a range cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));

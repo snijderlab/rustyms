@@ -102,7 +102,7 @@ format_family!(
             }
         }
         if parsed.peptide.is_none() {
-            parsed.peptide = parsed.extended_peptide[1].clone();
+            parsed.peptide.clone_from(&parsed.extended_peptide[1]);
         }
         Ok(parsed)
     }
