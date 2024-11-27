@@ -10,10 +10,10 @@ use crate::{
         deepnovofamily::DeepNovoFamilyData, fasta::FastaData, instanovo::InstaNovoData,
         novob::NovoBData, novor::NovorData, opair::OpairData, peaks::PeaksData, pepnet::PepNetData,
         plink::PLinkData, powernovo::PowerNovoData, system::MassOverCharge, MSFraggerData,
-        MZTabData, MaxQuantData, SageData,
+        MZTabData, MaxQuantData, PLGSData, SageData,
     },
     ontologies::CustomDatabase,
-    peptide::SemiAmbiguous,
+    peptide::{SemiAmbiguous, SimpleLinear},
     system::usize::Charge,
     system::Time,
     LinearPeptide, Peptidoform,
@@ -34,7 +34,7 @@ pub struct IdentifiedPeptide {
 
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, clippy::upper_case_acronyms)]
 pub enum MetaData {
     /// DeepNovo/PointNovo/PGPointNovo metadata
     DeepNovoFamily(DeepNovoFamilyData),
@@ -58,6 +58,8 @@ pub enum MetaData {
     Peaks(PeaksData),
     /// PepNet metadata
     PepNet(PepNetData),
+    /// PLGS metadata
+    PLGS(PLGSData),
     /// pLink metadata
     PLink(PLinkData),
     /// PowerNovo metadata
@@ -69,8 +71,10 @@ pub enum MetaData {
 /// A peptide as stored in a identified peptide file, either a simple linear one or a cross-linked peptidoform
 #[derive(Debug, Clone)]
 pub enum ReturnedPeptide<'a> {
+    /// A semi ambiguous linear peptide
+    LinearSemiAmbiguous(&'a LinearPeptide<SemiAmbiguous>),
     /// A simple linear peptide
-    Linear(&'a LinearPeptide<SemiAmbiguous>),
+    LinearSimpleLinear(&'a LinearPeptide<SimpleLinear>),
     /// A (potentially) cross-linked peptidoform
     Peptidoform(&'a Peptidoform),
     /// A (potentially) cross-linked chimeric set of peptidoforms
@@ -84,7 +88,8 @@ impl<'a> MultiChemical for ReturnedPeptide<'a> {
         _peptide_index: usize,
     ) -> super::Multi<super::MolecularFormula> {
         match self {
-            Self::Linear(p) => p.formulas(),
+            Self::LinearSemiAmbiguous(p) => p.formulas(),
+            Self::LinearSimpleLinear(p) => p.formulas(),
             Self::Peptidoform(p) => p.formulas(),
             Self::CompoundPeptidoform(p) => p.formulas(),
         }
@@ -94,7 +99,8 @@ impl<'a> MultiChemical for ReturnedPeptide<'a> {
 impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Linear(p) => write!(f, "{p}"),
+            Self::LinearSemiAmbiguous(p) => write!(f, "{p}"),
+            Self::LinearSimpleLinear(p) => write!(f, "{p}"),
             Self::Peptidoform(p) => write!(f, "{p}"),
             Self::CompoundPeptidoform(p) => write!(f, "{p}"),
         }
@@ -104,16 +110,18 @@ impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
 #[allow(dead_code)]
 impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying peptide, or None if the underlying result was a peptidoform
-    pub fn peptide(self) -> Option<&'a LinearPeptide<SemiAmbiguous>> {
+    pub fn peptide(self) -> Option<Cow<'a, LinearPeptide<SimpleLinear>>> {
         match self {
-            Self::Linear(p) => Some(p),
+            Self::LinearSemiAmbiguous(p) => Some(Cow::Owned(p.clone().into())),
+            Self::LinearSimpleLinear(p) => Some(Cow::Borrowed(p)),
             Self::Peptidoform(_) | Self::CompoundPeptidoform(_) => None,
         }
     }
     /// Get the underlying result as a peptidoform, if it was a peptide make a new peptidoform from it
     pub fn peptidoform(self) -> Option<Cow<'a, Peptidoform>> {
         match self {
-            Self::Linear(p) => Some(Cow::Owned(p.clone().into())),
+            Self::LinearSemiAmbiguous(p) => Some(Cow::Owned(p.clone().into())),
+            Self::LinearSimpleLinear(p) => Some(Cow::Owned(p.clone().into())),
             Self::Peptidoform(p) => Some(Cow::Borrowed(p)),
             Self::CompoundPeptidoform(_) => None,
         }
@@ -121,7 +129,8 @@ impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying result as a compound peptidoform, if it was a peptide make a new peptidoform from it
     pub fn compound_peptidoform(self) -> Cow<'a, CompoundPeptidoform> {
         match self {
-            Self::Linear(p) => Cow::Owned(p.clone().into()),
+            Self::LinearSemiAmbiguous(p) => Cow::Owned(p.clone().into()),
+            Self::LinearSimpleLinear(p) => Cow::Owned(p.clone().into()),
             Self::Peptidoform(p) => Cow::Owned(p.clone().into()),
             Self::CompoundPeptidoform(p) => p,
         }
@@ -140,7 +149,8 @@ impl<'a> ReturnedPeptide<'a> {
         specification_compliant: bool,
     ) -> std::fmt::Result {
         match self {
-            Self::Linear(p) => p.display(f, show_global_mods, specification_compliant),
+            Self::LinearSemiAmbiguous(p) => p.display(f, show_global_mods, specification_compliant),
+            Self::LinearSimpleLinear(p) => p.display(f, show_global_mods, specification_compliant),
             Self::Peptidoform(p) => p.display(f, show_global_mods, specification_compliant),
             Self::CompoundPeptidoform(p) => p.display(f, specification_compliant),
         }
@@ -152,14 +162,20 @@ impl IdentifiedPeptide {
     pub fn peptide(&self) -> Option<ReturnedPeptide<'_>> {
         match &self.metadata {
             MetaData::Novor(NovorData { peptide, .. })
-            | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::InstaNovo(InstaNovoData { peptide, .. })
-            | MetaData::PowerNovo(PowerNovoData { peptide, .. })
+            | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::PepNet(PepNetData { peptide, .. })
-            | MetaData::Sage(SageData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
+            | MetaData::PowerNovo(PowerNovoData { peptide, .. })
+            | MetaData::Sage(SageData { peptide, .. })
+            | MetaData::MZTab(MZTabData { peptide, .. }) => {
+                Some(ReturnedPeptide::LinearSemiAmbiguous(peptide))
+            }
+            MetaData::PLGS(PLGSData { peptide, .. }) => {
+                Some(ReturnedPeptide::LinearSimpleLinear(peptide))
+            }
             MetaData::Peaks(PeaksData { peptide, .. }) => {
                 if peptide.1.len() == 1 {
-                    Some(ReturnedPeptide::Linear(&peptide.1[0]))
+                    Some(ReturnedPeptide::LinearSemiAmbiguous(&peptide.1[0]))
                 } else {
                     Some(ReturnedPeptide::CompoundPeptidoform(Cow::Owned(
                         peptide.1.clone().into(),
@@ -170,9 +186,9 @@ impl IdentifiedPeptide {
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
-                peptide.as_ref().map(ReturnedPeptide::Linear)
+                peptide.as_ref().map(ReturnedPeptide::LinearSemiAmbiguous)
             }
-            MetaData::Fasta(f) => Some(ReturnedPeptide::Linear(f.peptide())),
+            MetaData::Fasta(f) => Some(ReturnedPeptide::LinearSemiAmbiguous(f.peptide())),
             MetaData::PLink(PLinkData { peptidoform, .. }) => {
                 Some(ReturnedPeptide::Peptidoform(peptidoform))
             }
@@ -184,9 +200,13 @@ impl IdentifiedPeptide {
                 ..
             }) => {
                 if score_forward >= score_reverse {
-                    peptide_forward.as_ref().map(ReturnedPeptide::Linear)
+                    peptide_forward
+                        .as_ref()
+                        .map(ReturnedPeptide::LinearSemiAmbiguous)
                 } else {
-                    peptide_reverse.as_ref().map(ReturnedPeptide::Linear)
+                    peptide_reverse
+                        .as_ref()
+                        .map(ReturnedPeptide::LinearSemiAmbiguous)
                 }
             }
         }
@@ -201,11 +221,12 @@ impl IdentifiedPeptide {
             MetaData::MaxQuant(_) => "MaxQuant",
             MetaData::MSFragger(_) => "MSFragger",
             MetaData::MZTab(_) => "mzTab",
+            MetaData::NovoB(_) => "NovoB",
             MetaData::Novor(_) => "Novor",
             MetaData::Opair(_) => "OPair",
-            MetaData::NovoB(_) => "NovoB",
             MetaData::Peaks(_) => "PEAKS",
             MetaData::PepNet(_) => "PepNet",
+            MetaData::PLGS(_) => "ProteinLync Global Server",
             MetaData::PLink(_) => "pLink",
             MetaData::PowerNovo(_) => "PowerNovo",
             MetaData::Sage(_) => "Sage",
@@ -215,20 +236,21 @@ impl IdentifiedPeptide {
     /// Get the format version detected
     pub fn format_version(&self) -> String {
         match &self.metadata {
-            MetaData::Fasta(_) => "Fasta".to_string(),
-            MetaData::MZTab(_) => "mzTab 1.0".to_string(),
-            MetaData::MaxQuant(MaxQuantData { version, .. }) => version.to_string(),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
+            MetaData::Fasta(_) => "Fasta".to_string(),
+            MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
+            MetaData::MaxQuant(MaxQuantData { version, .. }) => version.to_string(),
             MetaData::MSFragger(MSFraggerData { version, .. }) => version.to_string(),
+            MetaData::MZTab(_) => "mzTab 1.0".to_string(),
+            MetaData::NovoB(NovoBData { version, .. }) => version.to_string(),
             MetaData::Novor(NovorData { version, .. }) => version.to_string(),
             MetaData::Opair(OpairData { version, .. }) => version.to_string(),
             MetaData::Peaks(PeaksData { version, .. }) => version.to_string(),
+            MetaData::PepNet(PepNetData { version, .. }) => version.to_string(),
+            MetaData::PLGS(PLGSData { version, .. }) => version.to_string(),
             MetaData::PLink(PLinkData { version, .. }) => version.to_string(),
-            MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
             MetaData::PowerNovo(PowerNovoData { version, .. }) => version.to_string(),
             MetaData::Sage(SageData { version, .. }) => version.to_string(),
-            MetaData::PepNet(PepNetData { version, .. }) => version.to_string(),
-            MetaData::NovoB(NovoBData { version, .. }) => version.to_string(),
         }
     }
 
@@ -264,6 +286,10 @@ impl IdentifiedPeptide {
                 scan.as_ref().map_or("-".to_string(), ToString::to_string)
             }
             MetaData::PepNet(_) => "-".to_string(),
+            MetaData::PLGS(PLGSData {
+                peptide_component_id,
+                ..
+            }) => peptide_component_id.to_string(),
         }
     }
 
@@ -305,6 +331,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::NovoB(NovoBData { z, .. })
+            | MetaData::PLGS(PLGSData { precursor_z: z, .. })
             | MetaData::PLink(PLinkData { z, .. })
             | MetaData::InstaNovo(InstaNovoData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
@@ -329,6 +356,9 @@ impl IdentifiedPeptide {
             MetaData::Peaks(PeaksData { rt, .. })
             | MetaData::Opair(OpairData { rt, .. })
             | MetaData::Sage(SageData { rt, .. })
+            | MetaData::PLGS(PLGSData {
+                precursor_rt: rt, ..
+            })
             | MetaData::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
@@ -427,7 +457,7 @@ impl IdentifiedPeptide {
             MetaData::Sage(SageData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
             }
-            MetaData::Fasta(_) | MetaData::PepNet(_) => SpectrumIds::None,
+            MetaData::Fasta(_) | MetaData::PepNet(_) | MetaData::PLGS(_) => SpectrumIds::None,
         }
     }
 
@@ -438,6 +468,9 @@ impl IdentifiedPeptide {
             | MetaData::Novor(NovorData { mz, .. })
             | MetaData::Opair(OpairData { mz, .. })
             | MetaData::InstaNovo(InstaNovoData { mz, .. })
+            | MetaData::PLGS(PLGSData {
+                precursor_mz: mz, ..
+            })
             | MetaData::MSFragger(MSFraggerData { mz, .. }) => Some(*mz),
             MetaData::MZTab(MZTabData { mz, .. }) | MetaData::MaxQuant(MaxQuantData { mz, .. }) => {
                 *mz
@@ -470,7 +503,12 @@ impl IdentifiedPeptide {
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
-            MetaData::InstaNovo(InstaNovoData { mz, z, .. }) => Some(*mz * z.to_float()),
+            MetaData::InstaNovo(InstaNovoData { mz, z, .. })
+            | MetaData::PLGS(PLGSData {
+                precursor_mz: mz,
+                precursor_z: z,
+                ..
+            }) => Some(*mz * z.to_float()),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
                 mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
             }
