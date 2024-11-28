@@ -27,7 +27,7 @@ use super::modification::SimpleModificationInner;
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct MZTabData {
     /// The peptide's sequence corresponding to the PSM
-    pub peptide: LinearPeptide<SemiAmbiguous>,
+    pub peptide: Option<LinearPeptide<SemiAmbiguous>>,
     /// A unique identifier for a PSM within the file. If a PSM can be matched to
     /// multiple proteins, the same PSM should be represented on multiple rows with
     /// different accessions and the same PSM_ID.
@@ -307,27 +307,37 @@ impl MZTabData {
 
         Ok(Self {
             peptide: {
-                let mut peptide = LinearPeptide::sloppy_pro_forma(
-                    line.line,
-                    line.required_column("sequence")?.1,
-                    custom_database,
-                    &SloppyParsingParameters {
-                        allow_unwrapped_modifications: true,
-                        ..Default::default()
-                    },
-                )?;
-                for (location, modification) in modifications {
-                    match location {
-                        0 => peptide.set_simple_n_term(Some(modification)),
-                        c if c == peptide.len() + 1 => {
-                            peptide.set_simple_c_term(Some(modification));
+                let range = line.required_column("sequence")?.1;
+
+                if range.is_empty() {
+                    None
+                } else {
+                    let mut peptide = LinearPeptide::sloppy_pro_forma(
+                        line.line,
+                        range,
+                        custom_database,
+                        &SloppyParsingParameters {
+                            allow_unwrapped_modifications: true,
+                            ..Default::default()
+                        },
+                    )?;
+                    for (location, modification) in modifications {
+                        match location {
+                            0 => peptide.set_simple_n_term(Some(modification)),
+                            c if c == peptide.len() + 1 => {
+                                peptide.set_simple_c_term(Some(modification));
+                            }
+                            i => {
+                                peptide.sequence_mut()[i - 1].add_simple_modification(modification)
+                            }
                         }
-                        i => peptide.sequence_mut()[i - 1].add_simple_modification(modification),
                     }
+                    Some(
+                        PeptideModificationSearch::in_modifications(global_modifications.to_vec())
+                            .tolerance(Tolerance::new_ppm(20.0))
+                            .search(peptide),
+                    )
                 }
-                PeptideModificationSearch::in_modifications(global_modifications.to_vec())
-                    .tolerance(Tolerance::new_ppm(20.0))
-                    .search(peptide)
             },
             id: line.required_column("psm_id")?.0.parse().map_err(|err| {
                 CustomError::error(
@@ -588,6 +598,7 @@ impl MZTabData {
                 .transpose()?,
             local_confidence: line
                 .optional_column("opt_ms_run[1]_aa_scores")
+                .filter(|(lc, _)| !lc.trim().is_empty())
                 .map(|(v, r)| {
                     v.split(',')
                         .map(|score| {

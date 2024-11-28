@@ -156,8 +156,7 @@ impl IdentifiedPeptide {
             | MetaData::InstaNovo(InstaNovoData { peptide, .. })
             | MetaData::PowerNovo(PowerNovoData { peptide, .. })
             | MetaData::PepNet(PepNetData { peptide, .. })
-            | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::MZTab(MZTabData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
+            | MetaData::Sage(SageData { peptide, .. }) => Some(ReturnedPeptide::Linear(peptide)),
             MetaData::Peaks(PeaksData { peptide, .. }) => {
                 if peptide.1.len() == 1 {
                     Some(ReturnedPeptide::Linear(&peptide.1[0]))
@@ -169,6 +168,7 @@ impl IdentifiedPeptide {
             }
             MetaData::MSFragger(MSFraggerData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
+            | MetaData::MZTab(MZTabData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
                 peptide.as_ref().map(ReturnedPeptide::Linear)
             }
@@ -768,70 +768,8 @@ where
         let peptide: IdentifiedPeptide = peptide.map_err(|e| e.to_string())?.into();
         number += 1;
 
-        if peptide
-            .peptide()
-            .and_then(ReturnedPeptide::peptide)
-            .map(LinearPeptide::len)
-            != peptide.local_confidence().map(<[f64]>::len)
-        {
-            if expect_lc && peptide.local_confidence.is_none() {
-                return Err(format!(
-                    "No local confidence was provided for peptide {}",
-                    peptide.id()
-                ));
-            } else if peptide.local_confidence.is_some() {
-                return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0, LinearPeptide::len), peptide.id()));
-            }
-        }
-        if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
-            return Err(format!(
-                "The score {} for peptide {} is outside of range",
-                peptide.score.unwrap(),
-                peptide.id()
-            ));
-        }
-        if peptide
-            .local_confidence
-            .as_ref()
-            .is_some_and(|s| s.iter().any(|s| !(-1.0..=1.0).contains(s)))
-        {
-            return Err(format!(
-                "The local score {} for peptide {} is outside of range",
-                peptide.local_confidence().unwrap().iter().join(","),
-                peptide.id()
-            ));
-        }
-        if !allow_mass_mods
-            && peptide.peptide().is_some_and(|p| {
-                p.compound_peptidoform().peptides().any(|p| {
-                    p.sequence().iter().any(|s| {
-                        s.modifications.iter().any(|m| {
-                            m.simple().is_some_and(|m| {
-                                matches!(**m, crate::modification::SimpleModificationInner::Mass(_))
-                            })
-                        })
-                    })
-                })
-            })
-        {
-            return Err(format!(
-                "Peptide {} contains mass modifications, sequence {}",
-                peptide.id(),
-                peptide.peptide().unwrap(),
-            ));
-        }
-        if let Err(err) = peptide.peptide().map_or(Ok(()), |p| {
-            p.compound_peptidoform()
-                .peptides()
-                .try_for_each(LinearPeptide::enforce_modification_rules)
-        }) {
-            return Err(format!(
-                "Peptide {} contains misplaced modifications, sequence {}\n{}",
-                peptide.id(),
-                peptide.peptide().unwrap(),
-                err
-            ));
-        }
+        test_identified_peptide(&peptide, allow_mass_mods, expect_lc)?;
+
         if format
             .as_ref()
             .is_some_and(|f| f.to_string() != peptide.format_version())
@@ -845,6 +783,79 @@ where
         }
     }
     Ok(number)
+}
+
+#[cfg(test)]
+pub fn test_identified_peptide(
+    peptide: &IdentifiedPeptide,
+    allow_mass_mods: bool,
+    expect_lc: bool,
+) -> Result<(), String> {
+    if peptide
+        .peptide()
+        .and_then(ReturnedPeptide::peptide)
+        .map(LinearPeptide::len)
+        != peptide.local_confidence().map(<[f64]>::len)
+    {
+        if expect_lc && peptide.local_confidence.is_none() {
+            return Err(format!(
+                "No local confidence was provided for peptide {}",
+                peptide.id()
+            ));
+        } else if peptide.local_confidence.is_some() {
+            return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0, LinearPeptide::len), peptide.id()));
+        }
+    }
+    if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
+        return Err(format!(
+            "The score {} for peptide {} is outside of range",
+            peptide.score.unwrap(),
+            peptide.id()
+        ));
+    }
+    if peptide
+        .local_confidence
+        .as_ref()
+        .is_some_and(|s| s.iter().any(|s| !(-1.0..=1.0).contains(s)))
+    {
+        return Err(format!(
+            "The local score {} for peptide {} is outside of range",
+            peptide.local_confidence().unwrap().iter().join(","),
+            peptide.id()
+        ));
+    }
+    if !allow_mass_mods
+        && peptide.peptide().is_some_and(|p| {
+            p.compound_peptidoform().peptides().any(|p| {
+                p.sequence().iter().any(|s| {
+                    s.modifications.iter().any(|m| {
+                        m.simple().is_some_and(|m| {
+                            matches!(**m, crate::modification::SimpleModificationInner::Mass(_))
+                        })
+                    })
+                })
+            })
+        })
+    {
+        return Err(format!(
+            "Peptide {} contains mass modifications, sequence {}",
+            peptide.id(),
+            peptide.peptide().unwrap(),
+        ));
+    }
+    if let Err(err) = peptide.peptide().map_or(Ok(()), |p| {
+        p.compound_peptidoform()
+            .peptides()
+            .try_for_each(LinearPeptide::enforce_modification_rules)
+    }) {
+        return Err(format!(
+            "Peptide {} contains misplaced modifications, sequence {}\n{}",
+            peptide.id(),
+            peptide.peptide().unwrap(),
+            err
+        ));
+    }
+    Ok(())
 }
 
 /// The scans identifier for a peaks identification
