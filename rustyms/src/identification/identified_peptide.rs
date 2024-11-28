@@ -497,18 +497,17 @@ impl IdentifiedPeptide {
             }
             MetaData::Novor(NovorData { mass, .. })
             | MetaData::Opair(OpairData { mass, .. })
+            | MetaData::PLGS(PLGSData {
+                precursor_mass: mass,
+                ..
+            })
             | MetaData::NovoB(NovoBData { mass, .. })
             | MetaData::MSFragger(MSFraggerData { mass, .. })
             | MetaData::PLink(PLinkData { mass, .. })
             | MetaData::Sage(SageData { mass, .. }) => Some(*mass),
             MetaData::MaxQuant(MaxQuantData { mass, .. }) => *mass,
             MetaData::MZTab(MZTabData { mz, z, .. }) => mz.map(|mz| mz * z.to_float()),
-            MetaData::InstaNovo(InstaNovoData { mz, z, .. })
-            | MetaData::PLGS(PLGSData {
-                precursor_mz: mz,
-                precursor_z: z,
-                ..
-            }) => Some(*mz * z.to_float()),
+            MetaData::InstaNovo(InstaNovoData { mz, z, .. }) => Some(*mz * z.to_float()),
             MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
                 mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
             }

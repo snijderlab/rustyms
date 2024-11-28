@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     error::{Context, CustomError},
-    modification::{AmbiguousModification, CrossLinkName, SimpleModification},
+    modification::{CrossLinkName, SimpleModification},
     LinearPeptide, Modification, Peptidoform, SequencePosition,
 };
 
@@ -163,31 +163,14 @@ impl LinearPeptide<Linear> {
         &mut self,
         unknown_position_modifications: &[SimpleModification],
     ) -> Result<(), CustomError> {
-        for (unknown_mod_index, modification) in unknown_position_modifications.iter().enumerate() {
-            let id = self.get_ambiguous_modifications().len();
-            let length = self.len();
-            let positions = (0..length)
-                .filter(|i| {
-                    modification
-                        .is_possible(&self.sequence()[*i], SequencePosition::Index(*i))
-                        .any_possible()
-                })
-                .map(|p| (SequencePosition::Index(p), None))
-                .collect_vec();
-            if positions.is_empty() {
-                return Err(CustomError::error("Modification of unknown position cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
+        for modification in unknown_position_modifications {
+            if !self.add_unknown_position_modification(modification.clone(), None, ..) {
+                return Err(CustomError::error(
+                    "Modification of unknown position cannot be placed", 
+                    "There is no position where this modification can be placed based on the placement rules in the database.",
+                     Context::show(modification)
+                    ));
             }
-            self.add_ambiguous_modification(
-                &AmbiguousModification {
-                    id,
-                    modification: modification.clone(),
-                    localisation_score: None,
-                    group: format!("u{unknown_mod_index}"),
-                    preferred: false,
-                },
-                &positions,
-                None,
-            );
         }
         Ok(())
     }
@@ -200,37 +183,15 @@ impl LinearPeptide<Linear> {
     pub(super) fn apply_ranged_unknown_position_modification(
         &mut self,
         ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
-        mut start_ambiguous_index: usize,
-        mut start_ambiguous_group_id: usize,
     ) -> Result<(), CustomError> {
         for (start, end, modification) in ranged_unknown_position_modifications {
-            #[allow(clippy::unnecessary_filter_map)]
-            // Side effects so the lint does not apply here
-            let positions = (*start..=*end)
-                .filter_map(|i| {
-                    modification
-                        .is_possible(&self.sequence()[i], SequencePosition::Index(i))
-                        .any_possible()
-                        .then_some(i)
-                })
-                .map(|p| (SequencePosition::Index(p), None))
-                .collect_vec();
-            if positions.is_empty() {
-                return Err(CustomError::error("Modification of unknown position on a range cannot be placed", "There is no position where this modification can be placed based on the placement rules in the database.", Context::show(modification)));
+            if !self.add_unknown_position_modification(modification.clone(), None, start..end) {
+                return Err(CustomError::error(
+                    "Modification of unknown position on a range cannot be placed", 
+                    "There is no position where this modification can be placed based on the placement rules in the database.", 
+                    Context::show(modification)
+                ));
             }
-            self.add_ambiguous_modification(
-                &AmbiguousModification {
-                    id: start_ambiguous_index,
-                    modification: modification.clone(),
-                    localisation_score: None,
-                    group: format!("u{start_ambiguous_group_id}"),
-                    preferred: false,
-                },
-                &positions,
-                None,
-            );
-            start_ambiguous_index += 1;
-            start_ambiguous_group_id += 1;
         }
         Ok(())
     }

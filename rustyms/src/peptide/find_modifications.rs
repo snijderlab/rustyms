@@ -294,7 +294,7 @@ impl PeptideModificationSearch {
                 Modification::Simple(simple) => settings
                     .find_replacement(position, aminoacid, simple)
                     .map(Modification::Simple),
-                Modification::CrossLink { .. } => None, // TODO: potentially the cross-linker could be replaced?
+                Modification::CrossLink { .. } | Modification::Ambiguous { .. } => None, // TODO: potentially the cross-linker could be replaced?
             }
         }
 
@@ -323,52 +323,32 @@ impl PeptideModificationSearch {
             let is_c_term = index == len;
             let mut remove = None;
             for (i, m) in position.modifications.iter_mut().enumerate() {
-                if let Some(simple) = m.simple() {
-                    if let Some((replace, location)) = find_replacement_all_positions(
-                        self,
-                        is_n_term,
-                        is_c_term,
-                        Some(position.aminoacid.aminoacid()),
-                        simple,
-                    ) {
-                        if location == Position::AnyNTerm && n_term.is_none() {
-                            n_term = Some(Modification::Simple(replace));
-                            remove = Some(i);
-                        } else if location == Position::AnyCTerm && c_term.is_none() {
-                            c_term = Some(Modification::Simple(replace));
-                            remove = Some(i);
-                        } else if location == Position::Anywhere {
-                            *m = Modification::Simple(replace);
+                match m {
+                    Modification::Simple(modification) => {
+                        if let Some((replace, location)) = find_replacement_all_positions(
+                            self,
+                            is_n_term,
+                            is_c_term,
+                            Some(position.aminoacid.aminoacid()),
+                            &modification,
+                        ) {
+                            if location == Position::AnyNTerm && n_term.is_none() {
+                                n_term = Some(Modification::Simple(replace));
+                                remove = Some(i);
+                            } else if location == Position::AnyCTerm && c_term.is_none() {
+                                c_term = Some(Modification::Simple(replace));
+                                remove = Some(i);
+                            } else if location == Position::Anywhere {
+                                *m = Modification::Simple(replace);
+                            }
+                            // If it can only be a terminal mod but there already is a terminal mod keep it in the original state
                         }
-                        // If it can only be a terminal mod but there already is a terminal mod keep it in the original state
                     }
+                    Modification::Ambiguous { .. } | Modification::CrossLink { .. } => (), //TODO: potentially the cross-linker could be replaced as well as the ambiguous mod, but that takes some more logic
                 }
             }
             if let Some(remove) = remove.take() {
                 position.modifications.remove(remove);
-            }
-            for (i, m) in position.possible_modifications.iter_mut().enumerate() {
-                if let Some((replace, location)) = find_replacement_all_positions(
-                    self,
-                    is_n_term,
-                    is_c_term,
-                    Some(position.aminoacid.aminoacid()),
-                    &m.modification,
-                ) {
-                    if location == Position::AnyNTerm && n_term.is_none() {
-                        n_term = Some(Modification::Simple(replace));
-                        remove = Some(i);
-                    } else if location == Position::AnyCTerm && c_term.is_none() {
-                        c_term = Some(Modification::Simple(replace));
-                        remove = Some(i);
-                    } else if location == Position::Anywhere {
-                        m.modification = replace;
-                    }
-                    // If it can only be a terminal mod but there already is a terminal mod keep it in the original state
-                }
-            }
-            if let Some(remove) = remove.take() {
-                position.possible_modifications.remove(remove);
             }
         }
         for m in peptide.get_labile_mut_inner() {

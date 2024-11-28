@@ -479,17 +479,19 @@ impl Modification {
         peptide_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
-            // A linker that is not cross-linked is hydrolysed
-            Self::Simple(sim) => match &**sim {
-                SimpleModificationInner::Linker { formula, .. } => (
-                    (formula.clone() + molecular_formula!(H 2 O 1)).into(),
-                    HashSet::new(),
-                ),
-                s => (
-                    s.formula_inner(sequence_index, peptide_index).into(),
-                    HashSet::new(),
-                ),
-            },
+            Self::Simple(modification) | Self::Ambiguous { modification, .. } => {
+                match &**modification {
+                    // A linker that is not cross-linked is hydrolysed
+                    SimpleModificationInner::Linker { formula, .. } => (
+                        (formula.clone() + molecular_formula!(H 2 O 1)).into(),
+                        HashSet::new(),
+                    ),
+                    s => (
+                        s.formula_inner(sequence_index, peptide_index).into(),
+                        HashSet::new(),
+                    ),
+                }
+            }
             Self::CrossLink {
                 peptide: other_peptide,
                 linker,
@@ -565,6 +567,7 @@ impl Modification {
         match self {
             Self::Simple(s) => s.formula(),
             Self::CrossLink { linker, .. } => linker.formula(),
+            Self::Ambiguous { modification, .. } => modification.formula(),
         }
     }
 }
@@ -574,7 +577,7 @@ impl Modification {
     pub const fn simple(&self) -> Option<&SimpleModification> {
         match self {
             Self::Simple(sim) => Some(sim),
-            Self::CrossLink { .. } => None,
+            Self::CrossLink { .. } | Self::Ambiguous { .. } => None,
         }
     }
 
@@ -582,7 +585,7 @@ impl Modification {
     pub fn into_simple(self) -> Option<SimpleModification> {
         match self {
             Self::Simple(sim) => Some(sim),
-            Self::CrossLink { .. } => None,
+            Self::CrossLink { .. } | Self::Ambiguous { .. } => None,
         }
     }
 
@@ -590,8 +593,12 @@ impl Modification {
     #[allow(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
-            Self::Simple(modification) => modification.ontology_url(),
-            Self::CrossLink { linker, .. } => linker.ontology_url(),
+            Self::Simple(modification)
+            | Self::Ambiguous { modification, .. }
+            | Self::CrossLink {
+                linker: modification,
+                ..
+            } => modification.ontology_url(),
         }
     }
 
@@ -617,17 +624,17 @@ impl Modification {
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
-        if let Self::Simple(simple) = self {
-            simple.generate_theoretical_fragments(
-                model,
-                peptidoform_index,
-                peptide_index,
-                charge_carriers,
-                full_formula,
-                attachment,
-            )
-        } else {
-            Vec::new()
+        match self {
+            Self::Simple(modification) | Self::Ambiguous { modification, .. } => modification
+                .generate_theoretical_fragments(
+                    model,
+                    peptidoform_index,
+                    peptide_index,
+                    charge_carriers,
+                    full_formula,
+                    attachment,
+                ),
+            Self::CrossLink { .. } => Vec::new(),
         }
     }
 }
@@ -682,32 +689,6 @@ pub type AmbiguousLookup = Vec<(String, Option<SimpleModification>)>;
 /// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name or None if it is a branch and the actual linker itself (if already defined)
 pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 
-/// An ambiguous modification which could be placed on any of a set of locations
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub struct AmbiguousModification {
-    /// The id to compare be able to find the other locations where this modifications can be placed
-    pub id: usize,
-    /// The modification itself
-    pub modification: SimpleModification,
-    /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
-    pub localisation_score: Option<OrderedFloat<f64>>,
-    /// The name of the group
-    pub group: String,
-    /// If this is the preferred location or not
-    pub preferred: bool,
-}
-
-impl Chemical for AmbiguousModification {
-    fn formula_inner(
-        &self,
-        sequence_index: SequencePosition,
-        peptide_index: usize,
-    ) -> MolecularFormula {
-        self.modification
-            .formula_inner(sequence_index, peptide_index)
-    }
-}
-
 impl Modification {
     /// Display a modification either normalised to the internal representation or as fully valid ProForma
     /// (no glycan structure or custom modifications).
@@ -716,7 +697,27 @@ impl Modification {
     pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
         match self {
             Self::Simple(sim) => sim.display(f, specification_compliant),
-            Self::CrossLink { name, linker, .. } => write!(f, "{linker}{name}"),
+            Self::CrossLink { name, linker, .. } => {
+                linker.display(f, specification_compliant)?;
+                write!(f, "{name}")?;
+                Ok(())
+            }
+            Self::Ambiguous {
+                group,
+                modification,
+                localisation_score,
+                ..
+            } => {
+                modification.display(f, specification_compliant)?;
+                write!(
+                    f,
+                    "\x23{group}{}",
+                    localisation_score
+                        .map(|v| format!("({v})"))
+                        .unwrap_or_default()
+                )?;
+                Ok(())
+            }
         }
     }
 }

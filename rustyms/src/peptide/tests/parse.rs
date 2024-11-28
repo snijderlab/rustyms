@@ -272,8 +272,8 @@ fn parse_ambiguous_modification() {
     let without = LinearPeptide::pro_forma("AA", None).unwrap();
     assert_eq!(with.len(), 2);
     assert_eq!(without.len(), 2);
-    assert_eq!(with[0].possible_modifications.len(), 1);
-    assert_eq!(with[1].possible_modifications.len(), 1);
+    assert_eq!(with[0].modifications.len(), 1);
+    assert_eq!(with[1].modifications.len(), 1);
     assert!(CompoundPeptidoform::pro_forma("A[#g0]A[#g0]", None).is_err());
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[Phospho#g0]", None).is_err());
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0(0.o1)]", None).is_err());
