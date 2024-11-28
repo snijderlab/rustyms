@@ -7,8 +7,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::*,
     modification::{
-        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, Modification, SimpleModification,
-        SimpleModificationInner,
+        AmbiguousLookup, CrossLinkLookup, Modification, SimpleModification, SimpleModificationInner,
     },
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
@@ -493,33 +492,32 @@ impl CompoundPeptidoform {
             .into_iter()
             .into_group_map_by(|aa| aa.2)
         {
-            let modification = AmbiguousModification {
-                modification: ambiguous_lookup[id].1.clone().ok_or_else(||
+            let positions = ambiguous
+                .iter()
+                .map(|(index, _, _, score)| (SequencePosition::Index(*index), *score))
+                .collect_vec();
+            let preferred = ambiguous
+                .iter()
+                .find(|p| p.1)
+                .map(|p| SequencePosition::Index(p.0));
+            if !peptide.add_ambiguous_modification(ambiguous_lookup[id].1.clone().ok_or_else(||
                 CustomError::error(
                     "Invalid ambiguous modification",
                     format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0),
                     Context::full_line(0, line),
                 )
-                )?,
-                id,
-                group: ambiguous_lookup[id].0.clone(),
-                localisation_score: None,
-                preferred: false,
-            };
-            let positions = ambiguous
-                .iter()
-                .map(|(index, _, _, score)| (SequencePosition::Index(*index), *score))
-                .collect_vec();
-            let preferred = ambiguous.iter().find(|p| p.1).map(|p| p.0);
-            peptide.add_ambiguous_modification(&modification, &positions, preferred);
+                )?, Some(ambiguous_lookup[id].0.clone()), &positions, preferred) {
+                return Err(CustomError::error(
+                    "Modification of unknown position cannot be placed", 
+                    format!("There is no position where this ambiguous modification {} can be placed based on the placement rules in the database.", ambiguous_lookup[id].0),
+                    Context::full_line(0, line),
+                    ));
+            }
         }
 
         peptide.apply_unknown_position_modification(&unknown_position_modifications)?;
-        peptide.apply_ranged_unknown_position_modification(
-            &ranged_unknown_position_modifications,
-            ambiguous_lookup.len(),
-            unknown_position_modifications.len(),
-        )?;
+        peptide
+            .apply_ranged_unknown_position_modification(&ranged_unknown_position_modifications)?;
         peptide.enforce_modification_rules()?;
 
         Ok(LinearPeptideResult {

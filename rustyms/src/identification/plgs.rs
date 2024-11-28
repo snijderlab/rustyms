@@ -5,12 +5,12 @@ use crate::{
     ontologies::CustomDatabase,
     peptide::SimpleLinear,
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    AminoAcid, LinearPeptide, Modification,
+    AminoAcid, LinearPeptide, Modification, MolecularFormula,
 };
 use serde::{Deserialize, Serialize};
 
 use super::{
-    common_parser::{Location, OptionalLocation},
+    common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
     placement_rule::PlacementRule,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
@@ -66,7 +66,6 @@ format_family!(
                 };
                 Ok((modification, aa, index))
             }).collect::<Result<Vec<_>,_>>();
-        peptide_mhp: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide: LinearPeptide<SimpleLinear>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_simple_linear().unwrap());
         peptide_start: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide_pi: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -88,8 +87,7 @@ format_family!(
         peptide_relative_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide_auto_curate: PLGSCuration, |location: Location, _| location.parse(CURATION_ERROR);
         precursor_le_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
-        precursor_mhp: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        precursor_mhp_calculated: f64, |location: Location, _| location.parse(NUMBER_ERROR);
+        precursor_mass: Mass, |location: Location, _| location.parse(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         precursor_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         precursor_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         precursor_charge: f64, |location: Location, _| location.parse(NUMBER_ERROR);
@@ -102,14 +100,41 @@ format_family!(
         precursor_touch_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         precursor_rms_fwhm_delta: f64, |location: Location, _| location.parse(NUMBER_ERROR);
     }
-    optional { }
+    optional {
+        fragment_mass: Mass, |location: Location, _| location.parse(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        fragment_type: String, |location: Location, _| Ok(location.get_string());
+        fragment_index: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        fragment_neutral_loss: MolecularFormula, |location: Location, _| location.ignore("None").map(|l| MolecularFormula::from_pro_forma(l.full_line(), l.location.clone(), false, false)).transpose();
+        fragment_description: String, |location: Location, _| Ok(location.get_string());
+        fragment_sequence: String, |location: Location, _| Ok(location.get_string());
+        fragment_site: String, |location: Location, _| Ok(location.get_string());
+        product_rank: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        product_he_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        product_mass: Mass, |location: Location, _| location.parse(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        product_mz: MassOverCharge, |location: Location, _| location.parse(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mass_over_charge::mz>);
+        product_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        product_intensity: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        product_charge: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        product_z: Charge, |location: Location, _| location.parse(NUMBER_ERROR).map(Charge::new::<crate::system::charge::e>);
+        product_fwhm: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
+        product_lift_off_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        product_inf_up_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        product_inf_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        product_touch_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        precursor_product_delta_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+    }
 
     fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         for (m, aa, index) in &parsed.peptide_modifications {
             if let Some(index) = index {
                 parsed.peptide.add_simple_modification(SequencePosition::Index(*index), m.clone());
-            } else {
-                parsed.peptide.add_unknown_position_modification(m.clone(), Some(vec![PlacementRule::AminoAcid(vec![*aa], crate::placement_rule::Position::Anywhere)]));
+            } else if !parsed.peptide.add_unknown_position_modification(m.clone(), Some(&[PlacementRule::AminoAcid(vec![*aa], crate::placement_rule::Position::Anywhere)]), ..)
+            {
+                return Err(CustomError::error(
+                    "Modification of unknown position cannot be placed",
+                    "There is no position where this ambiguous modification can be placed based on the placement rules in the database.",
+                    crate::error::Context::show(m),
+                    ));
             }
         }
         Ok(parsed)
@@ -189,7 +214,6 @@ pub const VERSION_3_0: PLGSFormat = PLGSFormat {
     peptide_pass: "peptide.pass",
     peptide_match_type: "peptide.matchtype",
     peptide_modifications: "peptide.modification",
-    peptide_mhp: "peptide.mhp",
     peptide: "peptide.seq",
     peptide_start: "peptide.seqstart",
     peptide_pi: "peptide.pi",
@@ -211,8 +235,7 @@ pub const VERSION_3_0: PLGSFormat = PLGSFormat {
     peptide_relative_intensity: "peptide.relintensity",
     peptide_auto_curate: "peptide.autocurate",
     precursor_le_id: "precursor.leid",
-    precursor_mhp: "precursor.mhp",
-    precursor_mhp_calculated: "precursor.mhpcal",
+    precursor_mass: "precursor.mhp",
     precursor_rt: "precursor.rett",
     precursor_intensity: "precursor.inten",
     precursor_charge: "precursor.charge",
@@ -224,6 +247,27 @@ pub const VERSION_3_0: PLGSFormat = PLGSFormat {
     precursor_inf_down_rt: "precursor.infdownrt",
     precursor_touch_down_rt: "precursor.touchdownrt",
     precursor_rms_fwhm_delta: "prec.rmsfwhmdelta",
+    fragment_mass: OptionalColumn::Optional("fragment.mhp"),
+    fragment_type: OptionalColumn::Optional("fragment.fragmenttype"),
+    fragment_index: OptionalColumn::Optional("fragment.fragind"),
+    fragment_neutral_loss: OptionalColumn::Optional("neutral.losstype"),
+    fragment_description: OptionalColumn::Optional("fragment.str"),
+    fragment_sequence: OptionalColumn::Optional("fragment.seq"),
+    fragment_site: OptionalColumn::Optional("fragment.fragsite"),
+    product_rank: OptionalColumn::Optional("product.rank"),
+    product_he_id: OptionalColumn::Optional("product.heid"),
+    product_mass: OptionalColumn::Optional("product.mhp"),
+    product_mz: OptionalColumn::Optional("product.m_z"),
+    product_rt: OptionalColumn::Optional("product.rett"),
+    product_intensity: OptionalColumn::Optional("product.inten"),
+    product_charge: OptionalColumn::Optional("product.charge"),
+    product_z: OptionalColumn::Optional("product.z"),
+    product_fwhm: OptionalColumn::Optional("product.fwhm"),
+    product_lift_off_rt: OptionalColumn::Optional("product.liftoffrt"),
+    product_inf_up_rt: OptionalColumn::Optional("product.infuprt"),
+    product_inf_down_rt: OptionalColumn::Optional("product.infdownrt"),
+    product_touch_down_rt: OptionalColumn::Optional("product.touchdownrt"),
+    precursor_product_delta_rt: OptionalColumn::Optional("precursorproduct.deltarett"),
 };
 
 /// All possible PLGS versions
