@@ -52,7 +52,13 @@ impl From<InstaNovoData> for IdentifiedPeptide {
     fn from(value: InstaNovoData) -> Self {
         Self {
             score: Some(2.0 / (1.0 + 1.01_f64.powf(-value.score))),
-            local_confidence: Some(value.local_confidence.iter().map(|v| *v / 100.0).collect()),
+            local_confidence: Some(
+                value
+                    .local_confidence
+                    .iter()
+                    .map(|v| 2.0 / (1.0 + (-v).exp()))
+                    .collect(),
+            ),
             metadata: MetaData::InstaNovo(value),
         }
     }

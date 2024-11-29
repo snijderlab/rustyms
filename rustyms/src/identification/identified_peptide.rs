@@ -385,9 +385,10 @@ impl IdentifiedPeptide {
             }
 
             MetaData::PowerNovo(PowerNovoData { raw_file, scan, .. }) => {
-                scan.clone().map_or(SpectrumIds::None, |scan| {
-                    SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan])])
-                })
+                let raw_file = raw_file.as_ref().unwrap();
+                let scan = scan.as_ref().unwrap();
+
+                SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
 
             MetaData::MaxQuant(MaxQuantData { raw_file, scan, .. }) => {
@@ -744,12 +745,8 @@ where
 
 /// Test a dataset for common errors in identified peptide parsing
 /// # Errors
-/// * If the local confidence has to be there and is not there (see parameter).
-/// * If the local confidence is not the same length as the peptide.
-/// * If the score of the peptide is outside of the range -1.0..=1.0.
-/// * If any of the local scores is outdise of range -1.0..=1.0.
-/// * If the peptide contains mass modifications (see parameters).
 /// * If the peptide was not identified as the correct version of the format (see parameters).
+/// * See errors at test_identified_peptide()
 #[allow(clippy::missing_panics_doc)]
 #[cfg(test)]
 pub fn test_format<T: IdentifiedPeptideSource + Into<IdentifiedPeptide>>(
@@ -785,6 +782,14 @@ where
     Ok(number)
 }
 
+/// Test a peptide for common errors in identified peptide parsing
+/// # Errors
+/// * If the local confidence has to be there and is not there (see parameter).
+/// * If the local confidence is not the same length as the peptide.
+/// * If the score of the peptide is outside of the range -1.0..=1.0.
+/// * If any of the local scores is outdise of range -1.0..=1.0.
+/// * If the peptide contains mass modifications (see parameters).
+#[allow(clippy::missing_panics_doc)]
 #[cfg(test)]
 pub fn test_identified_peptide(
     peptide: &IdentifiedPeptide,
