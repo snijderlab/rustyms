@@ -338,3 +338,7 @@ parse_test!("EMEVEESPEK/2+ELVISLIVER/3", positive_example_147);
 parse_test!("AA(?AA)", positive_example_148);
 parse_test!("AA(?AA)AA", positive_example_149);
 parse_test!("[dehydro]^3?[gln->pyro-glu]-QSC", positive_example_150);
+parse_test!("[deamidated#1]-FEEAQ[#1]A", positive_example_151);
+parse_test!("[#1]-FEEAQ[deamidated#1]A", positive_example_152);
+parse_test!("AHAM[oxidation#1]TEG-[#1]", positive_example_153);
+parse_test!("AHAM[#1]TEG-[oxidation#1]", positive_example_154);

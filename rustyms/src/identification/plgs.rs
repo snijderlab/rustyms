@@ -26,7 +26,6 @@ static CURATION_ERROR: (&str, &str) = (
     "This column is not a curation but it is required to be Green, Yellow, or Red",
 );
 
-// TODO: add optional columns from fragment file version
 format_family!(
     /// The format for any PLGS file
     PLGSFormat,

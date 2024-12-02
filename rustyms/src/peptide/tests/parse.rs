@@ -292,6 +292,23 @@ fn parse_ambiguous_modification() {
 }
 
 #[test]
+fn parse_terminal_ambiguous_modification() {
+    let unplaced = LinearPeptide::pro_forma("[deamidated]?FAAQAA", None).unwrap();
+    assert!(unplaced
+        .get_n_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(unplaced.sequence()[3].modifications.len(), 1);
+    assert!(unplaced.sequence()[3].modifications[0].is_ambiguous());
+    let placed = LinearPeptide::pro_forma("[deamidated#u1]-FAAQ[#u1]AA", None).unwrap();
+    assert!(placed
+        .get_n_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(placed.sequence()[3].modifications.len(), 1);
+    assert!(placed.sequence()[3].modifications[0].is_ambiguous());
+    assert_eq!(unplaced, placed);
+}
+
+#[test]
 fn parse_ambiguous_aminoacid() {
     let with = LinearPeptide::pro_forma("(?AA)C(?A)(?A)", None)
         .unwrap()

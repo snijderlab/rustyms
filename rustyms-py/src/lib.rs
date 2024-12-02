@@ -759,6 +759,58 @@ fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
     }
 }
 
+/// A position in a sequence
+///
+/// Parameters
+/// ----------
+/// position : SequencePosition
+///     The position
+///
+#[pyclass]
+#[derive(Clone)]
+pub struct SequencePosition(rustyms::SequencePosition);
+
+#[pymethods]
+impl SequencePosition {
+    /// Create a N-terminal position
+    #[staticmethod]
+    fn n_term() -> Self {
+        SequencePosition(rustyms::SequencePosition::NTerm)
+    }
+
+    /// Create a position based on index (0-based indexing)
+    #[staticmethod]
+    fn index(index: usize) -> Self {
+        SequencePosition(rustyms::SequencePosition::Index(index))
+    }
+
+    /// Create a C-terminal position
+    #[staticmethod]
+    fn c_term() -> Self {
+        SequencePosition(rustyms::SequencePosition::CTerm)
+    }
+
+    /// Check if this is a N-terminal position
+    #[getter]
+    fn is_n_term(&self) -> bool {
+        matches!(self, SequencePosition(rustyms::SequencePosition::NTerm))
+    }
+
+    /// Get the index of this position, if it is a terminal position this returns None.
+    #[getter]
+    fn get_index(&self) -> Option<usize> {
+        match self.0 {
+            rustyms::SequencePosition::Index(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a C-terminal position
+    #[getter]
+    fn is_c_term(&self) -> bool {
+        matches!(self, SequencePosition(rustyms::SequencePosition::CTerm))
+    }
+}
 /// A compound peptidoform with all data as provided by ProForma 2.0.
 ///
 /// Parameters
@@ -1029,8 +1081,12 @@ impl LinearPeptide {
     /// list[list[int]]
     ///
     #[getter]
-    fn ambiguous_modifications(&self) -> Vec<Vec<usize>> {
-        self.0.get_ambiguous_modifications().to_vec()
+    fn ambiguous_modifications(&self) -> Vec<Vec<SequencePosition>> {
+        self.0
+            .get_ambiguous_modifications()
+            .iter()
+            .map(|p| p.iter().map(|p| SequencePosition(*p)).collect())
+            .collect()
     }
 
     /// Stripped sequence, meaning the sequence without any modifications.

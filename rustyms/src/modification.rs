@@ -468,6 +468,19 @@ impl CrossLinkSide {
 }
 
 impl Modification {
+    /// Check if this modification is a simple modification.
+    pub const fn is_simple(&self) -> bool {
+        matches!(self, Self::Simple(_))
+    }
+    /// Check if this modification is a cross-link.
+    pub const fn is_cross_link(&self) -> bool {
+        matches!(self, Self::CrossLink { .. })
+    }
+    /// Check if this modification is an ambiguous modification.
+    pub const fn is_ambiguous(&self) -> bool {
+        matches!(self, Self::Ambiguous { .. })
+    }
+
     /// Get the formula for the whole addition (or subtraction) for this modification
     pub(crate) fn formula_inner(
         &self,
@@ -691,10 +704,16 @@ pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 
 impl Modification {
     /// Display a modification either normalised to the internal representation or as fully valid ProForma
-    /// (no glycan structure or custom modifications).
+    /// (no glycan structure or custom modifications). 'display_ambiguous' shows or hides the modification
+    /// definition of any ambiguous modifications (eg true results in '+1#1' false in '#1').
     /// # Errors
     /// When the given writer errors.
-    pub fn display(&self, f: &mut impl Write, specification_compliant: bool) -> std::fmt::Result {
+    pub fn display(
+        &self,
+        f: &mut impl Write,
+        specification_compliant: bool,
+        display_ambiguous: bool,
+    ) -> std::fmt::Result {
         match self {
             Self::Simple(sim) => sim.display(f, specification_compliant),
             Self::CrossLink { name, linker, .. } => {
@@ -708,7 +727,9 @@ impl Modification {
                 localisation_score,
                 ..
             } => {
-                modification.display(f, specification_compliant)?;
+                if display_ambiguous {
+                    modification.display(f, specification_compliant)?;
+                }
                 write!(
                     f,
                     "\x23{group}{}",
@@ -724,7 +745,7 @@ impl Modification {
 
 impl Display for Modification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.display(f, true)
+        self.display(f, true, true)
     }
 }
 

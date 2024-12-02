@@ -104,7 +104,9 @@ impl<T> SequenceElement<T> {
     pub(crate) fn display(
         &self,
         f: &mut impl Write,
-        placed: &[usize],
+        placed_ambiguous: &[usize],
+        preferred_ambiguous_location: &[Option<SequencePosition>],
+        index: usize,
         last_ambiguous: Option<NonZeroU32>,
         specification_compliant: bool,
     ) -> Result<Vec<usize>, std::fmt::Error> {
@@ -117,14 +119,18 @@ impl<T> SequenceElement<T> {
         }
         write!(f, "{}", self.aminoacid.char())?;
         for m in &self.modifications {
+            let mut display_ambiguous = false;
             if let Modification::Ambiguous { id, .. } = m {
-                if placed.contains(id) {
-                    continue;
+                if !placed_ambiguous.contains(id) && preferred_ambiguous_location[*id].is_none()
+                    || preferred_ambiguous_location[*id]
+                        .is_some_and(|p| p == SequencePosition::Index(index))
+                {
+                    display_ambiguous = true;
+                    extra_placed.push(*id);
                 }
-                extra_placed.push(*id);
             }
             write!(f, "[")?;
-            m.display(f, specification_compliant)?;
+            m.display(f, specification_compliant, display_ambiguous)?;
             write!(f, "]")?;
         }
         Ok(extra_placed)
