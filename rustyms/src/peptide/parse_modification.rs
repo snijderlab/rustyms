@@ -424,21 +424,21 @@ fn handle_ambiguous_modification(
         // Have a mod defined here, the name present in the lookup but not yet the mod
         (Ok(Some(m)), Some((index, false))) => {
             lookup[index].1 = Some(m);
-            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
+            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false)))
         },
         // Have a mod defined here which is not present in the lookup
         (Ok(Some(m)), None) => {
             let index = lookup.len();
             lookup.push((group_name, Some(m)));
-            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
+            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false)))
         },
         // No mod defined, but the name is present in the lookup
-        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score))),
+        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false))),
         // No mod defined, and no name present in the lookup
         (Ok(None), None) => {
             let index = lookup.len();
             lookup.push((group_name, None));
-            Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score)))},
+            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false)))},
         // Earlier error
         (Err(e), _) => Err(e),
     }
@@ -449,10 +449,8 @@ fn handle_ambiguous_modification(
 pub enum ReturnModification {
     /// A fully self contained modification
     Defined(SimpleModification),
-    /// A modification that references an ambiguous modification
-    AmbiguousReferenced(usize, Option<OrderedFloat<f64>>),
-    /// A modification that references an ambiguous modification and is preferred on this location
-    AmbiguousPreferred(usize, Option<OrderedFloat<f64>>),
+    /// A modification that references an ambiguous modification, (id, localisation_score, preferred)
+    Ambiguous(usize, Option<OrderedFloat<f64>>, bool),
     /// A modification that references a cross-link
     CrossLinkReferenced(usize),
 }

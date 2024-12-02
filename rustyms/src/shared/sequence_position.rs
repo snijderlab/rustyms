@@ -26,3 +26,14 @@ impl std::fmt::Display for SequencePosition {
         }
     }
 }
+
+impl SequencePosition {
+    /// Reverse this position, if the peptide would be reversed what would this location be in that reversed peptide.
+    pub fn reverse(self, peptide_length: usize) -> Self {
+        match self {
+            Self::NTerm => Self::CTerm,
+            Self::Index(i) => Self::Index(peptide_length - i),
+            Self::CTerm => Self::NTerm,
+        }
+    }
+}

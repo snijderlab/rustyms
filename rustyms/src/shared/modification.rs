@@ -18,14 +18,14 @@ pub enum Modification {
     },
     /// An ambiguous modification, that can be placed at multiple locations
     Ambiguous {
+        /// The name of the group
+        group: String,
         /// The id to compare be able to find the other locations where this modifications can be placed
         id: usize,
         /// The modification itself
         modification: SimpleModification,
         /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot
         localisation_score: Option<OrderedFloat<f64>>,
-        /// The name of the group
-        group: String,
         /// If this is the preferred location or not
         preferred: bool,
     },

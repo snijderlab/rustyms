@@ -185,7 +185,7 @@ impl LinearPeptide<Linear> {
         ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
     ) -> Result<(), CustomError> {
         for (start, end, modification) in ranged_unknown_position_modifications {
-            if !self.add_unknown_position_modification(modification.clone(), None, start..end) {
+            if !self.add_unknown_position_modification(modification.clone(), None, start..=end) {
                 return Err(CustomError::error(
                     "Modification of unknown position on a range cannot be placed", 
                     "There is no position where this modification can be placed based on the placement rules in the database.", 
