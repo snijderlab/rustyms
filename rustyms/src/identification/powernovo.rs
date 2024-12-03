@@ -2,13 +2,12 @@ use crate::{
     error::CustomError,
     identification::{
         common_parser::OptionalColumn, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
-        SpectrumId,
     },
     ontologies::CustomDatabase,
     LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
 };
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +29,7 @@ format_family!(
     PowerNovoData,
     PowerNovoVersion, [&POWERNOVO_V1_0_1], b',', None;
     required {
-        raw_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
+        title: String, |location: Location, _| Ok(location.get_string());
         peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
@@ -43,20 +42,17 @@ format_family!(
             .collect::<Result<Vec<_>, _>>();
     }
     optional {
-        scan: SpectrumId, |location: Location, _| Ok(Some(SpectrumId::Native(location.get_string())));
+        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
+        scan: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
     }
 
     fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
-        if let Some(SpectrumId::Native(native)) = parsed.scan.as_ref() {
-            if let Some(m) = IDENTIFER_REGEX
-                .get_or_init(|| regex::Regex::new(r"([^/]+):index=(\d+)").unwrap())
-                .captures(native)
-            {
-                parsed.raw_file = m.get(1).unwrap().as_str().into();
-                parsed.scan = Some(SpectrumId::Index(
-                    m.get(2).unwrap().as_str().parse::<usize>().unwrap(),
-                ));
-            }
+        if let Some(m) = IDENTIFER_REGEX
+            .get_or_init(|| regex::Regex::new(r"^(.*):index=(\d+)$").unwrap())
+            .captures(&parsed.title)
+        {
+            parsed.raw_file = Some(PathBuf::from(m.get(1).unwrap().as_str()));
+            parsed.scan = Some(m.get(2).unwrap().as_str().parse::<usize>().unwrap());
         }
         Ok(parsed)
     }
@@ -69,7 +65,7 @@ impl From<PowerNovoData> for IdentifiedPeptide {
     fn from(value: PowerNovoData) -> Self {
         Self {
             score: Some(value.score),
-            local_confidence: Some(value.local_confidence.iter().map(|v| *v / 100.0).collect()),
+            local_confidence: Some(value.local_confidence.clone()),
             metadata: MetaData::PowerNovo(value),
         }
     }
@@ -79,7 +75,8 @@ impl From<PowerNovoData> for IdentifiedPeptide {
 pub const POWERNOVO_V1_0_1: PowerNovoFormat = PowerNovoFormat {
     version: PowerNovoVersion::V1_0_1,
     scan: OptionalColumn::NotAvailable,
-    raw_file: "spectrum name",
+    raw_file: OptionalColumn::NotAvailable,
+    title: "spectrum name",
     peptide: "powernovo peptides",
     score: "powernovo score",
     local_confidence: "powernovo aascore",
