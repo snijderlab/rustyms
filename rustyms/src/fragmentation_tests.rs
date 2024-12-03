@@ -120,7 +120,7 @@ fn with_possible_modifications() {
         LinearPeptide::pro_forma("M[Oxidation#a1]M[#a1]", None)
             .unwrap()
             .into_linear()
-            .unwrap(),
+            .expect("Not a linear peptide"),
         &model,
         1,
         true,
