@@ -114,19 +114,22 @@ format_family!(
         rt_begin: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
         rt_end: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
     }
-);
 
-impl From<PeaksData> for IdentifiedPeptide {
-    fn from(mut value: PeaksData) -> Self {
+    fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         // Add the meaningful modifications to replace mass modifications
-        if let Some(ptm) = value.ptm.clone() {
-            for pep in &mut value.peptide.1 {
+        if let Some(ptm) = parsed.ptm.clone() {
+            for pep in &mut parsed.peptide.1 {
                 *pep = PeptideModificationSearch::in_modifications(ptm.clone())
                     .tolerance(super::Tolerance::Absolute(super::system::da(0.05)))
                     .search(pep.clone());
             }
         }
+        Ok(parsed)
+    }
+);
 
+impl From<PeaksData> for IdentifiedPeptide {
+    fn from(value: PeaksData) -> Self {
         Self {
             score: value
                 .de_novo_score

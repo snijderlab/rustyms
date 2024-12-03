@@ -1,6 +1,7 @@
 use crate::{
     error::CustomError,
     identification::{IdentifiedPeptide, IdentifiedPeptideSource, MetaData},
+    modification::{Ontology, SimpleModification},
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge},
     LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
@@ -21,6 +22,9 @@ static NUMBER_ERROR: (&str, &str) = (
     "This column is not a number but it is required to be a number in this format",
 );
 
+static BUILT_IN_MODIFICATIONS: std::sync::OnceLock<SloppyParsingParameters> =
+    std::sync::OnceLock::new();
+
 format_family!(
     /// The format for any InstaNovo file
     InstaNovoFormat,
@@ -36,8 +40,14 @@ format_family!(
             location.full_line(),
             location.location.clone(),
             custom_database,
-            &SloppyParsingParameters::default(),
-        );
+            BUILT_IN_MODIFICATIONS.get_or_init(|| SloppyParsingParameters {
+                replace_mass_modifications: Some(
+                    vec![Ontology::Unimod.find_id(35, None).unwrap(), Ontology::Unimod.find_id(21, None).unwrap(), Ontology::Unimod.find_id(4, None).unwrap()]
+                ),
+                ..Default::default()
+            }
+        ));
+
         score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         local_confidence: Vec<f64>, |location: Location, _| location
             .trim_start_matches("[").trim_end_matches("]")
@@ -56,7 +66,7 @@ impl From<InstaNovoData> for IdentifiedPeptide {
                 value
                     .local_confidence
                     .iter()
-                    .map(|v| 2.0 / (1.0 + (-v).exp()))
+                    .map(|v| 2.0 / (1.0 + 1.25_f64.powf(-v)))
                     .collect(),
             ),
             metadata: MetaData::InstaNovo(value),
