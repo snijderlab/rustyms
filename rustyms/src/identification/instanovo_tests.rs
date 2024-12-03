@@ -7,7 +7,7 @@ fn instanovo() {
     match test_format::<InstaNovoData>(
         BufReader::new(INSTANOVO_V1_0_0.as_bytes()),
         None,
-        true,
+        false,
         true,
         Some(InstaNovoVersion::V1_0_0),
     ) {

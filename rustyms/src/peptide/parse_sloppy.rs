@@ -27,6 +27,8 @@ pub struct SloppyParsingParameters {
     pub mod_indications: (Option<&'static str>, Vec<(AminoAcid, SimpleModification)>),
     /// Support for custom encodings, e.g. `AAAmAAA` instead of `AAAM[oxidation]AAA` as used by NovoB
     pub custom_alphabet: Vec<(u8, SequenceElement<SemiAmbiguous>)>,
+    /// Replacing mass mods with known predefined mods, e.g. `AAA(+79.97)AAA` instead of `AAA[phospho]AAA` as used by InstaNovo
+    pub replace_mass_modifications: Option<Vec<SimpleModification>>,
 }
 
 impl LinearPeptide<SemiAmbiguous> {
@@ -212,7 +214,15 @@ impl LinearPeptide<SemiAmbiguous> {
             ));
         }
         peptide.enforce_modification_rules()?;
-        Ok(peptide)
+        Ok(
+            if let Some(modifications) = parameters.replace_mass_modifications.clone() {
+                PeptideModificationSearch::in_modifications(modifications)
+                    .tolerance(crate::Tolerance::Absolute(crate::system::da(0.05)))
+                    .search(peptide)
+            } else {
+                peptide
+            },
+        )
     }
 }
 
