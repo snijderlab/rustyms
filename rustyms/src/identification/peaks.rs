@@ -543,6 +543,7 @@ pub const DB_PROTEIN_PEPTIDE: PeaksFormat = PeaksFormat {
 
 /// All possible peaks versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum PeaksVersion {
     /// An older version of a PEAKS export
     X,

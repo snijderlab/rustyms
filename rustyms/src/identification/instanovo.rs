@@ -1,7 +1,7 @@
 use crate::{
     error::CustomError,
     identification::{IdentifiedPeptide, IdentifiedPeptideSource, MetaData},
-    modification::{Ontology, SimpleModification},
+    modification::Ontology,
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge},
     LinearPeptide, SemiAmbiguous, SloppyParsingParameters,

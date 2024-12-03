@@ -4,17 +4,17 @@ use crate::{
     checked_aminoacid::CheckedAminoAcid,
     fragment::{DiagnosticPosition, Fragment, FragmentType, PeptidePosition},
     glycan::MonoSaccharide,
-    helper_functions::RangeExtension,
+    helper_functions::{peptide_range_contains, RangeExtension},
     modification::{
-        AmbiguousModification, CrossLinkName, GnoComposition, LinkerSpecificity, Modification,
-        SimpleModification, SimpleModificationInner,
+        CrossLinkName, GnoComposition, LinkerSpecificity, Modification, SimpleModification,
+        SimpleModificationInner,
     },
     molecular_charge::{CachedCharge, MolecularCharge},
     peptide::*,
     placement_rule::PlacementRule,
     system::usize::Charge,
-    AmbiguousLabel, Chemical, DiagnosticIon, Element, Model, MolecularFormula, Multi,
-    MultiChemical, NeutralLoss, Protease, SequenceElement, SequencePosition,
+    AmbiguousLabel, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical,
+    NeutralLoss, Protease, SequenceElement, SequencePosition,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -100,7 +100,7 @@ pub struct LinearPeptide<Complexity> {
     sequence: Vec<SequenceElement<Complexity>>,
     /// For each ambiguous modification list all possible positions it can be placed on.
     /// Indexed by the ambiguous modification id.
-    ambiguous_modifications: Vec<Vec<usize>>,
+    ambiguous_modifications: Vec<Vec<SequencePosition>>,
     /// The adduct ions, if specified
     charge_carriers: Option<MolecularCharge>,
     /// The marker indicating which level of complexity this peptide (potentially) uses
@@ -173,9 +173,9 @@ impl<Complexity> LinearPeptide<Complexity> {
     pub fn is_linear(&self) -> bool {
         self.sequence()
             .iter()
-            .all(|seq| seq.modifications.iter().all(|m| m.simple().is_some()))
-            && self.n_term.as_ref().map_or(true, |n| n.simple().is_some())
-            && self.c_term.as_ref().map_or(true, |c| c.simple().is_some())
+            .all(|seq| seq.modifications.iter().all(|m| !m.is_cross_link()))
+            && self.n_term.as_ref().map_or(true, |n| !n.is_cross_link())
+            && self.c_term.as_ref().map_or(true, |c| !c.is_cross_link())
     }
 
     /// Convert this peptide into [`Linear`].
@@ -447,7 +447,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                 aa.modifications
                     .iter()
                     .filter_map(|modification| match modification {
-                        Modification::Simple(sim) => match &**sim {
+                        Modification::Simple(modification)
+                        | Modification::Ambiguous { modification, .. } => match &**modification {
                             SimpleModificationInner::Database { specificities, .. } => Some(
                                 specificities
                                     .iter()
@@ -468,7 +469,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                                     })
                                     .collect_vec(),
                             ),
-                            _ => None,
+                            _ => None, // TODO: potentially hydrolysed cross-linkers could also have neutral losses
                         },
                         Modification::CrossLink {
                             linker,
@@ -580,6 +581,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     /// It always contains at least one pattern.
     /// The global isotope modifications are NOT applied.
     /// Additionally it also returns all peptides present as cross-link.
+    // TODO: take terminal ambiguous into account
     #[allow(clippy::too_many_arguments)]
     fn ambiguous_patterns(
         &self,
@@ -602,7 +604,7 @@ impl<Complexity> LinearPeptide<Complexity> {
             .fold(
                 (base.clone(), HashSet::new()),
                 |previous_aa_formulas, (index, aa)| {
-                    let (f, s) = aa.base_formula(
+                    let (f, s) = aa.formulas_base(
                         all_peptides,
                         visited_peptides,
                         applied_cross_links,
@@ -624,7 +626,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                 // Go over all possible locations for this ambiguous mod and add these to all previous options
                 let new_combinations = possibilities
                     .iter()
-                    .filter(|pos| range.contains(pos))
+                    .filter(|pos| peptide_range_contains(&range, self.len(), **pos))
                     .flat_map(|pos| {
                         // This position is a possible location, add this location for this mod to all previously known combinations
                         let mut new_combinations = previous_combinations
@@ -637,7 +639,10 @@ impl<Complexity> LinearPeptide<Complexity> {
                             .collect_vec();
                         // If there is an option to place this mod outside of this range allow that as well
                         // by copying all previous options without any alteration
-                        if possibilities.iter().any(|pos| !range.contains(pos)) {
+                        if possibilities
+                            .iter()
+                            .any(|pos| !peptide_range_contains(&range, self.len(), *pos))
+                        {
                             new_combinations.extend_from_slice(&previous_combinations);
                         }
                         new_combinations
@@ -662,23 +667,27 @@ impl<Complexity> LinearPeptide<Complexity> {
                     .copied()
                     .filter_map(|position| {
                         if let Some((id, pos)) = position {
-                            self.sequence[pos]
-                                .possible_modifications
-                                .iter()
-                                .find(|m| m.id == id)
-                                .map(|m| {
-                                    m.formula_inner(
-                                        crate::SequencePosition::Index(pos),
-                                        peptide_index,
-                                    )
-                                    .with_label(
-                                        AmbiguousLabel::Modification {
-                                            id,
-                                            sequence_index: crate::SequencePosition::Index(pos),
-                                            peptide_index,
-                                        },
-                                    )
-                                })
+                            self[pos].modifications.iter().find_map(|m| {
+                                // TODO: incorrect N/C handling
+                                if let Modification::Ambiguous {
+                                    id: mid,
+                                    modification,
+                                    ..
+                                } = m
+                                {
+                                    (*mid == id).then(|| {
+                                        modification.formula_inner(pos, peptide_index).with_label(
+                                            AmbiguousLabel::Modification {
+                                                id,
+                                                sequence_index: pos,
+                                                peptide_index,
+                                            },
+                                        )
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
                         } else {
                             Some(MolecularFormula::default())
                         }
@@ -889,16 +898,6 @@ impl<Complexity> LinearPeptide<Complexity> {
                     Some(attachment),
                 ));
             }
-            for modification in &position.possible_modifications {
-                output.extend(modification.modification.generate_theoretical_fragments(
-                    model,
-                    peptidoform_index,
-                    peptide_index,
-                    &mut charge_carriers,
-                    &full_formula,
-                    Some(attachment),
-                ));
-            }
         }
 
         if model.modification_specific_diagnostic_ions.0 {
@@ -963,6 +962,7 @@ impl<Complexity> LinearPeptide<Complexity> {
 
     /// Generate all potential masses for the given stretch of amino acids alongside all peptides seen as part of a cross-link.
     /// Applies ambiguous amino acids and modifications, and neutral losses (if allowed in the model).
+    // TODO: take terminal ambiguous into account
     #[allow(clippy::too_many_arguments)]
     fn all_masses(
         &self,
@@ -1121,48 +1121,105 @@ impl<Complexity> LinearPeptide<Complexity> {
         }
         // Write any modification of unknown position that has no preferred location at the start of the peptide
         let mut any_ambiguous = false;
+        let mut placed_ambiguous = Vec::new();
+        let mut preferred_ambiguous_position = vec![None; self.ambiguous_modifications.len()];
         for (id, ambiguous) in self.ambiguous_modifications.iter().enumerate() {
-            if !ambiguous.is_empty()
-                && ambiguous.iter().all(|i| {
-                    let m = self.sequence[*i]
-                        .possible_modifications
-                        .iter()
-                        .find(|m| m.id == id)
-                        .unwrap();
-                    !m.preferred
+            if let Some(preferred) = ambiguous
+                .iter()
+                .find_map(|i| {
+                    let m = match i {
+                        SequencePosition::NTerm => self.n_term.as_ref(),
+                        SequencePosition::Index(i) => {
+                            self.sequence[*i].modifications.iter().find(|m| {
+                                if let Modification::Ambiguous { id: mid, .. } = m {
+                                    *mid == id
+                                } else {
+                                    false
+                                }
+                            })
+                        }
+                        SequencePosition::CTerm => self.c_term.as_ref(),
+                    };
+
+                    if let Some(Modification::Ambiguous {
+                        id: mid, preferred, ..
+                    }) = m
+                    {
+                        (*mid == id && *preferred).then_some(*i)
+                    } else {
+                        None
+                    }
                 })
+                .or_else(|| (ambiguous.len() == 1).then_some(ambiguous[0]))
             {
-                let m = self.sequence[ambiguous[0]]
-                    .possible_modifications
-                    .iter()
-                    .find(|m| m.id == id)
-                    .unwrap();
-                write!(f, "[")?;
-                m.modification.display(f, specification_compliant)?;
-                write!(f, "\x23{}]", m.group)?;
-                any_ambiguous = true;
+                preferred_ambiguous_position[id] = Some(preferred);
+            } else {
+                let m = match ambiguous.first() {
+                    Some(SequencePosition::NTerm) => self.n_term.as_ref(),
+                    Some(SequencePosition::Index(i)) => {
+                        self.sequence[*i].modifications.iter().find(|m| {
+                            if let Modification::Ambiguous { id: mid, .. } = m {
+                                *mid == id
+                            } else {
+                                false
+                            }
+                        })
+                    }
+                    Some(SequencePosition::CTerm) => self.c_term.as_ref(),
+                    None => None,
+                };
+                if let Some(m) = m {
+                    write!(f, "[")?;
+                    m.display(f, specification_compliant, true)?;
+                    write!(f, "]")?;
+                    placed_ambiguous.push(id);
+                    any_ambiguous = true;
+                }
             }
         }
         if any_ambiguous {
             write!(f, "?")?;
         }
         if let Some(m) = &self.n_term {
+            let mut display_ambiguous = false;
+
+            if let Some(Modification::Ambiguous { id, .. }) = self.get_n_term() {
+                if !placed_ambiguous.contains(id) && preferred_ambiguous_position[*id].is_none()
+                    || preferred_ambiguous_position[*id]
+                        .is_some_and(|p| p == SequencePosition::NTerm)
+                {
+                    display_ambiguous = true;
+                    placed_ambiguous.push(*id);
+                }
+            }
+
             write!(f, "[")?;
-            m.display(f, specification_compliant)?;
+            m.display(f, specification_compliant, display_ambiguous)?;
             write!(f, "]-")?;
         }
-        let mut placed = Vec::new();
         let mut last_ambiguous = None;
-        for position in &self.sequence {
-            placed.extend(position.display(f, &placed, last_ambiguous, specification_compliant)?);
+        for (index, position) in self.sequence.iter().enumerate() {
+            placed_ambiguous.extend(position.display(
+                f,
+                &placed_ambiguous,
+                &preferred_ambiguous_position,
+                index,
+                last_ambiguous,
+                specification_compliant,
+            )?);
             last_ambiguous = position.ambiguous;
         }
         if last_ambiguous.is_some() {
             write!(f, ")")?;
         }
         if let Some(m) = &self.c_term {
+            let mut display_ambiguous = false;
+            if let Modification::Ambiguous { id, .. } = m {
+                display_ambiguous = !placed_ambiguous.contains(id);
+                placed_ambiguous.push(*id);
+            }
             write!(f, "-[")?;
-            m.display(f, specification_compliant)?;
+            m.display(f, specification_compliant, display_ambiguous)?;
             write!(f, "]")?;
         }
         if let Some(c) = &self.charge_carriers {
@@ -1182,7 +1239,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                 .ambiguous_modifications
                 .clone()
                 .into_iter()
-                .map(|m| m.into_iter().map(|loc| self.len() - loc).collect())
+                .map(|m| m.into_iter().map(|loc| loc.reverse(self.len())).collect())
                 .collect(),
             ..self.clone()
         }
@@ -1398,36 +1455,132 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
     /// Get the locations of all ambiguous modifications. The slice is indexed by ambiguous
     /// modification id and contains all sequence locations where that ambiguous modification is
     /// potentially located.
-    pub fn get_ambiguous_modifications(&self) -> &[Vec<usize>] {
+    pub fn get_ambiguous_modifications(&self) -> &[Vec<SequencePosition>] {
         self.ambiguous_modifications.as_ref()
+    }
+
+    /// Add a new global modification of unknown position. If the modification would be placed on a
+    /// terminal but something is already placed there it is ignored.
+    /// # Errors
+    /// When there are no possible locations return false, the modification is then not applied.
+    #[must_use]
+    pub fn add_unknown_position_modification(
+        &mut self,
+        modification: SimpleModification,
+        additional_rules: Option<&[PlacementRule]>,
+        range: impl RangeBounds<usize>,
+    ) -> bool {
+        let possible_positions = self
+            .iter(range)
+            .filter(|(position, seq)| {
+                modification
+                    .is_possible(seq, position.sequence_index)
+                    .any_possible()
+                    && (additional_rules.is_none()
+                        || additional_rules.as_ref().is_some_and(|rules| {
+                            rules
+                                .iter()
+                                .any(|rule| rule.is_possible(seq, position.sequence_index))
+                        }))
+            })
+            .map(|(position, _)| (position.sequence_index, None))
+            .collect_vec();
+
+        self.add_ambiguous_modification(modification, None, &possible_positions, None)
     }
 
     /// Add an ambiguous modification on the given positions, the placement rules are NOT checked.
     /// The `positions` contains all sequence indices where that ambiguous modification is
     /// potentially located alongside the placement probability if known. If there is a preferred
-    /// position this can be indicated as well.
+    /// position this can be indicated as well. If the modification would be placed on a terminal
+    /// but something is already placed there it is ignored.
+    /// # Errors
+    /// When there are no possible locations return false, the modification is then not applied.
+    #[must_use]
     pub fn add_ambiguous_modification(
         &mut self,
-        modification: &AmbiguousModification,
-        positions: &[(usize, Option<OrderedFloat<f64>>)],
-        preferred_position: Option<usize>,
-    ) {
-        // The sorting guarantees a defined order in ambiguous modifications which
-        for (pos, score) in positions {
-            self.sequence[*pos]
-                .possible_modifications
-                .push(AmbiguousModification {
-                    localisation_score: *score,
-                    preferred: preferred_position.is_some_and(|p| p == *pos),
-                    ..modification.clone()
-                });
-            self.sequence[*pos]
-                .possible_modifications
-                .sort_unstable_by(|a, b| a.id.cmp(&b.id));
+        modification: SimpleModification,
+        group: Option<String>,
+        positions: &[(SequencePosition, Option<OrderedFloat<f64>>)],
+        preferred_position: Option<SequencePosition>,
+    ) -> bool {
+        match positions.len() {
+            0 => false,
+            1 => {
+                match positions[0].0 {
+                    SequencePosition::NTerm => {
+                        self.n_term = Some(modification.into());
+                    }
+                    SequencePosition::Index(pos) => {
+                        self.sequence[pos].modifications.push(modification.into());
+                        self.sequence[pos].modifications.sort_unstable();
+                    }
+                    SequencePosition::CTerm => {
+                        self.c_term = Some(modification.into());
+                    }
+                }
+                true
+            }
+            _ => {
+                let id = self.ambiguous_modifications.len();
+                let group = group.unwrap_or_else(|| format!("u{id}"));
+                let mut placed = false;
+                self.ambiguous_modifications.push(
+                    positions
+                        .iter()
+                        .filter_map(|(spos, score)| match spos {
+                            SequencePosition::NTerm => {
+                                let n_filled = self.n_term.is_none();
+                                if n_filled {
+                                    self.n_term = Some(Modification::Ambiguous {
+                                        id,
+                                        group: group.clone(),
+                                        modification: modification.clone(),
+                                        localisation_score: *score,
+                                        preferred: preferred_position.is_some_and(|p| p == *spos),
+                                    });
+                                    placed = true;
+                                    Some(*spos)
+                                } else {
+                                    None
+                                }
+                            }
+                            SequencePosition::Index(pos) => {
+                                self.sequence[*pos]
+                                    .modifications
+                                    .push(Modification::Ambiguous {
+                                        id,
+                                        group: group.clone(),
+                                        modification: modification.clone(),
+                                        localisation_score: *score,
+                                        preferred: preferred_position.is_some_and(|p| p == *spos),
+                                    });
+                                self.sequence[*pos].modifications.sort_unstable();
+                                placed = true;
+                                Some(*spos)
+                            }
+                            SequencePosition::CTerm => {
+                                let c_filled = self.c_term.is_none();
+                                if c_filled {
+                                    self.c_term = Some(Modification::Ambiguous {
+                                        id,
+                                        group: group.clone(),
+                                        modification: modification.clone(),
+                                        localisation_score: *score,
+                                        preferred: preferred_position.is_some_and(|p| p == *spos),
+                                    });
+                                    placed = true;
+                                    Some(*spos)
+                                } else {
+                                    None
+                                }
+                            }
+                        })
+                        .collect(),
+                );
+                placed
+            }
         }
-        self.ambiguous_modifications
-            .push(positions.iter().map(|(p, _)| *p).collect());
-        self.ambiguous_modifications.sort_unstable();
     }
 }
 

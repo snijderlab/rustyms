@@ -9,7 +9,9 @@ publish = false
 [dependencies]
 bincode = { workspace = true }
 itertools = { workspace = true }
-rustyms = { path = "../rustyms" }
+rustyms = { path = "../rustyms", default-features = false, features = [
+    "align",
+] }
 serde = { workspace = true, features = ["derive", "rc"] }
 similar = { workspace = true }
 

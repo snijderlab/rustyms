@@ -272,8 +272,8 @@ fn parse_ambiguous_modification() {
     let without = LinearPeptide::pro_forma("AA", None).unwrap();
     assert_eq!(with.len(), 2);
     assert_eq!(without.len(), 2);
-    assert_eq!(with[0].possible_modifications.len(), 1);
-    assert_eq!(with[1].possible_modifications.len(), 1);
+    assert_eq!(with[0].modifications.len(), 1);
+    assert_eq!(with[1].modifications.len(), 1);
     assert!(CompoundPeptidoform::pro_forma("A[#g0]A[#g0]", None).is_err());
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[Phospho#g0]", None).is_err());
     assert!(CompoundPeptidoform::pro_forma("A[Phospho#g0]A[#g0(0.o1)]", None).is_err());
@@ -289,6 +289,36 @@ fn parse_ambiguous_modification() {
             .to_string(),
         "A[#g0]A[+12#g0]".to_string()
     );
+}
+
+#[test]
+fn parse_terminal_ambiguous_modification() {
+    // N-term
+    let unplaced_n = LinearPeptide::pro_forma("[deamidated]?FAAQAA", None).unwrap();
+    assert!(unplaced_n
+        .get_n_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(unplaced_n.sequence()[3].modifications.len(), 1);
+    assert!(unplaced_n.sequence()[3].modifications[0].is_ambiguous());
+    let placed_n = LinearPeptide::pro_forma("[deamidated#u1]-FAAQ[#u1]AA", None).unwrap();
+    assert!(placed_n
+        .get_n_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(placed_n.sequence()[3].modifications.len(), 1);
+    assert!(placed_n.sequence()[3].modifications[0].is_ambiguous());
+    // C-term
+    let unplaced_c = LinearPeptide::pro_forma("[oxidation]?AHAMTEG", None).unwrap();
+    assert!(unplaced_c
+        .get_c_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(unplaced_c.sequence()[3].modifications.len(), 1);
+    assert!(unplaced_c.sequence()[3].modifications[0].is_ambiguous());
+    let placed_c = LinearPeptide::pro_forma("AHAM[oxidation#u1]TEG-[#u1]", None).unwrap();
+    assert!(placed_c
+        .get_c_term()
+        .is_some_and(crate::Modification::is_ambiguous));
+    assert_eq!(placed_c.sequence()[3].modifications.len(), 1);
+    assert!(placed_c.sequence()[3].modifications[0].is_ambiguous());
 }
 
 #[test]

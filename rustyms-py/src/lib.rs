@@ -608,112 +608,6 @@ impl Modification {
     }
 }
 
-/// Modification with ambiguous localisation.
-///
-/// Parameters
-/// ----------
-/// id : int
-///     The id to compare be able to find the other locations where this modifications can be placed.
-/// modification : Modification
-///     The modification itself.
-/// group : String
-///     The name of this ambiguous modification.
-/// preferred : bool | false
-///     Indicates if this is the preferred location for this modification.
-/// localisation_score : float | None
-///     If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot.
-///
-#[pyclass]
-#[derive(Debug)]
-pub struct AmbiguousModification(rustyms::modification::AmbiguousModification);
-
-#[pymethods]
-impl AmbiguousModification {
-    #[new]
-    #[pyo3(signature = (id, modification, group, preferred=false, localisation_score=None))]
-    fn new(
-        id: usize,
-        modification: SimpleModification,
-        group: String,
-        preferred: bool,
-        localisation_score: Option<f64>,
-    ) -> Self {
-        AmbiguousModification(rustyms::modification::AmbiguousModification {
-            id,
-            modification: modification.0,
-            localisation_score: localisation_score.map(OrderedFloat),
-            group,
-            preferred,
-        })
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "AmbiguousModification(id={}, modification={}, localisation_score={}, group={}, preferred={})",
-            self.0.id,
-            self.0.modification,
-            self.0.localisation_score.unwrap_or_default(),
-            self.0.group,
-            self.0.preferred,
-        )
-    }
-
-    /// The id to compare be able to find the other locations where this modifications can be placed.
-    ///
-    /// Returns
-    /// -------
-    /// int
-    ///
-    #[getter]
-    fn id(&self) -> usize {
-        self.0.id
-    }
-
-    /// The modification itself.
-    ///
-    /// Returns
-    /// -------
-    /// Modification
-    ///
-    #[getter]
-    fn modification(&self) -> SimpleModification {
-        SimpleModification(self.0.modification.clone())
-    }
-
-    /// If present the localisation score, meaning the chance/ratio for this modification to show up on this exact spot.
-    ///
-    /// Returns
-    /// -------
-    /// float | None
-    ///
-    #[getter]
-    fn localisation_score(&self) -> Option<f64> {
-        self.0.localisation_score.map(|x| x.into_inner())
-    }
-
-    /// The group name of the modification.
-    ///
-    /// Returns
-    /// -------
-    /// str
-    ///
-    #[getter]
-    fn group(&self) -> String {
-        self.0.group.clone()
-    }
-
-    /// Indicates if this is the preferred location for this ambiguous modification.
-    ///
-    /// Returns
-    /// -------
-    /// bool
-    ///
-    #[getter]
-    fn preferred(&self) -> bool {
-        self.0.preferred
-    }
-}
-
 /// A theoretical fragment of a peptide.
 #[pyclass]
 #[derive(Debug)]
@@ -799,7 +693,12 @@ pub struct SequenceElement(rustyms::SequenceElement<Linked>);
 #[pymethods]
 impl SequenceElement {
     fn __repr__(&self) -> String {
-        format!("SequenceElement(amino_acid='{}', modifications='{:?}', possible_modifications='{:?}', ambiguous='{:?}')", self.aminoacid(), self.modifications(), self.possible_modifications(), self.ambiguous())
+        format!(
+            "SequenceElement(amino_acid='{}', modifications='{:?}', ambiguous='{:?}')",
+            self.aminoacid(),
+            self.modifications(),
+            self.ambiguous()
+        )
     }
 
     /// The amino acid.
@@ -825,21 +724,6 @@ impl SequenceElement {
             .modifications
             .iter()
             .map(|m| Modification(m.clone()))
-            .collect()
-    }
-
-    /// All ambiguous modifications (could be placed here or on another position).
-    ///
-    /// Returns
-    /// -------
-    /// list[AmbiguousModification]
-    ///
-    #[getter]
-    fn possible_modifications(&self) -> Vec<AmbiguousModification> {
-        self.0
-            .possible_modifications
-            .iter()
-            .map(|m| AmbiguousModification(m.clone()))
             .collect()
     }
 
@@ -875,6 +759,58 @@ fn match_model(model: &FragmentationModel) -> PyResult<rustyms::Model> {
     }
 }
 
+/// A position in a sequence
+///
+/// Parameters
+/// ----------
+/// position : SequencePosition
+///     The position
+///
+#[pyclass]
+#[derive(Clone)]
+pub struct SequencePosition(rustyms::SequencePosition);
+
+#[pymethods]
+impl SequencePosition {
+    /// Create a N-terminal position
+    #[staticmethod]
+    fn n_term() -> Self {
+        SequencePosition(rustyms::SequencePosition::NTerm)
+    }
+
+    /// Create a position based on index (0-based indexing)
+    #[staticmethod]
+    fn index(index: usize) -> Self {
+        SequencePosition(rustyms::SequencePosition::Index(index))
+    }
+
+    /// Create a C-terminal position
+    #[staticmethod]
+    fn c_term() -> Self {
+        SequencePosition(rustyms::SequencePosition::CTerm)
+    }
+
+    /// Check if this is a N-terminal position
+    #[getter]
+    fn is_n_term(&self) -> bool {
+        matches!(self, SequencePosition(rustyms::SequencePosition::NTerm))
+    }
+
+    /// Get the index of this position, if it is a terminal position this returns None.
+    #[getter]
+    fn get_index(&self) -> Option<usize> {
+        match self.0 {
+            rustyms::SequencePosition::Index(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a C-terminal position
+    #[getter]
+    fn is_c_term(&self) -> bool {
+        matches!(self, SequencePosition(rustyms::SequencePosition::CTerm))
+    }
+}
 /// A compound peptidoform with all data as provided by ProForma 2.0.
 ///
 /// Parameters
@@ -1145,8 +1081,12 @@ impl LinearPeptide {
     /// list[list[int]]
     ///
     #[getter]
-    fn ambiguous_modifications(&self) -> Vec<Vec<usize>> {
-        self.0.get_ambiguous_modifications().to_vec()
+    fn ambiguous_modifications(&self) -> Vec<Vec<SequencePosition>> {
+        self.0
+            .get_ambiguous_modifications()
+            .iter()
+            .map(|p| p.iter().map(|p| SequencePosition(*p)).collect())
+            .collect()
     }
 
     /// Stripped sequence, meaning the sequence without any modifications.
@@ -1655,7 +1595,6 @@ impl AnnotatedSpectrum {
 #[pymodule]
 #[pyo3(name = "rustyms")]
 fn rustyms_py03(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<AmbiguousModification>()?;
     m.add_class::<AminoAcid>()?;
     m.add_class::<AnnotatedPeak>()?;
     m.add_class::<AnnotatedSpectrum>()?;

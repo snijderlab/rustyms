@@ -3,7 +3,6 @@
 #[macro_use]
 mod common_parser;
 
-mod annotated;
 mod deepnovofamily;
 mod fasta;
 mod general;
@@ -17,12 +16,12 @@ mod novor;
 mod opair;
 mod peaks;
 mod pepnet;
+mod plgs;
 mod plink;
 mod powernovo;
 mod sage;
 
 use crate::*;
-pub use annotated::*;
 pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;
@@ -36,6 +35,7 @@ pub use novor::*;
 pub use opair::*;
 pub use peaks::*;
 pub use pepnet::*;
+pub use plgs::*;
 pub use plink::*;
 pub use powernovo::*;
 pub use sage::*;
@@ -60,6 +60,8 @@ mod opair_tests;
 mod peaks_tests;
 #[cfg(test)]
 mod pepnet_tests;
+#[cfg(test)]
+mod plgs_tests;
 #[cfg(test)]
 mod plink_tests;
 #[cfg(test)]

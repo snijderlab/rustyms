@@ -7,6 +7,20 @@ use std::{
     str::FromStr,
 };
 
+use crate::SequencePosition;
+
+pub fn peptide_range_contains(
+    range: &impl RangeBounds<usize>,
+    peptide_length: usize,
+    position: SequencePosition,
+) -> bool {
+    match position {
+        SequencePosition::NTerm => range.start_index() == 0,
+        SequencePosition::Index(i) => range.contains(&i),
+        SequencePosition::CTerm => range.end_index(peptide_length) == peptide_length,
+    }
+}
+
 pub trait ResultExtensions<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.

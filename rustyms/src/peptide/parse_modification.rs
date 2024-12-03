@@ -402,12 +402,12 @@ fn handle_ambiguous_modification(
     modification: Result<Option<SimpleModification>, CustomError>,
     group: (&str, usize, usize),
     localisation_score: Option<OrderedFloat<f64>>,
-    lookup: &mut AmbiguousLookup,
+    ambiguous_lookup: &mut AmbiguousLookup,
     context: Context,
 ) -> Result<Option<ReturnModification>, CustomError> {
     let group_name = group.0.to_ascii_lowercase();
     // Search for a previous definition of this name, store as Some((index, modification_definition_present)) or None if there is no definition in place
-    let found_definition = lookup
+    let found_definition = ambiguous_lookup
         .iter()
         .enumerate()
         .find(|(_, (name, _))| name == &group_name)
@@ -423,22 +423,18 @@ fn handle_ambiguous_modification(
             )),
         // Have a mod defined here, the name present in the lookup but not yet the mod
         (Ok(Some(m)), Some((index, false))) => {
-            lookup[index].1 = Some(m);
-            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
-        },
-        // Have a mod defined here which is not present in the lookup
-        (Ok(Some(m)), None) => {
-            let index = lookup.len();
-            lookup.push((group_name, Some(m)));
-            Ok(Some(ReturnModification::AmbiguousPreferred(index, localisation_score)))
+            ambiguous_lookup[index].1 = Some(m);
+            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, true)))
         },
         // No mod defined, but the name is present in the lookup
-        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score))),
-        // No mod defined, and no name present in the lookup
-        (Ok(None), None) => {
-            let index = lookup.len();
-            lookup.push((group_name, None));
-            Ok(Some(ReturnModification::AmbiguousReferenced(index, localisation_score)))},
+        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false))),
+        // The mod is not already in the lookup
+        (Ok(m), None) => {
+            let index = ambiguous_lookup.len();
+            let preferred = m.is_some();
+            ambiguous_lookup.push((group_name, m));
+            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, preferred)))
+        },
         // Earlier error
         (Err(e), _) => Err(e),
     }
@@ -449,10 +445,8 @@ fn handle_ambiguous_modification(
 pub enum ReturnModification {
     /// A fully self contained modification
     Defined(SimpleModification),
-    /// A modification that references an ambiguous modification
-    AmbiguousReferenced(usize, Option<OrderedFloat<f64>>),
-    /// A modification that references an ambiguous modification and is preferred on this location
-    AmbiguousPreferred(usize, Option<OrderedFloat<f64>>),
+    /// A modification that references an ambiguous modification, (id, localisation score, preferred)
+    Ambiguous(usize, Option<OrderedFloat<f64>>, bool),
     /// A modification that references a cross-link
     CrossLinkReferenced(usize),
 }

@@ -54,7 +54,7 @@ mod multi;
 mod mzpaf;
 mod neutral_loss;
 pub mod ontologies;
-mod peptide;
+pub mod peptide;
 pub mod placement_rule;
 mod protease;
 #[cfg(feature = "rand")]
@@ -77,12 +77,7 @@ pub use crate::modification::{CrossLinkName, Modification};
 pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;
-pub use crate::peptide::{
-    modification_search_formula, modification_search_glycan, modification_search_mass, AtLeast,
-    AtMax, CompoundPeptidoform, HighestOf, Linear, LinearPeptide, Linked,
-    PeptideModificationSearch, Peptidoform, ReturnModification, SemiAmbiguous, SimpleLinear,
-    SloppyParsingParameters, UnAmbiguous,
-};
+pub use crate::peptide::*;
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::sequence_position::*;
@@ -91,6 +86,7 @@ pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;
 pub use checked_aminoacid::CheckedAminoAcid;
 pub use fragment::Fragment;
+pub use peptide::{CompoundPeptidoform, LinearPeptide, Peptidoform};
 
 #[macro_use]
 extern crate uom;

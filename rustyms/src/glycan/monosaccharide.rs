@@ -370,21 +370,6 @@ mod tests {
         );
     }
 
-    //#[test] TODO: check test
-    #[allow(clippy::float_cmp)] // Handled in a different way
-    fn iupac_masses() {
-        assert_eq!(
-            MonoSaccharide::from_short_iupac("Gal3DiMe(b1-4)GlcNAc(b1-", 0, 0)
-                .unwrap()
-                .0
-                .formula()
-                .monoisotopic_mass()
-                .value
-                .round(),
-            411.0
-        );
-    }
-
     #[test]
     fn composition_options() {
         let composition = &[

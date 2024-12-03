@@ -27,6 +27,8 @@
 
 mod align_type;
 mod alignment;
+#[cfg(test)]
+mod bad_alignments;
 mod diagonal_array;
 mod mass_alignment;
 mod piece;

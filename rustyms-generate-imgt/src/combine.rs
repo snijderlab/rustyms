@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::AlignScoring;
-use rustyms::identification::{Annotation, Region};
+use rustyms::peptide::{Annotation, Region};
 use rustyms::LinearPeptide;
 use rustyms::UnAmbiguous;
 
@@ -62,8 +62,8 @@ pub fn combine(
     // Save temp seqs in final data structure
     for (species, entry) in deduped_temp {
         // if species == Species::HomoSapiens
-        //     && entry.name.kind == GeneType::C(Some(Constant::M))
-        //     && entry.name.chain == ChainType::Heavy
+        //     && entry.name.kind == crate::shared::GeneType::C(Some(crate::shared::Constant::M))
+        //     && entry.name.chain == crate::shared::ChainType::Heavy
         // {
         //     println!("{}", entry);
         // }
@@ -108,7 +108,14 @@ impl TemporaryGermline {
             alleles: self
                 .alleles
                 .into_iter()
-                .map(|(a, seqs)| (a, seqs[0].annotated_sequence()))
+                .filter_map(|(a, seqs)| {
+                    Some((
+                        a,
+                        seqs.iter()
+                            .find(|s| !s.sequence.is_empty())
+                            .map(|s| s.annotated_sequence())?,
+                    ))
+                })
                 .collect(),
         }
     }

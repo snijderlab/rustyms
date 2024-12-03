@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufWriter};
 use align::AlignScoring;
 use clap::Parser;
 use identification::SpectrumIds;
-use itertools::Itertools;
+use itertools::{Itertools, MinMaxResult};
 use rayon::prelude::*;
 use rustyms::{
     align::{align, AlignType},
@@ -31,13 +31,18 @@ fn main() {
     let peptides = open_identified_peptides_file(args.peptides, None)
         .unwrap()
         .filter_map(|p| p.ok())
+        .filter_map(|p| {
+            p.peptide()
+                .and_then(|p| p.peptide())
+                .and_then(|p| p.into_owned().into_semi_ambiguous())
+                .map(|lp| (p, lp))
+        })
         .collect_vec();
     let database = FastaData::parse_file(args.database).unwrap();
 
     let alignments: Vec<_> = peptides
         .par_iter()
-        .filter(|p| p.peptide().and_then(|p| p.peptide()).is_some())
-        .flat_map(|peptide| {
+        .flat_map(|(peptide, linear_peptide)| {
             let alignments = database
                 .iter()
                 .map(|db| {
@@ -46,7 +51,7 @@ fn main() {
                         peptide,
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
                             db.peptide(),
-                            peptide.peptide().unwrap().peptide().unwrap(),
+                            &linear_peptide,
                             AlignScoring::default(),
                             AlignType::EITHER_GLOBAL,
                         ),
@@ -107,15 +112,15 @@ fn main() {
                 ("Path".to_string(), alignment.short()),
                 (
                     "Mass".to_string(),
-                    peptide
-                        .peptide()
-                        .and_then(|p| p.peptide())
-                        .map_or(f64::NAN, |p| {
-                            p.clone()
-                                .into_unambiguous()
-                                .map_or(f64::NAN, |p| p.formula().monoisotopic_mass().value)
-                        })
-                        .to_string(),
+                    match alignment.seq_b().formulas().mass_bounds() {
+                        MinMaxResult::NoElements => "-".to_string(),
+                        MinMaxResult::OneElement(m) => m.monoisotopic_mass().value.to_string(),
+                        MinMaxResult::MinMax(min, max) => format!(
+                            "{} - {}",
+                            min.monoisotopic_mass().value,
+                            max.monoisotopic_mass().value
+                        ),
+                    },
                 ),
                 (
                     "Z".to_string(),

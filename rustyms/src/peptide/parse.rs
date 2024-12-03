@@ -7,8 +7,7 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::*,
     modification::{
-        AmbiguousLookup, AmbiguousModification, CrossLinkLookup, Modification, SimpleModification,
-        SimpleModificationInner,
+        AmbiguousLookup, CrossLinkLookup, Modification, SimpleModification, SimpleModificationInner,
     },
     molecular_charge::MolecularCharge,
     ontologies::CustomDatabase,
@@ -213,8 +212,12 @@ impl CompoundPeptidoform {
         let mut ambiguous_aa = None;
         let mut ambiguous_lookup = Vec::new();
         let mut cross_link_found_positions: Vec<(usize, SequencePosition)> = Vec::new();
-        let mut ambiguous_found_positions: Vec<(usize, bool, usize, Option<OrderedFloat<f64>>)> =
-            Vec::new();
+        let mut ambiguous_found_positions: Vec<(
+            SequencePosition,
+            bool,
+            usize,
+            Option<OrderedFloat<f64>>,
+        )> = Vec::new();
         let mut unknown_position_modifications = Vec::new();
         let mut ranged_unknown_position_modifications = Vec::new();
         let mut ending = End::Empty;
@@ -257,18 +260,21 @@ impl CompoundPeptidoform {
                     cross_link_lookup,
                     custom_database,
                 )
-                .and_then(|m| match m {
-                    ReturnModification::Defined(simple) => Ok(Some(simple)),
+                .map(|m| match m {
+                    ReturnModification::Defined(simple) => Some(simple),
                     ReturnModification::CrossLinkReferenced(id) => {
                         cross_link_found_positions.push((id, SequencePosition::NTerm));
-                        Ok(None)
+                        None
                     }
-                    ReturnModification::AmbiguousPreferred(_, _)
-                    | ReturnModification::AmbiguousReferenced(_, _) => Err(CustomError::error(
-                        "Invalid N terminal modification",
-                        "An N terminal modification cannot be ambiguous",
-                        Context::line(None, line, index + 1, end_index - 2 - index),
-                    )),
+                    ReturnModification::Ambiguous(id, localisation_score, preferred) => {
+                        ambiguous_found_positions.push((
+                            SequencePosition::NTerm,
+                            preferred,
+                            id,
+                            localisation_score,
+                        ));
+                        None
+                    }
                 })?,
             );
             index = end_index + 1;
@@ -383,12 +389,15 @@ impl CompoundPeptidoform {
                                 ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
                                 ReturnModification::CrossLinkReferenced(id) =>
                                     {cross_link_found_positions.push((id, SequencePosition::CTerm)); Ok(None)},
-                                ReturnModification::AmbiguousPreferred(_, _) |
-                                    ReturnModification::AmbiguousReferenced(_,_) => Err(CustomError::error(
-                                        "Invalid C terminal modification",
-                                        "A C terminal modification cannot be ambiguous",
-                                        Context::line(None, line, index + 1, end_index.saturating_sub(2 + index)),
-                                    )),
+                                ReturnModification::Ambiguous(id, localisation_score, preferred) => {
+                                    ambiguous_found_positions.push((
+                                        SequencePosition::CTerm,
+                                        preferred,
+                                        id,
+                                        localisation_score,
+                                    ));
+                                    Ok(None)
+                                }
                             }?);
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
@@ -410,10 +419,8 @@ impl CompoundPeptidoform {
                     if let Some((sequence_index, aa)) = peptide.sequence_mut().iter_mut().enumerate().next_back() {
                         match modification {
                             ReturnModification::Defined(m) => aa.modifications.push(Modification::Simple(m)),
-                            ReturnModification::AmbiguousPreferred(id, localisation_score) =>
-                                ambiguous_found_positions.push((sequence_index, true, id, localisation_score)),
-                            ReturnModification::AmbiguousReferenced(id, localisation_score) =>
-                                ambiguous_found_positions.push((sequence_index, false, id, localisation_score)),
+                            ReturnModification::Ambiguous(id, localisation_score, preferred) =>
+                                ambiguous_found_positions.push((SequencePosition::Index(sequence_index), preferred, id, localisation_score)),
                             ReturnModification::CrossLinkReferenced(id) =>
                                 cross_link_found_positions.push((id, SequencePosition::Index(sequence_index))),
                         }
@@ -493,33 +500,29 @@ impl CompoundPeptidoform {
             .into_iter()
             .into_group_map_by(|aa| aa.2)
         {
-            let modification = AmbiguousModification {
-                modification: ambiguous_lookup[id].1.clone().ok_or_else(||
+            let positions = ambiguous
+                .iter()
+                .map(|(index, _, _, score)| (*index, *score))
+                .collect_vec();
+            let preferred = ambiguous.iter().find_map(|p| p.1.then_some(p.0));
+            if !peptide.add_ambiguous_modification(ambiguous_lookup[id].1.clone().ok_or_else(||
                 CustomError::error(
                     "Invalid ambiguous modification",
                     format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0),
                     Context::full_line(0, line),
                 )
-                )?,
-                id,
-                group: ambiguous_lookup[id].0.clone(),
-                localisation_score: None,
-                preferred: false,
-            };
-            let positions = ambiguous
-                .iter()
-                .map(|(index, _, _, score)| (*index, *score))
-                .collect_vec();
-            let preferred = ambiguous.iter().find(|p| p.1).map(|p| p.0);
-            peptide.add_ambiguous_modification(&modification, &positions, preferred);
+                )?, Some(ambiguous_lookup[id].0.clone()), &positions, preferred) {
+                return Err(CustomError::error(
+                    "Modification of unknown position cannot be placed", 
+                    format!("There is no position where this ambiguous modification {} can be placed based on the placement rules in the database.", ambiguous_lookup[id].0),
+                    Context::full_line(0, line),
+                    ));
+            }
         }
 
         peptide.apply_unknown_position_modification(&unknown_position_modifications)?;
-        peptide.apply_ranged_unknown_position_modification(
-            &ranged_unknown_position_modifications,
-            ambiguous_lookup.len(),
-            unknown_position_modifications.len(),
-        )?;
+        peptide
+            .apply_ranged_unknown_position_modification(&ranged_unknown_position_modifications)?;
         peptide.enforce_modification_rules()?;
 
         Ok(LinearPeptideResult {
@@ -725,10 +728,7 @@ pub(super) fn unknown_position_mods(
             custom_database,
         ) {
             Ok(ReturnModification::Defined(m)) => m,
-            Ok(
-                ReturnModification::AmbiguousPreferred(_, _)
-                | ReturnModification::AmbiguousReferenced(_, _),
-            ) => continue, // Added to list and that is the only thing to do
+            Ok(ReturnModification::Ambiguous(_, _, _)) => continue, // Added to list and that is the only thing to do
             Ok(ReturnModification::CrossLinkReferenced(_)) => {
                 errs.push(CustomError::error(
                     "Invalid unknown position modification",
@@ -766,13 +766,16 @@ pub(super) fn unknown_position_mods(
         };
         modifications.extend(std::iter::repeat(modification).take(number));
     }
-    (chars.get(index) == Some(&b'?')).then_some({
-        if errs.is_empty() {
+    if chars.get(index) == Some(&b'?') {
+        Some(if errs.is_empty() {
             Ok((index + 1, modifications))
         } else {
             Err(errs)
-        }
-    })
+        })
+    } else {
+        ambiguous_lookup.clear(); // Any ambiguous N terminal modification was incorrectly already added to the lookup
+        None
+    }
 }
 
 /// Parse labile modifications `{mod}{mod2}`. These are assumed to fall off from the peptide in the MS.

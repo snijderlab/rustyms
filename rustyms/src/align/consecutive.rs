@@ -1,9 +1,8 @@
 use crate::{
     align::AlignScoring,
     align::*,
-    identification::{AnnotatedPeptide, Region},
     imgt::*,
-    peptide::{AtMax, SimpleLinear, UnAmbiguous},
+    peptide::{AnnotatedPeptide, AtMax, Region, SimpleLinear, UnAmbiguous},
     *,
 };
 use std::collections::HashSet;
