@@ -260,11 +260,11 @@ impl CompoundPeptidoform {
                     cross_link_lookup,
                     custom_database,
                 )
-                .and_then(|m| match m {
-                    ReturnModification::Defined(simple) => Ok(Some(simple)),
+                .map(|m| match m {
+                    ReturnModification::Defined(simple) => Some(simple),
                     ReturnModification::CrossLinkReferenced(id) => {
                         cross_link_found_positions.push((id, SequencePosition::NTerm));
-                        Ok(None)
+                        None
                     }
                     ReturnModification::Ambiguous(id, localisation_score, preferred) => {
                         ambiguous_found_positions.push((
@@ -273,7 +273,7 @@ impl CompoundPeptidoform {
                             id,
                             localisation_score,
                         ));
-                        Ok(None)
+                        None
                     }
                 })?,
             );
@@ -766,13 +766,16 @@ pub(super) fn unknown_position_mods(
         };
         modifications.extend(std::iter::repeat(modification).take(number));
     }
-    (chars.get(index) == Some(&b'?')).then_some({
-        if errs.is_empty() {
+    if chars.get(index) == Some(&b'?') {
+        Some(if errs.is_empty() {
             Ok((index + 1, modifications))
         } else {
             Err(errs)
-        }
-    })
+        })
+    } else {
+        ambiguous_lookup.clear(); // Any ambiguous N terminal modification was incorrectly already added to the lookup
+        None
+    }
 }
 
 /// Parse labile modifications `{mod}{mod2}`. These are assumed to fall off from the peptide in the MS.

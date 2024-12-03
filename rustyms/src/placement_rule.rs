@@ -206,7 +206,7 @@ mod tests {
             "end"
         );
         assert_eq!(
-            dbg!(Ontology::Unimod.find_id(7, None).unwrap()).is_possible(
+            Ontology::Unimod.find_id(7, None).unwrap().is_possible(
                 &SequenceElement::new(CheckedAminoAcid::Q, None),
                 crate::SequencePosition::CTerm
             ),

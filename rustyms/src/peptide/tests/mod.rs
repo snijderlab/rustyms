@@ -17,8 +17,7 @@ macro_rules! parse_test {
             let res_lower =
                 $crate::CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase(), None);
             println!("{}", $case);
-            dbg!(&res);
-            assert!(res.is_ok());
+            assert!(res.is_ok(), "{}", res.err().unwrap());
             assert_eq!(res, res_upper);
             assert_eq!(res, res_lower);
             let back = res.as_ref().unwrap().to_string();

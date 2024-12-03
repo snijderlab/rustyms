@@ -3,7 +3,7 @@ use crate::parse_test;
 parse_test!("AA", positive_example_1);
 parse_test!("A[+1]", positive_example_2);
 parse_test!("AA[+1]", positive_example_3);
-parse_test!("A(AAAA)[+1][+1]", positive_example_4);
+parse_test!("A(AAAA)[+1][+2]", positive_example_4);
 parse_test!("UWAKJDNLASNOIJPojkjjdakjn[U:Oxidation]", positive_example_5);
 parse_test!("[+1]-A[+1]-[+1]", positive_example_6);
 parse_test!("AA+AA", positive_example_7);
