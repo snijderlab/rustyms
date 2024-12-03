@@ -42,7 +42,7 @@ fn msfragger_v22() {
     match test_format::<MSFraggerData>(
         BufReader::new(DATA_V22.as_bytes()),
         None,
-        true,
+        false,
         false,
         Some(MSFraggerVersion::V22),
     ) {
