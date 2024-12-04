@@ -140,6 +140,16 @@ format_family!(
     }
 );
 
+impl From<PLGSData> for IdentifiedPeptide {
+    fn from(value: PLGSData) -> Self {
+        Self {
+            score: Some(2.0 / (1.0 + 1.3_f64.powf(-value.peptide_score)) - 1.0),
+            local_confidence: None,
+            metadata: MetaData::PLGS(value),
+        }
+    }
+}
+
 /// PLGS curation categories
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, Default, PartialOrd, Serialize, Deserialize)]
 pub enum PLGSCuration {
@@ -175,16 +185,6 @@ impl std::fmt::Display for PLGSCuration {
                 Self::Red => "Red",
             }
         )
-    }
-}
-
-impl From<PLGSData> for IdentifiedPeptide {
-    fn from(value: PLGSData) -> Self {
-        Self {
-            score: Some(value.peptide_score.clamp(-1.0, 1.0)),
-            local_confidence: None,
-            metadata: MetaData::PLGS(value),
-        }
     }
 }
 
