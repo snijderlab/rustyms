@@ -343,3 +343,71 @@ impl std::hash::Hash for OrderedMass {
         helper_functions::f64_bits(self.0.value).hash(state);
     }
 }
+
+/// A wrapper around [`Mass`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct OrderedMassOverCharge(MassOverCharge);
+
+impl OrderedMassOverCharge {
+    /// Use the zero from [`MassOverCharge`] itself
+    pub fn zero() -> Self {
+        Self(MassOverCharge::zero())
+    }
+
+    /// Get a normal [`MassOverCharge`]
+    #[allow(dead_code)]
+    pub fn into_inner(self) -> MassOverCharge {
+        self.0
+    }
+}
+
+impl Default for OrderedMassOverCharge {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl From<MassOverCharge> for OrderedMassOverCharge {
+    fn from(value: MassOverCharge) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for OrderedMassOverCharge {
+    type Target = MassOverCharge;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OrderedMassOverCharge {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Ord for OrderedMassOverCharge {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value.total_cmp(&other.0.value)
+    }
+}
+
+impl PartialOrd for OrderedMassOverCharge {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for OrderedMassOverCharge {}
+
+impl PartialEq for OrderedMassOverCharge {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl std::hash::Hash for OrderedMassOverCharge {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        helper_functions::f64_bits(self.0.value).hash(state);
+    }
+}

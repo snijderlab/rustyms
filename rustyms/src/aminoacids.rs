@@ -427,7 +427,7 @@ impl AminoAcid {
                     * (modifications - molecular_formula!(C 1 O 1))),
                 peptidoform_index,
                 peptide_index,
-                &FragmentType::immonium(n_pos, self),
+                &FragmentType::Immonium(n_pos, self.into()), // TODO: get the actual sequenceelement here
                 &Multi::default(),
                 self.immonium_losses().as_slice(),
                 charge_carriers,

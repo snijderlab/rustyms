@@ -25,7 +25,10 @@ impl AnnotatedSpectrum {
     ) -> (Fdr, Vec<Vec<Fdr>>) {
         let mzs = fragments
             .iter()
-            .map(|f| (f.mz(mass_mode), f.peptidoform_index, f.peptide_index))
+            .filter_map(|f| {
+                f.mz(mass_mode)
+                    .map(|mz| (mz, f.peptidoform_index, f.peptide_index))
+            })
             .filter(|(mz, _, _)| model.mz_range.contains(mz))
             .collect_vec();
 
@@ -43,7 +46,7 @@ impl AnnotatedSpectrum {
                         self.internal_fdr(
                             mzs.iter()
                                 .filter_map(|(mz, pi, ppi)| {
-                                    (*pi == peptidoform_index && *ppi == peptide_index)
+                                    (*pi == Some(peptidoform_index) && *ppi == Some(peptide_index))
                                         .then_some(*mz)
                                 })
                                 .collect_vec()

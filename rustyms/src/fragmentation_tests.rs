@@ -591,7 +591,7 @@ fn intra_link() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.as_ref().unwrap().labels().len() > 2)
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
@@ -609,8 +609,10 @@ fn ensure_no_double_xl_labels_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len()
+        .filter(|f| f.formula.as_ref().unwrap().labels().len()
             > f.formula
+                .as_ref()
+                .unwrap()
                 .labels()
                 .iter()
                 .map(|l| match l {
@@ -637,8 +639,10 @@ fn ensure_no_double_xl_labels_non_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len()
+        .filter(|f| f.formula.as_ref().unwrap().labels().len()
             > f.formula
+                .as_ref()
+                .unwrap()
                 .labels()
                 .iter()
                 .map(|l| match l {
@@ -667,7 +671,7 @@ fn ensure_no_double_xl_labels_small_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.as_ref().unwrap().labels().len() > 2)
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
@@ -687,7 +691,7 @@ fn ensure_no_double_xl_labels_small_non_breaking() {
         peptide.generate_theoretical_fragments(Charge::new::<crate::system::e>(2), &model);
     let doubly_annotated = dbg!(fragments
         .iter()
-        .filter(|f| f.formula.labels().len() > 2)
+        .filter(|f| f.formula.as_ref().unwrap().labels().len() > 2)
         .collect_vec());
     assert_eq!(doubly_annotated.len(), 0);
 }
@@ -711,8 +715,8 @@ fn test(
         while index < calculated_fragments.len() {
             if calculated_fragments[index]
                 .mz(MassMode::Monoisotopic)
-                .ppm(MassOverCharge::new::<crate::system::mz>(goal.0))
-                < Ratio::new::<ppm>(20.0)
+                .map(|v| v.ppm(MassOverCharge::new::<crate::system::mz>(goal.0)))
+                .is_some_and(|v| v < Ratio::new::<ppm>(20.0))
             {
                 println!(
                     "Match: {}@{} with {} (labels: {})",
@@ -721,6 +725,8 @@ fn test(
                     calculated_fragments[index],
                     calculated_fragments[index]
                         .formula
+                        .as_ref()
+                        .unwrap()
                         .labels()
                         .iter()
                         .join(",")
@@ -740,7 +746,7 @@ fn test(
     for left in calculated_fragments.iter().sorted_by(|a, b| b.cmp(a)) {
         println!(
             "Excess fragments: {left} (labels: {})",
-            left.formula.labels().iter().join(",")
+            left.formula.as_ref().unwrap().labels().iter().join(",")
         );
     }
     let not_found: Vec<usize> = found

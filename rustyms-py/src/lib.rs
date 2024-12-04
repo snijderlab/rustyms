@@ -617,11 +617,12 @@ pub struct Fragment(rustyms::Fragment);
 impl Fragment {
     fn __repr__(&self) -> String {
         format!(
-            "Fragment(formula='{:?}', charge={}, ion='{}', peptide_index={}, neutral_loss='{:?}')",
+            "Fragment(formula='{:?}', charge={}, ion='{}', peptidoform_index={}, peptide_index={}, neutral_loss='{:?}')",
             Self::formula(self),
             self.charge(),
             self.ion().0,
-            self.peptide_index(),
+            self.peptidoform_index().map_or("-".to_string(), |p| p.to_string()),
+            self.peptide_index().map_or("-".to_string(), |p| p.to_string()),
             self.neutral_loss(),
         )
     }
@@ -630,11 +631,11 @@ impl Fragment {
     ///
     /// Returns
     /// -------
-    /// MolecularFormula
+    /// MolecularFormula | None
     ///
     #[getter]
-    fn formula(&self) -> MolecularFormula {
-        MolecularFormula(self.0.formula.clone())
+    fn formula(&self) -> Option<MolecularFormula> {
+        self.0.formula.clone().map(MolecularFormula)
     }
 
     /// The charge.
@@ -663,22 +664,37 @@ impl Fragment {
     ///
     /// Returns
     /// -------
-    /// int
+    /// int | None
     ///
     #[getter]
-    fn peptide_index(&self) -> usize {
+    fn peptide_index(&self) -> Option<usize> {
         self.0.peptide_index
+    }
+
+    /// The peptidoform this fragment comes from, saved as the index into the list of peptides in the overarching crate::ComplexPeptide struct.
+    ///
+    /// Returns
+    /// -------
+    /// int | None
+    ///
+    #[getter]
+    fn peptidoform_index(&self) -> Option<usize> {
+        self.0.peptidoform_index
     }
 
     /// Any neutral losses applied.
     ///
     /// Returns
     /// -------
-    /// str | None
+    /// list[str]
     ///
     #[getter]
-    fn neutral_loss(&self) -> Option<String> {
-        self.0.neutral_loss.as_ref().map(|nl| nl.to_string())
+    fn neutral_loss(&self) -> Vec<String> {
+        self.0
+            .neutral_loss
+            .iter()
+            .map(|nl| nl.to_string())
+            .collect()
     }
 }
 

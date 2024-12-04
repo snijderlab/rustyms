@@ -838,10 +838,10 @@ impl<Complexity> LinearPeptide<Complexity> {
             }
         }
         for fragment in &mut output {
-            fragment.formula = fragment
-                .formula
-                .with_global_isotope_modifications(&self.global)
-                .expect("Invalid global isotope modification");
+            fragment.formula = fragment.formula.as_ref().map(|f| {
+                f.with_global_isotope_modifications(&self.global)
+                    .expect("Invalid global isotope modification")
+            });
         }
 
         // Generate precursor peak
@@ -867,7 +867,7 @@ impl<Complexity> LinearPeptide<Complexity> {
             &full_precursor,
             peptidoform_index,
             peptide_index,
-            &FragmentType::precursor,
+            &FragmentType::Precursor,
             &Multi::default(),
             &precursor_neutral_losses,
             &mut charge_carriers,
@@ -905,12 +905,15 @@ impl<Complexity> LinearPeptide<Complexity> {
             for (dia, pos) in self.diagnostic_ions() {
                 output.extend(
                     Fragment {
-                        formula: dia.0,
+                        formula: Some(dia.0),
                         charge: Charge::default(),
-                        ion: FragmentType::diagnostic(pos),
-                        peptidoform_index,
-                        peptide_index,
-                        neutral_loss: None,
+                        ion: FragmentType::Diagnostic(pos),
+                        peptidoform_index: Some(peptidoform_index),
+                        peptide_index: Some(peptide_index),
+                        neutral_loss: Vec::new(),
+                        deviation: None,
+                        confidence: None,
+                        auxiliary: false,
                     }
                     .with_charge_range(
                         &mut charge_carriers,

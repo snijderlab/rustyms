@@ -172,7 +172,7 @@ impl MonoSaccharide {
             Charge::default(),
             peptidoform_index,
             peptide_index,
-            FragmentType::diagnostic(position),
+            FragmentType::Diagnostic(position),
         );
         let mut result =
             if matches!(self.base_sugar, BaseSugar::Hexose(_)) && self.substituents.is_empty() {
