@@ -759,6 +759,34 @@ pub const ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
     ("p", Element::P),
 ];
 
+/// Most common elements selected for abundance in biological systems as well as unambiguous parsing.
+/// Sorted so that single characters come after two character element symbols (needed for greedy parsing).
+pub const COMMON_ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
+    ("he", Element::He),
+    ("li", Element::Li),
+    ("na", Element::Na),
+    ("mg", Element::Mg),
+    ("al", Element::Al),
+    ("cl", Element::Cl),
+    ("ca", Element::Ca),
+    ("fe", Element::Fe),
+    ("cu", Element::Cu),
+    ("zn", Element::Zn),
+    ("se", Element::Se),
+    ("ag", Element::Ag),
+    ("au", Element::Au),
+    ("i", Element::I),
+    ("k", Element::K),
+    ("s", Element::S),
+    ("b", Element::B),
+    ("c", Element::C),
+    ("n", Element::N),
+    ("o", Element::O),
+    ("f", Element::F),
+    ("h", Element::H),
+    ("p", Element::P),
+];
+
 #[allow(clippy::redundant_pub_crate)]
 /// The shared type to send the data from all the elements from build time to compile time
 pub(crate) type ElementalData = Vec<(Option<Mass>, Option<Mass>, Vec<(u16, Mass, f64)>)>;

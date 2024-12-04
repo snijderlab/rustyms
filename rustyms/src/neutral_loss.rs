@@ -63,12 +63,14 @@ impl FromStr for NeutralLoss {
                     1..,
                     false,
                     false,
+                    true,
                 )?)),
                 '-' => Ok(Self::Loss(MolecularFormula::from_pro_forma(
                     s,
                     1..,
                     false,
                     false,
+                    true,
                 )?)),
                 _ => Err(CustomError::error(
                     "Invalid neutral loss",

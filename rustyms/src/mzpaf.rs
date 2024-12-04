@@ -371,7 +371,7 @@ fn parse_ion(
                 ))
             }?;
             let formula =
-                MolecularFormula::from_pro_forma(line, formula_range.clone(), false, false)?;
+                MolecularFormula::from_pro_forma(line, formula_range.clone(), false, false, true)?;
 
             Ok((
                 range.add_start(3 + formula_range.len()),
@@ -441,6 +441,7 @@ fn parse_neutral_loss(
                 first..last.0 + last.1.len_utf8(),
                 false,
                 false,
+                true,
             )?;
             neutral_losses.push(match c {
                 '+' => NeutralLoss::Gain(formula),
@@ -488,6 +489,7 @@ fn parse_adduct_type(
                 first..last.1 + last.2.len_utf8(),
                 false,
                 false,
+                true,
             )?;
             carriers.push((
                 number.2.map_err(|err| {

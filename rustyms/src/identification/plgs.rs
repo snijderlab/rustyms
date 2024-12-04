@@ -5,7 +5,7 @@ use crate::{
     ontologies::CustomDatabase,
     peptide::SimpleLinear,
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    AminoAcid, LinearPeptide, Modification, MolecularFormula,
+    AminoAcid, LinearPeptide, Modification, MolecularFormula, NeutralLoss,
 };
 use serde::{Deserialize, Serialize};
 
@@ -59,7 +59,7 @@ format_family!(
                 let plus = l.as_str().find('+').ok_or_else(|| CustomError::error("Invalid PLGS modification", "A PLGS modification should be in the format 'modification+AA(pos)' and the plus '+' is missing.", l.context()))?;
                 let modification = Modification::sloppy_modification(l.full_line(), l.location.start..l.location.start+plus, None, custom_database)?;
                 let aa = l.as_str()[plus+1..plus+2].parse::<AminoAcid>().map_err(|()| CustomError::error("Invalid PLGS modification", "A PLGS modification should be in the format 'modification+AA(pos)' and the amino acid is not valid", l.context()))?;
-                let num = &l.as_str()[plus+2..l.len()-1];
+                let num = &l.as_str()[plus+3..l.len()-1];
                 let index = if num == "*" {None} else {
                     Some(num.parse::<usize>().map_err(|err| CustomError::error("Invalid PLGS modification", format!("A PLGS modification should be in the format 'modification+AA(pos)' and the pos is {}", explain_number_error(&err)), l.context()))? - 1)
                 };
@@ -93,34 +93,34 @@ format_family!(
         precursor_z: Charge, |location: Location, _| location.parse(NUMBER_ERROR).map(Charge::new::<crate::system::charge::e>);
         precursor_mz: MassOverCharge, |location: Location, _| location.parse(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mass_over_charge::mz>);
         precursor_fwhm: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        precursor_lift_off_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        precursor_inf_up_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        precursor_inf_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        precursor_touch_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        precursor_lift_off_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
+        precursor_inf_up_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
+        precursor_inf_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
+        precursor_touch_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::s>);
         precursor_rms_fwhm_delta: f64, |location: Location, _| location.parse(NUMBER_ERROR);
     }
     optional {
-        fragment_mass: Mass, |location: Location, _| location.parse(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
+        fragment_mass: Mass, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Mass::new::<crate::system::dalton>));
         fragment_type: String, |location: Location, _| Ok(location.get_string());
-        fragment_index: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        fragment_neutral_loss: MolecularFormula, |location: Location, _| location.ignore("None").map(|l| MolecularFormula::from_pro_forma(l.full_line(), l.location.clone(), false, false)).transpose();
+        fragment_index: usize, |location: Location, _| location.or_empty().parse::<usize>(NUMBER_ERROR);
+        fragment_neutral_loss: NeutralLoss, |location: Location, _| location.or_empty().ignore("None").map(|l| MolecularFormula::from_pro_forma(l.full_line(), l.location.clone(), false, false, false).map(NeutralLoss::Loss)).transpose();
         fragment_description: String, |location: Location, _| Ok(location.get_string());
         fragment_sequence: String, |location: Location, _| Ok(location.get_string());
         fragment_site: String, |location: Location, _| Ok(location.get_string());
-        product_rank: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        product_he_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        product_mass: Mass, |location: Location, _| location.parse(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
-        product_mz: MassOverCharge, |location: Location, _| location.parse(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mass_over_charge::mz>);
-        product_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        product_intensity: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        product_charge: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
-        product_z: Charge, |location: Location, _| location.parse(NUMBER_ERROR).map(Charge::new::<crate::system::charge::e>);
-        product_fwhm: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
-        product_lift_off_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        product_inf_up_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        product_inf_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        product_touch_down_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        precursor_product_delta_rt: Time, |location: Location, _| location.parse(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
+        product_rank: isize, |location: Location, _| location.parse::<isize>(NUMBER_ERROR);
+        product_he_id: usize, |location: Location, _| location.or_empty().parse::<usize>(NUMBER_ERROR);
+        product_mass: Mass, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Mass::new::<crate::system::dalton>));
+        product_mz: MassOverCharge, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(MassOverCharge::new::<crate::system::mass_over_charge::mz>));
+        product_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::min>));
+        product_intensity: usize, |location: Location, _| location.or_empty().parse::<usize>(NUMBER_ERROR);
+        product_charge: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
+        product_z: Charge, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Charge::new::<crate::system::charge::e>));
+        product_fwhm: f64, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR);
+        product_lift_off_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::s>));
+        product_inf_up_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::s>));
+        product_inf_down_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::s>));
+        product_touch_down_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::s>));
+        precursor_product_delta_rt: Time, |location: Location, _| location.or_empty().parse(NUMBER_ERROR).map(|r| r.map(Time::new::<crate::system::time::s>));
     }
 
     fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
