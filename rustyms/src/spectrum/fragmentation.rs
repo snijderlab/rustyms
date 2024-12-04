@@ -34,14 +34,15 @@ pub trait AnnotatableSpectrum {
 
         for fragment in theoretical_fragments {
             // Determine fragment mz and see if it is within the model range.
-            let mz = fragment.mz(mode);
-            if !model.mz_range.contains(&mz) {
-                continue;
-            }
+            if let Some(mz) = fragment.mz(mode) {
+                if !model.mz_range.contains(&mz) {
+                    continue;
+                }
 
-            // Get the index of the element closest to this value
-            if let Some(index) = Self::search(self, mz, tolerance) {
-                annotated.spectrum[index].annotation.push(fragment.clone());
+                // Get the index of the element closest to this value
+                if let Some(index) = Self::search(self, mz, tolerance) {
+                    annotated.spectrum[index].annotation.push(fragment.clone());
+                }
             }
         }
 

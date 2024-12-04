@@ -322,7 +322,7 @@ mod tests {
             &labelled,
             0,
             0,
-            &crate::fragment::FragmentType::precursor,
+            &crate::fragment::FragmentType::Precursor,
             &unlabelled,
             &[],
             &mut MolecularCharge::proton(1).into(),
@@ -332,7 +332,7 @@ mod tests {
             &unlabelled,
             0,
             0,
-            &crate::fragment::FragmentType::precursor,
+            &crate::fragment::FragmentType::Precursor,
             &unlabelled,
             &[],
             &mut MolecularCharge::proton(1).into(),
@@ -342,14 +342,17 @@ mod tests {
             &unlabelled,
             0,
             0,
-            &crate::fragment::FragmentType::precursor,
+            &crate::fragment::FragmentType::Precursor,
             &labelled,
             &[],
             &mut MolecularCharge::proton(1).into(),
             ChargeRange::ONE,
         );
-        let all_fragments_labelled =
-            |multi: &[Fragment]| multi.iter().all(|o| !o.formula.labels().is_empty());
+        let all_fragments_labelled = |multi: &[Fragment]| {
+            multi
+                .iter()
+                .all(|o| !o.formula.as_ref().unwrap().labels().is_empty())
+        };
         assert!(all_fragments_labelled(&fragment_l));
         assert!(!all_fragments_labelled(&fragment_u));
         assert!(all_fragments_labelled(&fragment_ul));
