@@ -160,7 +160,7 @@ impl MolecularFormula {
     ///
     #[classmethod]
     fn from_pro_forma(_cls: &Bound<'_, PyType>, proforma: &str) -> PyResult<Self> {
-        rustyms::MolecularFormula::from_pro_forma(proforma, .., false, false)
+        rustyms::MolecularFormula::from_pro_forma(proforma, .., false, false, true)
             .map(MolecularFormula)
             .map_err(|e| PyValueError::new_err(format!("Invalid ProForma string: {}", e)))
     }

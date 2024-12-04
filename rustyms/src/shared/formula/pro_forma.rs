@@ -1,7 +1,7 @@
 use crate::{
     error::{Context, CustomError},
     helper_functions::{explain_number_error, RangeExtension},
-    Element, MolecularFormula, ELEMENT_PARSE_LIST,
+    Element, MolecularFormula, COMMON_ELEMENT_PARSE_LIST, ELEMENT_PARSE_LIST,
 };
 use std::{num::NonZeroU16, ops::RangeBounds};
 
@@ -41,6 +41,7 @@ impl MolecularFormula {
         range: impl RangeBounds<usize>,
         allow_charge: bool,
         allow_empty: bool,
+        allow_uncommon_elements: bool,
     ) -> Result<Self, CustomError> {
         let (mut index, end) = range.bounds(value.len().saturating_sub(1));
         if allow_empty && value[index..=end].to_ascii_lowercase() == "(empty)" {
@@ -89,7 +90,11 @@ impl MolecularFormula {
                     {
                         element = Some(Element::Electron);
                     } else {
-                        for possible in ELEMENT_PARSE_LIST {
+                        for possible in if allow_uncommon_elements {
+                            ELEMENT_PARSE_LIST
+                        } else {
+                            COMMON_ELEMENT_PARSE_LIST
+                        } {
                             if value[index + isotope + ws1..index + isotope + ws1 + ele]
                                 .to_ascii_lowercase()
                                 == possible.0
@@ -208,7 +213,11 @@ impl MolecularFormula {
                         .take(2)
                         .collect::<String>()
                         .to_ascii_lowercase();
-                    for possible in ELEMENT_PARSE_LIST {
+                    for possible in if allow_uncommon_elements {
+                        ELEMENT_PARSE_LIST
+                    } else {
+                        COMMON_ELEMENT_PARSE_LIST
+                    } {
                         if element_text.starts_with(possible.0) {
                             element = Some(possible.1);
                             index += possible.0.len();

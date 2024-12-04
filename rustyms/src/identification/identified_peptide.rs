@@ -225,7 +225,7 @@ impl IdentifiedPeptide {
             MetaData::Opair(_) => "OPair",
             MetaData::Peaks(_) => "PEAKS",
             MetaData::PepNet(_) => "PepNet",
-            MetaData::PLGS(_) => "ProteinLync Global Server",
+            MetaData::PLGS(_) => "ProteinLynx Global Server",
             MetaData::PLink(_) => "pLink",
             MetaData::PowerNovo(_) => "PowerNovo",
             MetaData::Sage(_) => "Sage",
@@ -839,7 +839,7 @@ pub fn test_identified_peptide(
     if peptide
         .peptide()
         .and_then(ReturnedPeptide::peptide)
-        .map(LinearPeptide::len)
+        .map(|p| p.len())
         != peptide.local_confidence().map(<[f64]>::len)
     {
         if expect_lc && peptide.local_confidence.is_none() {
@@ -848,7 +848,7 @@ pub fn test_identified_peptide(
                 peptide.id()
             ));
         } else if peptide.local_confidence.is_some() {
-            return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0, LinearPeptide::len), peptide.id()));
+            return Err(format!("The local confidence ({}) does not have the same number of elements as the peptide ({}) for peptide {}", peptide.local_confidence().map_or(0, <[f64]>::len), peptide.peptide().and_then(ReturnedPeptide::peptide).map_or(0,|p| p.len()), peptide.id()));
         }
     }
     if peptide.score.is_some_and(|s| !(-1.0..=1.0).contains(&s)) {
