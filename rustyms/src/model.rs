@@ -514,12 +514,12 @@ impl Model {
     /// electron-transfer/higher-energy collisional dissociation
     pub fn ethcd() -> Self {
         Self {
-            a: PrimaryIonSeries::default().location(Location::None),
+            a: PrimaryIonSeries::default().location(Location::TakeN { skip: 0, take: 1 }),
             b: PrimaryIonSeries::default()
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
             c: PrimaryIonSeries::default()
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
-            d: PrimaryIonSeries::default().location(Location::None),
+            d: PrimaryIonSeries::default().location(Location::TakeN { skip: 0, take: 1 }),
             v: PrimaryIonSeries::default().location(Location::None),
             w: PrimaryIonSeries::default()
                 .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
