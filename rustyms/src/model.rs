@@ -651,6 +651,54 @@ impl Model {
             mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
         }
     }
+
+    /// Top Down ETD
+    pub fn td_etd() -> Self {
+        Self {
+            a: PrimaryIonSeries::default().location(Location::None),
+            b: PrimaryIonSeries::default().location(Location::None),
+            c: PrimaryIonSeries::default().neutral_losses(vec![
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                NeutralLoss::Gain(molecular_formula!(H 1)),
+                NeutralLoss::Gain(molecular_formula!(H 2)),
+                NeutralLoss::Gain(molecular_formula!(H 3)),
+            ]),
+            d: PrimaryIonSeries::default().location(Location::None),
+            v: PrimaryIonSeries::default().location(Location::None),
+            w: PrimaryIonSeries::default().location(Location::None),
+            x: PrimaryIonSeries::default().location(Location::None),
+            y: PrimaryIonSeries::default().location(Location::None),
+            z: PrimaryIonSeries::default().neutral_losses(vec![
+                NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                NeutralLoss::Gain(molecular_formula!(H 1)),
+                NeutralLoss::Gain(molecular_formula!(H 2)),
+                NeutralLoss::Gain(molecular_formula!(H 3)),
+            ]),
+            precursor: (
+                vec![
+                    NeutralLoss::Loss(molecular_formula!(H 2 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 1 O 1)),
+                    NeutralLoss::Loss(molecular_formula!(H 3 N 1)),
+                    NeutralLoss::Loss(molecular_formula!(C 1 H 1 O 2)),
+                    NeutralLoss::Loss(molecular_formula!(C 2 H 3 O 2)),
+                    NeutralLoss::Gain(molecular_formula!(H 1)),
+                    NeutralLoss::Gain(molecular_formula!(H 2)),
+                    NeutralLoss::Gain(molecular_formula!(H 3)),
+                ],
+                ChargeRange::PRECURSOR,
+            ),
+            immonium: (false, ChargeRange::ONE),
+            m: false,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::DISALLOW,
+            allow_cross_link_cleavage: true,
+            tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
+        }
+    }
 }
 
 /// A location, or range of locations where an ion can be generated
