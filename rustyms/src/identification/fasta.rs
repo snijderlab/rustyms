@@ -368,16 +368,18 @@ impl FastaData {
             } else {
                 last_sequence.extend(
                     line.char_indices()
-                        .map(|(i, c)| {
-                            c.try_into()
-                                .map(|aa: AminoAcid| SequenceElement::new(aa.into(), None))
-                                .map_err(|()| {
-                                    CustomError::error(
-                                        "Failed reading fasta file",
-                                        "Character is not an amino acid",
-                                        Context::line(Some(line_index), &line, i, 1),
-                                    )
-                                })
+                        .filter_map(|(i, c)| {
+                            (!c.is_ascii_whitespace()).then(|| {
+                                c.try_into()
+                                    .map(|aa: AminoAcid| SequenceElement::new(aa.into(), None))
+                                    .map_err(|()| {
+                                        CustomError::error(
+                                            "Failed reading fasta file",
+                                            "Character is not an amino acid",
+                                            Context::line(Some(line_index), &line, i, 1),
+                                        )
+                                    })
+                            })
                         })
                         .collect::<Result<Vec<SequenceElement<_>>, _>>()?,
                 );

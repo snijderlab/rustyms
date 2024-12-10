@@ -544,6 +544,43 @@ impl Model {
         }
     }
 
+    /// EAD
+    pub fn ead() -> Self {
+        Self {
+            a: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            b: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            c: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            d: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            v: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            w: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            x: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            y: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            z: PrimaryIonSeries::default()
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            precursor: (
+                vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))],
+                ChargeRange::ONE_TO_PRECURSOR,
+            ),
+            immonium: (true, ChargeRange::ONE),
+            m: false,
+            modification_specific_neutral_losses: true,
+            modification_specific_diagnostic_ions: (true, ChargeRange::ONE),
+            glycan: GlycanModel::ALLOW
+                .neutral_losses(vec![NeutralLoss::Loss(molecular_formula!(H 2 O 1))]),
+            allow_cross_link_cleavage: true,
+            tolerance: Tolerance::new_ppm(20.0),
+            mz_range: MassOverCharge::new::<mz>(0.0)..=MassOverCharge::new::<mz>(f64::MAX),
+        }
+    }
+
     /// hot EACID
     pub fn hot_eacid() -> Self {
         Self {
