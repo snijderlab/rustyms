@@ -1,7 +1,7 @@
 //! Methods for reading and parsing CSV files. (Internal use mostly).
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fmt::Debug,
     fs::File,
     io::{BufRead, BufReader, Write},
@@ -121,6 +121,16 @@ impl CsvLine {
 impl<Hasher: ::std::hash::BuildHasher + Default> From<&CsvLine>
     for HashMap<String, String, Hasher>
 {
+    fn from(value: &CsvLine) -> Self {
+        value
+            .fields
+            .iter()
+            .map(|(name, range)| (name.to_string(), value.line[range.clone()].to_string()))
+            .collect()
+    }
+}
+
+impl From<&CsvLine> for BTreeMap<String, String> {
     fn from(value: &CsvLine) -> Self {
         value
             .fields
@@ -368,14 +378,14 @@ impl std::fmt::Display for CsvLine {
     }
 }
 
-/// Write a CSV file from a vector of `HashMap`s. It fill empty columns with empty space, ensures the correct amount
-/// of columns on each line, and auto wraps any comma (,) containing values and headers in apostrophes (").
+/// Write a CSV file. It fill empty columns with empty space, ensures the correct amount of columns
+/// on each line, and auto wraps any comma (,) containing values and headers in apostrophes (").
 /// # Errors
 /// If the `Write` implementation errors.
 #[allow(dead_code)]
 pub fn write_csv(
     mut f: impl Write,
-    data: impl IntoIterator<Item = HashMap<String, String>>,
+    data: impl IntoIterator<Item = impl IntoIterator<Item = (String, String)>>,
 ) -> Result<(), std::io::Error> {
     let mut order: Vec<String> = Vec::new();
     let sorted: Vec<Vec<String>> = data
