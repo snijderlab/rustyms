@@ -1,8 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
 use super::{
     common_parser::Location,
     csv::{parse_csv, CsvLine},
+    fasta::FastaIdentifier,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 use crate::{
@@ -34,8 +38,8 @@ format_family!(
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         accession: String, |location: Location, _| Ok(location.get_string());
         organism: String, |location: Location, _| Ok(location.get_string());
-        protein_name: String, |location: Location, _| Ok(location.get_string());
-        protein_location: (usize, usize), |location: Location, _| location.parse_with(
+        protein_name: FastaIdentifier<String>, |location: Location, _| location.parse(NUMBER_ERROR);
+        protein_location: Range<usize>, |location: Location, _| location.parse_with(
             |loc| {
                 if loc.location.len() < 3 {
                     return Err(CustomError::error(
@@ -57,7 +61,7 @@ format_family!(
                     .rev()
                     .take_while(|c| c.is_ascii_digit())
                     .count();
-                Ok((
+                Ok(
                     loc.line.line()[loc.location.start + 1..loc.location.start + 1 + start]
                         .parse()
                         .map_err(|_| {
@@ -67,7 +71,7 @@ format_family!(
                                 loc.location.start + 1,
                                 start,
                             ))
-                        })?,
+                        })?..
                     loc.line.line()[loc.location.end - 1 - end..loc.location.end - 1]
                         .parse()
                         .map_err(|_| {
@@ -78,7 +82,7 @@ format_family!(
                                 end,
                             ))
                         })?
-                ))
+                )
             },
         );
         base_sequence: String, |location: Location, _| Ok(location.get_string());
@@ -127,9 +131,9 @@ format_family!(
         rank: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         matched_ion_series: String, |location: Location, _| Ok(location.get_string());
         matched_ion_mz_ratios: String, |location: Location, _| Ok(location.get_string());
+        matched_ion_intensities: String, |location: Location, _| Ok(location.get_string());
         matched_ion_mass_error: String, |location: Location, _| Ok(location.get_string());
         matched_ion_ppm: String, |location: Location, _| Ok(location.get_string());
-        matched_ion_intensities:String, |location: Location, _| Ok(location.get_string());
         matched_ion_counts: String,|location: Location, _| Ok(location.get_string());
         kind: OpairMatchKind, |location: Location, _| location.parse_with(|loc| {
             match &loc.line.line()[loc.location.clone()] {

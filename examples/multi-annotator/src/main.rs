@@ -153,7 +153,7 @@ fn main() {
                     }
                     if args.report_intensity {
                         row.insert(
-                            "annotated_intensity".to_string(),
+                            "intensity_combined".to_string(),
                             match scores.score {
                                 Score::Position { intensity, .. }
                                 | Score::UniqueFormulas { intensity, .. } => {
@@ -170,6 +170,14 @@ fn main() {
                                 }
                             },
                         );
+                        for (ion, score) in &scores.ions {
+                            row.insert(format!("intensity_{ion}"), match score {
+                                Score::Position { intensity, .. }
+                                | Score::UniqueFormulas { intensity, .. } => {
+                                    intensity.fraction().to_string()
+                                }
+                            });
+                        }
                     }
                     if args.report_IL_satellite_coverage {
                         row.insert(

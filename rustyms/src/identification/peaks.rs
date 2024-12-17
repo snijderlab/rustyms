@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
+    fasta::FastaIdentifier,
     modification::SimpleModification,
     peptide::PeptideModificationSearch,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData, Modification,
@@ -107,7 +108,7 @@ format_family!(
         unique: bool, |location: Location, _| Ok(location.get_string() == "Y");
         protein_group: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         protein_id: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
-        protein_accession: String, |location: Location, _|  Ok(Some(location.get_string()));
+        protein_accession: FastaIdentifier<String>, |location: Location, _|  location.parse(NUMBER_ERROR).map(Some);
         start: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         end: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         quality: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);

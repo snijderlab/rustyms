@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
+    fasta::FastaIdentifier,
     placement_rule::PlacementRule,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
     SequencePosition,
@@ -20,6 +21,10 @@ use super::{
 static NUMBER_ERROR: (&str, &str) = (
     "Invalid PLGS line",
     "This column is not a number but it is required to be a number in this PLGS format",
+);
+static IDENTIFIER_ERROR: (&str, &str) = (
+    "Invalid PLGS line",
+    "This column is not a valid identifier but is required to be in this PLGS format",
 );
 static CURATION_ERROR: (&str, &str) = (
     "Invalid PLGS line",
@@ -36,7 +41,7 @@ format_family!(
         protein_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         protein_entry: String, |location: Location, _| Ok(location.get_string());
         protein_accession: String, |location: Location, _| Ok(location.get_string());
-        protein_description: String, |location: Location, _| Ok(location.get_string());
+        protein_description: FastaIdentifier<String>, |location: Location, _| location.parse(IDENTIFIER_ERROR);
         protein_db_type: String, |location: Location, _| Ok(location.get_string());
         protein_score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         protein_fpr: f64, |location: Location, _| location.parse(NUMBER_ERROR);

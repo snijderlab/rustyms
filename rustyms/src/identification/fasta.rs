@@ -70,6 +70,12 @@ pub enum FastaIdentifier<T> {
     TrEMBL(T, T),
 }
 
+impl<T: Default> Default for FastaIdentifier<T> {
+    fn default() -> Self {
+        Self::Undefined(T::default())
+    }
+}
+
 impl FastaIdentifier<Range<usize>> {
     fn as_str<'a>(&'a self, header: &'a str) -> FastaIdentifier<&'a str> {
         match self {
@@ -118,9 +124,113 @@ impl FastaIdentifier<Range<usize>> {
             ),
         }
     }
+
+    fn as_string(&self, header: &str) -> FastaIdentifier<String> {
+        match self {
+            Self::GenInfoBackboneSeqID(a) => {
+                FastaIdentifier::GenInfoBackboneSeqID(header[a.clone()].to_string())
+            }
+            Self::GenInfoBackboneMolType(a) => {
+                FastaIdentifier::GenInfoBackboneMolType(header[a.clone()].to_string())
+            }
+            Self::GenInfoImportID(a) => {
+                FastaIdentifier::GenInfoImportID(header[a.clone()].to_string())
+            }
+            Self::GenInfoIntegratedDatabase(a) => {
+                FastaIdentifier::GenInfoIntegratedDatabase(header[a.clone()].to_string())
+            }
+            Self::Undefined(a) => FastaIdentifier::Undefined(header[a.clone()].to_string()),
+            Self::Local(a) => FastaIdentifier::Local(header[a.clone()].to_string()),
+            Self::GenBank(a, b) => FastaIdentifier::GenBank(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::EMBL(a, b) => {
+                FastaIdentifier::EMBL(header[a.clone()].to_string(), header[b.clone()].to_string())
+            }
+            Self::PIR(a, b) => {
+                FastaIdentifier::PIR(header[a.clone()].to_string(), header[b.clone()].to_string())
+            }
+            Self::SwissProt(a, b) => FastaIdentifier::SwissProt(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::RefSeq(a, b) => FastaIdentifier::RefSeq(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::GeneralDatabase(a, b) => FastaIdentifier::GeneralDatabase(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::DDBJ(a, b) => {
+                FastaIdentifier::DDBJ(header[a.clone()].to_string(), header[b.clone()].to_string())
+            }
+            Self::PRF(a, b) => {
+                FastaIdentifier::PRF(header[a.clone()].to_string(), header[b.clone()].to_string())
+            }
+            Self::ThirdPartyGenBank(a, b) => FastaIdentifier::ThirdPartyGenBank(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::ThirdPartyEMBL(a, b) => FastaIdentifier::ThirdPartyEMBL(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::ThirdPartyDDJ(a, b) => FastaIdentifier::ThirdPartyDDJ(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::TrEMBL(a, b) => FastaIdentifier::TrEMBL(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+            ),
+            Self::PDB(a, b) => {
+                FastaIdentifier::PDB(header[a.clone()].to_string(), header[b.clone()].to_string())
+            }
+            Self::Patent(a, b, c) => FastaIdentifier::Patent(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+                header[c.clone()].to_string(),
+            ),
+            Self::PrePatent(a, b, c) => FastaIdentifier::PrePatent(
+                header[a.clone()].to_string(),
+                header[b.clone()].to_string(),
+                header[c.clone()].to_string(),
+            ),
+        }
+    }
 }
 
 impl<'a> std::fmt::Display for FastaIdentifier<&'a str> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GenInfoBackboneSeqID(a) => write!(f, "bbs|{a}"),
+            Self::GenInfoBackboneMolType(a) => write!(f, "bbm|{a}"),
+            Self::GenInfoImportID(a) => write!(f, "gim|{a}"),
+            Self::GenInfoIntegratedDatabase(a) => write!(f, "gi|{a}"),
+            Self::GenBank(a, b) => write!(f, "gb|{a}|{b}"),
+            Self::EMBL(a, b) => write!(f, "emb|{a}|{b}"),
+            Self::PIR(a, b) => write!(f, "pir|{a}|{b}"),
+            Self::SwissProt(a, b) => write!(f, "sp|{a}|{b}"),
+            Self::Patent(a, b, c) => write!(f, "pat|{a}|{b}|{c}"),
+            Self::PrePatent(a, b, c) => write!(f, "pgp|{a}|{b}|{c}"),
+            Self::RefSeq(a, b) => write!(f, "ref|{a}|{b}"),
+            Self::GeneralDatabase(b, a) => write!(f, "gnl|{a}|{b}"),
+            Self::DDBJ(a, b) => write!(f, "dbj|{a}|{b}"),
+            Self::PRF(a, b) => write!(f, "prf|{a}|{b}"),
+            Self::ThirdPartyGenBank(a, b) => write!(f, "tpg|{a}|{b}"),
+            Self::ThirdPartyEMBL(a, b) => write!(f, "tpe|{a}|{b}"),
+            Self::ThirdPartyDDJ(a, b) => write!(f, "tpd|{a}|{b}"),
+            Self::TrEMBL(a, b) => write!(f, "tr|{a}|{b}"),
+            Self::Undefined(a) => write!(f, "{a}"),
+            Self::Local(a) => write!(f, "lcl|{a}"),
+            Self::PDB(a, b) => write!(f, "pdb|{a}|{b}"),
+        }
+    }
+}
+
+impl std::fmt::Display for FastaIdentifier<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::GenInfoBackboneSeqID(a) => write!(f, "bbs|{a}"),
@@ -201,6 +311,13 @@ impl<T: Copy> FastaIdentifier<T> {
             | Self::Local(n)
             | Self::PDB(_, n) => *n,
         }
+    }
+}
+
+impl FromStr for FastaIdentifier<String> {
+    type Err = ParseIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(FastaIdentifier::<Range<usize>>::from_str(s)?.as_string(s))
     }
 }
 
@@ -368,18 +485,17 @@ impl FastaData {
             } else {
                 last_sequence.extend(
                     line.char_indices()
-                        .filter_map(|(i, c)| {
-                            (!c.is_ascii_whitespace()).then(|| {
-                                c.try_into()
-                                    .map(|aa: AminoAcid| SequenceElement::new(aa.into(), None))
-                                    .map_err(|()| {
-                                        CustomError::error(
-                                            "Failed reading fasta file",
-                                            "Character is not an amino acid",
-                                            Context::line(Some(line_index), &line, i, 1),
-                                        )
-                                    })
-                            })
+                        .filter(|(_, c)| !c.is_ascii_whitespace())
+                        .map(|(i, c)| {
+                            c.try_into()
+                                .map(|aa: AminoAcid| SequenceElement::new(aa.into(), None))
+                                .map_err(|()| {
+                                    CustomError::error(
+                                        "Failed reading fasta file",
+                                        "Character is not an amino acid",
+                                        Context::line(Some(line_index), &line, i, 1),
+                                    )
+                                })
                         })
                         .collect::<Result<Vec<SequenceElement<_>>, _>>()?,
                 );

@@ -16,12 +16,17 @@ use serde::{Deserialize, Serialize};
 use super::{
     common_parser::{Location, OptionalColumn, OptionalLocation},
     csv::{parse_csv, CsvLine},
+    fasta::FastaIdentifier,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
 };
 
 static NUMBER_ERROR: (&str, &str) = (
     "Invalid MSFragger line",
     "This column is not a number but it is required to be a number in this MSFragger format",
+);
+static IDENTIFIER_ERROR: (&str, &str) = (
+    "Invalid MSFragger line",
+    "This column is not a fasta identifier but is required to be one in this MSFragger format",
 );
 static BOOL_ERROR: (&str, &str) = (
     "Invalid MSFragger line",
@@ -76,7 +81,7 @@ format_family!(
         assigned_modifications: String, |location: Location, _| Ok(location.get_string());
         purity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         is_unique: bool, |location: Location, _| location.parse(BOOL_ERROR);
-        protein: String, |location: Location, _| Ok(location.get_string());
+        protein: FastaIdentifier<String>, |location: Location, _| location.parse(IDENTIFIER_ERROR);
         protein_id: String, |location: Location, _| Ok(location.get_string());
         entry_name: String, |location: Location, _| Ok(location.get_string());
         gene: String, |location: Location, _| Ok(location.get_string());

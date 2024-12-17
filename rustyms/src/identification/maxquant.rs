@@ -31,7 +31,6 @@ format_family!(
     MaxQuantData,
     MaxQuantVersion, [&MSMS, &NOVO_MSMS_SCANS, &MSMS_SCANS, &SILAC], b'\t', None;
     required {
-        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         scan: Vec<usize>, |location: Location, _| location.or_empty().array(';').map(|s| s.parse(NUMBER_ERROR)).collect::<Result<Vec<usize>, CustomError>>();
         modifications: String, |location: Location, _| Ok(location.get_string());
         proteins: String, |location: Location, _| Ok(location.get_string());
@@ -47,6 +46,7 @@ format_family!(
         score: f64, |location: Location, _| location.parse(NUMBER_ERROR);
     }
     optional {
+        raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
         all_modified_sequences: Vec<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.array(';')
                 .map(|s| LinearPeptide::sloppy_pro_forma(s.line.line(), s.location, custom_database, &SloppyParsingParameters::default()))
                 .collect::<Result<Vec<LinearPeptide<SemiAmbiguous>>, CustomError>>();
@@ -75,7 +75,7 @@ format_family!(
         mass_analyser: String, |location: Location, _| Ok(location.get_string());
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         missed_cleavages: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
-        modified_peptide_id:usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
+        modified_peptide_id: usize, |location: Location, _| location.parse::<usize>(NUMBER_ERROR);
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         nem_probabilities: String, |location: Location, _| Ok(location.get_string());
         nem_score_differences: String, |location: Location, _| Ok(location.get_string());
@@ -192,7 +192,7 @@ pub const MSMS: MaxQuantFormat = MaxQuantFormat {
     proteins: "proteins",
     ration_h_l_normalised: OptionalColumn::NotAvailable,
     ration_h_l: OptionalColumn::NotAvailable,
-    raw_file: "raw file",
+    raw_file: OptionalColumn::Optional("raw file"),
     rt: OptionalColumn::Required("retention time"),
     scan_event_number: OptionalColumn::Required("scan event number"),
     scan_index: OptionalColumn::Required("scan index"),
@@ -255,7 +255,7 @@ pub const MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     proteins: "proteins",
     ration_h_l_normalised: OptionalColumn::NotAvailable,
     ration_h_l: OptionalColumn::NotAvailable,
-    raw_file: "raw file",
+    raw_file: OptionalColumn::Optional("raw file"),
     rt: OptionalColumn::Required("retention time"),
     scan_event_number: OptionalColumn::Required("scan event number"),
     scan_index: OptionalColumn::Required("scan index"),
@@ -318,7 +318,7 @@ pub const NOVO_MSMS_SCANS: MaxQuantFormat = MaxQuantFormat {
     proteins: "proteins",
     ration_h_l_normalised: OptionalColumn::NotAvailable,
     ration_h_l: OptionalColumn::NotAvailable,
-    raw_file: "raw file",
+    raw_file: OptionalColumn::Optional("raw file"),
     rt: OptionalColumn::Required("retention time"),
     scan_event_number: OptionalColumn::Required("scan event number"),
     scan_index: OptionalColumn::Required("scan index"),
@@ -383,7 +383,7 @@ pub const SILAC: MaxQuantFormat = MaxQuantFormat {
     proteins: "proteins",
     ration_h_l: OptionalColumn::Required("ratio h/l"),
     ration_h_l_normalised: OptionalColumn::Required("ratio h/l normalized"),
-    raw_file: "raw file",
+    raw_file: OptionalColumn::Optional("raw file"),
     rt: OptionalColumn::Required("retention time"),
     scan_event_number: OptionalColumn::NotAvailable,
     scan_index: OptionalColumn::NotAvailable,

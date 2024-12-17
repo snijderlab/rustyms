@@ -328,7 +328,7 @@ impl MZTabData {
                                 peptide.set_simple_c_term(Some(modification));
                             }
                             i => {
-                                peptide.sequence_mut()[i - 1].add_simple_modification(modification)
+                                peptide.sequence_mut()[i - 1].add_simple_modification(modification);
                             }
                         }
                     }
