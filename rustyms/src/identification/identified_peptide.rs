@@ -1,4 +1,9 @@
-use std::{borrow::Cow, fmt::Display, path::PathBuf};
+use std::{
+    borrow::Cow,
+    fmt::Display,
+    ops::{Range, RangeInclusive},
+    path::PathBuf,
+};
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -7,16 +12,24 @@ use crate::{
     error::CustomError,
     formula::MultiChemical,
     identification::{
-        deepnovofamily::DeepNovoFamilyData, fasta::FastaData, instanovo::InstaNovoData,
-        novob::NovoBData, novor::NovorData, opair::OpairData, peaks::PeaksData, pepnet::PepNetData,
-        plink::PLinkData, powernovo::PowerNovoData, system::MassOverCharge, MSFraggerData,
-        MZTabData, MaxQuantData, PLGSData, SageData,
+        deepnovofamily::DeepNovoFamilyData,
+        fasta::{FastaData, FastaIdentifier},
+        instanovo::InstaNovoData,
+        novob::NovoBData,
+        novor::NovorData,
+        opair::OpairData,
+        peaks::PeaksData,
+        pepnet::PepNetData,
+        plink::PLinkData,
+        powernovo::PowerNovoData,
+        system::MassOverCharge,
+        MSFraggerData, MZTabData, MaxQuantData, PLGSData, SageData,
     },
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SimpleLinear},
     system::usize::Charge,
-    system::Time,
-    LinearPeptide, Peptidoform,
+    system::{OrderedTime, Time},
+    Fragment, LinearPeptide, Peptidoform,
 };
 
 use super::CompoundPeptidoform;
@@ -426,10 +439,19 @@ impl IdentifiedPeptide {
             }
 
             MetaData::MaxQuant(MaxQuantData { raw_file, scan, .. }) => {
-                SpectrumIds::FileKnown(vec![(
-                    raw_file.clone(),
-                    scan.iter().copied().map(SpectrumId::Index).collect(),
-                )])
+                raw_file.as_ref().map_or_else(
+                    || {
+                        SpectrumIds::FileNotKnown(
+                            scan.iter().copied().map(SpectrumId::Index).collect(),
+                        )
+                    },
+                    |raw_file| {
+                        SpectrumIds::FileKnown(vec![(
+                            raw_file.clone(),
+                            scan.iter().copied().map(SpectrumId::Index).collect(),
+                        )])
+                    },
+                )
             }
             MetaData::MZTab(MZTabData { spectra_ref, .. }) => spectra_ref.clone(),
             MetaData::MSFragger(MSFraggerData { raw_file, scan, .. }) => {
@@ -457,7 +479,15 @@ impl IdentifiedPeptide {
             MetaData::Sage(SageData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![scan.clone()])])
             }
-            MetaData::Fasta(_) | MetaData::PepNet(_) | MetaData::PLGS(_) => SpectrumIds::None,
+            MetaData::PLGS(PLGSData {
+                precursor_lift_off_rt,
+                precursor_touch_down_rt,
+                ..
+            }) => SpectrumIds::FileNotKnown(vec![SpectrumId::RetentionTime(
+                OrderedTime::from(*precursor_lift_off_rt)
+                    ..=OrderedTime::from(*precursor_touch_down_rt),
+            )]),
+            MetaData::Fasta(_) | MetaData::PepNet(_) => SpectrumIds::None,
         }
     }
 
@@ -546,6 +576,98 @@ impl IdentifiedPeptide {
 
         Some((exp_mass - theo_mass).abs())
     }
+
+    /// Get the protein name if this was database matched data
+    pub fn protein_name(&self) -> Option<FastaIdentifier<String>> {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData {
+                protein_accession, ..
+            }) => protein_accession.clone(),
+            MetaData::Opair(OpairData { protein_name, .. }) => Some(protein_name.clone()),
+            MetaData::PLGS(PLGSData {
+                protein_description,
+                ..
+            }) => Some(protein_description.clone()),
+            MetaData::MSFragger(MSFraggerData { protein, .. }) => Some(protein.clone()),
+            MetaData::MZTab(MZTabData { accession, .. }) => accession
+                .as_ref()
+                .map(|a| FastaIdentifier::Undefined(a.clone())),
+            MetaData::NovoB(_)
+            | MetaData::MaxQuant(_)
+            | MetaData::Sage(_)
+            | MetaData::PLink(_)
+            | MetaData::Novor(_)
+            | MetaData::Fasta(_)
+            | MetaData::DeepNovoFamily(_)
+            | MetaData::InstaNovo(_)
+            | MetaData::PowerNovo(_)
+            | MetaData::PepNet(_) => None,
+        }
+    }
+
+    /// Get the protein id if this was database matched data
+    pub const fn protein_id(&self) -> Option<usize> {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { protein_id, .. }) => *protein_id,
+            MetaData::Novor(NovorData { protein, .. }) => *protein,
+            MetaData::PLGS(PLGSData { protein_id, .. }) => Some(*protein_id),
+            MetaData::MSFragger(_)
+            | MetaData::MZTab(_)
+            | MetaData::MaxQuant(_)
+            | MetaData::Sage(_)
+            | MetaData::PLink(_)
+            | MetaData::NovoB(_)
+            | MetaData::Opair(_)
+            | MetaData::Fasta(_)
+            | MetaData::PowerNovo(_)
+            | MetaData::DeepNovoFamily(_)
+            | MetaData::InstaNovo(_)
+            | MetaData::PepNet(_) => None,
+        }
+    }
+
+    /// Get the protein location if this was database matched data
+    pub fn protein_location(&self) -> Option<Range<usize>> {
+        match &self.metadata {
+            MetaData::Peaks(PeaksData { start, end, .. }) => start.and_then(|s| end.map(|e| s..e)),
+            MetaData::Novor(NovorData {
+                protein_start,
+                peptide,
+                ..
+            }) => protein_start.map(|s| s..s + peptide.len()),
+            MetaData::Opair(OpairData {
+                protein_location, ..
+            }) => Some(protein_location.clone()),
+            MetaData::PLGS(PLGSData {
+                peptide_start,
+                peptide,
+                ..
+            }) => Some(*peptide_start..*peptide_start + peptide.len()),
+            MetaData::MSFragger(MSFraggerData {
+                protein_start,
+                protein_end,
+                ..
+            }) => Some(*protein_start..*protein_end),
+            MetaData::MZTab(MZTabData { start, end, .. }) => start.and_then(|s| end.map(|e| s..e)),
+            MetaData::InstaNovo(_)
+            | MetaData::DeepNovoFamily(_)
+            | MetaData::MaxQuant(_)
+            | MetaData::Sage(_)
+            | MetaData::PLink(_)
+            | MetaData::NovoB(_)
+            | MetaData::Fasta(_)
+            | MetaData::PowerNovo(_)
+            | MetaData::PepNet(_) => None,
+        }
+    }
+
+    /// Get the matched fragments, potentially with m/z and intensity
+    pub fn matched_fragments(
+        &self,
+    ) -> Option<Vec<(Option<MassOverCharge>, Option<f64>, Fragment)>> {
+        // OPair, MaxQuant, PLGS
+        None
+    }
 }
 
 /// Multiple spectrum identifiers
@@ -567,6 +689,8 @@ pub enum SpectrumId {
     Native(String),
     /// A spectrum index
     Index(usize),
+    /// Time range, assumes all MS2 spectra within this range are selected
+    RetentionTime(RangeInclusive<OrderedTime>),
 }
 
 impl Default for SpectrumId {
@@ -580,6 +704,9 @@ impl std::fmt::Display for SpectrumId {
         match self {
             Self::Index(i) => write!(f, "{i}"),
             Self::Native(n) => write!(f, "{n}"),
+            Self::RetentionTime(n) => {
+                write!(f, "{:.3} — {:.3} min", n.start().value, n.end().value)
+            }
         }
     }
 }
@@ -589,15 +716,15 @@ impl SpectrumId {
     pub const fn index(&self) -> Option<usize> {
         match self {
             Self::Index(i) => Some(*i),
-            Self::Native(_) => None,
+            Self::Native(_) | Self::RetentionTime(_) => None,
         }
     }
 
     /// Get the native ID if this is a native ID
     pub fn native(&self) -> Option<&str> {
         match self {
-            Self::Index(_) => None,
             Self::Native(n) => Some(n),
+            Self::Index(_) | Self::RetentionTime(_) => None,
         }
     }
 }

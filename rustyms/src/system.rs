@@ -276,6 +276,7 @@ impl std::hash::Hash for OrderedRatio {
         helper_functions::f64_bits(self.0.value).hash(state);
     }
 }
+
 /// A wrapper around [`Mass`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct OrderedMass(Mass);
@@ -407,6 +408,74 @@ impl PartialEq for OrderedMassOverCharge {
 }
 
 impl std::hash::Hash for OrderedMassOverCharge {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        helper_functions::f64_bits(self.0.value).hash(state);
+    }
+}
+
+/// A wrapper around [`Time`] which implements Eq/Ord/Hash to help in auto deriving these on other structs.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct OrderedTime(Time);
+
+impl OrderedTime {
+    /// Use the zero from [`Time`] itself
+    pub fn zero() -> Self {
+        Self(Time::zero())
+    }
+
+    /// Get a normal [`Time`]
+    #[allow(dead_code)]
+    pub fn into_inner(self) -> Time {
+        self.0
+    }
+}
+
+impl Default for OrderedTime {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl From<Time> for OrderedTime {
+    fn from(value: Time) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for OrderedTime {
+    type Target = Time;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OrderedTime {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Ord for OrderedTime {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value.total_cmp(&other.0.value)
+    }
+}
+
+impl PartialOrd for OrderedTime {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for OrderedTime {}
+
+impl PartialEq for OrderedTime {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl std::hash::Hash for OrderedTime {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         helper_functions::f64_bits(self.0.value).hash(state);
     }
