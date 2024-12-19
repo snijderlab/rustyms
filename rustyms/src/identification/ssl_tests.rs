@@ -10,9 +10,43 @@ fn cascadia_v0_0_5() {
         None,
         false,
         false,
-        Some(SpectrumSequenceListVersion::Cascadia_V0_0_5),
+        Some(SpectrumSequenceListVersion::SSL),
     ) {
         Ok(n) => assert_eq!(n, 20),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
+}
+
+#[test]
+fn small_molecule_example() {
+    match test_format::<SpectrumSequenceListData>(
+        BufReader::new(SMALL_MOLECULES_EXAMPLE.as_bytes()),
+        None,
+        false,
+        false,
+        Some(SpectrumSequenceListVersion::SSL),
+    ) {
+        Ok(n) => assert_eq!(n, 6),
+        Err(e) => {
+            println!("{e}");
+            panic!("Failed identified peptides test");
+        }
+    }
+}
+
+#[test]
+fn peptide_example() {
+    match test_format::<SpectrumSequenceListData>(
+        BufReader::new(PEPTIDE_EXAMPLE.as_bytes()),
+        None,
+        true,
+        false,
+        Some(SpectrumSequenceListVersion::SSL),
+    ) {
+        Ok(n) => assert_eq!(n, 12),
         Err(e) => {
             println!("{e}");
             panic!("Failed identified peptides test");
@@ -41,3 +75,25 @@ const CASCADIA_V0_0_5: &str = "file	scan	charge	sequence	score-type	score	retent
 ../test_data/test/20230408_F1_UM4_Peng0013_SA_EXT00_her_01_tryp.mzML	1339	3.0	LTPPSREEMTK	Cascadia Score	0.9637745	16.652891	16.52233213932362	16.783450178791615
 ../test_data/test/20230408_F1_UM4_Peng0013_SA_EXT00_her_01_tryp.mzML	26981	4.0	THTC[Carbamidomethyl]PPC[Carbamidomethyl]PAPELLGGPSVFLFPPKPK	Cascadia Score	0.85148484	75.06698	74.93641943485585	75.19753747432384
 ../test_data/test/20230408_F1_UM4_Peng0013_SA_EXT00_her_01_tryp.mzML	1397	4.0	HKVYAGEVTHQGLSSPVTK	Cascadia Score	0.99907994	16.68329	16.552731461833385	16.81384950130138";
+
+const SMALL_MOLECULES_EXAMPLE: &str = r#"file	scan	charge	adduct	inchikey	chemicalformula	moleculename	otherkeys
+dexcaf_051017.mzML	01369	-1	[M-H]	ZXPLRDFHBYIQOX-BTBVOZEKSA-N	C24H44O21N0	Glc04Reduced	 
+dexcaf_051017.mzML	01639	-1	[M-H]	NBVGBCYERZIRIP-JAMOUWTMSA-N	C30H54O26N0	Glc05Reduced	
+dexcaf_051017.mzML	01855	-1	[M-H]	PNHJKLJIDNHXFR-ZGJYWSOBSA-N	C36H64O31N0	Glc06Reduced	
+dexcaf_051017.mzML	02029	-1	[M-H]	NVKJDLBVRSXYRE-BMFDHOHESA-N	C42H74O36N0	Glc07Reduced	
+dexcaf_051017.mzML	02179	-1	[M-H]	YMRGEPQWJZHXFF-MGQBKJSVSA-N	C48H84O41N0	Glc08Reduced	
+dexcaf_051017.mzML	01079	-1	[M-H]	RYYVLZVUVIJVGH-UHFFFAOYSA-N	C8H10N4O2	Caffeine	"InChI:1S/C8H10N4O2/c1-10-4-9-6-5(10)7(13)12(3)8(14)11(6)2/h4H,1-3H3	HMDB:01847	CAS:58-08-2	SMILES:Cn1cnc2n(C)c(=O)n(C)c(=O)c12""#;
+
+const PEPTIDE_EXAMPLE: &str = "file	scan	charge	sequence
+demo.ms2	8	3	VGAGAPVYLAAVLEYLAAEVLELAGNAAR
+demo.ms2	1806	2	LAESITIEQGK
+demo.ms2	2572	2	ELAEDGC[+57.0]SGVEVR
+demo.ms2	3088	2	TTAGAVEATSEITEGK
+demo.ms2	3266	2	DC[+57.0]EEVGADSNEGGEEEGEEC[+57.0]
+demo.ms2	9734	3	IWELEFPEEAADFQQQPVNAQ[-17.0]PQN
+demo.ms2	20919	3	VHINIVVIGHVDSGK
+../elsewhere/spec.mzXML	00497	2	LKEPAQNTADNAK
+../elsewhere/spec.mzXML	00680	2	ALEGPGPGEDAAHSENNPPR
+../elsewhere/spec.mzXML	00965	2	FFSHEAEQK
+../elsewhere/spec.mzXML	01114	2	C[+57.0]GPSQPLK
+../elsewhere/spec.mzXML	01382	2	AVHVQVTDAEAGK";
