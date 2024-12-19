@@ -1,16 +1,16 @@
 #![allow(clippy::missing_panics_doc)]
 use std::io::BufReader;
 
-use crate::identification::{test_format, CascadiaData, CascadiaVersion};
+use crate::identification::{test_format, SpectrumSequenceListData, SpectrumSequenceListVersion};
 
 #[test]
-fn cascadia() {
-    match test_format::<CascadiaData>(
+fn cascadia_v0_0_5() {
+    match test_format::<SpectrumSequenceListData>(
         BufReader::new(CASCADIA_V0_0_5.as_bytes()),
         None,
         false,
         false,
-        Some(CascadiaVersion::V0_0_5),
+        Some(SpectrumSequenceListVersion::Cascadia_V0_0_5),
     ) {
         Ok(n) => assert_eq!(n, 20),
         Err(e) => {

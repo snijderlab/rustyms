@@ -3,9 +3,10 @@ use std::path::Path;
 use super::{
     error::{Context, CustomError},
     ontologies::CustomDatabase,
-    CascadiaData, DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
+    DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
     IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovoBData,
     NovorData, OpairData, PLGSData, PLinkData, PeaksData, PepNetData, PowerNovoData, SageData,
+    SpectrumSequenceListData,
 };
 
 // TODO:
@@ -117,7 +118,7 @@ pub fn open_identified_peptides_file<'a>(
             DeepNovoFamilyData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
         },
         Some("ssl") => {
-            CascadiaData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+            SpectrumSequenceListData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
         }
         _ => Err(CustomError::error(
             "Unknown extension",
