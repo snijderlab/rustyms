@@ -20,6 +20,7 @@ mod plgs;
 mod plink;
 mod powernovo;
 mod sage;
+mod ssl;
 
 use crate::*;
 pub use deepnovofamily::*;
@@ -39,6 +40,7 @@ pub use plgs::*;
 pub use plink::*;
 pub use powernovo::*;
 pub use sage::*;
+pub use ssl::*;
 
 #[cfg(test)]
 mod deepnovofamily_tests;
@@ -68,3 +70,5 @@ mod plink_tests;
 mod powernovo_tests;
 #[cfg(test)]
 mod sage_tests;
+#[cfg(test)]
+mod ssl_tests;

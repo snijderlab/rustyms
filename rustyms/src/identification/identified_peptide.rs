@@ -23,7 +23,7 @@ use crate::{
         plink::PLinkData,
         powernovo::PowerNovoData,
         system::MassOverCharge,
-        MSFraggerData, MZTabData, MaxQuantData, PLGSData, SageData,
+        MSFraggerData, MZTabData, MaxQuantData, PLGSData, SageData, SpectrumSequenceListData,
     },
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SimpleLinear},
@@ -79,6 +79,8 @@ pub enum MetaData {
     PowerNovo(PowerNovoData),
     /// Sage metadata
     Sage(SageData),
+    /// SpectrumSequenceList metadata
+    SpectrumSequenceList(SpectrumSequenceListData),
 }
 
 /// A peptide as stored in a identified peptide file, either a simple linear one or a cross-linked peptidoform
@@ -195,6 +197,7 @@ impl IdentifiedPeptide {
                 }
             }
             MetaData::MSFragger(MSFraggerData { peptide, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
@@ -227,6 +230,7 @@ impl IdentifiedPeptide {
     /// Get the name of the format
     pub const fn format_name(&self) -> &'static str {
         match &self.metadata {
+            MetaData::SpectrumSequenceList(_) => "SpectrumSequenceList",
             MetaData::DeepNovoFamily(_) => "DeepNovo Family",
             MetaData::Fasta(_) => "Fasta",
             MetaData::InstaNovo(_) => "InstaNovo",
@@ -248,6 +252,9 @@ impl IdentifiedPeptide {
     /// Get the format version detected
     pub fn format_version(&self) -> String {
         match &self.metadata {
+            MetaData::SpectrumSequenceList(SpectrumSequenceListData { version, .. }) => {
+                version.to_string()
+            }
             MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
             MetaData::Fasta(_) => "Fasta".to_string(),
             MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
@@ -284,6 +291,7 @@ impl IdentifiedPeptide {
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
             MetaData::Opair(OpairData { scan, .. })
             | MetaData::NovoB(NovoBData { scan, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { scan, .. })
             | MetaData::InstaNovo(InstaNovoData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
@@ -349,6 +357,9 @@ impl IdentifiedPeptide {
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::Peaks(PeaksData { z, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
+            MetaData::SpectrumSequenceList(SpectrumSequenceListData { z, .. }) => {
+                (z.value >= 0).then_some(Charge::new::<crate::system::charge::e>(z.value as usize))
+            }
             MetaData::Fasta(_) | MetaData::PowerNovo(_) | MetaData::PepNet(_) => None,
         }
     }
@@ -374,6 +385,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
             MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
@@ -422,6 +434,7 @@ impl IdentifiedPeptide {
             ),
 
             MetaData::Opair(OpairData { raw_file, scan, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { raw_file, scan, .. })
             | MetaData::InstaNovo(InstaNovoData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
@@ -513,6 +526,7 @@ impl IdentifiedPeptide {
             }
             MetaData::DeepNovoFamily(_)
             | MetaData::Fasta(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::PowerNovo(_)
             | MetaData::PepNet(_) => None,
         }
@@ -540,7 +554,10 @@ impl IdentifiedPeptide {
             MetaData::DeepNovoFamily(DeepNovoFamilyData { mz, z, .. }) => {
                 mz.and_then(|mz| z.map(|z| (mz, z)).map(|(mz, z)| mz * z.to_float()))
             }
-            MetaData::Fasta(_) | MetaData::PowerNovo(_) | MetaData::PepNet(_) => None,
+            MetaData::Fasta(_)
+            | MetaData::PowerNovo(_)
+            | MetaData::SpectrumSequenceList(_)
+            | MetaData::PepNet(_) => None,
         }
     }
 
@@ -600,7 +617,8 @@ impl IdentifiedPeptide {
             | MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
             | MetaData::PowerNovo(_)
-            | MetaData::PepNet(_) => None,
+            | MetaData::PepNet(_)
+            | MetaData::SpectrumSequenceList(_) => None,
         }
     }
 
@@ -621,7 +639,8 @@ impl IdentifiedPeptide {
             | MetaData::PowerNovo(_)
             | MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
-            | MetaData::PepNet(_) => None,
+            | MetaData::PepNet(_)
+            | MetaData::SpectrumSequenceList(_) => None,
         }
     }
 
@@ -656,7 +675,8 @@ impl IdentifiedPeptide {
             | MetaData::NovoB(_)
             | MetaData::Fasta(_)
             | MetaData::PowerNovo(_)
-            | MetaData::PepNet(_) => None,
+            | MetaData::PepNet(_)
+            | MetaData::SpectrumSequenceList(_) => None,
         }
     }
 
