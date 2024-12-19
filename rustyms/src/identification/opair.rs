@@ -216,7 +216,7 @@ impl std::fmt::Display for OpairVersion {
             f,
             "{}",
             match self {
-                Self::Opair => "Opair",
+                Self::Opair => "",
             }
         )
     }

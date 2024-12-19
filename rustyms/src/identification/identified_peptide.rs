@@ -174,8 +174,7 @@ impl IdentifiedPeptide {
             | MetaData::Opair(OpairData { peptide, .. })
             | MetaData::PepNet(PepNetData { peptide, .. })
             | MetaData::PowerNovo(PowerNovoData { peptide, .. })
-            | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { peptide, .. }) => {
+            | MetaData::Sage(SageData { peptide, .. }) => {
                 Some(ReturnedPeptide::LinearSemiAmbiguous(peptide))
             }
             MetaData::PLGS(PLGSData { peptide, .. }) => {
@@ -191,6 +190,7 @@ impl IdentifiedPeptide {
                 }
             }
             MetaData::MSFragger(MSFraggerData { peptide, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { peptide, .. })
             | MetaData::MaxQuant(MaxQuantData { peptide, .. })
             | MetaData::MZTab(MZTabData { peptide, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { peptide, .. }) => {
@@ -344,13 +344,15 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::NovoB(NovoBData { z, .. })
-            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { z, .. })
             | MetaData::PLGS(PLGSData { precursor_z: z, .. })
             | MetaData::PLink(PLinkData { z, .. })
             | MetaData::InstaNovo(InstaNovoData { z, .. })
             | MetaData::MZTab(MZTabData { z, .. }) => Some(*z),
             MetaData::Peaks(PeaksData { z, .. })
             | MetaData::DeepNovoFamily(DeepNovoFamilyData { z, .. }) => *z,
+            MetaData::SpectrumSequenceList(SpectrumSequenceListData { z, .. }) => {
+                (z.value >= 0).then_some(Charge::new::<crate::system::charge::e>(z.value as usize))
+            }
             MetaData::Fasta(_) | MetaData::PowerNovo(_) | MetaData::PepNet(_) => None,
         }
     }
