@@ -6,6 +6,7 @@ use super::{
     DeepNovoFamilyData, FastaData, IdentifiedPeptide, IdentifiedPeptideIter,
     IdentifiedPeptideSource, InstaNovoData, MSFraggerData, MZTabData, MaxQuantData, NovoBData,
     NovorData, OpairData, PLGSData, PLinkData, PeaksData, PepNetData, PowerNovoData, SageData,
+    SpectrumSequenceListData,
 };
 
 // TODO:
@@ -115,10 +116,13 @@ pub fn open_identified_peptides_file<'a>(
         }),
         Some("deepnovo_denovo") => {
             DeepNovoFamilyData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
+        },
+        Some("ssl") => {
+            SpectrumSequenceListData::parse_file(path, custom_database).map(IdentifiedPeptideIter::into_box)
         }
         _ => Err(CustomError::error(
             "Unknown extension",
-            "Use CSV, TSV, TXT, PSMTSV, deepnovo_denovo, or Fasta, or any of these as a gzipped file (eg csv.gz).",
+            "Use CSV, SSL, TSV, TXT, PSMTSV, deepnovo_denovo, or Fasta, or any of these as a gzipped file (eg csv.gz).",
             Context::show(path.to_string_lossy()),
         )),
     }
