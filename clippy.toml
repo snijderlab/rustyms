@@ -20,6 +20,8 @@ doc-valid-idents = [
     "NovoB",
     "pi-PrimeNovo",
     "π-PrimeNovo",
+    "Cascadia",
+    "SpectrumSequenceList",
 ]
 avoid-breaking-exported-api = false
 check-private-items = true

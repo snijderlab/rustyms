@@ -12,27 +12,11 @@ use crate::{
     error::CustomError,
     formula::MultiChemical,
     identification::{
-        deepnovofamily::DeepNovoFamilyData,
-        fasta::{FastaData, FastaIdentifier},
-        instanovo::InstaNovoData,
-        instanovo::InstaNovoData,
-        novob::NovoBData,
-        novob::NovoBData,
-        novor::NovorData,
-        novor::NovorData,
-        opair::OpairData,
-        opair::OpairData,
-        peaks::PeaksData,
-        peaks::PeaksData,
-        pepnet::PepNetData,
-        pepnet::PepNetData,
-        plink::PLinkData,
-        plink::PLinkData,
-        powernovo::PowerNovoData,
-        powernovo::PowerNovoData,
-        system::MassOverCharge,
-        system::MassOverCharge,
-        CascadiaData, MSFraggerData, MZTabData, MaxQuantData, PLGSData, SageData,
+        deepnovofamily::DeepNovoFamilyData, fasta::FastaData, fasta::FastaIdentifier,
+        instanovo::InstaNovoData, novob::NovoBData, novor::NovorData, opair::OpairData,
+        peaks::PeaksData, pepnet::PepNetData, plink::PLinkData, powernovo::PowerNovoData,
+        system::MassOverCharge, MSFraggerData, MZTabData, MaxQuantData, PLGSData, SageData,
+        SpectrumSequenceListData,
     },
     ontologies::CustomDatabase,
     peptide::{SemiAmbiguous, SimpleLinear},
@@ -58,8 +42,6 @@ pub struct IdentifiedPeptide {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant, clippy::upper_case_acronyms)]
 pub enum MetaData {
-    /// Cascadia metadata
-    Cascadia(CascadiaData),
     /// DeepNovo/PointNovo/PGPointNovo metadata
     DeepNovoFamily(DeepNovoFamilyData),
     /// Fasta metadata
@@ -90,6 +72,8 @@ pub enum MetaData {
     PowerNovo(PowerNovoData),
     /// Sage metadata
     Sage(SageData),
+    /// SpectrumSequenceList metadata
+    SpectrumSequenceList(SpectrumSequenceListData),
 }
 
 /// A peptide as stored in a identified peptide file, either a simple linear one or a cross-linked peptidoform
@@ -191,7 +175,7 @@ impl IdentifiedPeptide {
             | MetaData::PepNet(PepNetData { peptide, .. })
             | MetaData::PowerNovo(PowerNovoData { peptide, .. })
             | MetaData::Sage(SageData { peptide, .. })
-            | MetaData::Cascadia(CascadiaData { peptide, .. }) => {
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { peptide, .. }) => {
                 Some(ReturnedPeptide::LinearSemiAmbiguous(peptide))
             }
             MetaData::PLGS(PLGSData { peptide, .. }) => {
@@ -239,7 +223,7 @@ impl IdentifiedPeptide {
     /// Get the name of the format
     pub const fn format_name(&self) -> &'static str {
         match &self.metadata {
-            MetaData::Cascadia(_) => "Cascadia",
+            MetaData::SpectrumSequenceList(_) => "SpectrumSequenceList",
             MetaData::DeepNovoFamily(_) => "DeepNovo Family",
             MetaData::Fasta(_) => "Fasta",
             MetaData::InstaNovo(_) => "InstaNovo",
@@ -261,7 +245,9 @@ impl IdentifiedPeptide {
     /// Get the format version detected
     pub fn format_version(&self) -> String {
         match &self.metadata {
-            MetaData::Cascadia(CascadiaData { version, .. }) => version.to_string(),
+            MetaData::SpectrumSequenceList(SpectrumSequenceListData { version, .. }) => {
+                version.to_string()
+            }
             MetaData::DeepNovoFamily(DeepNovoFamilyData { version, .. }) => version.to_string(),
             MetaData::Fasta(_) => "Fasta".to_string(),
             MetaData::InstaNovo(InstaNovoData { version, .. }) => version.to_string(),
@@ -298,7 +284,7 @@ impl IdentifiedPeptide {
             MetaData::Novor(NovorData { id, scan, .. }) => id.unwrap_or(*scan).to_string(),
             MetaData::Opair(OpairData { scan, .. })
             | MetaData::NovoB(NovoBData { scan, .. })
-            | MetaData::Cascadia(CascadiaData { scan, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { scan, .. })
             | MetaData::InstaNovo(InstaNovoData { scan, .. }) => scan.to_string(),
             MetaData::Sage(SageData { id, .. }) | MetaData::MZTab(MZTabData { id, .. }) => {
                 id.to_string()
@@ -358,7 +344,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { z, .. })
             | MetaData::MaxQuant(MaxQuantData { z, .. })
             | MetaData::NovoB(NovoBData { z, .. })
-            | MetaData::Cascadia(CascadiaData { z, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { z, .. })
             | MetaData::PLGS(PLGSData { precursor_z: z, .. })
             | MetaData::PLink(PLinkData { z, .. })
             | MetaData::InstaNovo(InstaNovoData { z, .. })
@@ -390,7 +376,7 @@ impl IdentifiedPeptide {
             | MetaData::MSFragger(MSFraggerData { rt, .. }) => Some(*rt),
             MetaData::MaxQuant(MaxQuantData { rt, .. })
             | MetaData::Novor(NovorData { rt, .. })
-            | MetaData::Cascadia(CascadiaData { rt, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { rt, .. })
             | MetaData::MZTab(MZTabData { rt, .. }) => *rt,
             MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
@@ -439,7 +425,7 @@ impl IdentifiedPeptide {
             ),
 
             MetaData::Opair(OpairData { raw_file, scan, .. })
-            | MetaData::Cascadia(CascadiaData { raw_file, scan, .. })
+            | MetaData::SpectrumSequenceList(SpectrumSequenceListData { raw_file, scan, .. })
             | MetaData::InstaNovo(InstaNovoData { raw_file, scan, .. }) => {
                 SpectrumIds::FileKnown(vec![(raw_file.clone(), vec![SpectrumId::Index(*scan)])])
             }
@@ -531,7 +517,7 @@ impl IdentifiedPeptide {
             }
             MetaData::DeepNovoFamily(_)
             | MetaData::Fasta(_)
-            | MetaData::Cascadia(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::PowerNovo(_)
             | MetaData::PepNet(_) => None,
         }
@@ -561,7 +547,7 @@ impl IdentifiedPeptide {
             }
             MetaData::Fasta(_)
             | MetaData::PowerNovo(_)
-            | MetaData::Cascadia(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::PepNet(_) => None,
         }
     }

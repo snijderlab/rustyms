@@ -3,7 +3,6 @@
 #[macro_use]
 mod common_parser;
 
-mod cascadia;
 mod deepnovofamily;
 mod fasta;
 mod general;
@@ -21,9 +20,9 @@ mod plgs;
 mod plink;
 mod powernovo;
 mod sage;
+mod ssl;
 
 use crate::*;
-pub use cascadia::*;
 pub use deepnovofamily::*;
 pub use fasta::*;
 pub use general::*;
@@ -41,9 +40,8 @@ pub use plgs::*;
 pub use plink::*;
 pub use powernovo::*;
 pub use sage::*;
+pub use ssl::*;
 
-#[cfg(test)]
-mod cascadia_tests;
 #[cfg(test)]
 mod deepnovofamily_tests;
 #[cfg(test)]
@@ -72,3 +70,5 @@ mod plink_tests;
 mod powernovo_tests;
 #[cfg(test)]
 mod sage_tests;
+#[cfg(test)]
+mod ssl_tests;
