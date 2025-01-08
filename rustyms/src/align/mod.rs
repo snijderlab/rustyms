@@ -31,6 +31,7 @@ mod alignment;
 mod bad_alignments;
 mod diagonal_array;
 mod mass_alignment;
+mod multi_alignment;
 mod piece;
 mod scoring;
 #[cfg(test)]
