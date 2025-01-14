@@ -89,7 +89,7 @@ pub enum ReturnedPeptide<'a> {
     CompoundPeptidoform(Cow<'a, CompoundPeptidoform>),
 }
 
-impl<'a> MultiChemical for ReturnedPeptide<'a> {
+impl MultiChemical for ReturnedPeptide<'_> {
     fn formulas_inner(
         &self,
         _sequence_index: super::SequencePosition,
@@ -104,7 +104,7 @@ impl<'a> MultiChemical for ReturnedPeptide<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for ReturnedPeptide<'a> {
+impl std::fmt::Display for ReturnedPeptide<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LinearSemiAmbiguous(p) => write!(f, "{p}"),
@@ -835,11 +835,8 @@ pub struct IdentifiedPeptideIter<
     peek: Option<Result<R, CustomError>>,
 }
 
-impl<
-        'lifetime,
-        R: IdentifiedPeptideSource + Clone,
-        I: Iterator<Item = Result<R::Source, CustomError>>,
-    > IdentifiedPeptideIter<'lifetime, R, I>
+impl<R: IdentifiedPeptideSource + Clone, I: Iterator<Item = Result<R::Source, CustomError>>>
+    IdentifiedPeptideIter<'_, R, I>
 where
     R::Format: 'static,
 {
@@ -872,8 +869,8 @@ where
     }
 }
 
-impl<'lifetime, R: IdentifiedPeptideSource, I: Iterator<Item = Result<R::Source, CustomError>>>
-    Iterator for IdentifiedPeptideIter<'lifetime, R, I>
+impl<R: IdentifiedPeptideSource, I: Iterator<Item = Result<R::Source, CustomError>>> Iterator
+    for IdentifiedPeptideIter<'_, R, I>
 where
     R::Format: 'static,
 {

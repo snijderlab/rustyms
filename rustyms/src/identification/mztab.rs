@@ -352,20 +352,20 @@ impl MZTabData {
             })?,
             accession: line
                 .optional_column("accession")
-                .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v.to_string())),
+                .and_then(|(v, _)| (!v.eq_ignore_ascii_case("null")).then(|| v.to_string())),
             unique: line
                 .optional_column("unique")
-                .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v == "1")),
+                .and_then(|(v, _)| (!v.eq_ignore_ascii_case("null")).then(|| v == "1")),
             database: line
                 .optional_column("database")
-                .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v.to_string())),
+                .and_then(|(v, _)| (!v.eq_ignore_ascii_case("null")).then(|| v.to_string())),
             database_version: line
                 .optional_column("database_version")
-                .and_then(|(v, _)| (v.to_ascii_lowercase() != "null").then(|| v.to_string())),
+                .and_then(|(v, _)| (!v.eq_ignore_ascii_case("null")).then(|| v.to_string())),
             search_engine: {
                 let (value, range) = line.required_column("search_engine")?;
 
-                if value.trim().to_ascii_lowercase() == "null" {
+                if value.trim().eq_ignore_ascii_case("null") {
                     Vec::new()
                 } else {
                     value
@@ -374,7 +374,7 @@ impl MZTabData {
                         .map(|(i, s)| {
                             line.optional_column(&format!("search_engine_score[{}]", i + 1))
                                 .and_then(|(v, _)| {
-                                    (v.to_ascii_lowercase() != "null").then(|| {
+                                    (!v.eq_ignore_ascii_case("null")).then(|| {
                                         v.parse::<f64>().map_err(|err| {
                                             CustomError::error(
                                                 "Invalid mzTab search engine score",
@@ -431,7 +431,7 @@ impl MZTabData {
             rt: line
                 .optional_column("retention_time")
                 .and_then(|(v, r)| {
-                    (v.to_ascii_lowercase() != "null").then(|| {
+                    (!v.eq_ignore_ascii_case("null")).then(|| {
                         v.parse::<f64>()
                             .map_err(|err| {
                                 CustomError::error(
@@ -447,7 +447,7 @@ impl MZTabData {
             z: {
                 let (value, range) = line.required_column("charge")?;
 
-                if value.trim().to_ascii_lowercase() == "null" {
+                if value.trim().eq_ignore_ascii_case("null") {
                     Charge::new::<crate::system::e>(1)
                 } else {
                     value
@@ -466,7 +466,7 @@ impl MZTabData {
             mz: line
                 .optional_column("exp_mass_to_charge")
                 .and_then(|(v, r)| {
-                    (v.to_ascii_lowercase() != "null").then(|| {
+                    (!v.eq_ignore_ascii_case("null")).then(|| {
                         v.parse::<f64>()
                             .map_err(|err| {
                                 CustomError::error(
@@ -571,7 +571,7 @@ impl MZTabData {
             start: line
                 .optional_column("start")
                 .and_then(|(v, r)| {
-                    (v.to_ascii_lowercase() != "null").then(|| {
+                    (!v.eq_ignore_ascii_case("null")).then(|| {
                         v.parse::<usize>().map_err(|err| {
                             CustomError::error(
                                 "Invalid mzTab start",
@@ -585,7 +585,7 @@ impl MZTabData {
             end: line
                 .optional_column("end")
                 .and_then(|(v, r)| {
-                    (v.to_ascii_lowercase() != "null").then(|| {
+                    (!v.eq_ignore_ascii_case("null")).then(|| {
                         v.parse::<usize>().map_err(|err| {
                             CustomError::error(
                                 "Invalid mzTab end",

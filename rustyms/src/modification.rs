@@ -704,7 +704,7 @@ pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 
 impl Modification {
     /// Display a modification either normalised to the internal representation or as fully valid ProForma
-    /// (no glycan structure or custom modifications). 'display_ambiguous' shows or hides the modification
+    /// (no glycan structure or custom modifications). `display_ambiguous` shows or hides the modification
     /// definition of any ambiguous modifications (eg true results in '+1#1' false in '#1').
     /// # Errors
     /// When the given writer errors.

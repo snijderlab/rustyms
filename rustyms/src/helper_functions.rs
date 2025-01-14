@@ -246,7 +246,7 @@ pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) 
     filename
         .as_ref()
         .extension()
-        .map_or(false, |ext| ext.eq_ignore_ascii_case(extension.as_ref()))
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(extension.as_ref()))
 }
 
 #[allow(dead_code)]

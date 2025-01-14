@@ -362,16 +362,20 @@ impl IsobaricSetIterator {
             sequence.push(c.0.into());
         }
         LinearPeptide::new(sequence)
-            .n_term(self.base.as_ref().map_or(
-                self.state.0.map_or(Vec::new(), |i| {
-                    vec![Modification::Simple(self.n_term[i].1.clone())]
-                }),
+            .n_term(self.base.as_ref().map_or_else(
+                || {
+                    self.state.0.map_or(Vec::new(), |i| {
+                        vec![Modification::Simple(self.n_term[i].1.clone())]
+                    })
+                },
                 |b| b.get_n_term().to_vec(),
             ))
-            .c_term(self.base.as_ref().map_or(
-                self.state.0.map_or(Vec::new(), |i| {
-                    vec![Modification::Simple(self.c_term[i].1.clone())]
-                }),
+            .c_term(self.base.as_ref().map_or_else(
+                || {
+                    self.state.0.map_or(Vec::new(), |i| {
+                        vec![Modification::Simple(self.c_term[i].1.clone())]
+                    })
+                },
                 |b| b.get_c_term().to_vec(),
             ))
     }

@@ -266,7 +266,7 @@ pub struct PossibleIons<'a> {
     pub immonium: (bool, ChargeRange),
 }
 
-impl<'a> PossibleIons<'a> {
+impl PossibleIons<'_> {
     /// Give an upper bound for the number of theoretical fragment for these possible ions
     pub fn size_upper_bound(&self) -> usize {
         usize::from(self.a.0) * (self.a.1.len() + 1)
