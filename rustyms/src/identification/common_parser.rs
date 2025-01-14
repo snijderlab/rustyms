@@ -309,6 +309,22 @@ impl<'a> Location<'a> {
     pub fn apply(self, f: impl FnOnce(Self) -> Self) -> Self {
         f(self)
     }
+
+    #[allow(dead_code)]
+    pub fn split_once(self, p: char) -> Option<(Self, Self)> {
+        self.as_str().split_once(p).map(|(start, end)| {
+            (
+                Self {
+                    line: self.line,
+                    location: self.location.start..self.location.start + start.len(),
+                },
+                Self {
+                    line: self.line,
+                    location: self.location.end - end.len()..self.location.end,
+                },
+            )
+        })
+    }
 }
 
 #[allow(dead_code)]
