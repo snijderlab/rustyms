@@ -104,7 +104,7 @@ format_family!(
         feature_tryp_cid: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         feature_tryp_ead: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         id: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
-        from_chimera: bool, |location: Location, _| Ok(location.get_string().to_ascii_lowercase() == "yes");
+        from_chimera: bool, |location: Location, _| Ok(location.get_string().eq_ignore_ascii_case("yes"));
         unique: bool, |location: Location, _| Ok(location.get_string() == "Y");
         protein_group: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
         protein_id: usize, |location: Location, _| location.parse(NUMBER_ERROR).map(Some);
@@ -114,6 +114,8 @@ format_family!(
         quality: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         rt_begin: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
         rt_end: Time, |location: Location, _| location.or_empty().parse::<f64>(NUMBER_ERROR).map(|o| o.map(Time::new::<crate::system::time::s>));
+        precursor_id: isize, |location: Location, _| location.parse::<isize>(NUMBER_ERROR);
+        k0_range: std::ops::RangeInclusive<f64>, |location: Location, _| location.split_once('-').map(|(start, end)| Ok(start.parse(NUMBER_ERROR)?..=end.parse(NUMBER_ERROR)?));
     }
 
     fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
@@ -188,6 +190,8 @@ pub const X: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version X of PEAKS export (made for build 31 January 2019)
 pub const X_PATCHED: PeaksFormat = PeaksFormat {
@@ -227,6 +231,8 @@ pub const X_PATCHED: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version X+ of PEAKS export (made for build 20 November 2019)
 pub const XPLUS: PeaksFormat = PeaksFormat {
@@ -266,6 +272,8 @@ pub const XPLUS: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version 11 of PEAKS export
 pub const V11: PeaksFormat = PeaksFormat {
@@ -305,6 +313,8 @@ pub const V11: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::Optional("precursor id"),
+    k0_range: OptionalColumn::Optional("1/k0 range"),
 };
 /// Version 11 of PEAKS export
 pub const V11_FEATURES: PeaksFormat = PeaksFormat {
@@ -344,6 +354,8 @@ pub const V11_FEATURES: PeaksFormat = PeaksFormat {
     protein_accession: OptionalColumn::NotAvailable,
     start: OptionalColumn::NotAvailable,
     end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version 12 of PEAKS export
 pub const V12: PeaksFormat = PeaksFormat {
@@ -383,6 +395,8 @@ pub const V12: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version Ab of PEAKS export
 pub const AB: PeaksFormat = PeaksFormat {
@@ -422,6 +436,8 @@ pub const AB: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version DB peptide of PEAKS export
 pub const DB_PEPTIDE: PeaksFormat = PeaksFormat {
@@ -461,6 +477,8 @@ pub const DB_PEPTIDE: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version DB psm of PEAKS export
 pub const DB_PSM: PeaksFormat = PeaksFormat {
@@ -500,6 +518,8 @@ pub const DB_PSM: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 /// Version DB protein peptide of PEAKS export
 /// protein group, protein id, protein accession, unique, start, end,
@@ -540,6 +560,8 @@ pub const DB_PROTEIN_PEPTIDE: PeaksFormat = PeaksFormat {
     quality: OptionalColumn::NotAvailable,
     rt_begin: OptionalColumn::NotAvailable,
     rt_end: OptionalColumn::NotAvailable,
+    precursor_id: OptionalColumn::NotAvailable,
+    k0_range: OptionalColumn::NotAvailable,
 };
 
 /// All possible peaks versions
