@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
+
 use crate::{
     glycan::MonoSaccharide,
     modification::{GnoComposition, Ontology, SimpleModification, SimpleModificationInner},
@@ -299,22 +301,32 @@ impl PeptideModificationSearch {
         }
 
         // Start with N and C terminal mods
-        let mut n_term = peptide.get_n_term().cloned().and_then(|m| {
-            find_replacement_modification(
-                self,
-                Position::AnyNTerm,
-                peptide.sequence().first().map(|p| p.aminoacid.aminoacid()),
-                &m,
-            )
-        });
-        let mut c_term = peptide.get_c_term().cloned().and_then(|m| {
-            find_replacement_modification(
-                self,
-                Position::AnyCTerm,
-                peptide.sequence().last().map(|p| p.aminoacid.aminoacid()),
-                &m,
-            )
-        });
+        let mut n_term = peptide
+            .get_n_term()
+            .iter()
+            .map(|m| {
+                find_replacement_modification(
+                    self,
+                    Position::AnyNTerm,
+                    peptide.sequence().first().map(|p| p.aminoacid.aminoacid()),
+                    &m,
+                )
+                .unwrap_or(m.clone())
+            })
+            .collect_vec();
+        let mut c_term = peptide
+            .get_c_term()
+            .iter()
+            .map(|m| {
+                find_replacement_modification(
+                    self,
+                    Position::AnyCTerm,
+                    peptide.sequence().last().map(|p| p.aminoacid.aminoacid()),
+                    &m,
+                )
+                .unwrap_or(m.clone())
+            })
+            .collect_vec();
         let len = peptide.len();
 
         // Go over all main stretch mods
@@ -332,11 +344,11 @@ impl PeptideModificationSearch {
                             Some(position.aminoacid.aminoacid()),
                             &modification,
                         ) {
-                            if location == Position::AnyNTerm && n_term.is_none() {
-                                n_term = Some(Modification::Simple(replace));
+                            if location == Position::AnyNTerm {
+                                n_term.push(Modification::Simple(replace));
                                 remove = Some(i);
-                            } else if location == Position::AnyCTerm && c_term.is_none() {
-                                c_term = Some(Modification::Simple(replace));
+                            } else if location == Position::AnyCTerm {
+                                c_term.push(Modification::Simple(replace));
                                 remove = Some(i);
                             } else if location == Position::Anywhere {
                                 *m = Modification::Simple(replace);

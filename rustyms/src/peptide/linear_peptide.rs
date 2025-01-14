@@ -92,10 +92,10 @@ pub struct LinearPeptide<Complexity> {
     global: Vec<(Element, Option<NonZeroU16>)>,
     /// Labile modifications, which will not be found in the actual spectrum.
     labile: Vec<SimpleModification>,
-    /// N terminal modification
-    n_term: Option<Modification>,
-    /// C terminal modification
-    c_term: Option<Modification>,
+    /// N terminal modifications
+    n_term: Vec<Modification>,
+    /// C terminal modifications
+    c_term: Vec<Modification>,
     /// The sequence of this peptide (includes local modifications)
     sequence: Vec<SequenceElement<Complexity>>,
     /// For each ambiguous modification list all possible positions it can be placed on.
@@ -112,8 +112,8 @@ impl<Complexity> Default for LinearPeptide<Complexity> {
         Self {
             global: Vec::new(),
             labile: Vec::new(),
-            n_term: None,
-            c_term: None,
+            n_term: Vec::new(),
+            c_term: Vec::new(),
             sequence: Vec::new(),
             ambiguous_modifications: Vec::new(),
             charge_carriers: None,
@@ -174,8 +174,8 @@ impl<Complexity> LinearPeptide<Complexity> {
         self.sequence()
             .iter()
             .all(|seq| seq.modifications.iter().all(|m| !m.is_cross_link()))
-            && self.n_term.as_ref().map_or(true, |n| !n.is_cross_link())
-            && self.c_term.as_ref().map_or(true, |c| !c.is_cross_link())
+            && self.n_term.iter().all(|n| !n.is_cross_link())
+            && self.c_term.iter().all(|c| !c.is_cross_link())
     }
 
     /// Convert this peptide into [`Linear`].
@@ -323,18 +323,30 @@ impl<Complexity> LinearPeptide<Complexity> {
         &mut self.sequence
     }
 
-    /// Add the N terminal modification
+    /// Set the N terminal modifications
     #[must_use]
-    pub fn n_term(mut self, term: Option<Modification>) -> Self {
+    pub fn n_term(mut self, term: Vec<Modification>) -> Self {
         self.n_term = term;
         self
     }
 
-    /// Add the C terminal modification
+    /// Set the C terminal modifications
     #[must_use]
-    pub fn c_term(mut self, term: Option<Modification>) -> Self {
+    pub fn c_term(mut self, term: Vec<Modification>) -> Self {
         self.c_term = term;
         self
+    }
+
+    /// Set the N terminal modifications
+    #[must_use]
+    pub fn set_n_term(&mut self, term: Vec<Modification>) {
+        self.n_term = term;
+    }
+
+    /// Set the C terminal modifications
+    #[must_use]
+    pub fn set_c_term(&mut self, term: Vec<Modification>) {
+        self.c_term = term;
     }
 
     /// Get the number of amino acids making up this peptide
@@ -347,24 +359,24 @@ impl<Complexity> LinearPeptide<Complexity> {
         self.sequence.is_empty()
     }
 
-    /// Get the N terminal modification.
-    pub const fn get_n_term(&self) -> Option<&Modification> {
-        self.n_term.as_ref()
+    /// Get the N terminal modifications.
+    pub fn get_n_term(&self) -> &[Modification] {
+        &self.n_term
     }
 
-    /// Get the C terminal modification.
-    pub const fn get_c_term(&self) -> Option<&Modification> {
-        self.c_term.as_ref()
+    /// Get the C terminal modifications.
+    pub fn get_c_term(&self) -> &[Modification] {
+        &self.c_term
     }
 
     /// Set the N terminal modification as a simple modification
-    pub fn set_simple_n_term(&mut self, modification: Option<SimpleModification>) {
-        self.n_term = modification.map(Modification::Simple);
+    pub fn add_simple_n_term(&mut self, modification: SimpleModification) {
+        self.n_term.push(Modification::Simple(modification));
     }
 
     /// Set the C terminal modification as a simple modification
-    pub fn set_simple_c_term(&mut self, modification: Option<SimpleModification>) {
-        self.c_term = modification.map(Modification::Simple);
+    pub fn add_simple_c_term(&mut self, modification: SimpleModification) {
+        self.c_term.push(Modification::Simple(modification));
     }
 
     /// Add a modification to this peptide
@@ -374,8 +386,8 @@ impl<Complexity> LinearPeptide<Complexity> {
         modification: SimpleModification,
     ) {
         match position {
-            SequencePosition::NTerm => self.set_simple_n_term(Some(modification)),
-            SequencePosition::CTerm => self.set_simple_c_term(Some(modification)),
+            SequencePosition::NTerm => self.add_simple_n_term(modification),
+            SequencePosition::CTerm => self.add_simple_c_term(modification),
             SequencePosition::Index(index) => self.sequence[index]
                 .modifications
                 .push(Modification::Simple(modification)),
@@ -396,16 +408,17 @@ impl<Complexity> LinearPeptide<Complexity> {
         allow_ms_cleavable: bool,
         peptide_index: usize,
     ) -> Multi<MolecularFormula> {
-        self.n_term.as_ref().map_or_else(Multi::default, |f| {
-            f.formula_inner(
-                all_peptides,
-                visited_peptides,
-                applied_cross_links,
-                allow_ms_cleavable,
-                SequencePosition::NTerm,
-                peptide_index,
-            )
-            .0
+        self.n_term.iter().fold(Multi::default(), |acc, f| {
+            acc * f
+                .formula_inner(
+                    all_peptides,
+                    visited_peptides,
+                    applied_cross_links,
+                    allow_ms_cleavable,
+                    SequencePosition::NTerm,
+                    peptide_index,
+                )
+                .0
         }) + molecular_formula!(H 1)
     }
 
@@ -418,16 +431,17 @@ impl<Complexity> LinearPeptide<Complexity> {
         allow_ms_cleavable: bool,
         peptide_index: usize,
     ) -> Multi<MolecularFormula> {
-        self.c_term.as_ref().map_or_else(Multi::default, |f| {
-            f.formula_inner(
-                all_peptides,
-                visited_peptides,
-                applied_cross_links,
-                allow_ms_cleavable,
-                SequencePosition::CTerm,
-                peptide_index,
-            )
-            .0
+        self.c_term.iter().fold(Multi::default(), |acc, f| {
+            acc * f
+                .formula_inner(
+                    all_peptides,
+                    visited_peptides,
+                    applied_cross_links,
+                    allow_ms_cleavable,
+                    SequencePosition::CTerm,
+                    peptide_index,
+                )
+                .0
         }) + molecular_formula!(H 1 O 1)
     }
 
@@ -1131,7 +1145,13 @@ impl<Complexity> LinearPeptide<Complexity> {
                 .iter()
                 .find_map(|i| {
                     let m = match i {
-                        SequencePosition::NTerm => self.n_term.as_ref(),
+                        SequencePosition::NTerm => self.n_term.iter().find(|m| {
+                            if let Modification::Ambiguous { id: mid, .. } = m {
+                                *mid == id
+                            } else {
+                                false
+                            }
+                        }),
                         SequencePosition::Index(i) => {
                             self.sequence[*i].modifications.iter().find(|m| {
                                 if let Modification::Ambiguous { id: mid, .. } = m {
@@ -1141,7 +1161,13 @@ impl<Complexity> LinearPeptide<Complexity> {
                                 }
                             })
                         }
-                        SequencePosition::CTerm => self.c_term.as_ref(),
+                        SequencePosition::CTerm => self.c_term.iter().find(|m| {
+                            if let Modification::Ambiguous { id: mid, .. } = m {
+                                *mid == id
+                            } else {
+                                false
+                            }
+                        }),
                     };
 
                     if let Some(Modification::Ambiguous {
@@ -1158,7 +1184,13 @@ impl<Complexity> LinearPeptide<Complexity> {
                 preferred_ambiguous_position[id] = Some(preferred);
             } else {
                 let m = match ambiguous.first() {
-                    Some(SequencePosition::NTerm) => self.n_term.as_ref(),
+                    Some(SequencePosition::NTerm) => self.n_term.iter().find(|m| {
+                        if let Modification::Ambiguous { id: mid, .. } = m {
+                            *mid == id
+                        } else {
+                            false
+                        }
+                    }),
                     Some(SequencePosition::Index(i)) => {
                         self.sequence[*i].modifications.iter().find(|m| {
                             if let Modification::Ambiguous { id: mid, .. } = m {
@@ -1168,7 +1200,13 @@ impl<Complexity> LinearPeptide<Complexity> {
                             }
                         })
                     }
-                    Some(SequencePosition::CTerm) => self.c_term.as_ref(),
+                    Some(SequencePosition::CTerm) => self.c_term.iter().find(|m| {
+                        if let Modification::Ambiguous { id: mid, .. } = m {
+                            *mid == id
+                        } else {
+                            false
+                        }
+                    }),
                     None => None,
                 };
                 if let Some(m) = m {
@@ -1183,10 +1221,11 @@ impl<Complexity> LinearPeptide<Complexity> {
         if any_ambiguous {
             write!(f, "?")?;
         }
-        if let Some(m) = &self.n_term {
+        let mut any_n = false;
+        for m in self.get_n_term() {
             let mut display_ambiguous = false;
 
-            if let Some(Modification::Ambiguous { id, .. }) = self.get_n_term() {
+            if let Modification::Ambiguous { id, .. } = m {
                 if !placed_ambiguous.contains(id) && preferred_ambiguous_position[*id].is_none()
                     || preferred_ambiguous_position[*id]
                         .is_some_and(|p| p == SequencePosition::NTerm)
@@ -1198,7 +1237,11 @@ impl<Complexity> LinearPeptide<Complexity> {
 
             write!(f, "[")?;
             m.display(f, specification_compliant, display_ambiguous)?;
-            write!(f, "]-")?;
+            write!(f, "]")?;
+            any_n = true;
+        }
+        if any_n {
+            write!(f, "-")?;
         }
         let mut last_ambiguous = None;
         for (index, position) in self.sequence.iter().enumerate() {
@@ -1215,13 +1258,18 @@ impl<Complexity> LinearPeptide<Complexity> {
         if last_ambiguous.is_some() {
             write!(f, ")")?;
         }
-        if let Some(m) = &self.c_term {
+        let mut first = true;
+        for m in self.get_c_term() {
             let mut display_ambiguous = false;
             if let Modification::Ambiguous { id, .. } = m {
                 display_ambiguous = !placed_ambiguous.contains(id);
                 placed_ambiguous.push(*id);
             }
-            write!(f, "-[")?;
+            if first {
+                write!(f, "-")?;
+                first = false;
+            }
+            write!(f, "[")?;
             m.display(f, specification_compliant, display_ambiguous)?;
             write!(f, "]")?;
         }
@@ -1261,20 +1309,20 @@ impl LinearPeptide<Linked> {
         modification: Modification,
     ) {
         match position {
-            SequencePosition::NTerm => self.n_term = Some(modification),
-            SequencePosition::CTerm => self.c_term = Some(modification),
+            SequencePosition::NTerm => self.n_term.push(modification),
+            SequencePosition::CTerm => self.c_term.push(modification),
             SequencePosition::Index(index) => self.sequence[index].modifications.push(modification),
         }
     }
 
     /// Set the N terminal modification
-    pub fn set_n_term(&mut self, modification: Option<Modification>) {
-        self.n_term = modification;
+    pub fn add_n_term(&mut self, modification: Modification) {
+        self.n_term.push(modification);
     }
 
     /// Set the C terminal modification
-    pub fn set_c_term(&mut self, modification: Option<Modification>) {
-        self.c_term = modification;
+    pub fn add_c_term(&mut self, modification: Modification) {
+        self.c_term.push(modification);
     }
 }
 
@@ -1295,12 +1343,12 @@ impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
             n_term: if index.contains(&0) {
                 self.n_term.clone()
             } else {
-                None
+                Vec::new()
             },
             c_term: if index.contains(&(self.len() - 1)) {
                 self.c_term.clone()
             } else {
-                None
+                Vec::new()
             },
             sequence: self.sequence[(index.start_bound().cloned(), index.end_bound().cloned())]
                 .to_vec(),
@@ -1324,22 +1372,20 @@ impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
         result
     }
 
-    /// Get the N terminal modification as a simple modification
-    pub fn get_simple_n_term(&self) -> Option<&SimpleModification> {
-        match &self.n_term {
-            Some(Modification::Simple(simple)) => Some(simple),
-            Some(_) => unreachable!(),
-            _ => None,
-        }
+    /// Get the N terminal modifications as simple modifications
+    pub fn get_simple_n_term(&self) -> Vec<SimpleModification> {
+        self.n_term
+            .iter()
+            .filter_map(|m| m.clone().into_simple())
+            .collect()
     }
 
-    /// Get the C terminal modification as a simple modification
-    pub fn get_simple_c_term(&self) -> Option<&SimpleModification> {
-        match &self.c_term {
-            Some(Modification::Simple(simple)) => Some(simple),
-            Some(_) => unreachable!(),
-            _ => None,
-        }
+    /// Get the C terminal modifications as simple modifications
+    pub fn get_simple_c_term(&self) -> Vec<SimpleModification> {
+        self.c_term
+            .iter()
+            .filter_map(|m| m.clone().into_simple())
+            .collect()
     }
 
     /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model.
@@ -1512,14 +1558,14 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
             1 => {
                 match positions[0].0 {
                     SequencePosition::NTerm => {
-                        self.n_term = Some(modification.into());
+                        self.n_term.push(modification.into());
                     }
                     SequencePosition::Index(pos) => {
                         self.sequence[pos].modifications.push(modification.into());
                         self.sequence[pos].modifications.sort_unstable();
                     }
                     SequencePosition::CTerm => {
-                        self.c_term = Some(modification.into());
+                        self.c_term.push(modification.into());
                     }
                 }
                 true
@@ -1531,22 +1577,17 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
                 self.ambiguous_modifications.push(
                     positions
                         .iter()
-                        .filter_map(|(spos, score)| match spos {
+                        .map(|(spos, score)| match spos {
                             SequencePosition::NTerm => {
-                                let n_filled = self.n_term.is_none();
-                                if n_filled {
-                                    self.n_term = Some(Modification::Ambiguous {
-                                        id,
-                                        group: group.clone(),
-                                        modification: modification.clone(),
-                                        localisation_score: *score,
-                                        preferred: preferred_position.is_some_and(|p| p == *spos),
-                                    });
-                                    placed = true;
-                                    Some(*spos)
-                                } else {
-                                    None
-                                }
+                                self.n_term.push(Modification::Ambiguous {
+                                    id,
+                                    group: group.clone(),
+                                    modification: modification.clone(),
+                                    localisation_score: *score,
+                                    preferred: preferred_position.is_some_and(|p| p == *spos),
+                                });
+                                placed = true;
+                                *spos
                             }
                             SequencePosition::Index(pos) => {
                                 self.sequence[*pos]
@@ -1560,23 +1601,18 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
                                     });
                                 self.sequence[*pos].modifications.sort_unstable();
                                 placed = true;
-                                Some(*spos)
+                                *spos
                             }
                             SequencePosition::CTerm => {
-                                let c_filled = self.c_term.is_none();
-                                if c_filled {
-                                    self.c_term = Some(Modification::Ambiguous {
-                                        id,
-                                        group: group.clone(),
-                                        modification: modification.clone(),
-                                        localisation_score: *score,
-                                        preferred: preferred_position.is_some_and(|p| p == *spos),
-                                    });
-                                    placed = true;
-                                    Some(*spos)
-                                } else {
-                                    None
-                                }
+                                self.c_term.push(Modification::Ambiguous {
+                                    id,
+                                    group: group.clone(),
+                                    modification: modification.clone(),
+                                    localisation_score: *score,
+                                    preferred: preferred_position.is_some_and(|p| p == *spos),
+                                });
+                                placed = true;
+                                *spos
                             }
                         })
                         .collect(),
@@ -1600,7 +1636,7 @@ impl<OwnComplexity: AtMax<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
     where
         OwnComplexity: HighestOf<OtherComplexity>,
     {
-        if self.c_term.is_none() && other.n_term.is_none() {
+        if self.c_term.is_empty() && other.n_term.is_empty() {
             Some(LinearPeptide::<OwnComplexity::HighestLevel> {
                 global: self.global,
                 labile: self.labile.into_iter().chain(other.labile).collect(),
@@ -1637,8 +1673,8 @@ where
         Self {
             global: Vec::new(),
             labile: Vec::new(),
-            n_term: None,
-            c_term: None,
+            n_term: Vec::new(),
+            c_term: Vec::new(),
             sequence: value.into_iter().map(std::convert::Into::into).collect(),
             ambiguous_modifications: Vec::new(),
             charge_carriers: None,

@@ -171,10 +171,10 @@ format_family!(
 
             match pos {
                 (peptide, SequencePosition::NTerm) => {
-                        parsed.peptidoform.peptides_mut()[peptide].set_simple_n_term(Some(m.clone()));
+                        parsed.peptidoform.peptides_mut()[peptide].add_simple_n_term(m.clone());
                 }
                 (peptide, SequencePosition::CTerm) => {
-                    parsed.peptidoform.peptides_mut()[peptide].set_simple_c_term(Some(m.clone()));
+                    parsed.peptidoform.peptides_mut()[peptide].add_simple_c_term(m.clone());
                 }
                 (peptide, index) => {
                     parsed.peptidoform.peptides_mut()[peptide][index]
@@ -219,8 +219,8 @@ format_family!(
                 1 => {
                     // Replace 0 mass mod + determine Nterm or side chain
                     for p in parsed.peptidoform.peptides_mut() {
-                        let mut n_term = p.get_n_term().cloned();
-                        let mut c_term = p.get_c_term().cloned();
+                        let mut n_term = p.get_n_term().to_vec();
+                        let mut c_term = p.get_c_term().to_vec();
                         let len = p.len();
 
                         for (seq_index, seq) in p.sequence_mut().iter_mut().enumerate() {
@@ -233,12 +233,12 @@ format_family!(
                                     if name == &CrossLinkName::Name("1".to_string()) {
                                         *linker = fitting[0].clone();
 
-                                        if is_n_term && m.is_possible(&seq_clone, SequencePosition::NTerm).any_possible() && n_term.is_none() {
+                                        if is_n_term && m.is_possible(&seq_clone, SequencePosition::NTerm).any_possible() {
                                             remove = Some(index);
-                                            n_term = Some(m.clone());
-                                        } else if is_c_term && m.is_possible(&seq_clone, SequencePosition::CTerm).any_possible() && c_term.is_none() {
+                                            n_term.push(m.clone());
+                                        } else if is_c_term && m.is_possible(&seq_clone, SequencePosition::CTerm).any_possible() {
                                             remove = Some(index);
-                                            c_term = Some(m.clone());
+                                            c_term.push(m.clone());
                                         }
                                     }
                                 } else if Modification::Simple(Arc::new(SimpleModificationInner::Mass(Mass::default().into()))) == *m {
