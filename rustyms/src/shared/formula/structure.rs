@@ -328,24 +328,26 @@ impl MolecularFormula {
                     f(hydrogen, &mut buffer);
                 }
             }
-            for element in self
-                .elements
-                .iter()
-                .filter(|e| !((e.0 == Element::H || e.0 == Element::C) && e.1.is_none()))
-            {
+            for element in self.elements.iter().filter(|e| {
+                !((e.0 == Element::H || e.0 == Element::C || e.0 == Element::Electron)
+                    && e.1.is_none())
+            }) {
                 if element.2 != 0 {
                     f(element, &mut buffer);
                 }
             }
         } else {
             for element in &self.elements {
-                if element.2 != 0 {
+                if element.2 != 0 && element.0 != Element::Electron {
                     f(element, &mut buffer);
                 }
             }
         }
         if self.additional_mass != 0.0 {
             write!(&mut buffer, "{:+}", self.additional_mass).unwrap();
+        }
+        if self.charge().value != 0 {
+            write!(&mut buffer, ":z{:+}", self.charge().value).unwrap();
         }
         buffer
     }
