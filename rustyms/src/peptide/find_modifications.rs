@@ -309,9 +309,9 @@ impl PeptideModificationSearch {
                     self,
                     Position::AnyNTerm,
                     peptide.sequence().first().map(|p| p.aminoacid.aminoacid()),
-                    &m,
+                    m,
                 )
-                .unwrap_or(m.clone())
+                .unwrap_or_else(|| m.clone())
             })
             .collect_vec();
         let mut c_term = peptide
@@ -322,9 +322,9 @@ impl PeptideModificationSearch {
                     self,
                     Position::AnyCTerm,
                     peptide.sequence().last().map(|p| p.aminoacid.aminoacid()),
-                    &m,
+                    m,
                 )
-                .unwrap_or(m.clone())
+                .unwrap_or_else(|| m.clone())
             })
             .collect_vec();
         let len = peptide.len();
@@ -342,7 +342,7 @@ impl PeptideModificationSearch {
                             is_n_term,
                             is_c_term,
                             Some(position.aminoacid.aminoacid()),
-                            &modification,
+                            modification,
                         ) {
                             if location == Position::AnyNTerm {
                                 n_term.push(Modification::Simple(replace));

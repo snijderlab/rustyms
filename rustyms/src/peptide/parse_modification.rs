@@ -321,7 +321,7 @@ fn parse_single_modification(
         };
 
         if let Some(group) = label_group {
-            if group.0.to_ascii_lowercase() == "branch" {
+            if group.0.eq_ignore_ascii_case("branch") {
                 let index = cross_link_lookup
                     .iter()
                     .position(|c| c.0 == CrossLinkName::Branch)

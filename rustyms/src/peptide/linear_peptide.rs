@@ -338,13 +338,11 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 
     /// Set the N terminal modifications
-    #[must_use]
     pub fn set_n_term(&mut self, term: Vec<Modification>) {
         self.n_term = term;
     }
 
     /// Set the C terminal modifications
-    #[must_use]
     pub fn set_c_term(&mut self, term: Vec<Modification>) {
         self.c_term = term;
     }
