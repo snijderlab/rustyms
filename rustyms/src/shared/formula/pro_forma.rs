@@ -44,7 +44,7 @@ impl MolecularFormula {
         allow_uncommon_elements: bool,
     ) -> Result<Self, CustomError> {
         let (mut index, end) = range.bounds(value.len().saturating_sub(1));
-        if allow_empty && value[index..=end].to_ascii_lowercase() == "(empty)" {
+        if allow_empty && value[index..=end].eq_ignore_ascii_case("(empty)") {
             return Ok(Self::default());
         }
         let mut element = None;
@@ -84,26 +84,19 @@ impl MolecularFormula {
                         .take_while(|c| c.is_ascii_alphabetic())
                         .count();
 
-                    if allow_charge
-                        && (&bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"e"
-                            || &bytes[index + isotope + ws1..index + isotope + ws1 + ele] == b"E")
-                    {
-                        element = Some(Element::Electron);
+                    for possible in if allow_uncommon_elements {
+                        ELEMENT_PARSE_LIST
                     } else {
-                        for possible in if allow_uncommon_elements {
-                            ELEMENT_PARSE_LIST
-                        } else {
-                            COMMON_ELEMENT_PARSE_LIST
-                        } {
-                            if value[index + isotope + ws1..index + isotope + ws1 + ele]
-                                .to_ascii_lowercase()
-                                == possible.0
-                            {
-                                element = Some(possible.1);
-                                break;
-                            }
+                        COMMON_ELEMENT_PARSE_LIST
+                    } {
+                        if value[index + isotope + ws1..index + isotope + ws1 + ele]
+                            .to_ascii_lowercase()
+                            == possible.0
+                        {
+                            element = Some(possible.1);
+                            break;
                         }
-                    };
+                    }
                     if let Some(parsed_element) = element {
                         let ws2 = bytes[index + isotope + ws1 + ele..]
                             .iter()
@@ -198,6 +191,25 @@ impl MolecularFormula {
                     index += len;
                 }
                 b' ' => index += 1,
+                b':' if allow_charge => {
+                    if Some(&b'z') == bytes.get(index + 1) {
+                        index += 2;
+                        let num = value[index..=end].parse::<i32>().map_err(|err| {
+                            CustomError::error(
+                                "Invalid ProForma molecular formula",
+                                format!("The charge number is {}", explain_number_error(&err)),
+                                Context::line(None, value, index, end - index),
+                            )
+                        })?;
+                        let _ = result.add((Element::Electron, None, -num));
+                        break 'main_parse_loop;
+                    }
+                    return Err(CustomError::error(
+                        "Invalid ProForma molecular formula",
+                            "A charge tag was not set up properly, a charge tag should be formed as ':z<sign><number>'",
+                        Context::line(None, value, index - 1, if bytes.len() < index {1} else {2}),
+                    ));
+                }
                 _ => {
                     if let Some(element) = element {
                         if !Self::add(&mut result, (element, None, 1)) {
@@ -223,11 +235,6 @@ impl MolecularFormula {
                             index += possible.0.len();
                             continue 'main_parse_loop;
                         }
-                    }
-                    if allow_charge && (bytes[index] == b'e' || bytes[index] == b'E') {
-                        element = Some(Element::Electron);
-                        index += 1;
-                        continue 'main_parse_loop;
                     }
                     return Err(CustomError::error(
                         "Invalid ProForma molecular formula",
