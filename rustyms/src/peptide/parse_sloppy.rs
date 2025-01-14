@@ -91,7 +91,7 @@ impl LinearPeptide<SemiAmbiguous> {
                     index = end_index + 1;
 
                     let pep_len = peptide.len();
-                    let n_term_mod = peptide.get_n_term().is_some();
+                    let n_term_empty = peptide.get_n_term().is_empty();
                     match peptide.sequence_mut().last_mut() {
                         Some(aa) => {
                             if pep_len == 1
@@ -101,27 +101,27 @@ impl LinearPeptide<SemiAmbiguous> {
                                 && modification
                                     .is_possible(aa, crate::SequencePosition::NTerm)
                                     .any_possible()
-                                && !n_term_mod
+                                && n_term_empty
                             {
-                                peptide.set_simple_n_term(Some(
+                                peptide.add_simple_n_term(
                                     modification
                                         .simple()
                                         .expect(
                                             "Can only put a simple modification on an N terminus.",
                                         )
                                         .clone(),
-                                ));
+                                );
                             } else {
                                 aa.modifications.push(modification);
                             }
                         }
                         None => {
-                            peptide.set_simple_n_term(Some(
+                            peptide.add_simple_n_term(
                                 modification
                                     .simple()
                                     .expect("Can only put a simple modification on an N terminus.")
                                     .clone(),
-                            ));
+                            );
                         }
                     }
                 }
@@ -178,7 +178,7 @@ impl LinearPeptide<SemiAmbiguous> {
                     match peptide.sequence_mut().last_mut() {
                         Some(aa) => aa.modifications.push(Modification::Simple(modification)),
                         None => {
-                            peptide.set_simple_n_term(Some(modification));
+                            peptide.add_simple_n_term(modification);
                         }
                     }
                     index += length;

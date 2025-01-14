@@ -252,31 +252,31 @@ impl CompoundPeptidoform {
                     "No valid closing delimiter, an N terminal modification should be closed by ']-'",
                     Context::line(None, line, index, 1),
                 ))?;
-            peptide.set_simple_n_term(
-                SimpleModificationInner::try_from(
-                    line,
-                    index + 1..end_index - 1,
-                    &mut ambiguous_lookup,
-                    cross_link_lookup,
-                    custom_database,
-                )
-                .map(|m| match m {
-                    ReturnModification::Defined(simple) => Some(simple),
-                    ReturnModification::CrossLinkReferenced(id) => {
-                        cross_link_found_positions.push((id, SequencePosition::NTerm));
-                        None
-                    }
-                    ReturnModification::Ambiguous(id, localisation_score, preferred) => {
-                        ambiguous_found_positions.push((
-                            SequencePosition::NTerm,
-                            preferred,
-                            id,
-                            localisation_score,
-                        ));
-                        None
-                    }
-                })?,
-            );
+            if let Some(m) = SimpleModificationInner::try_from(
+                line,
+                index + 1..end_index - 1,
+                &mut ambiguous_lookup,
+                cross_link_lookup,
+                custom_database,
+            )
+            .map(|m| match m {
+                ReturnModification::Defined(simple) => Some(simple),
+                ReturnModification::CrossLinkReferenced(id) => {
+                    cross_link_found_positions.push((id, SequencePosition::NTerm));
+                    None
+                }
+                ReturnModification::Ambiguous(id, localisation_score, preferred) => {
+                    ambiguous_found_positions.push((
+                        SequencePosition::NTerm,
+                        preferred,
+                        id,
+                        localisation_score,
+                    ));
+                    None
+                }
+            })? {
+                peptide.add_simple_n_term(m);
+            }
             index = end_index + 1;
         }
 
@@ -384,9 +384,9 @@ impl CompoundPeptidoform {
                     let start_index = index +1;
                     index = end_index + 1;
                     if is_c_term {
-                        peptide = peptide.c_term(
+                        if let Some(m) = 
                             match modification {
-                                ReturnModification::Defined(simple) => Ok(Some(Modification::Simple(simple))),
+                                ReturnModification::Defined(simple) => Ok(Some(simple)),
                                 ReturnModification::CrossLinkReferenced(id) =>
                                     {cross_link_found_positions.push((id, SequencePosition::CTerm)); Ok(None)},
                                 ReturnModification::Ambiguous(id, localisation_score, preferred) => {
@@ -398,7 +398,9 @@ impl CompoundPeptidoform {
                                     ));
                                     Ok(None)
                                 }
-                            }?);
+                            }? {
+                            peptide.add_simple_c_term(m);
+                        }
 
                         if index + 1 < chars.len() && chars[index] == b'/' && chars[index+1] != b'/' {
                             let (buf, charge_carriers) = parse_charge_state(line, index)?;

@@ -323,18 +323,18 @@ impl IsobaricSetIterator {
                 + usize::from(self.state.0.is_some())
                 + usize::from(self.state.1.is_some()),
         );
-        if let Some((b, _)) = self
+        if self
             .base
             .as_ref()
-            .and_then(|b| b.get_n_term().map(|n| (b, n.clone())))
+            .is_some_and(|b| !b.get_n_term().is_empty())
         {
-            sequence.push(b.sequence()[0].clone());
+            sequence.push(self.base.as_ref().unwrap().sequence()[0].clone());
         } else if let Some(n) = self.state.0.map(|i| self.n_term[i].clone()) {
             sequence.push(n.0.into());
         }
         if let Some(base) = &self.base {
-            let n = usize::from(base.get_n_term().is_some());
-            let c = usize::from(base.get_c_term().is_some());
+            let n = usize::from(base.get_n_term().is_empty());
+            let c = usize::from(base.get_c_term().is_empty());
             sequence.extend(base.sequence()[n..base.len() - n - c].iter().cloned());
         }
         sequence.extend(
@@ -344,36 +344,36 @@ impl IsobaricSetIterator {
                 .copied()
                 .map(|i| self.center[i].0.clone().into()),
         );
-        if let Some((b, _)) = self
+        if self
             .base
             .as_ref()
-            .and_then(|b| b.get_c_term().map(|c| (b, c.clone())))
+            .is_some_and(|b| !b.get_c_term().is_empty())
         {
-            sequence.push(b.sequence().last().unwrap().clone());
+            sequence.push(
+                self.base
+                    .as_ref()
+                    .unwrap()
+                    .sequence()
+                    .last()
+                    .unwrap()
+                    .clone(),
+            );
         } else if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
             sequence.push(c.0.into());
         }
         LinearPeptide::new(sequence)
-            .n_term(
-                self.base
-                    .as_ref()
-                    .and_then(|b| b.get_n_term().cloned())
-                    .or_else(|| {
-                        self.state
-                            .0
-                            .map(|i| Modification::Simple(self.n_term[i].1.clone()))
-                    }),
-            )
-            .c_term(
-                self.base
-                    .as_ref()
-                    .and_then(|b| b.get_c_term().cloned())
-                    .or_else(|| {
-                        self.state
-                            .1
-                            .map(|i| Modification::Simple(self.c_term[i].1.clone()))
-                    }),
-            )
+            .n_term(self.base.as_ref().map_or(
+                self.state.0.map_or(Vec::new(), |i| {
+                    vec![Modification::Simple(self.n_term[i].1.clone())]
+                }),
+                |b| b.get_n_term().to_vec(),
+            ))
+            .c_term(self.base.as_ref().map_or(
+                self.state.0.map_or(Vec::new(), |i| {
+                    vec![Modification::Simple(self.c_term[i].1.clone())]
+                }),
+                |b| b.get_c_term().to_vec(),
+            ))
     }
 
     /// Reset the state for the center selection
@@ -462,7 +462,10 @@ impl Iterator for IsobaricSetIterator {
                     }
                     self.state.1 = Some(c + 1);
                 } else if self.c_term.is_empty()
-                    || self.base.as_ref().is_some_and(|b| b.get_c_term().is_some())
+                    || self
+                        .base
+                        .as_ref()
+                        .is_some_and(|b| !b.get_c_term().is_empty())
                 {
                     // If the base piece has a defined C term mod do not try possible C term mods in the isobaric generation
                     break;
@@ -478,7 +481,10 @@ impl Iterator for IsobaricSetIterator {
                 }
                 self.state.0 = Some(n + 1);
             } else if self.n_term.is_empty()
-                || self.base.as_ref().is_some_and(|b| b.get_n_term().is_some())
+                || self
+                    .base
+                    .as_ref()
+                    .is_some_and(|b| !b.get_n_term().is_empty())
             {
                 // If the base piece has a defined N term mod do not try possible N term mods in the isobaric generation
                 break;

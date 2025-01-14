@@ -90,22 +90,20 @@ pub fn cross_links(
 
     while let Some(index) = stack.pop() {
         found_peptides.push(index);
-        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].get_n_term() {
-            if !found_peptides.contains(peptide) && !stack.contains(peptide) {
-                stack.push(*peptide);
-            }
-        }
-        if let Some(Modification::CrossLink { peptide, .. }) = &peptidoform.0[index].get_c_term() {
-            if !found_peptides.contains(peptide) && !stack.contains(peptide) {
-                stack.push(*peptide);
-            }
-        }
-        for seq in peptidoform.0[index].sequence() {
-            for modification in &seq.modifications {
-                if let Modification::CrossLink { peptide, .. } = modification {
-                    if !found_peptides.contains(peptide) && !stack.contains(peptide) {
-                        stack.push(*peptide);
-                    }
+        for m in peptidoform.0[index]
+            .get_n_term()
+            .iter()
+            .chain(peptidoform.0[index].get_c_term())
+            .chain(
+                peptidoform.0[index]
+                    .sequence()
+                    .iter()
+                    .flat_map(|seq| &seq.modifications),
+            )
+        {
+            if let Modification::CrossLink { peptide, .. } = m {
+                if !found_peptides.contains(peptide) && !stack.contains(peptide) {
+                    stack.push(*peptide);
                 }
             }
         }

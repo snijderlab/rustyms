@@ -323,9 +323,9 @@ impl MZTabData {
                     )?;
                     for (location, modification) in modifications {
                         match location {
-                            0 => peptide.set_simple_n_term(Some(modification)),
+                            0 => peptide.add_simple_n_term(modification),
                             c if c == peptide.len() + 1 => {
-                                peptide.set_simple_c_term(Some(modification));
+                                peptide.add_simple_c_term(modification);
                             }
                             i => {
                                 peptide.sequence_mut()[i - 1].add_simple_modification(modification);
