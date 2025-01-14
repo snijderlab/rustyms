@@ -32,8 +32,8 @@ clap = { version = "4.5", features = ["derive", "cargo"] }
 directories = "5.0"
 flate2 = "1.0"
 iai-callgrind = "0.14"
-itertools = "0.13"
-mzdata = "0.40"
+itertools = "0.14"
+mzdata = "0.41"
 ndarray = "0.16"
 ordered-float = { version = "4.5", features = ["serde"] }
 probability = "0.20"

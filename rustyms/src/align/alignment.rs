@@ -25,7 +25,7 @@ use crate::SequencePosition;
 use crate::SimpleLinear;
 
 /// An alignment of two reads. It has either a reference to the two sequences to prevent overzealous use of memory, or if needed use [`Self::to_owned`] to get a variant that clones the sequences and so can be used in more places.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Alignment<'lifetime, A, B> {
     /// The first sequence
     pub(super) seq_a: Cow<'lifetime, LinearPeptide<A>>,
@@ -580,7 +580,7 @@ impl Stats {
 }
 
 /// The score of an alignment
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Ord, PartialOrd, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct Score {
     /// The normalised score (absolute / max)
     pub normalised: OrderedFloat<f64>,
