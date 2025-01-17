@@ -176,6 +176,9 @@ impl SimpleModificationInner {
         position: SequencePosition,
     ) -> RulePossible {
         match self {
+            Self::Database { specificities, .. } if specificities.is_empty() => {
+                RulePossible::Symmetric(BTreeSet::default())
+            }
             Self::Database { specificities, .. } => {
                 // If any of the rules match the current situation then it can be placed
                 let matching: BTreeSet<usize> = specificities
@@ -190,6 +193,9 @@ impl SimpleModificationInner {
                 } else {
                     RulePossible::Symmetric(matching)
                 }
+            }
+            Self::Linker { specificities, .. } if specificities.is_empty() => {
+                RulePossible::Symmetric(BTreeSet::default())
             }
             Self::Linker { specificities, .. } => specificities
                 .iter()

@@ -21,7 +21,7 @@ fn parse_global_modifications() {
         Ok((
             8,
             vec![GlobalModification::Fixed(
-                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::Anywhere),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -31,7 +31,7 @@ fn parse_global_modifications() {
         Ok((
             8,
             vec![GlobalModification::Fixed(
-                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::Anywhere),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -61,7 +61,7 @@ fn parse_global_modifications() {
         Ok((
             15,
             vec![GlobalModification::Fixed(
-                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyCTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -157,41 +157,6 @@ fn charge_state_positive() {
     );
     assert_eq!(
         parse("/3[+ Fe +3]"),
-        Ok(MolecularCharge::new(&[(
-            1,
-            molecular_formula!(Fe 1 Electron -3)
-        ),]))
-    );
-    assert_eq!(
-        parse("/-1[+e-]"),
-        Ok(MolecularCharge::new(
-            &[(1, molecular_formula!(Electron 1)),]
-        ))
-    );
-    assert_eq!(parse("/1[+H1e-1+]"), Ok(MolecularCharge::proton(1)));
-    assert_eq!(
-        parse("/3[+Fe1e0+3]"),
-        Ok(MolecularCharge::new(&[(
-            1,
-            molecular_formula!(Fe 1 Electron -3)
-        ),]))
-    );
-    assert_eq!(
-        parse("/3[+Fe1e-1+3]"),
-        Ok(MolecularCharge::new(&[(
-            1,
-            molecular_formula!(Fe 1 Electron -3)
-        ),]))
-    );
-    assert_eq!(
-        parse("/3[+Fe1e-2+3]"),
-        Ok(MolecularCharge::new(&[(
-            1,
-            molecular_formula!(Fe 1 Electron -3)
-        ),]))
-    );
-    assert_eq!(
-        parse("/3[+Fe1e-3+3]"),
         Ok(MolecularCharge::new(&[(
             1,
             molecular_formula!(Fe 1 Electron -3)

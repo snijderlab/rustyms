@@ -26,7 +26,7 @@ struct MultiPiece {
     step: u16,
 }
 
-impl<'lifetime, Complexity> MultiAlignmentLine<'lifetime, Complexity> {
+impl<Complexity> MultiAlignmentLine<'_, Complexity> {
     fn debug_display(&self) {
         for piece in self
             .path

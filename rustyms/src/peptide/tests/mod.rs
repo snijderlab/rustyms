@@ -6,6 +6,7 @@ mod pro_forma_negative;
 mod pro_forma_positive;
 mod sloppy;
 
+/// Create a parse test based on a given case and its name.
 #[macro_export]
 macro_rules! parse_test {
     ($case:literal, $name:ident) => {
@@ -35,6 +36,7 @@ macro_rules! parse_test {
     };
 }
 
+/// Create a sloppy parse test based on a given case and its name.
 #[macro_export]
 macro_rules! parse_sloppy_test {
     ($case:literal, $name:ident) => {

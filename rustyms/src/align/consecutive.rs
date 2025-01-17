@@ -25,7 +25,7 @@ impl<'lifetime, A> ConsecutiveAlignment<'lifetime, A> {
     }
 }
 
-impl<'lifetime, A: AtMax<Linear>> ConsecutiveAlignment<'lifetime, A> {
+impl<A: AtMax<Linear>> ConsecutiveAlignment<'_, A> {
     /// Break up in the main alignment into the regions as annotated in the alleles.
     #[allow(clippy::missing_panics_doc)]
     pub fn regions(&self) -> Vec<(LinearPeptide<A>, Region)> {

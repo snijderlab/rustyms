@@ -139,7 +139,11 @@ impl FastaIdentifier<Range<usize>> {
             Self::GenInfoIntegratedDatabase(a) => {
                 FastaIdentifier::GenInfoIntegratedDatabase(header[a.clone()].to_string())
             }
-            Self::Undefined(a) => FastaIdentifier::Undefined(header[a.clone()].to_string()),
+            Self::Undefined(a) => FastaIdentifier::Undefined(
+                header
+                    .get(a.clone())
+                    .map_or(String::new(), ToString::to_string),
+            ),
             Self::Local(a) => FastaIdentifier::Local(header[a.clone()].to_string()),
             Self::GenBank(a, b) => FastaIdentifier::GenBank(
                 header[a.clone()].to_string(),

@@ -256,7 +256,7 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
                         .iter()
                         .enumerate()
                         .position(|(index, used)| !used && b.0[index] == *el)
-                        .map_or(false, |pos| {
+                        .is_some_and(|pos| {
                             b_copy[pos] = true;
                             true
                         })

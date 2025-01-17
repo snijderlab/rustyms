@@ -532,7 +532,7 @@ impl SimpleModification {
             &mut vec![],
             None,
         ) {
-            Ok(modification) => Ok(SimpleModification(modification.defined().unwrap())),
+            Ok((modification, _)) => Ok(SimpleModification(modification.defined().unwrap())),
             Err(_) => Err(PyValueError::new_err("Invalid modification")),
         }
     }
@@ -1057,22 +1057,30 @@ impl LinearPeptide {
     ///
     /// Returns
     /// -------
-    /// Modification | None
+    /// list[Modification]
     ///
     #[getter]
-    fn n_term(&self) -> Option<Modification> {
-        self.0.get_n_term().map(|m| Modification(m.clone()))
+    fn n_term(&self) -> Vec<Modification> {
+        self.0
+            .get_n_term()
+            .iter()
+            .map(|m| Modification(m.clone()))
+            .collect()
     }
 
     /// C-terminal modification.
     ///
     /// Returns
     /// -------
-    /// Modification | None
+    /// list[Modification]
     ///
     #[getter]
-    fn c_term(&self) -> Option<Modification> {
-        self.0.get_c_term().map(|m| Modification(m.clone()))
+    fn c_term(&self) -> Vec<Modification> {
+        self.0
+            .get_c_term()
+            .iter()
+            .map(|m| Modification(m.clone()))
+            .collect()
     }
 
     /// Sequence of the peptide including modifications.

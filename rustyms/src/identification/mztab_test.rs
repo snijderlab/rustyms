@@ -77,7 +77,7 @@ fn casanovo_v4_2_1() {
 fn contranovo_v1_0_0() {
     assert_eq!(
         open_file(BufReader::new(CONTRANOVO_V1_0_0.as_bytes())).unwrap(),
-        18
+        20
     );
 }
 

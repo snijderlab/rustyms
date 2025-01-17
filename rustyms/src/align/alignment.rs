@@ -45,7 +45,7 @@ pub struct Alignment<'lifetime, A, B> {
     pub(super) maximal_step: u16,
 }
 
-impl<'lifetime, A, B> Clone for Alignment<'lifetime, A, B> {
+impl<A, B> Clone for Alignment<'_, A, B> {
     fn clone(&self) -> Self {
         Self {
             seq_a: self.seq_a.clone(),
@@ -60,7 +60,7 @@ impl<'lifetime, A, B> Clone for Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A, B> PartialEq for Alignment<'lifetime, A, B> {
+impl<A, B> PartialEq for Alignment<'_, A, B> {
     fn eq(&self, other: &Self) -> bool {
         self.seq_a == other.seq_a
             && self.seq_b == other.seq_b
@@ -73,7 +73,7 @@ impl<'lifetime, A, B> PartialEq for Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A, B> std::hash::Hash for Alignment<'lifetime, A, B> {
+impl<A, B> std::hash::Hash for Alignment<'_, A, B> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.seq_a.hash(state);
         self.seq_b.hash(state);
@@ -86,9 +86,9 @@ impl<'lifetime, A, B> std::hash::Hash for Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A, B> Eq for Alignment<'lifetime, A, B> {}
+impl<A, B> Eq for Alignment<'_, A, B> {}
 
-impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
+impl<A, B> Alignment<'_, A, B> {
     /// Clone the referenced sequences to make an alignment that owns the sequences.
     /// This can be necessary in some context where the references cannot be guaranteed to stay as long as you need the alignment.
     #[must_use]
@@ -101,13 +101,13 @@ impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A, B> PartialOrd for Alignment<'lifetime, A, B> {
+impl<A, B> PartialOrd for Alignment<'_, A, B> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'lifetime, A, B> Ord for Alignment<'lifetime, A, B> {
+impl<A, B> Ord for Alignment<'_, A, B> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.score.normalised.cmp(&other.score.normalised)
     }
@@ -285,7 +285,7 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
     }
 }
 
-impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
+impl<A, B> Alignment<'_, A, B> {
     /// The first sequence
     pub fn seq_a(&self) -> &LinearPeptide<A> {
         &self.seq_a
@@ -383,7 +383,7 @@ impl<'lifetime, A, B> Alignment<'lifetime, A, B> {
     }
 }
 
-impl<'lifetime, A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'lifetime, A, B> {
+impl<A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'_, A, B> {
     /// The mass(es) for the matched portion of the first sequence TODO: this assumes no terminal mods
     pub fn mass_a(&self) -> Multi<MolecularFormula> {
         if self.align_type().left.global_a() && self.align_type().right.global_a() {

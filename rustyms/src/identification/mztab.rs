@@ -305,7 +305,7 @@ impl MZTabData {
             })
             .collect::<Result<Vec<_>, CustomError>>()?;
 
-        Ok(Self {
+        let mut result = Self {
             peptide: {
                 let range = line.required_column("sequence")?.1;
 
@@ -631,7 +631,19 @@ impl MZTabData {
                     )
                 })
                 .collect(),
-        })
+        };
+
+        result.local_confidence = result.local_confidence.as_ref().map(|lc| {
+            // Casanovo stores the confidence for N and C terminal modifications
+            // As Casanovo has a double N terminal modification (+43.006-17.027) which could also
+            // exist as two separate modifications the number of N terminal modifications is not a
+            // reliable measure to detrmine how many local confidence scores to ignore.
+            let c = result.peptide.as_ref().map_or(0, |p| p.get_c_term().len());
+            let n = lc.len() - c - result.peptide.as_ref().map_or(0, LinearPeptide::len);
+            lc[n..lc.len() - c].to_vec()
+        });
+
+        Ok(result)
     }
 }
 
@@ -700,15 +712,17 @@ impl<'a> PSMLine<'a> {
 impl From<MZTabData> for IdentifiedPeptide {
     fn from(value: MZTabData) -> Self {
         Self {
-            score: value.search_engine.is_empty().then(|| {
-                (value
-                    .search_engine
-                    .iter()
-                    .filter_map(|(_, s, _)| *s)
-                    .sum::<f64>()
-                    / value.search_engine.len() as f64)
-                    .clamp(-1.0, 1.0)
-            }),
+            score: (!value.search_engine.is_empty())
+                .then(|| {
+                    (value
+                        .search_engine
+                        .iter()
+                        .filter_map(|(_, s, _)| *s)
+                        .sum::<f64>()
+                        / value.search_engine.len() as f64)
+                        .clamp(-1.0, 1.0)
+                })
+                .filter(|v| !v.is_nan()),
             local_confidence: value.local_confidence.clone(),
             metadata: MetaData::MZTab(value),
         }
