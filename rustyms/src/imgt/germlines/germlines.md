@@ -222,7 +222,7 @@ _Number of genes / number of alleles_
 
 | Kind | V | J | C |
 |------|---|---|---|
-|IGHV|81/321|9/19|12/94|
+|IGHV|81/319|9/19|12/94|
 |IGKV|62/109|5/7|1/4|
 |IGLV|51/113|7/10|7/14|
 |IGIV|0/0|0/0|0/0|
@@ -357,6 +357,17 @@ _Number of genes / number of alleles_
 |IGHV|0/0|0/0|1/1|
 |IGKV|0/0|0/0|0/0|
 |IGLV|0/0|0/0|0/0|
+|IGIV|0/0|0/0|0/0|
+
+_Number of genes / number of alleles_
+
+## Mesocricetus auratus / Golden hamster
+
+| Kind | V | J | C |
+|------|---|---|---|
+|IGHV|0/0|0/0|7/7|
+|IGKV|0/0|0/0|1/1|
+|IGLV|0/0|0/0|3/3|
 |IGIV|0/0|0/0|0/0|
 
 _Number of genes / number of alleles_
@@ -664,7 +675,7 @@ _Number of genes / number of alleles_
 |------|---|---|---|
 |IGHV|152/152|4/4|11/11|
 |IGKV|39/39|7/7|1/2|
-|IGLV|8/8|4/4|4/4|
+|IGLV|13/17|6/7|4/7|
 |IGIV|0/0|0/0|0/0|
 
 _Number of genes / number of alleles_

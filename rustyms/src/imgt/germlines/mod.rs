@@ -37,6 +37,7 @@ Species::MacacaMulatta => Some(lock_MacacaMulatta()),
 Species::MacacaNemestrina => Some(lock_MacacaNemestrina()),
 Species::MacacaSilenus => Some(lock_MacacaSilenus()),
 Species::MacacaThibetana => Some(lock_MacacaThibetana()),
+Species::MesocricetusAuratus => Some(lock_MesocricetusAuratus()),
 Species::MonodelphisDomestica => Some(lock_MonodelphisDomestica()),
 Species::MusCookii => Some(lock_MusCookii()),
 Species::MusMinutoides => Some(lock_MusMinutoides()),
@@ -111,6 +112,7 @@ lock_MacacaMulatta(),
 lock_MacacaNemestrina(),
 lock_MacacaSilenus(),
 lock_MacacaThibetana(),
+lock_MesocricetusAuratus(),
 lock_MonodelphisDomestica(),
 lock_MusCookii(),
 lock_MusMinutoides(),
@@ -189,6 +191,7 @@ lock_MacacaMulatta(),
 lock_MacacaNemestrina(),
 lock_MacacaSilenus(),
 lock_MacacaThibetana(),
+lock_MesocricetusAuratus(),
 lock_MonodelphisDomestica(),
 lock_MusCookii(),
 lock_MusMinutoides(),
@@ -294,6 +297,8 @@ static LOCK_MacacaSilenus: OnceLock<Germlines> = OnceLock::new();
 fn lock_MacacaSilenus()->&'static Germlines{LOCK_MacacaSilenus.get_or_init(|| {bincode::deserialize(include_bytes!("Liontail macaque.bin")).unwrap()})}
 static LOCK_MacacaThibetana: OnceLock<Germlines> = OnceLock::new();
 fn lock_MacacaThibetana()->&'static Germlines{LOCK_MacacaThibetana.get_or_init(|| {bincode::deserialize(include_bytes!("Pere David's macaque.bin")).unwrap()})}
+static LOCK_MesocricetusAuratus: OnceLock<Germlines> = OnceLock::new();
+fn lock_MesocricetusAuratus()->&'static Germlines{LOCK_MesocricetusAuratus.get_or_init(|| {bincode::deserialize(include_bytes!("Golden hamster.bin")).unwrap()})}
 static LOCK_MonodelphisDomestica: OnceLock<Germlines> = OnceLock::new();
 fn lock_MonodelphisDomestica()->&'static Germlines{LOCK_MonodelphisDomestica.get_or_init(|| {bincode::deserialize(include_bytes!("Gray short-tailed opossum.bin")).unwrap()})}
 static LOCK_MusCookii: OnceLock<Germlines> = OnceLock::new();
