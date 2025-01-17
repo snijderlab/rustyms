@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     error::{Context, CustomError},
-    modification::{CrossLinkName, SimpleModification},
+    modification::{AmbiguousLookup, CrossLinkName, SimpleModification},
     LinearPeptide, Modification, Peptidoform, SequencePosition,
 };
 
@@ -129,16 +129,10 @@ impl LinearPeptide<Linear> {
     ) -> bool {
         for modification in global_modifications {
             match modification {
-                GlobalModification::Fixed(pos, aa, modification) => {
+                GlobalModification::Fixed(rule, modification) => {
                     let positions = self
                         .iter(..)
-                        .filter(|(position, seq)| {
-                            pos.is_possible(position.sequence_index)
-                                && aa.map_or(true, |aa| aa == seq.aminoacid.aminoacid())
-                                && modification
-                                    .is_possible(seq, position.sequence_index)
-                                    .any_possible()
-                        })
+                        .filter(|(position, seq)| rule.is_possible(seq, position.sequence_index))
                         .map(|(position, _)| position)
                         .collect_vec();
                     for position in positions {
@@ -159,15 +153,25 @@ impl LinearPeptide<Linear> {
     /// When a mod cannot be placed anywhere
     pub(super) fn apply_unknown_position_modification(
         &mut self,
-        unknown_position_modifications: &[SimpleModification],
+        unknown_position_modifications: &[usize],
+        ambiguous_lookup: &AmbiguousLookup,
     ) -> Result<(), CustomError> {
         for modification in unknown_position_modifications {
-            if !self.add_unknown_position_modification(modification.clone(), None, ..) {
-                return Err(CustomError::error(
+            let entry = &ambiguous_lookup[*modification];
+            if let Some(m) = &entry.modification {
+                if !self.add_unknown_position_modification(m.clone(), .., &entry.as_settings()) {
+                    return Err(CustomError::error(
                     "Modification of unknown position cannot be placed", 
                     "There is no position where this modification can be placed based on the placement rules in the database.",
                      Context::show(modification)
                     ));
+                }
+            } else {
+                return Err(CustomError::error(
+                    "Modification of unknown position was not defined",
+                    "Please report this error",
+                    Context::show(modification),
+                ));
             }
         }
         Ok(())
@@ -183,7 +187,11 @@ impl LinearPeptide<Linear> {
         ranged_unknown_position_modifications: &[(usize, usize, SimpleModification)],
     ) -> Result<(), CustomError> {
         for (start, end, modification) in ranged_unknown_position_modifications {
-            if !self.add_unknown_position_modification(modification.clone(), None, start..=end) {
+            if !self.add_unknown_position_modification(
+                modification.clone(),
+                start..=end,
+                &super::MUPSettings::default(),
+            ) {
                 return Err(CustomError::error(
                     "Modification of unknown position on a range cannot be placed", 
                     "There is no position where this modification can be placed based on the placement rules in the database.", 

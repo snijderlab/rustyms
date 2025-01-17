@@ -7,7 +7,7 @@ use crate::{
         parse::{global_modifications, parse_charge_state},
         GlobalModification,
     },
-    placement_rule::{self, PlacementRule},
+    placement_rule::{self, PlacementRule, Position},
     system::{da, usize::Charge},
     AminoAcid, CompoundPeptidoform, Element, LinearPeptide, Model, MolecularCharge, MultiChemical,
     Peptidoform,
@@ -21,8 +21,7 @@ fn parse_global_modifications() {
         Ok((
             8,
             vec![GlobalModification::Fixed(
-                crate::placement_rule::Position::Anywhere,
-                Some(AminoAcid::AsparticAcid),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -32,8 +31,7 @@ fn parse_global_modifications() {
         Ok((
             8,
             vec![GlobalModification::Fixed(
-                crate::placement_rule::Position::Anywhere,
-                Some(AminoAcid::AsparticAcid),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -43,8 +41,7 @@ fn parse_global_modifications() {
         Ok((
             15,
             vec![GlobalModification::Fixed(
-                crate::placement_rule::Position::AnyNTerm,
-                Some(AminoAcid::AsparticAcid),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -54,8 +51,7 @@ fn parse_global_modifications() {
         Ok((
             15,
             vec![GlobalModification::Fixed(
-                crate::placement_rule::Position::AnyNTerm,
-                Some(AminoAcid::AsparticAcid),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))
@@ -65,8 +61,7 @@ fn parse_global_modifications() {
         Ok((
             15,
             vec![GlobalModification::Fixed(
-                crate::placement_rule::Position::AnyCTerm,
-                Some(AminoAcid::AsparticAcid),
+                PlacementRule::AminoAcid(vec![AminoAcid::AsparticAcid], Position::AnyNTerm),
                 Arc::new(SimpleModificationInner::Mass(da(5.0).into()))
             )]
         ))

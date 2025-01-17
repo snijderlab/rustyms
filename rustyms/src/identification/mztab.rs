@@ -120,7 +120,7 @@ impl MZTabData {
                                 match CVTerm::from_str(&line[fields[2].clone()]).and_then(|term|
                                         (term.id.trim() != "MS:1002453" && term.id.trim()  != "MS:1002454").then(||
                                             SimpleModificationInner::try_from(term.id.trim(), 0..term.id.trim().len(), &mut Vec::new(), &mut Vec::new(), custom_database)).transpose()) {
-                                    Ok(Some(ReturnModification::Defined(modification))) => if !modifications.contains(&modification) { modifications.push(modification)},
+                                    Ok(Some((ReturnModification::Defined(modification), _))) => if !modifications.contains(&modification) { modifications.push(modification)},
                                     Ok(Some(_)) => return Some(Err(CustomError::error("Invalid modification in mzTab", "Modifications in mzTab have to be defeined, not ambiguous or cross-linkers", Context::line_range(Some(line_index), line, fields[2].clone())))),
                                     Err(err) => return Some(Err(err)),
                                     Ok(None) => (),
@@ -289,7 +289,7 @@ impl MZTabData {
                         mod_index+1+pos.len()..mod_index+definition.len(),
                         &mut Vec::new(),
                         &mut Vec::new(),
-                        custom_database)?.defined()
+                        custom_database)?.0.defined()
                         .ok_or_else(
                             || CustomError::error(
                                 "Invalid modification",

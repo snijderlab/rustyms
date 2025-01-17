@@ -132,7 +132,7 @@ format_family!(
         for (m, aa, index) in &parsed.peptide_modifications {
             if let Some(index) = index {
                 parsed.peptide.add_simple_modification(SequencePosition::Index(*index), m.clone());
-            } else if !parsed.peptide.add_unknown_position_modification(m.clone(), Some(&[PlacementRule::AminoAcid(vec![*aa], crate::placement_rule::Position::Anywhere)]), ..)
+            } else if !parsed.peptide.add_unknown_position_modification(m.clone(), .., &crate::MUPSettings{position: Some(vec![PlacementRule::AminoAcid(vec![*aa], crate::placement_rule::Position::Anywhere)]), .. Default::default()})
             {
                 return Err(CustomError::error(
                     "Modification of unknown position cannot be placed",

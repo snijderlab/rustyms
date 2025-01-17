@@ -698,7 +698,62 @@ impl SimpleModificationInner {
 }
 
 /// The structure to lookup ambiguous modifications, with a list of all modifications (the order is fixed) with for each modification their name and the actual modification itself (if already defined)
-pub type AmbiguousLookup = Vec<(String, Option<SimpleModification>)>;
+pub type AmbiguousLookup = Vec<AmbiguousLookupEntry>;
+
+/// An entry in the ambiguous lookup
+#[derive(Debug, Clone)]
+pub struct AmbiguousLookupEntry {
+    /// The name of the modification
+    pub name: String,
+    /// The group of the modification
+    pub group: Option<usize>,
+    /// The modification itself
+    pub modification: Option<SimpleModification>,
+    /// The allowed locations, the actual allowed locations is the intersection of this set with the ruleset from the modification
+    position: Option<Vec<PlacementRule>>,
+    /// The maximal number of this modification on one place
+    limit: Option<usize>,
+    /// Determines if this modification can colocalise with placed modifications eg if the modification of unknown position is allowed at the second M '[Oxidation]?MM[Dioxidation]M'
+    colocalise_placed_modifications: bool,
+    /// Determines if this modification can colocalise with other modifications of unknown position
+    colocalise_modifications_of_unknown_position: bool,
+}
+
+impl AmbiguousLookupEntry {
+    /// Create a new ambiguous lookup entry
+    pub const fn new(name: String, modification: Option<SimpleModification>) -> Self {
+        Self {
+            name,
+            group: None,
+            modification,
+            limit: None,
+            position: None,
+            colocalise_placed_modifications: true,
+            colocalise_modifications_of_unknown_position: true,
+        }
+    }
+
+    /// Copy settings into this lookup entry
+    pub fn copy_settings(&mut self, settings: &crate::MUPSettings) {
+        self.position.clone_from(&settings.position);
+        self.limit = settings.limit;
+        self.colocalise_placed_modifications = settings.colocalise_placed_modifications;
+        self.colocalise_modifications_of_unknown_position =
+            settings.colocalise_modifications_of_unknown_position;
+    }
+
+    /// Get the settings for this modification of unknown position
+    pub fn as_settings(&self) -> crate::MUPSettings {
+        crate::MUPSettings {
+            position: self.position.clone(),
+            limit: self.limit,
+            colocalise_placed_modifications: self.colocalise_placed_modifications,
+            colocalise_modifications_of_unknown_position: self
+                .colocalise_modifications_of_unknown_position,
+        }
+    }
+}
+
 /// The structure to lookup cross-links, with a list of all linkers (the order is fixed) with for each linker their name or None if it is a branch and the actual linker itself (if already defined)
 pub type CrossLinkLookup = Vec<(CrossLinkName, Option<SimpleModification>)>;
 

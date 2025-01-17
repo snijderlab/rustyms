@@ -671,6 +671,7 @@ impl IdentifiedPeptide {
     }
 
     /// Get the matched fragments, potentially with m/z and intensity
+    #[doc(hidden)]
     pub fn matched_fragments(
         &self,
     ) -> Option<Vec<(Option<MassOverCharge>, Option<f64>, Fragment)>> {

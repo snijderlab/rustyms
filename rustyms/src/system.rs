@@ -200,12 +200,22 @@ impl MassOverCharge {
     pub fn ppm(self, b: Self) -> Ratio {
         Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
     }
+
+    /// Signed ppm error between this mz and the given other
+    pub fn signed_ppm(self, b: Self) -> Ratio {
+        Ratio::new::<crate::system::ratio::ppm>(((self - b) / self).value * 1e6)
+    }
 }
 
 impl Mass {
     /// Absolute ppm error between this mass and the given other
     pub fn ppm(self, b: Self) -> Ratio {
         Ratio::new::<crate::system::ratio::ppm>(((self - b).abs() / self.abs()).value * 1e6)
+    }
+
+    /// Signed ppm error between this mass and the given other
+    pub fn signed_ppm(self, b: Self) -> Ratio {
+        Ratio::new::<crate::system::ratio::ppm>(((self - b) / self).value * 1e6)
     }
 }
 

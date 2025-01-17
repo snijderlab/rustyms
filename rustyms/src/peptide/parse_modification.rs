@@ -1,6 +1,9 @@
-use crate::modification::{
-    AmbiguousLookup, CrossLinkLookup, CrossLinkName, Ontology, SimpleModification,
-    SimpleModificationInner,
+use crate::{
+    modification::{
+        AmbiguousLookup, AmbiguousLookupEntry, CrossLinkLookup, CrossLinkName, Ontology,
+        SimpleModification, SimpleModificationInner,
+    },
+    placement_rule::PlacementRule,
 };
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -18,9 +21,8 @@ use crate::{
     glycan::{GlycanStructure, MonoSaccharide},
     helper_functions::*,
     ontologies::CustomDatabase,
-    placement_rule::Position,
-    system::{dalton, Mass, OrderedMass},
-    AminoAcid, Element, MolecularFormula,
+    system::{dalton, Mass},
+    Element, MolecularFormula,
 };
 
 impl SimpleModificationInner {
@@ -35,39 +37,50 @@ impl SimpleModificationInner {
         ambiguous_lookup: &mut AmbiguousLookup,
         cross_link_lookup: &mut CrossLinkLookup,
         custom_database: Option<&CustomDatabase>,
-    ) -> Result<ReturnModification, CustomError> {
+    ) -> Result<(ReturnModification, MUPSettings), CustomError> {
         // Because multiple modifications could be chained with the pipe operator
         // the parsing iterates over all links until it finds one it understands
         // it then returns that one. If no 'understandable' links are found it
         // returns the last link, if this is an info it returns a mass shift of 0,
         // but if any of the links returned an error it returns the last error.
-        let mut last_result = Ok(None);
+        let mut modification = None;
+        let mut settings = MUPSettings::default();
         let mut last_error = None;
         let mut offset = range.start;
         for part in line[range].split('|') {
-            last_result = parse_single_modification(
+            match parse_single_modification(
                 line,
                 part,
                 offset,
                 ambiguous_lookup,
                 cross_link_lookup,
                 custom_database,
-            );
-            if let Ok(Some(m)) = last_result {
-                return Ok(m);
-            }
-            if let Err(er) = &last_result {
-                last_error = Some(er.clone());
+            ) {
+                Ok(SingleReturnModification::None) => (),
+                Ok(SingleReturnModification::Modification(m)) => modification = Some(m),
+                Ok(SingleReturnModification::Positions(p)) => settings.position = Some(p),
+                Ok(SingleReturnModification::Limit(l)) => settings.limit = Some(l),
+                Ok(SingleReturnModification::ColocalisePlacedModifications(s)) => {
+                    settings.colocalise_placed_modifications = s;
+                }
+                Ok(SingleReturnModification::ColocaliseModificationsOfUnknownPosition(s)) => {
+                    settings.colocalise_modifications_of_unknown_position = s;
+                }
+                Err(e) => last_error = Some(e),
             }
             offset += part.len() + 1;
         }
+        if let Some(ReturnModification::Ambiguous(id, _, true)) = &modification {
+            ambiguous_lookup[*id].copy_settings(&settings);
+        }
         last_error.map_or_else(
             || {
-                last_result.map(|m| {
-                    m.unwrap_or_else(|| {
-                        ReturnModification::Defined(Arc::new(Self::Mass(OrderedMass::zero())))
-                    })
-                })
+                Ok((
+                    modification.unwrap_or(ReturnModification::Defined(Arc::new(Self::Mass(
+                        Mass::default().into(),
+                    )))),
+                    settings,
+                ))
             },
             Err,
         )
@@ -75,6 +88,39 @@ impl SimpleModificationInner {
 }
 
 static MOD_REGEX: OnceLock<Regex> = OnceLock::new();
+
+enum SingleReturnModification {
+    None,
+    Modification(ReturnModification),
+    Positions(Vec<PlacementRule>),
+    Limit(usize),
+    ColocalisePlacedModifications(bool),
+    ColocaliseModificationsOfUnknownPosition(bool),
+}
+
+/// Settings for a modification of unknown position
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub struct MUPSettings {
+    /// The additional placement rules
+    pub(crate) position: Option<Vec<PlacementRule>>,
+    /// The maximal number for a grouped mup (^x)
+    pub(crate) limit: Option<usize>,
+    /// Allow this mup to colocalise with placed modifications
+    pub(crate) colocalise_placed_modifications: bool,
+    /// Allow this mup to colocalise with other mups
+    pub(crate) colocalise_modifications_of_unknown_position: bool,
+}
+
+impl std::default::Default for MUPSettings {
+    fn default() -> Self {
+        Self {
+            position: None,
+            limit: None,
+            colocalise_placed_modifications: true,
+            colocalise_modifications_of_unknown_position: true,
+        }
+    }
+}
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
@@ -86,7 +132,7 @@ fn parse_single_modification(
     ambiguous_lookup: &mut AmbiguousLookup,
     cross_link_lookup: &mut CrossLinkLookup,
     custom_database: Option<&CustomDatabase>,
-) -> Result<Option<ReturnModification>, CustomError> {
+) -> Result<SingleReturnModification, CustomError> {
     // Parse the whole intricate structure of the single modification (see here in action: https://regex101.com/r/pW5gsj/1)
     let regex = MOD_REGEX.get_or_init(|| {
         Regex::new(r"^(([^:#]*)(?::([^#]+))?)(?:#([0-9A-Za-z]+)(?:\((\d+\.\d+)\))?)?$").unwrap()
@@ -275,6 +321,45 @@ fn parse_single_modification(
                         "This modification cannot be read as a numerical modification",
                     )
                 }),
+                ("position", tail) => {
+                    match super::parse::parse_placement_rules(tail, 0..tail.len()).map_err(
+                        |error| basic_error.with_long_description(error.long_description()),
+                    ) {
+                        Ok(rules) => return Ok(SingleReturnModification::Positions(rules)),
+                        Err(e) => Err(e),
+                    }
+                }
+                ("limit", tail) => {
+                    match tail.parse::<usize>().map_err(|error| {
+                        basic_error.with_long_description(format!(
+                            "Invalid limit for modification of unknown position, the number is {}",
+                            explain_number_error(&error)
+                        ))
+                    }) {
+                        Ok(l) => return Ok(SingleReturnModification::Limit(l)),
+                        Err(e) => Err(e),
+                    }
+                }
+                ("colocaliseplacedmodifications", tail) => {
+                    match tail.parse::<bool>().map_err(|error| {
+                        basic_error.with_long_description(format!(
+                            "Invalid setting for colocalise placed modifications for modification of unknown position, the boolean is {error}",
+                        ))
+                    }) {
+                        Ok(s) => return Ok(SingleReturnModification::ColocalisePlacedModifications(s)),
+                        Err(e) => Err(e),
+                    }
+                }
+                ("colocalisemodificationsofunknownposition", tail) => {
+                    match tail.parse::<bool>().map_err(|error| {
+                        basic_error.with_long_description(format!(
+                            "Invalid setting for colocalise modifications of unknown position for modification of unknown position, the boolean is {error}",
+                        ))
+                    }) {
+                        Ok(s) => return Ok(SingleReturnModification::ColocaliseModificationsOfUnknownPosition(s)),
+                        Err(e) => Err(e),
+                    }
+                }
                 (_, _) => Ontology::Unimod
                     .find_name(full.0, custom_database)
                     .or_else(|| Ontology::Psimod.find_name(full.0, custom_database))
@@ -345,7 +430,9 @@ fn parse_single_modification(
                     }
                     cross_link_lookup[index].1 = Some(linker);
                 }
-                Ok(Some(ReturnModification::CrossLinkReferenced(index)))
+                Ok(SingleReturnModification::Modification(
+                    ReturnModification::CrossLinkReferenced(index),
+                ))
             } else if let Some(name) = group.0.to_ascii_lowercase().strip_prefix("xl") {
                 let name = CrossLinkName::Name(name.to_string());
                 let index = cross_link_lookup
@@ -373,7 +460,9 @@ fn parse_single_modification(
                     }
                     cross_link_lookup[index].1 = Some(linker);
                 }
-                Ok(Some(ReturnModification::CrossLinkReferenced(index)))
+                Ok(SingleReturnModification::Modification(
+                    ReturnModification::CrossLinkReferenced(index),
+                ))
             } else {
                 handle_ambiguous_modification(
                     modification,
@@ -384,7 +473,11 @@ fn parse_single_modification(
                 )
             }
         } else {
-            modification.map(|m| m.map(ReturnModification::Defined))
+            modification.map(|m| {
+                m.map_or(SingleReturnModification::None, |m| {
+                    SingleReturnModification::Modification(ReturnModification::Defined(m))
+                })
+            })
         }
     } else {
         Err(CustomError::error(
@@ -404,14 +497,14 @@ fn handle_ambiguous_modification(
     localisation_score: Option<OrderedFloat<f64>>,
     ambiguous_lookup: &mut AmbiguousLookup,
     context: Context,
-) -> Result<Option<ReturnModification>, CustomError> {
+) -> Result<SingleReturnModification, CustomError> {
     let group_name = group.0.to_ascii_lowercase();
     // Search for a previous definition of this name, store as Some((index, modification_definition_present)) or None if there is no definition in place
     let found_definition = ambiguous_lookup
         .iter()
         .enumerate()
-        .find(|(_, (name, _))| name == &group_name)
-        .map(|(index, (_, modification))| (index, modification.is_some()));
+        .find(|(_, entry)| entry.name == group_name)
+        .map(|(index, entry)| (index, entry.modification.is_some()));
     // Handle all possible cases of having a modification found at this position and having a modification defined in the ambiguous lookup
     match (modification, found_definition) {
         // Have a mod defined here and already in the lookup (error)
@@ -423,17 +516,17 @@ fn handle_ambiguous_modification(
             )),
         // Have a mod defined here, the name present in the lookup but not yet the mod
         (Ok(Some(m)), Some((index, false))) => {
-            ambiguous_lookup[index].1 = Some(m);
-            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, true)))
+            ambiguous_lookup[index].modification = Some(m);
+            Ok(SingleReturnModification::Modification(ReturnModification::Ambiguous(index, localisation_score, true)))
         },
         // No mod defined, but the name is present in the lookup
-        (Ok(None), Some((index, _))) => Ok(Some(ReturnModification::Ambiguous(index, localisation_score, false))),
+        (Ok(None), Some((index, _))) => Ok(SingleReturnModification::Modification(ReturnModification::Ambiguous(index, localisation_score, false))),
         // The mod is not already in the lookup
         (Ok(m), None) => {
             let index = ambiguous_lookup.len();
             let preferred = m.is_some();
-            ambiguous_lookup.push((group_name, m));
-            Ok(Some(ReturnModification::Ambiguous(index, localisation_score, preferred)))
+            ambiguous_lookup.push(AmbiguousLookupEntry::new(group_name, m));
+            Ok(SingleReturnModification::Modification(ReturnModification::Ambiguous(index, localisation_score, preferred)))
         },
         // Earlier error
         (Err(e), _) => Err(e),
@@ -468,7 +561,7 @@ pub enum GlobalModification {
     /// A global isotope modification
     Isotope(Element, Option<NonZeroU16>),
     /// Can be placed on any place it fits, if that is the correct aminoacid and it fits according to the placement rules of the modification itself
-    Fixed(Position, Option<AminoAcid>, SimpleModification),
+    Fixed(PlacementRule, SimpleModification),
 }
 
 /// # Errors

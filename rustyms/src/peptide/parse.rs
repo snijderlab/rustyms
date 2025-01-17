@@ -4,16 +4,9 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
 use crate::{
-    error::{Context, CustomError},
-    helper_functions::*,
-    modification::{
+    error::{Context, CustomError}, helper_functions::*, modification::{
         AmbiguousLookup, CrossLinkLookup, Modification, SimpleModification, SimpleModificationInner,
-    },
-    molecular_charge::MolecularCharge,
-    ontologies::CustomDatabase,
-    peptide::Linked,
-    AminoAcid, CheckedAminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula,
-    Peptidoform, SequenceElement, SequencePosition,
+    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptide::Linked, placement_rule::{PlacementRule, Position}, AminoAcid, CheckedAminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform, SequenceElement, SequencePosition
 };
 
 use super::{GlobalModification, Linear, ReturnModification, SemiAmbiguous};
@@ -224,7 +217,7 @@ impl CompoundPeptidoform {
 
         // Unknown position mods
         if let Some(result) =
-            unknown_position_mods(chars, index, line, custom_database, &mut ambiguous_lookup)
+            global_unknown_position_mods(chars, index, line, custom_database, &mut ambiguous_lookup)
         {
             let (buf, mods) = result.map_err(|errors| {
                 CustomError::error(
@@ -259,7 +252,7 @@ impl CompoundPeptidoform {
                 cross_link_lookup,
                 custom_database,
             )
-            .map(|m| match m {
+            .map(|m| match m.0 {
                 ReturnModification::Defined(simple) => Some(simple),
                 ReturnModification::CrossLinkReferenced(id) => {
                     cross_link_found_positions.push((id, SequencePosition::NTerm));
@@ -342,7 +335,7 @@ impl CompoundPeptidoform {
                         let modification = SimpleModificationInner::try_from(
                             line, index + 1..end_index,
                             &mut ambiguous_lookup, cross_link_lookup, custom_database,
-                        )?.defined().ok_or_else(|| CustomError::error(
+                        )?.0.defined().ok_or_else(|| CustomError::error(
                             "Invalid ranged ambiguous modification",
                             "A ranged ambiguous modification has to be fully defined, so no ambiguous modification is allowed",
                             Context::line(None, line, index, 1),
@@ -377,7 +370,7 @@ impl CompoundPeptidoform {
                         "No valid closing delimiter",
                         Context::line(None, line, index, 1),
                     ))?;
-                    let modification = SimpleModificationInner::try_from(
+                    let (modification,_) = SimpleModificationInner::try_from(
                         line, index + 1..end_index,
                         &mut ambiguous_lookup, cross_link_lookup, custom_database,
                     )?;
@@ -507,22 +500,22 @@ impl CompoundPeptidoform {
                 .map(|(index, _, _, score)| (*index, *score))
                 .collect_vec();
             let preferred = ambiguous.iter().find_map(|p| p.1.then_some(p.0));
-            if !peptide.add_ambiguous_modification(ambiguous_lookup[id].1.clone().ok_or_else(||
+            if !peptide.add_ambiguous_modification(ambiguous_lookup[id].modification.clone().ok_or_else(||
                 CustomError::error(
                     "Invalid ambiguous modification",
-                    format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].0),
+                    format!("Ambiguous modification {} did not have a definition for the actual modification", ambiguous_lookup[id].name),
                     Context::full_line(0, line),
                 )
-                )?, Some(ambiguous_lookup[id].0.clone()), &positions, preferred) {
+                )?, Some(ambiguous_lookup[id].name.clone()), &positions, preferred, None,  true) {
                 return Err(CustomError::error(
                     "Modification of unknown position cannot be placed", 
-                    format!("There is no position where this ambiguous modification {} can be placed based on the placement rules in the database.", ambiguous_lookup[id].0),
+                    format!("There is no position where this ambiguous modification {} can be placed based on the placement rules in the database.", ambiguous_lookup[id].name),
                     Context::full_line(0, line),
                     ));
             }
         }
 
-        peptide.apply_unknown_position_modification(&unknown_position_modifications)?;
+        peptide.apply_unknown_position_modification(&unknown_position_modifications, &ambiguous_lookup)?;
         peptide
             .apply_ranged_unknown_position_modification(&ranged_unknown_position_modifications)?;
         peptide.enforce_modification_rules()?;
@@ -579,7 +572,7 @@ pub(super) fn global_modifications(
                 custom_database,
             )
             .map(|m| {
-                m.defined().ok_or_else(|| {
+                m.0.defined().ok_or_else(|| {
                     CustomError::error(
                         "Invalid global modification",
                         "A global modification cannot be ambiguous or a cross-linker",
@@ -588,71 +581,8 @@ pub(super) fn global_modifications(
                 })
             })
             .flat_err()?;
-            for aa in line[at_index..end_index].split(',') {
-                if aa.to_ascii_lowercase().starts_with("n-term") {
-                    if let Some((_, aa)) = aa.split_once(':') {
-                        global_modifications.push(GlobalModification::Fixed(
-                            crate::placement_rule::Position::AnyNTerm,
-                            Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
-                                CustomError::error(
-                                    "Invalid global modification",
-                                    "The location could not be read as an amino acid",
-                                    Context::line(
-                                        None,
-                                        line,
-                                        at_index + 7,
-                                        end_index - at_index - 7,
-                                    ),
-                                )
-                            })?),
-                            modification.clone(),
-                        ));
-                    } else {
-                        global_modifications.push(GlobalModification::Fixed(
-                            crate::placement_rule::Position::AnyNTerm,
-                            None,
-                            modification.clone(),
-                        ));
-                    }
-                } else if aa.to_ascii_lowercase().starts_with("c-term") {
-                    if let Some((_, aa)) = aa.split_once(':') {
-                        global_modifications.push(GlobalModification::Fixed(
-                            crate::placement_rule::Position::AnyCTerm,
-                            Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
-                                CustomError::error(
-                                    "Invalid global modification",
-                                    "The location could not be read as an amino acid",
-                                    Context::line(
-                                        None,
-                                        line,
-                                        at_index + 7,
-                                        end_index - at_index - 7,
-                                    ),
-                                )
-                            })?),
-                            modification.clone(),
-                        ));
-                    } else {
-                        global_modifications.push(GlobalModification::Fixed(
-                            crate::placement_rule::Position::AnyCTerm,
-                            None,
-                            modification.clone(),
-                        ));
-                    }
-                } else {
-                    global_modifications.push(GlobalModification::Fixed(
-                        crate::placement_rule::Position::Anywhere,
-                        Some(TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
-                            CustomError::error(
-                                "Invalid global modification",
-                                "The location could not be read as an amino acid",
-                                Context::line(None, line, at_index, end_index - at_index),
-                            )
-                        })?),
-                        modification.clone(),
-                    ));
-                }
-            }
+            let rules = parse_placement_rules(line, at_index..end_index)?;
+            global_modifications.extend(rules.into_iter().map(|r| GlobalModification::Fixed(r, modification.clone())));
         } else if &line[index + 1..end_index].to_ascii_lowercase() == "d" {
             global_modifications.push(GlobalModification::Isotope(Element::H, NonZeroU16::new(2)));
         } else {
@@ -698,21 +628,77 @@ pub(super) fn global_modifications(
     Ok((index, global_modifications))
 }
 
-/// A list of found modifications
-type UnknownPositionMods = (usize, Vec<SimpleModification>);
+/// Parse a set of placement rules.
+/// # Errors
+/// When any rule is invalid.
+pub fn parse_placement_rules(line: &str, range: std::ops::Range<usize>) -> Result<Vec<PlacementRule>, CustomError> {
+    let mut result = Vec::new();
+    for aa in line[range.clone()].split(',') {
+        if aa.to_ascii_lowercase().starts_with("n-term") {
+            if let Some((_, aa)) = aa.split_once(':') {
+                result.push(PlacementRule::AminoAcid(vec![TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
+                    CustomError::error(
+                        "Invalid global modification",
+                        "The location could not be read as an amino acid",
+                        Context::line(
+                            None,
+                            line,
+                            range.start,
+                            range.len(),
+                        ),
+                    )
+                })?], Position::AnyNTerm));
+            } else {
+                result.push(PlacementRule::Terminal(Position::AnyNTerm));
+            }
+        } else if aa.to_ascii_lowercase().starts_with("c-term") {
+            if let Some((_, aa)) = aa.split_once(':') {
+                result.push(PlacementRule::AminoAcid(vec![TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
+                    CustomError::error(
+                        "Invalid global modification",
+                        "The location could not be read as an amino acid",
+                        Context::line(
+                            None,
+                            line,
+                            range.start,
+                            range.len(),
+                        ),
+                    )
+                })?], Position::AnyCTerm));
+            } else {
+                result.push(PlacementRule::Terminal(Position::AnyCTerm));
+            }
+        } else {
+            result.push(PlacementRule::AminoAcid(vec![TryInto::<AminoAcid>::try_into(aa).map_err(|()| {
+                CustomError::error(
+                    "Invalid global modification",
+                    "The location could not be read as an amino acid",
+                    Context::line(
+                        None,
+                        line,
+                        range.start,
+                        range.len(),
+                    ),
+                )
+            })?], Position::Anywhere));
+        }
+    }
+    Ok(result)
+}
+
 /// If the text is recognised as a unknown mods list it is Some(..), if it has errors during parsing Some(Err(..))
 /// The returned happy path contains the mods and the index from where to continue parsing.
 /// # Errors
 /// Give all errors when the text cannot be read as mods of unknown position.
 /// # Panics
 /// Breaks if the text is not valid UTF-8
-pub(super) fn unknown_position_mods(
+pub(super) fn global_unknown_position_mods(
     chars: &[u8],
     start: usize,
     line: &str,
     custom_database: Option<&CustomDatabase>,
     ambiguous_lookup: &mut AmbiguousLookup,
-) -> Option<Result<UnknownPositionMods, Vec<CustomError>>> {
+) -> Option<Result<(usize, Vec<usize>), Vec<CustomError>>> {
     let mut index = start;
     let mut modifications = Vec::new();
     let mut errs = Vec::new();
@@ -722,16 +708,23 @@ pub(super) fn unknown_position_mods(
     while chars.get(index) == Some(&b'[') {
         let start_index = index;
         index = next_char(chars, index + 1, b']')? + 1;
-        let modification = match SimpleModificationInner::try_from(
+        let id = match SimpleModificationInner::try_from(
             std::str::from_utf8(chars).unwrap(),
             start_index + 1..index - 1,
             ambiguous_lookup,
             &mut cross_link_lookup,
             custom_database,
         ) {
-            Ok(ReturnModification::Defined(m)) => m,
-            Ok(ReturnModification::Ambiguous(_, _, _)) => continue, // Added to list and that is the only thing to do
-            Ok(ReturnModification::CrossLinkReferenced(_)) => {
+            Ok((ReturnModification::Defined(m), settings)) => {
+                let id = ambiguous_lookup.len();
+                ambiguous_lookup.push(crate::modification::AmbiguousLookupEntry::new(format!("u{id}"), Some(m)));
+                ambiguous_lookup[id].copy_settings(&settings);
+                id
+            },
+            Ok((ReturnModification::Ambiguous(id, _, _), settings)) => {
+                ambiguous_lookup[id].copy_settings(&settings);
+                id},
+            Ok((ReturnModification::CrossLinkReferenced(_), _)) => {
                 errs.push(CustomError::error(
                     "Invalid unknown position modification",
                     "A modification of unknown position cannot be a cross-link",
@@ -766,7 +759,17 @@ pub(super) fn unknown_position_mods(
         } else {
             1
         };
-        modifications.extend(std::iter::repeat(modification).take(number));
+        if number > 1 {
+            let group_name = ambiguous_lookup.len();
+            ambiguous_lookup[id].group = Some(group_name);
+            modifications.push(id); 
+            for _ in 0..number {
+                modifications.push(ambiguous_lookup.len()); 
+                ambiguous_lookup.push(ambiguous_lookup[id].clone());
+            }
+        } else {
+            modifications.push(id); 
+        }
     }
     if chars.get(index) == Some(&b'?') {
         Some(if errs.is_empty() {
@@ -808,7 +811,7 @@ fn labile_modifications(
                 custom_database,
             )
             .and_then(|m| {
-                m.defined().ok_or_else(|| {
+                m.0.defined().ok_or_else(|| {
                     CustomError::error(
                         "Invalid labile modification",
                         "A labile modification cannot be ambiguous or a cross-linker",
