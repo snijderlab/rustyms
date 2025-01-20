@@ -305,7 +305,7 @@ impl Chemical for CheckedAminoAcid<UnAmbiguous> {
     fn formula_inner(
         &self,
         _sequence_index: crate::SequencePosition,
-        _peptide_index: usize,
+        _peptidoform_index: usize,
     ) -> MolecularFormula {
         match self.aminoacid {
             AminoAcid::Alanine => molecular_formula!(H 5 C 3 O 1 N 1),
@@ -343,7 +343,7 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
     fn formulas_inner(
         &self,
         sequence_index: crate::SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula> {
         self.into_unambiguous().map_or_else(|| {
             let crate::SequencePosition::Index(sequence_index) = sequence_index else {
@@ -351,17 +351,17 @@ impl<T> MultiChemical for CheckedAminoAcid<T> {
             };
             match self.aminoacid {
             AminoAcid::AmbiguousAsparagine => vec![
-                molecular_formula!(H 6 C 4 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Asparagine, sequence_index, peptide_index})),
-                molecular_formula!(H 5 C 4 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::AsparticAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 6 C 4 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Asparagine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 5 C 4 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::AsparticAcid, sequence_index, peptidoform_index})),
             ]
             .into(),
             AminoAcid::AmbiguousGlutamine => vec![
-                molecular_formula!(H 8 C 5 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Glutamine, sequence_index, peptide_index})),
-                molecular_formula!(H 7 C 5 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 8 C 5 O 2 N 2 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::Glutamine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 7 C 5 O 3 N 1 (crate::AmbiguousLabel::AminoAcid{option: AminoAcid::GlutamicAcid, sequence_index, peptidoform_index})),
             ]
             .into(),
             _ => unreachable!(),        }
-        }, |unambiguous| unambiguous.formula_inner(sequence_index, peptide_index).into())
+        }, |unambiguous| unambiguous.formula_inner(sequence_index, peptidoform_index).into())
     }
 }
 

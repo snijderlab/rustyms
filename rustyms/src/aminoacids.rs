@@ -66,7 +66,7 @@ impl AminoAcid {
     pub(crate) fn satellite_ion_fragments(
         self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula> {
         let crate::SequencePosition::Index(sequence_index) = sequence_index else {
             panic!("Not allowed to call satellite ion fragments with a terminal sequence index")
@@ -84,16 +84,16 @@ impl AminoAcid {
             Self::Asparagine => molecular_formula!(H 2 C 1 N 1 O 1).into(),
             Self::AsparticAcid => molecular_formula!(H 1 C 1 O 2).into(),
             Self::AmbiguousAsparagine => vec![
-                molecular_formula!(H 2 C 1 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Asparagine, sequence_index, peptide_index})),
-                molecular_formula!(H 1 C 1 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::AsparticAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 2 C 1 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Asparagine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 1 C 1 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::AsparticAcid, sequence_index, peptidoform_index})),
             ]
             .into(),
             Self::Cysteine => molecular_formula!(H 1 S 1).into(),
             Self::Glutamine => molecular_formula!(H 4 C 2 N 1 O 1).into(),
             Self::GlutamicAcid => molecular_formula!(H 3 C 2 O 2).into(),
             Self::AmbiguousGlutamine => vec![
-                molecular_formula!(H 4 C 2 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Glutamine, sequence_index, peptide_index})),
-                molecular_formula!(H 3 C 2 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::GlutamicAcid, sequence_index, peptide_index})),
+                molecular_formula!(H 4 C 2 N 1 O 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Glutamine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 3 C 2 O 2 (crate::AmbiguousLabel::AminoAcid{option: Self::GlutamicAcid, sequence_index, peptidoform_index})),
             ]
             .into(),
             Self::Isoleucine => vec![
@@ -103,9 +103,9 @@ impl AminoAcid {
             .into(),
             Self::Leucine => molecular_formula!(H 7 C 3).into(),
             Self::AmbiguousLeucine => vec![
-                molecular_formula!(H 3 C 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptide_index})),
-                molecular_formula!(H 5 C 2 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptide_index})),
-                molecular_formula!(H 7 C 3 (crate::AmbiguousLabel::AminoAcid{option: Self::Leucine, sequence_index, peptide_index})),
+                molecular_formula!(H 3 C 1 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 5 C 2 (crate::AmbiguousLabel::AminoAcid{option: Self::Isoleucine, sequence_index, peptidoform_index})),
+                molecular_formula!(H 7 C 3 (crate::AmbiguousLabel::AminoAcid{option: Self::Leucine, sequence_index, peptidoform_index})),
             ]
             .into(),
             Self::Lysine => molecular_formula!(H 8 C 3 N 1).into(),
@@ -281,8 +281,8 @@ impl AminoAcid {
         sequence_index: SequencePosition,
         sequence_length: usize,
         ions: &PossibleIons,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         allow_terminal: (bool, bool),
     ) -> Vec<Fragment> {
         let mut base_fragments = Vec::with_capacity(ions.size_upper_bound());
@@ -291,10 +291,10 @@ impl AminoAcid {
 
         if ions.a.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications - molecular_formula!(H 1 C 1 O 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::a(n_pos),
                 n_term,
                 ions.a.1,
@@ -304,10 +304,10 @@ impl AminoAcid {
         }
         if ions.b.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications - molecular_formula!(H 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::b(n_pos),
                 n_term,
                 ions.b.1,
@@ -317,10 +317,10 @@ impl AminoAcid {
         }
         if ions.c.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications + molecular_formula!(H 2 N 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::c(n_pos),
                 n_term,
                 ions.c.1,
@@ -330,12 +330,12 @@ impl AminoAcid {
         }
         if ions.d.0 && allow_terminal.0 {
             base_fragments.extend(Fragment::generate_all(
-                &(-self.satellite_ion_fragments(sequence_index, peptide_index)
+                &(-self.satellite_ion_fragments(sequence_index, peptidoform_index)
                     * modifications
-                    * self.formulas_inner(sequence_index, peptide_index)
+                    * self.formulas_inner(sequence_index, peptidoform_index)
                     + molecular_formula!(H 1 C 1 O 1)),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::d(n_pos),
                 n_term,
                 ions.d.1,
@@ -346,8 +346,8 @@ impl AminoAcid {
         if ions.v.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
                 &molecular_formula!(H 3 C 2 N 1 O 1).into(),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::v(c_pos),
                 c_term,
                 ions.v.1,
@@ -357,12 +357,12 @@ impl AminoAcid {
         }
         if ions.w.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(-self.satellite_ion_fragments(sequence_index, peptide_index)
+                &(-self.satellite_ion_fragments(sequence_index, peptidoform_index)
                     * modifications
-                    * self.formulas_inner(sequence_index, peptide_index)
+                    * self.formulas_inner(sequence_index, peptidoform_index)
                     + molecular_formula!(H 2 N 1)),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::w(c_pos),
                 c_term,
                 ions.w.1,
@@ -372,10 +372,10 @@ impl AminoAcid {
         }
         if ions.x.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications + molecular_formula!(C 1 O 1) - molecular_formula!(H 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::x(c_pos),
                 c_term,
                 ions.x.1,
@@ -385,10 +385,10 @@ impl AminoAcid {
         }
         if ions.y.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications + molecular_formula!(H 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::y(c_pos),
                 c_term,
                 ions.y.1,
@@ -398,10 +398,10 @@ impl AminoAcid {
         }
         if ions.z.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications - molecular_formula!(H 2 N 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::z(c_pos),
                 c_term,
                 ions.z.1,
@@ -409,10 +409,10 @@ impl AminoAcid {
                 ions.z.2,
             ));
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications - molecular_formula!(H 1 N 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::z·(c_pos),
                 c_term,
                 ions.z.1,
@@ -423,10 +423,10 @@ impl AminoAcid {
 
         if ions.immonium.0 && allow_terminal.0 && allow_terminal.1 {
             base_fragments.extend(Fragment::generate_all(
-                &(self.formulas_inner(sequence_index, peptide_index)
+                &(self.formulas_inner(sequence_index, peptidoform_index)
                     * (modifications - molecular_formula!(C 1 O 1))),
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 &FragmentType::Immonium(n_pos, self.into()), // TODO: get the actual sequenceelement here
                 &Multi::default(),
                 self.immonium_losses().as_slice(),

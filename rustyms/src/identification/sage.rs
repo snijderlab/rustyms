@@ -4,9 +4,9 @@ use crate::{
     error::CustomError,
     identification::SpectrumId,
     ontologies::CustomDatabase,
-    peptide::SemiAmbiguous,
+    peptidoform::SemiAmbiguous,
     system::{usize::Charge, Mass, Ratio, Time},
-    LinearPeptide,
+    Peptidoform,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ format_family!(
         ms2_intensity: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         scan: SpectrumId, |location: Location, _|Ok(SpectrumId::Native(location.get_string()));
         peptide_q: f64, |location: Location, _| location.parse(NUMBER_ERROR);
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
         poisson: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         posterior_error: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         predicted_mobility: f64, |location: Location, _| location.parse(NUMBER_ERROR);

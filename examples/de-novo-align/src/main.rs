@@ -51,7 +51,7 @@ fn main() {
                         peptide,
                         align::<4, SemiAmbiguous, SemiAmbiguous>(
                             db.peptide(),
-                            &linear_peptide,
+                            linear_peptide,
                             AlignScoring::default(),
                             AlignType::EITHER_GLOBAL,
                         ),

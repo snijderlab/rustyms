@@ -14,11 +14,11 @@ use super::scoring::*;
 use crate::align::mass_alignment::determine_final_score;
 use crate::align::mass_alignment::score_pair;
 use crate::helper_functions::next_num;
-use crate::peptide::AtMax;
-use crate::peptide::Linear;
+use crate::peptidoform::AtMax;
+use crate::peptidoform::Linear;
 use crate::system::Mass;
 use crate::system::Ratio;
-use crate::LinearPeptide;
+use crate::Peptidoform;
 use crate::MolecularFormula;
 use crate::Multi;
 use crate::SequencePosition;
@@ -28,9 +28,9 @@ use crate::SimpleLinear;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Alignment<'lifetime, A, B> {
     /// The first sequence
-    pub(super) seq_a: Cow<'lifetime, LinearPeptide<A>>,
+    pub(super) seq_a: Cow<'lifetime, Peptidoform<A>>,
     /// The second sequence
-    pub(super) seq_b: Cow<'lifetime, LinearPeptide<B>>,
+    pub(super) seq_b: Cow<'lifetime, Peptidoform<B>>,
     /// The scores of this alignment
     pub(super) score: Score,
     /// The path or steps taken for the alignment
@@ -117,8 +117,8 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
     /// Recreate an alignment from a path, the path is [`Self::short`].
     #[allow(clippy::missing_panics_doc)]
     pub fn create_from_path(
-        seq_a: &'lifetime LinearPeptide<A>,
-        seq_b: &'lifetime LinearPeptide<B>,
+        seq_a: &'lifetime Peptidoform<A>,
+        seq_b: &'lifetime Peptidoform<B>,
         start_a: usize,
         start_b: usize,
         path: &str,
@@ -287,11 +287,11 @@ impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifet
 
 impl<A, B> Alignment<'_, A, B> {
     /// The first sequence
-    pub fn seq_a(&self) -> &LinearPeptide<A> {
+    pub fn seq_a(&self) -> &Peptidoform<A> {
         &self.seq_a
     }
     /// The second sequence
-    pub fn seq_b(&self) -> &LinearPeptide<B> {
+    pub fn seq_b(&self) -> &Peptidoform<B> {
         &self.seq_b
     }
 
@@ -596,27 +596,27 @@ pub struct Score {
 mod tests {
     use crate::{
         align::{align, AlignScoring, AlignType},
-        peptide::SimpleLinear,
-        AminoAcid, LinearPeptide, MultiChemical,
+        peptidoform::SimpleLinear,
+        AminoAcid, Peptidoform, MultiChemical,
     };
 
     #[test]
     fn mass_difference() {
         // Test if the mass difference calculation is correct for some harder alignments.
         // A has an ambiguous AA, B and C have the two options, while D has a sub peptide of A.
-        let a = LinearPeptide::pro_forma("AABAA", None)
+        let a = Peptidoform::pro_forma("AABAA", None)
             .unwrap()
             .into_simple_linear()
             .unwrap();
-        let b = LinearPeptide::pro_forma("AANAA", None)
+        let b = Peptidoform::pro_forma("AANAA", None)
             .unwrap()
             .into_simple_linear()
             .unwrap();
-        let c = LinearPeptide::pro_forma("AADAA", None)
+        let c = Peptidoform::pro_forma("AADAA", None)
             .unwrap()
             .into_simple_linear()
             .unwrap();
-        let d = LinearPeptide::pro_forma("ADA", None)
+        let d = Peptidoform::pro_forma("ADA", None)
             .unwrap()
             .into_simple_linear()
             .unwrap();

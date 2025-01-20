@@ -11,7 +11,7 @@ use crate::{
     AminoAcid, Chemical, MassMode, Modification, MolecularFormula, Tolerance, WithinTolerance,
 };
 
-use super::LinearPeptide;
+use super::Peptidoform;
 
 /// Search for modifications that fit the mass tolerance and optional position requirements. If the
 /// `positions` is `None` it will not filter for possible positions. Otherwise only modifications
@@ -237,8 +237,8 @@ impl PeptideModificationSearch {
     #[allow(clippy::similar_names)]
     pub fn search<Complexity>(
         &mut self,
-        mut peptide: LinearPeptide<Complexity>,
-    ) -> LinearPeptide<Complexity> {
+        mut peptide: Peptidoform<Complexity>,
+    ) -> Peptidoform<Complexity> {
         fn find_replacement_all_positions(
             settings: &mut PeptideModificationSearch,
             n_term: bool,
@@ -490,13 +490,13 @@ impl PeptideModificationSearch {
 fn test_replacement() {
     let mut search = PeptideModificationSearch::in_ontologies(vec![Ontology::Unimod], None)
         .replace_formulas(true);
-    let peptide = LinearPeptide::pro_forma("MSFNELT[79.9663]ESNKKSLM[+15.9949]E", None).unwrap();
-    let expected = LinearPeptide::pro_forma("MSFNELT[Phospho]ESNKKSLM[Oxidation]E", None).unwrap();
+    let peptide = Peptidoform::pro_forma("MSFNELT[79.9663]ESNKKSLM[+15.9949]E", None).unwrap();
+    let expected = Peptidoform::pro_forma("MSFNELT[Phospho]ESNKKSLM[Oxidation]E", None).unwrap();
     assert_eq!(search.search(peptide), expected);
-    let peptide = LinearPeptide::pro_forma("Q[-17.02655]NKKSLM[+15.9949]E", None).unwrap();
-    let expected = LinearPeptide::pro_forma("[Gln->pyro-glu]-QNKKSLM[Oxidation]E", None).unwrap();
+    let peptide = Peptidoform::pro_forma("Q[-17.02655]NKKSLM[+15.9949]E", None).unwrap();
+    let expected = Peptidoform::pro_forma("[Gln->pyro-glu]-QNKKSLM[Oxidation]E", None).unwrap();
     assert_eq!(search.search(peptide), expected);
-    let peptide = LinearPeptide::pro_forma("M[Formula:O1]KSLM[+15.9949]E", None).unwrap();
-    let expected = LinearPeptide::pro_forma("M[Oxidation]KSLM[Oxidation]E", None).unwrap();
+    let peptide = Peptidoform::pro_forma("M[Formula:O1]KSLM[+15.9949]E", None).unwrap();
+    let expected = Peptidoform::pro_forma("M[Oxidation]KSLM[Oxidation]E", None).unwrap();
     assert_eq!(search.search(peptide), expected);
 }

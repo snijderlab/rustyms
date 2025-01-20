@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fragment::{Fragment, FragmentKind},
-    peptide::UnAmbiguous,
-    AnnotatedSpectrum, LinearPeptide, MassMode, Model,
+    peptidoform::UnAmbiguous,
+    AnnotatedSpectrum, MassMode, Model, Peptidoform,
 };
 
 impl AnnotatedSpectrum {
@@ -29,26 +29,26 @@ impl AnnotatedSpectrum {
         let total_intensity: f64 = self.spectrum.iter().map(|p| *p.intensity).sum();
         let individual_peptides = self
             .peptide
-            .peptidoforms()
+            .peptidoform_ions()
             .iter()
             .enumerate()
-            .map(|(peptidoform_index, peptidoform)| {
+            .map(|(peptidoform_ion_index, peptidoform)| {
                 peptidoform
-                    .peptides()
+                    .peptidoforms()
                     .iter()
                     .enumerate()
-                    .map(|(peptide_index, peptide)| {
+                    .map(|(peptidoform_index, peptide)| {
                         let (recovered_fragments, peaks, intensity_annotated) = self
                             .filtered_base_score(
                                 &fragments,
+                                Some(peptidoform_ion_index),
                                 Some(peptidoform_index),
-                                Some(peptide_index),
                                 None,
                             );
                         let (positions, expected_positions) = self.score_positions(
                             &fragments,
+                            peptidoform_ion_index,
                             peptidoform_index,
-                            peptide_index,
                             None,
                         );
                         Scores {
@@ -64,7 +64,7 @@ impl AnnotatedSpectrum {
                             },
                             ions: self.score_individual_ions(
                                 &fragments,
-                                Some((peptidoform_index, peptide_index, peptide)),
+                                Some((peptidoform_ion_index, peptidoform_index, peptide)),
                                 total_intensity,
                             ),
                         }
@@ -95,8 +95,8 @@ impl AnnotatedSpectrum {
     fn filtered_base_score(
         &self,
         fragments: &[&Fragment],
+        peptidoform_ion_index: Option<usize>,
         peptidoform_index: Option<usize>,
-        peptide_index: Option<usize>,
         ion: Option<FragmentKind>,
     ) -> (Recovered<u32>, Recovered<u32>, f64) {
         let (peaks_annotated, fragments_found, intensity_annotated) = self
@@ -107,8 +107,8 @@ impl AnnotatedSpectrum {
                     .annotation
                     .iter()
                     .filter(|a| {
-                        peptidoform_index.map_or(true, |i| a.peptidoform_index == Some(i))
-                            && peptide_index.map_or(true, |i| a.peptide_index == Some(i))
+                        peptidoform_ion_index.map_or(true, |i| a.peptidoform_ion_index == Some(i))
+                            && peptidoform_index.map_or(true, |i| a.peptidoform_index == Some(i))
                             && ion.map_or(true, |kind| a.ion.kind() == kind)
                     })
                     .count() as u32;
@@ -124,8 +124,8 @@ impl AnnotatedSpectrum {
         let total_fragments = fragments
             .iter()
             .filter(|f| {
-                peptidoform_index.map_or(true, |i| f.peptidoform_index == Some(i))
-                    && peptide_index.map_or(true, |i| f.peptide_index == Some(i))
+                peptidoform_ion_index.map_or(true, |i| f.peptidoform_ion_index == Some(i))
+                    && peptidoform_index.map_or(true, |i| f.peptidoform_index == Some(i))
                     && ion.map_or(true, |kind| f.ion.kind() == kind)
             })
             .count() as u32;
@@ -140,8 +140,8 @@ impl AnnotatedSpectrum {
     fn score_positions(
         &self,
         fragments: &[&Fragment],
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         ion: Option<FragmentKind>,
     ) -> (u32, u32) {
         (
@@ -151,8 +151,8 @@ impl AnnotatedSpectrum {
                     p.annotation
                         .iter()
                         .filter(|a| {
-                            a.peptidoform_index == Some(peptidoform_index)
-                                && a.peptide_index == Some(peptide_index)
+                            a.peptidoform_ion_index == Some(peptidoform_ion_index)
+                                && a.peptidoform_index == Some(peptidoform_index)
                                 && ion.map_or(true, |kind| a.ion.kind() == kind)
                         })
                         .filter_map(|a| a.ion.position())
@@ -163,8 +163,8 @@ impl AnnotatedSpectrum {
             fragments
                 .iter()
                 .filter(|f| {
-                    f.peptidoform_index == Some(peptidoform_index)
-                        && f.peptide_index == Some(peptide_index)
+                    f.peptidoform_ion_index == Some(peptidoform_ion_index)
+                        && f.peptidoform_index == Some(peptidoform_index)
                         && ion.map_or(true, |i| i == f.ion.kind())
                 })
                 .filter_map(|f| f.ion.position().map(|p| p.sequence_index))
@@ -177,7 +177,7 @@ impl AnnotatedSpectrum {
     fn score_unique_formulas(
         &self,
         fragments: &[&Fragment],
-        peptide_index: Option<usize>,
+        peptidoform_index: Option<usize>,
         ion: Option<FragmentKind>,
     ) -> Recovered<u32> {
         let num_annotated = self
@@ -185,7 +185,7 @@ impl AnnotatedSpectrum {
             .iter()
             .flat_map(|p| {
                 p.annotation.iter().filter(|a| {
-                    peptide_index.map_or(true, |i| a.peptide_index == Some(i))
+                    peptidoform_index.map_or(true, |i| a.peptidoform_index == Some(i))
                         && ion.map_or(true, |kind| a.ion.kind() == kind)
                 })
             })
@@ -195,7 +195,7 @@ impl AnnotatedSpectrum {
         let total_fragments = fragments
             .iter()
             .filter(|f| {
-                peptide_index.map_or(true, |i| f.peptide_index == Some(i))
+                peptidoform_index.map_or(true, |i| f.peptidoform_index == Some(i))
                     && ion.map_or(true, |kind| f.ion.kind() == kind)
             })
             .map(|f| f.formula.clone())
@@ -208,7 +208,7 @@ impl AnnotatedSpectrum {
     fn score_individual_ions<T>(
         &self,
         fragments: &[&Fragment],
-        peptide: Option<(usize, usize, &LinearPeptide<T>)>,
+        peptide: Option<(usize, usize, &Peptidoform<T>)>,
         total_intensity: f64,
     ) -> Vec<(FragmentKind, Score)> {
         [
@@ -231,12 +231,12 @@ impl AnnotatedSpectrum {
                 peptide.as_ref().map(|p| p.1),
                 Some(ion),
             );
-            if let Some((peptidoform_index, peptide_index, peptide)) = peptide {
+            if let Some((peptidoform_ion_index, peptidoform_index, peptide)) = peptide {
                 if recovered_fragments.total > 0 {
                     let (positions, expected_positions) = self.score_positions(
                         fragments,
+                        peptidoform_ion_index,
                         peptidoform_index,
-                        peptide_index,
                         Some(ion),
                     );
                     Some((

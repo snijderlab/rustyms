@@ -3,9 +3,9 @@ use crate::{
     helper_functions::explain_number_error,
     modification::SimpleModification,
     ontologies::CustomDatabase,
-    peptide::SimpleLinear,
+    peptidoform::SimpleLinear,
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    AminoAcid, LinearPeptide, Modification, MolecularFormula, NeutralLoss,
+    AminoAcid, Peptidoform, Modification, MolecularFormula, NeutralLoss,
 };
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +70,7 @@ format_family!(
                 };
                 Ok((modification, aa, index))
             }).collect::<Result<Vec<_>,_>>();
-        peptide: LinearPeptide<SimpleLinear>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_simple_linear().unwrap());
+        peptide: Peptidoform<SimpleLinear>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::pro_forma(location.as_str(), custom_database).map(|p|p.into_simple_linear().unwrap());
         peptide_start: usize, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide_pi: f64, |location: Location, _| location.parse(NUMBER_ERROR);
         peptide_component_id: usize, |location: Location, _| location.parse(NUMBER_ERROR);

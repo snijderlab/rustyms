@@ -27,26 +27,26 @@ impl AnnotatedSpectrum {
             .iter()
             .filter_map(|f| {
                 f.mz(mass_mode)
-                    .map(|mz| (mz, f.peptidoform_index, f.peptide_index))
+                    .map(|mz| (mz, f.peptidoform_ion_index, f.peptidoform_index))
             })
             .filter(|(mz, _, _)| model.mz_range.contains(mz))
             .collect_vec();
 
         let individual_peptides = self
             .peptide
-            .peptidoforms()
+            .peptidoform_ions()
             .iter()
             .enumerate()
-            .map(|(peptidoform_index, peptidoform)| {
+            .map(|(peptidoform_ion_index, peptidoform)| {
                 peptidoform
-                    .peptides()
+                    .peptidoforms()
                     .iter()
                     .enumerate()
-                    .map(|(peptide_index, _)| {
+                    .map(|(peptidoform_index, _)| {
                         self.internal_fdr(
                             mzs.iter()
                                 .filter_map(|(mz, pi, ppi)| {
-                                    (*pi == Some(peptidoform_index) && *ppi == Some(peptide_index))
+                                    (*pi == Some(peptidoform_ion_index) && *ppi == Some(peptidoform_index))
                                         .then_some(*mz)
                                 })
                                 .collect_vec()

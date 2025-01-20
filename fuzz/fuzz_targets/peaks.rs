@@ -21,7 +21,7 @@ impl<'a> StringReader<'a> {
     }
 }
 
-impl<'a> Read for StringReader<'a> {
+impl Read for StringReader<'_> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         for (i, item) in buf.iter_mut().enumerate() {
             if let Some(x) = self.iter.next() {

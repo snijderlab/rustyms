@@ -2,8 +2,8 @@ use crate::{
     error::{Context, CustomError},
     helper_functions::explain_number_error,
     identification::{IdentifiedPeptide, MetaData},
-    peptide::{AnnotatedPeptide, Annotation, Region, SemiAmbiguous},
-    AminoAcid, LinearPeptide, SequenceElement,
+    peptidoform::{AnnotatedPeptide, Annotation, Region, SemiAmbiguous},
+    AminoAcid, Peptidoform, SequenceElement,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -24,14 +24,14 @@ pub struct FastaData {
     tags: Vec<(Range<usize>, Range<usize>)>,
     line_index: usize,
     full_header: String,
-    peptide: LinearPeptide<SemiAmbiguous>,
+    peptide: Peptidoform<SemiAmbiguous>,
     regions: Vec<(Region, usize)>,
     annotations: Vec<(Annotation, usize)>,
 }
 
 impl AnnotatedPeptide for FastaData {
     type Complexity = SemiAmbiguous;
-    fn peptide(&self) -> &LinearPeptide<SemiAmbiguous> {
+    fn peptide(&self) -> &Peptidoform<SemiAmbiguous> {
         &self.peptide
     }
     fn regions(&self) -> &[(Region, usize)] {
@@ -435,7 +435,7 @@ impl FastaData {
     }
 
     /// Get the sequence
-    pub const fn peptide(&self) -> &LinearPeptide<SemiAmbiguous> {
+    pub const fn peptide(&self) -> &Peptidoform<SemiAmbiguous> {
         &self.peptide
     }
 
@@ -665,7 +665,7 @@ impl FastaData {
             annotations,
             full_header,
             line_index,
-            peptide: LinearPeptide::default(),
+            peptide: Peptidoform::default(),
         })
     }
 }
@@ -694,7 +694,7 @@ fn empty_lines() {
     assert_eq!(fasta.len(), 1);
     assert_eq!(
         fasta[0].peptide,
-        LinearPeptide::pro_forma("AAAAAA", None).unwrap()
+        Peptidoform::pro_forma("AAAAAA", None).unwrap()
     );
 }
 

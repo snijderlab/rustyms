@@ -2,7 +2,7 @@
 
 use crate::{
     align::{align, scoring::AlignScoring, AlignType, Alignment},
-    LinearPeptide, SimpleLinear,
+    Peptidoform, SimpleLinear,
 };
 
 #[test]
@@ -162,11 +162,11 @@ fn test_alignment(
     path: &str,
 ) {
     const MAXIMAL_STEP: u16 = 4;
-    let first_peptide = LinearPeptide::pro_forma(seq_a, None)
+    let first_peptide = Peptidoform::pro_forma(seq_a, None)
         .unwrap()
         .into_simple_linear()
         .unwrap();
-    let second_peptide = LinearPeptide::pro_forma(seq_b, None)
+    let second_peptide = Peptidoform::pro_forma(seq_b, None)
         .unwrap()
         .into_simple_linear()
         .unwrap();

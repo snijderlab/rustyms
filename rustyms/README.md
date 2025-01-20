@@ -33,7 +33,7 @@ use rustyms::{*, system::{usize::Charge, e}};
 // Open example raw data (this is the built in mgf reader, look into mzdata for more advanced raw file readers)
 let spectrum = rawfile::mgf::open(raw_file_path)?;
 // Parse the given ProForma definition
-let peptide = CompoundPeptidoform::pro_forma("[Gln->pyro-Glu]-QVQEVSERTHGGNFD", None)?;
+let peptide = CompoundPeptidoformIon::pro_forma("[Gln->pyro-Glu]-QVQEVSERTHGGNFD", None)?;
 // Generate theoretical fragments for this peptide given EThcD fragmentation
 let model = Model::ethcd();
 let fragments = peptide.generate_theoretical_fragments(Charge::new::<e>(2), &model);
@@ -51,8 +51,8 @@ assert!(fdr.peaks_sigma() > 2.0);
 # fn main() -> Result<(), rustyms::error::CustomError> {
 use rustyms::{*, align::*};
 // Check how this peptide compares to a similar peptide (using the feature `align`)
-let first_peptide = LinearPeptide::pro_forma("IVQEVT", None)?.into_simple_linear().unwrap();
-let second_peptide = LinearPeptide::pro_forma("LVQVET", None)?.into_simple_linear().unwrap();
+let first_peptide = Peptidoform::pro_forma("IVQEVT", None)?.into_simple_linear().unwrap();
+let second_peptide = Peptidoform::pro_forma("LVQVET", None)?.into_simple_linear().unwrap();
 // Align the two peptides using mass based alignment
 // IVQEVT A
 // LVQVET B

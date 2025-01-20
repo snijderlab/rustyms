@@ -10,7 +10,7 @@ use crate::{
         SimpleModificationInner,
     },
     molecular_charge::{CachedCharge, MolecularCharge},
-    peptide::*,
+    peptidoform::*,
     placement_rule::PlacementRule,
     system::usize::Charge,
     AmbiguousLabel, DiagnosticIon, Element, Model, MolecularFormula, Multi, MultiChemical,
@@ -85,7 +85,7 @@ use std::{
 /// ```
 ///
 #[derive(PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub struct LinearPeptide<Complexity> {
+pub struct Peptidoform<Complexity> {
     /// Global isotope modifications, saved as the element and the species that
     /// all occurrence of that element will consist of. For example (N, 15) will
     /// make all occurring nitrogen atoms be isotope 15.
@@ -120,7 +120,7 @@ struct AmbiguousEntry {
     group: Option<usize>,
 }
 
-impl<Complexity> Default for LinearPeptide<Complexity> {
+impl<Complexity> Default for Peptidoform<Complexity> {
     fn default() -> Self {
         Self {
             global: Vec::new(),
@@ -135,7 +135,7 @@ impl<Complexity> Default for LinearPeptide<Complexity> {
     }
 }
 
-impl<Complexity> Clone for LinearPeptide<Complexity> {
+impl<Complexity> Clone for Peptidoform<Complexity> {
     fn clone(&self) -> Self {
         Self {
             global: self.global.clone(),
@@ -150,10 +150,10 @@ impl<Complexity> Clone for LinearPeptide<Complexity> {
     }
 }
 
-impl<OwnComplexity, OtherComplexity> PartialEq<LinearPeptide<OtherComplexity>>
-    for LinearPeptide<OwnComplexity>
+impl<OwnComplexity, OtherComplexity> PartialEq<Peptidoform<OtherComplexity>>
+    for Peptidoform<OwnComplexity>
 {
-    fn eq(&self, other: &LinearPeptide<OtherComplexity>) -> bool {
+    fn eq(&self, other: &Peptidoform<OtherComplexity>) -> bool {
         self.global == other.global
             && self.labile == other.labile
             && self.n_term == other.n_term
@@ -164,7 +164,7 @@ impl<OwnComplexity, OtherComplexity> PartialEq<LinearPeptide<OtherComplexity>>
     }
 }
 
-impl<Complexity> std::hash::Hash for LinearPeptide<Complexity> {
+impl<Complexity> std::hash::Hash for Peptidoform<Complexity> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.global.hash(state);
         self.labile.hash(state);
@@ -176,10 +176,10 @@ impl<Complexity> std::hash::Hash for LinearPeptide<Complexity> {
     }
 }
 
-impl<Complexity> Eq for LinearPeptide<Complexity> {}
+impl<Complexity> Eq for Peptidoform<Complexity> {}
 
 /// Implement the complexity checks to reduce the complexity of a peptide in a controlled fashion.
-impl<Complexity> LinearPeptide<Complexity> {
+impl<Complexity> Peptidoform<Complexity> {
     /// Check if this peptide does not use any of the features reserved for [`Linked`].
     ///
     /// This checks if all modifications (in the sequence and the termini) are [`SimpleModification`]s.
@@ -192,7 +192,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 
     /// Convert this peptide into [`Linear`].
-    pub fn into_linear(self) -> Option<LinearPeptide<Linear>> {
+    pub fn into_linear(self) -> Option<Peptidoform<Linear>> {
         if self.is_linear() {
             Some(self.mark())
         } else {
@@ -212,7 +212,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 
     /// Convert this peptide into [`SimpleLinear`].
-    pub fn into_simple_linear(self) -> Option<LinearPeptide<SimpleLinear>> {
+    pub fn into_simple_linear(self) -> Option<Peptidoform<SimpleLinear>> {
         if self.is_simple_linear() {
             Some(self.mark())
         } else {
@@ -231,7 +231,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 
     /// Convert this peptide into [`SemiAmbiguous`].
-    pub fn into_semi_ambiguous(self) -> Option<LinearPeptide<SemiAmbiguous>> {
+    pub fn into_semi_ambiguous(self) -> Option<Peptidoform<SemiAmbiguous>> {
         if self.is_semi_ambiguous() {
             Some(self.mark())
         } else {
@@ -252,7 +252,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 
     /// Convert this peptide into [`UnAmbiguous`].
-    pub fn into_unambiguous(self) -> Option<LinearPeptide<UnAmbiguous>> {
+    pub fn into_unambiguous(self) -> Option<Peptidoform<UnAmbiguous>> {
         if self.is_unambiguous() {
             Some(self.mark())
         } else {
@@ -261,13 +261,13 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 }
 
-impl<Complexity: HighestOf<Linear>> LinearPeptide<Complexity> {
+impl<Complexity: HighestOf<Linear>> Peptidoform<Complexity> {
     /// Add global isotope modifications, if any is invalid it returns None
     #[must_use]
     pub fn global(
         mut self,
         global: impl IntoIterator<Item = (Element, Option<NonZeroU16>)>,
-    ) -> Option<LinearPeptide<Complexity::HighestLevel>> {
+    ) -> Option<Peptidoform<Complexity::HighestLevel>> {
         for modification in global {
             if modification.0.is_valid(modification.1) {
                 self.global.push(modification);
@@ -283,16 +283,16 @@ impl<Complexity: HighestOf<Linear>> LinearPeptide<Complexity> {
     pub fn labile(
         mut self,
         labile: impl IntoIterator<Item = SimpleModification>,
-    ) -> LinearPeptide<Complexity::HighestLevel> {
+    ) -> Peptidoform<Complexity::HighestLevel> {
         self.labile.extend(labile);
         self.mark::<Complexity::HighestLevel>()
     }
 }
 
-impl<Complexity> LinearPeptide<Complexity> {
+impl<Complexity> Peptidoform<Complexity> {
     /// Mark this peptide with the following complexity, be warned that the complexity level is not checked.
-    pub(super) fn mark<M>(self) -> LinearPeptide<M> {
-        LinearPeptide {
+    pub(super) fn mark<M>(self) -> Peptidoform<M> {
+        Peptidoform {
             global: self.global,
             labile: self.labile,
             n_term: self.n_term,
@@ -311,7 +311,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     /// Cast a linear peptide into a more complex linear peptide. This undoes any work done by
     /// functions like [`Self::into_linear`]. This does not change the content of the linear
     /// peptide. It only allows to pass this as higher complexity if needed.
-    pub fn cast<NewComplexity: AtLeast<Complexity>>(self) -> LinearPeptide<NewComplexity> {
+    pub fn cast<NewComplexity: AtLeast<Complexity>>(self) -> Peptidoform<NewComplexity> {
         self.mark()
     }
 
@@ -413,11 +413,11 @@ impl<Complexity> LinearPeptide<Complexity> {
     /// The mass of the N terminal modifications. The global isotope modifications are NOT applied.
     fn get_n_term_mass(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula> {
         self.n_term.iter().fold(Multi::default(), |acc, f| {
             if let Modification::Ambiguous { .. } = f {
@@ -430,7 +430,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                         applied_cross_links,
                         allow_ms_cleavable,
                         SequencePosition::NTerm,
-                        peptide_index,
+                        peptidoform_index,
                     )
                     .0
             }
@@ -440,11 +440,11 @@ impl<Complexity> LinearPeptide<Complexity> {
     /// The mass of the C terminal modifications. The global isotope modifications are NOT applied.
     fn get_c_term_mass(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula> {
         self.c_term.iter().fold(Multi::default(), |acc, f| {
             if let Modification::Ambiguous { .. } = f {
@@ -457,7 +457,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                         applied_cross_links,
                         allow_ms_cleavable,
                         SequencePosition::CTerm,
-                        peptide_index,
+                        peptidoform_index,
                     )
                     .0
             }
@@ -468,11 +468,11 @@ impl<Complexity> LinearPeptide<Complexity> {
     fn potential_neutral_losses(
         &self,
         range: impl RangeBounds<usize>,
-        all_peptides: &[LinearPeptide<Linked>],
-        peptide_index: usize,
+        all_peptides: &[Peptidoform<Linked>],
+        peptidoform_index: usize,
         ignore_peptides: &mut Vec<usize>,
     ) -> Vec<(NeutralLoss, usize, SequencePosition)> {
-        ignore_peptides.push(peptide_index);
+        ignore_peptides.push(peptidoform_index);
         let mut found_peptides = Vec::new();
         let own_losses = self
             .iter(range)
@@ -498,7 +498,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                                     })
                                     .flatten()
                                     .map(move |loss| {
-                                        (loss.clone(), peptide_index, pos.sequence_index)
+                                        (loss.clone(), peptidoform_index, pos.sequence_index)
                                     })
                                     .collect_vec(),
                             ),
@@ -517,7 +517,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                             Some(
                                 neutral
                                     .into_iter()
-                                    .map(|n| (n, peptide_index, pos.sequence_index))
+                                    .map(|n| (n, peptidoform_index, pos.sequence_index))
                                     .collect_vec(),
                             )
                         }
@@ -621,11 +621,11 @@ impl<Complexity> LinearPeptide<Complexity> {
         range: impl RangeBounds<usize>,
         aa_range: impl RangeBounds<usize> + Clone,
         base: &Multi<MolecularFormula>,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         // Calculate all formulas for the selected AA range without any ambiguous modifications
         let (formulas, seen) = self.sequence[(
@@ -643,7 +643,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                         applied_cross_links,
                         allow_ms_cleavable,
                         SequencePosition::Index(index),
-                        peptide_index,
+                        peptidoform_index,
                     );
                     (
                         previous_aa_formulas.0 * f,
@@ -721,11 +721,11 @@ impl<Complexity> LinearPeptide<Complexity> {
                             } = m
                             {
                                 (*mid == id).then(|| {
-                                    modification.formula_inner(*pos, peptide_index).with_label(
+                                    modification.formula_inner(*pos, peptidoform_index).with_label(
                                         AmbiguousLabel::Modification {
                                             id,
                                             sequence_index: *pos,
-                                            peptide_index,
+                                            peptidoform_index,
                                         },
                                     )
                                 })
@@ -748,9 +748,9 @@ impl<Complexity> LinearPeptide<Complexity> {
         &self,
         max_charge: Charge,
         model: &Model,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
     ) -> Vec<Fragment> {
         let default_charge = MolecularCharge::proton(
             isize::try_from(max_charge.value)
@@ -766,7 +766,7 @@ impl<Complexity> LinearPeptide<Complexity> {
         for sequence_index in 0..self.sequence.len() {
             let position = PeptidePosition::n(SequencePosition::Index(sequence_index), self.len());
             let mut cross_links = Vec::new();
-            let visited_peptides = vec![peptide_index];
+            let visited_peptides = vec![peptidoform_index];
             let (n_term, n_term_seen) = self.all_masses(
                 ..=sequence_index,
                 ..sequence_index,
@@ -775,14 +775,14 @@ impl<Complexity> LinearPeptide<Complexity> {
                     &visited_peptides,
                     &mut cross_links,
                     model.allow_cross_link_cleavage,
-                    peptide_index,
+                    peptidoform_index,
                 ),
                 model.modification_specific_neutral_losses,
                 all_peptides,
                 &visited_peptides,
                 &mut cross_links,
                 model.allow_cross_link_cleavage,
-                peptide_index,
+                peptidoform_index,
             );
             let (c_term, c_term_seen) = self.all_masses(
                 sequence_index..,
@@ -792,14 +792,14 @@ impl<Complexity> LinearPeptide<Complexity> {
                     &visited_peptides,
                     &mut cross_links,
                     model.allow_cross_link_cleavage,
-                    peptide_index,
+                    peptidoform_index,
                 ),
                 model.modification_specific_neutral_losses,
                 all_peptides,
                 &visited_peptides,
                 &mut cross_links,
                 model.allow_cross_link_cleavage,
-                peptide_index,
+                peptidoform_index,
             );
             if !n_term_seen.is_disjoint(&c_term_seen) {
                 continue; // There is a link reachable from both sides so there is a loop
@@ -810,11 +810,11 @@ impl<Complexity> LinearPeptide<Complexity> {
                 .fold((Multi::default(), HashSet::new()), |acc, m| {
                     let (f, s) = m.formula_inner(
                         all_peptides,
-                        &[peptide_index],
+                        &[peptidoform_index],
                         &mut cross_links,
                         model.allow_cross_link_cleavage,
                         SequencePosition::Index(sequence_index),
-                        peptide_index,
+                        peptidoform_index,
                     );
                     (acc.0 * f, acc.1.union(&s).cloned().collect())
                 });
@@ -831,8 +831,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                         SequencePosition::Index(sequence_index),
                         self.sequence.len(),
                         &model.ions(position),
+                        peptidoform_ion_index,
                         peptidoform_index,
-                        peptide_index,
                         (
                             // Allow any N terminal fragment if there is no cross-link to the C terminal side
                             c_term_seen.is_disjoint(&modifications_cross_links),
@@ -845,7 +845,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                 //  p - sX fragment: precursor amino acid side chain losses
                 output.extend(
                     self.formulas_inner(
-                        peptide_index,
+                        peptidoform_index,
                         all_peptides,
                         &[],
                         &mut Vec::new(),
@@ -856,14 +856,14 @@ impl<Complexity> LinearPeptide<Complexity> {
                     .flat_map(|m| {
                         self.sequence[sequence_index]
                             .aminoacid
-                            .formulas_inner(SequencePosition::Index(sequence_index), peptide_index)
+                            .formulas_inner(SequencePosition::Index(sequence_index), peptidoform_index)
                             .iter()
                             .flat_map(|aa| {
                                 Fragment::generate_all(
                                     &((-modifications_total.clone()) + m.clone() - aa.clone()
                                         + molecular_formula!(C 2 H 2 N 1 O 1)),
+                                    peptidoform_ion_index,
                                     peptidoform_index,
-                                    peptide_index,
                                     &FragmentType::PrecursorSideChainLoss(
                                         position,
                                         self.sequence[sequence_index].aminoacid.aminoacid(),
@@ -888,7 +888,7 @@ impl<Complexity> LinearPeptide<Complexity> {
 
         // Generate precursor peak
         let (full_precursor, _all_cross_links) = self.formulas_inner(
-            peptide_index,
+            peptidoform_index,
             all_peptides,
             &[],
             &mut Vec::new(),
@@ -896,7 +896,7 @@ impl<Complexity> LinearPeptide<Complexity> {
         );
         // Allow neutral losses from modifications for the precursor
         let mut precursor_neutral_losses = if model.modification_specific_neutral_losses {
-            self.potential_neutral_losses(.., all_peptides, peptide_index, &mut Vec::new())
+            self.potential_neutral_losses(.., all_peptides, peptidoform_index, &mut Vec::new())
                 .into_iter()
                 .map(|(n, _, _)| n)
                 .collect_vec()
@@ -907,8 +907,8 @@ impl<Complexity> LinearPeptide<Complexity> {
 
         output.extend(Fragment::generate_all(
             &full_precursor,
+            peptidoform_ion_index,
             peptidoform_index,
-            peptide_index,
             &FragmentType::Precursor,
             &Multi::default(),
             &precursor_neutral_losses,
@@ -921,7 +921,7 @@ impl<Complexity> LinearPeptide<Complexity> {
         // and that no peptide fragmentation occurs during glycan fragmentation
         let full_formula = self
             .formulas_inner(
-                peptide_index,
+                peptidoform_index,
                 all_peptides,
                 &[],
                 &mut Vec::new(),
@@ -933,8 +933,8 @@ impl<Complexity> LinearPeptide<Complexity> {
             for modification in &position.modifications {
                 output.extend(modification.generate_theoretical_fragments(
                     model,
+                    peptidoform_ion_index,
                     peptidoform_index,
-                    peptide_index,
                     &mut charge_carriers,
                     &full_formula,
                     Some(attachment),
@@ -950,8 +950,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                         formula: Some(dia.0),
                         charge: Charge::default(),
                         ion: FragmentType::Diagnostic(pos),
+                        peptidoform_ion_index: Some(peptidoform_ion_index),
                         peptidoform_index: Some(peptidoform_index),
-                        peptide_index: Some(peptide_index),
                         neutral_loss: Vec::new(),
                         deviation: None,
                         confidence: None,
@@ -972,8 +972,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                     output.extend(MonoSaccharide::theoretical_fragments(
                         composition,
                         model,
+                        peptidoform_ion_index,
                         peptidoform_index,
-                        peptide_index,
                         &mut charge_carriers,
                         &full_formula,
                         None,
@@ -990,8 +990,8 @@ impl<Complexity> LinearPeptide<Complexity> {
                             .determine_positions()
                             .generate_theoretical_fragments(
                                 model,
+                                peptidoform_ion_index,
                                 peptidoform_index,
-                                peptide_index,
                                 &mut charge_carriers,
                                 &full_formula,
                                 None,
@@ -1015,11 +1015,11 @@ impl<Complexity> LinearPeptide<Complexity> {
         aa_range: impl RangeBounds<usize> + Clone,
         base: &Multi<MolecularFormula>,
         apply_neutral_losses: bool,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (ambiguous_mods_masses, seen) = self.ambiguous_patterns(
             range.clone(),
@@ -1029,11 +1029,11 @@ impl<Complexity> LinearPeptide<Complexity> {
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
-            peptide_index,
+            peptidoform_index,
         );
         if apply_neutral_losses {
             let neutral_losses =
-                self.potential_neutral_losses(range, all_peptides, peptide_index, &mut Vec::new());
+                self.potential_neutral_losses(range, all_peptides, peptidoform_index, &mut Vec::new());
             let mut all_masses =
                 Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
             all_masses.extend(ambiguous_mods_masses.iter().cloned());
@@ -1055,11 +1055,11 @@ impl<Complexity> LinearPeptide<Complexity> {
     #[allow(clippy::missing_panics_doc)] // Global isotope mods are guaranteed to be correct
     fn bare_formulas_inner(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula> {
         let mut formulas = Multi::default();
         let mut placed = vec![false; self.modifications_of_unknown_position.len()];
@@ -1072,7 +1072,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                     applied_cross_links,
                     allow_ms_cleavable,
                     SequencePosition::Index(index),
-                    peptide_index,
+                    peptidoform_index,
                 )
                 .0;
         }
@@ -1091,30 +1091,30 @@ impl<Complexity> LinearPeptide<Complexity> {
     /// When this peptide is already in the set of visited peptides.
     pub(crate) fn formulas_inner(
         &self,
-        peptide_index: usize,
-        all_peptides: &[LinearPeptide<Linked>],
+        peptidoform_index: usize,
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         debug_assert!(
-            !visited_peptides.contains(&peptide_index),
+            !visited_peptides.contains(&peptidoform_index),
             "Cannot get the formula for a peptide that is already visited"
         );
-        let mut new_visited_peptides = vec![peptide_index];
+        let mut new_visited_peptides = vec![peptidoform_index];
         new_visited_peptides.extend_from_slice(visited_peptides);
         let mut formulas: Multi<MolecularFormula> = self.get_n_term_mass(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
-            peptide_index,
+            peptidoform_index,
         ) * self.get_c_term_mass(
             all_peptides,
             visited_peptides,
             applied_cross_links,
             allow_ms_cleavable,
-            peptide_index,
+            peptidoform_index,
         );
         let mut placed = vec![false; self.modifications_of_unknown_position.len()];
         let mut seen = HashSet::new();
@@ -1126,7 +1126,7 @@ impl<Complexity> LinearPeptide<Complexity> {
                 applied_cross_links,
                 allow_ms_cleavable,
                 SequencePosition::Index(index),
-                peptide_index,
+                peptidoform_index,
             );
             formulas *= pos_f;
             seen.extend(pos_seen);
@@ -1338,7 +1338,7 @@ impl<Complexity> LinearPeptide<Complexity> {
     }
 }
 
-impl LinearPeptide<Linked> {
+impl Peptidoform<Linked> {
     /// Add a modification to this peptide
     pub(crate) fn add_modification(
         &mut self,
@@ -1363,7 +1363,7 @@ impl LinearPeptide<Linked> {
     }
 }
 
-impl LinearPeptide<Linear> {
+impl Peptidoform<Linear> {
     /// Add the charge carriers.
     #[must_use]
     pub fn charge_carriers(mut self, charge: Option<MolecularCharge>) -> Self {
@@ -1372,7 +1372,7 @@ impl LinearPeptide<Linear> {
     }
 }
 
-impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
+impl<Complexity: AtMax<Linear>> Peptidoform<Complexity> {
     /// Get a region of this peptide as a new peptide (with all terminal/global/ambiguous modifications).
     #[must_use]
     pub fn sub_peptide(&self, index: impl RangeBounds<usize>) -> Self {
@@ -1471,7 +1471,7 @@ impl<Complexity: AtMax<Linear>> LinearPeptide<Complexity> {
     }
 }
 
-impl LinearPeptide<UnAmbiguous> {
+impl Peptidoform<UnAmbiguous> {
     /// Gives the formula for the whole peptide. With the global isotope modifications applied.
     #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn formula(&self) -> MolecularFormula {
@@ -1494,7 +1494,7 @@ impl LinearPeptide<UnAmbiguous> {
     }
 }
 
-impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
+impl<Complexity: AtLeast<Linear>> Peptidoform<Complexity> {
     /// Get the global isotope modifications
     pub fn get_global(&self) -> &[(Element, Option<NonZeroU16>)] {
         &self.global
@@ -1537,7 +1537,7 @@ impl<Complexity: AtLeast<Linear>> LinearPeptide<Complexity> {
     }
 }
 
-impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
+impl<Complexity: AtLeast<SimpleLinear>> Peptidoform<Complexity> {
     /// Get the locations of all ambiguous modifications. The slice is indexed by ambiguous
     /// modification id and contains all sequence locations where that ambiguous modification is
     /// potentially located.
@@ -1680,7 +1680,7 @@ impl<Complexity: AtLeast<SimpleLinear>> LinearPeptide<Complexity> {
     }
 }
 
-impl<OwnComplexity: AtMax<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
+impl<OwnComplexity: AtMax<SemiAmbiguous>> Peptidoform<OwnComplexity> {
     /// Concatenate another peptide after this peptide. This will fail if any of these conditions are true:
     /// * This peptide has a C terminal modification
     /// * The other peptide has an N terminal modification
@@ -1688,13 +1688,13 @@ impl<OwnComplexity: AtMax<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
     // carriers, global or ambiguous modifications.
     pub fn concatenate<OtherComplexity: AtMax<SemiAmbiguous>>(
         self,
-        other: LinearPeptide<OtherComplexity>,
-    ) -> Option<LinearPeptide<OwnComplexity::HighestLevel>>
+        other: Peptidoform<OtherComplexity>,
+    ) -> Option<Peptidoform<OwnComplexity::HighestLevel>>
     where
         OwnComplexity: HighestOf<OtherComplexity>,
     {
         if self.c_term.is_empty() && other.n_term.is_empty() {
-            Some(LinearPeptide::<OwnComplexity::HighestLevel> {
+            Some(Peptidoform::<OwnComplexity::HighestLevel> {
                 global: self.global,
                 labile: self.labile.into_iter().chain(other.labile).collect(),
                 n_term: self.n_term,
@@ -1715,13 +1715,13 @@ impl<OwnComplexity: AtMax<SemiAmbiguous>> LinearPeptide<OwnComplexity> {
     }
 }
 
-impl<Complexity> Display for LinearPeptide<Complexity> {
+impl<Complexity> Display for Peptidoform<Complexity> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true, true)
     }
 }
 
-impl<Collection, Item, Complexity> From<Collection> for LinearPeptide<Complexity>
+impl<Collection, Item, Complexity> From<Collection> for Peptidoform<Complexity>
 where
     Collection: IntoIterator<Item = Item>,
     Item: Into<SequenceElement<Complexity>>,
@@ -1740,7 +1740,7 @@ where
     }
 }
 
-impl<Item, Complexity> FromIterator<Item> for LinearPeptide<Complexity>
+impl<Item, Complexity> FromIterator<Item> for Peptidoform<Complexity>
 where
     Item: Into<SequenceElement<Complexity>>,
 {
@@ -1750,7 +1750,7 @@ where
 }
 
 impl<I: SliceIndex<[SequenceElement<Complexity>]>, Complexity> Index<I>
-    for LinearPeptide<Complexity>
+    for Peptidoform<Complexity>
 {
     type Output = I::Output;
 
@@ -1759,7 +1759,7 @@ impl<I: SliceIndex<[SequenceElement<Complexity>]>, Complexity> Index<I>
     }
 }
 
-impl<Complexity> Index<SequencePosition> for LinearPeptide<Complexity> {
+impl<Complexity> Index<SequencePosition> for Peptidoform<Complexity> {
     type Output = SequenceElement<Complexity>;
 
     fn index(&self, index: SequencePosition) -> &Self::Output {
@@ -1771,7 +1771,7 @@ impl<Complexity> Index<SequencePosition> for LinearPeptide<Complexity> {
     }
 }
 
-impl<Complexity> IndexMut<SequencePosition> for LinearPeptide<Complexity> {
+impl<Complexity> IndexMut<SequencePosition> for Peptidoform<Complexity> {
     fn index_mut(&mut self, index: SequencePosition) -> &mut Self::Output {
         match index {
             SequencePosition::NTerm => &mut self.sequence[0],
@@ -1781,11 +1781,11 @@ impl<Complexity> IndexMut<SequencePosition> for LinearPeptide<Complexity> {
     }
 }
 
-/// Make sure that any lower level of peptide can be cast to a higher level
+/// Make sure that any lower level of Peptidoform can be cast to a higher level
 macro_rules! into {
     ($a:tt => $b:ty) => {
-        impl From<LinearPeptide<$a>> for LinearPeptide<$b> {
-            fn from(other: LinearPeptide<$a>) -> Self {
+        impl From<Peptidoform<$a>> for Peptidoform<$b> {
+            fn from(other: Peptidoform<$a>) -> Self {
                 other.mark()
             }
         }

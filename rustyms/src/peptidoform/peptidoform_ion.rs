@@ -7,22 +7,22 @@ use crate::{
     modification::{
         CrossLinkName, CrossLinkSide, RulePossible, SimpleModification, SimpleModificationInner,
     },
-    peptide::Linked,
+    peptidoform::Linked,
     system::usize::Charge,
-    Fragment, LinearPeptide, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
+    Fragment, Peptidoform, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
 };
-/// A single peptidoform, can contain multiple linear peptides
+/// A single peptidoform ion, can contain multiple peptidoforms
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize, Hash)]
-pub struct Peptidoform(pub(crate) Vec<LinearPeptide<Linked>>);
+pub struct PeptidoformIon(pub(crate) Vec<Peptidoform<Linked>>);
 
-impl Peptidoform {
+impl PeptidoformIon {
     /// Create a new [`Peptidoform`] from many [`LinearPeptide`]s. This returns None if the
     /// global isotope modifications or the charge carriers of all peptides are not identical.
     pub fn new<Complexity>(
-        iter: impl IntoIterator<Item = LinearPeptide<Complexity>>,
+        iter: impl IntoIterator<Item = Peptidoform<Complexity>>,
     ) -> Option<Self> {
-        let result = Self(iter.into_iter().map(LinearPeptide::mark).collect());
-        let global_and_charge_equal = result.peptides().iter().tuple_windows().all(|(a, b)| {
+        let result = Self(iter.into_iter().map(Peptidoform::mark).collect());
+        let global_and_charge_equal = result.peptidoforms().iter().tuple_windows().all(|(a, b)| {
             a.get_global() == b.get_global() && a.get_charge_carriers() == b.get_charge_carriers()
         });
         global_and_charge_equal.then_some(result)
@@ -30,9 +30,9 @@ impl Peptidoform {
 
     /// Create a new [`Peptidoform`] from many [`LinearPeptide`]s. This returns None if the
     /// global isotope modifications or the charge carriers of all peptides are not identical.
-    pub fn from_vec(iter: Vec<LinearPeptide<Linked>>) -> Option<Self> {
+    pub fn from_vec(iter: Vec<Peptidoform<Linked>>) -> Option<Self> {
         let result = Self(iter);
-        let global_and_charge_equal = result.peptides().iter().tuple_windows().all(|(a, b)| {
+        let global_and_charge_equal = result.peptidoforms().iter().tuple_windows().all(|(a, b)| {
             a.get_global() == b.get_global() && a.get_charge_carriers() == b.get_charge_carriers()
         });
         global_and_charge_equal.then_some(result)
@@ -62,14 +62,14 @@ impl Peptidoform {
         &self,
         max_charge: Charge,
         model: &Model,
-        peptidoform_index: usize,
+        peptidoform_ion_index: usize,
     ) -> Vec<Fragment> {
         let mut base = Vec::new();
-        for (index, peptide) in self.peptides().iter().enumerate() {
+        for (index, peptide) in self.peptidoforms().iter().enumerate() {
             base.extend(peptide.generate_theoretical_fragments_inner(
                 max_charge,
                 model,
-                peptidoform_index,
+                peptidoform_ion_index,
                 index,
                 &self.0,
             ));
@@ -78,7 +78,7 @@ impl Peptidoform {
     }
 
     /// Assume there is exactly one peptide in this collection.
-    pub fn singular(mut self) -> Option<LinearPeptide<Linked>> {
+    pub fn singular(mut self) -> Option<Peptidoform<Linked>> {
         if self.0.len() == 1 {
             self.0.pop()
         } else {
@@ -87,12 +87,12 @@ impl Peptidoform {
     }
 
     /// Get all peptides making up this peptidoform
-    pub fn peptides(&self) -> &[LinearPeptide<Linked>] {
+    pub fn peptidoforms(&self) -> &[Peptidoform<Linked>] {
         &self.0
     }
 
     /// Get all peptides making up this peptidoform
-    pub fn peptides_mut(&mut self) -> &mut [LinearPeptide<Linked>] {
+    pub fn peptidoforms_mut(&mut self) -> &mut [Peptidoform<Linked>] {
         &mut self.0
     }
 
@@ -219,15 +219,15 @@ impl Peptidoform {
     ) -> std::fmt::Result {
         if show_global_mods {
             let global_equal = self
-                .peptides()
+                .peptidoforms()
                 .iter()
-                .map(LinearPeptide::get_global)
+                .map(Peptidoform::get_global)
                 .tuple_windows()
                 .all(|(a, b)| a == b);
             assert!(global_equal, "Not all global isotope modifications on all peptides on this peptidoform are identical");
             let empty = Vec::new();
             let global = self
-                .peptides()
+                .peptidoforms()
                 .first()
                 .map_or(empty.as_slice(), |p| p.get_global());
             for (element, isotope) in global {
@@ -241,7 +241,7 @@ impl Peptidoform {
         }
 
         let mut first = true;
-        for p in self.peptides() {
+        for p in self.peptidoforms() {
             if !first {
                 write!(f, "//")?;
             }
@@ -252,14 +252,14 @@ impl Peptidoform {
     }
 }
 
-impl std::fmt::Display for Peptidoform {
+impl std::fmt::Display for PeptidoformIon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.display(f, true, true)
     }
 }
 
-impl<Complexity> From<LinearPeptide<Complexity>> for Peptidoform {
-    fn from(value: LinearPeptide<Complexity>) -> Self {
+impl<Complexity> From<Peptidoform<Complexity>> for PeptidoformIon {
+    fn from(value: Peptidoform<Complexity>) -> Self {
         Self(vec![value.mark()])
     }
 }

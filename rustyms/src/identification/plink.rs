@@ -16,7 +16,7 @@ use crate::{
     ontologies::CustomDatabase,
     system::{usize::Charge, Mass},
     tolerance::WithinTolerance,
-    CrossLinkName, LinearPeptide, Peptidoform, SequencePosition, SloppyParsingParameters,
+    CrossLinkName, Peptidoform, PeptidoformIon, SequencePosition, SloppyParsingParameters,
     Tolerance,
 };
 use itertools::Itertools;
@@ -46,13 +46,13 @@ format_family!(
         /// MH+ mass
         theoretical_mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         peptide_type: PLinkPeptideType, |location: Location, _| location.parse::<PLinkPeptideType>(TYPE_ERROR);
-        peptidoform: Peptidoform, |location: Location, _| {
+        peptidoform: PeptidoformIon, |location: Location, _| {
             match plink_separate(location.clone(), "peptide")? {
                 (pep1, Some(pos1), Some(pep2), Some(pos2)) => {
-                    let pep1 = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
-                    let pep2 = LinearPeptide::sloppy_pro_forma(location.full_line(), pep2, None, &SloppyParsingParameters::default())?;
+                    let pep1 = Peptidoform::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
+                    let pep2 = Peptidoform::sloppy_pro_forma(location.full_line(), pep2, None, &SloppyParsingParameters::default())?;
 
-                    let mut peptidoform = Peptidoform::from_vec(vec![pep1.into(), pep2.into()]).unwrap();
+                    let mut peptidoform = PeptidoformIon::from_vec(vec![pep1.into(), pep2.into()]).unwrap();
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (1, SequencePosition::Index(pos2.0.saturating_sub(1))),
@@ -62,9 +62,9 @@ format_family!(
                     Ok(peptidoform)
                 }
                 (pep1, Some(pos1), None, Some(pos2)) => {
-                    let pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
+                    let pep = Peptidoform::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
 
-                    let mut peptidoform = Peptidoform::from_vec(vec![pep.into()]).unwrap();
+                    let mut peptidoform = PeptidoformIon::from_vec(vec![pep.into()]).unwrap();
                     peptidoform.add_cross_link(
                         (0, SequencePosition::Index(pos1.0.saturating_sub(1))),
                         (0, SequencePosition::Index(pos2.0.saturating_sub(1))),
@@ -74,15 +74,15 @@ format_family!(
                     Ok(peptidoform)
                 }
                 (pep1, Some(pos1), None, None) => {
-                    let mut pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
+                    let mut pep = Peptidoform::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
                     pep[SequencePosition::Index(pos1.0.saturating_sub(1))].modifications.push( SimpleModificationInner::Mass(Mass::default().into()).into());
 
-                    Ok(Peptidoform::from_vec(vec![pep.into()]).unwrap())
+                    Ok(PeptidoformIon::from_vec(vec![pep.into()]).unwrap())
                 }
                 (pep1, None, None, None) => {
-                    let pep = LinearPeptide::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
+                    let pep = Peptidoform::sloppy_pro_forma(location.full_line(), pep1, None, &SloppyParsingParameters::default())?;
 
-                    Ok(Peptidoform::from_vec(vec![pep.into()]).unwrap())
+                    Ok(PeptidoformIon::from_vec(vec![pep.into()]).unwrap())
                 }
                 _ => unreachable!()
             }
@@ -140,8 +140,8 @@ format_family!(
     #[allow(clippy::similar_names)]
     fn post_process(source: &CsvLine, mut parsed: Self, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         // Add all modifications
-        let pep1 = parsed.peptidoform.peptides()[0].len();
-        let pep2 = parsed.peptidoform.peptides().get(1).map_or(0, LinearPeptide::len);
+        let pep1 = parsed.peptidoform.peptidoforms()[0].len();
+        let pep2 = parsed.peptidoform.peptidoforms().get(1).map_or(0, Peptidoform::len);
         for (m, index) in &parsed.ptm {
             let pos = if *index == 0 {
                 (0, SequencePosition::NTerm)
@@ -171,13 +171,13 @@ format_family!(
 
             match pos {
                 (peptide, SequencePosition::NTerm) => {
-                        parsed.peptidoform.peptides_mut()[peptide].add_simple_n_term(m.clone());
+                        parsed.peptidoform.peptidoforms_mut()[peptide].add_simple_n_term(m.clone());
                 }
                 (peptide, SequencePosition::CTerm) => {
-                    parsed.peptidoform.peptides_mut()[peptide].add_simple_c_term(m.clone());
+                    parsed.peptidoform.peptidoforms_mut()[peptide].add_simple_c_term(m.clone());
                 }
                 (peptide, index) => {
-                    parsed.peptidoform.peptides_mut()[peptide][index]
+                    parsed.peptidoform.peptidoforms_mut()[peptide][index]
                             .modifications
                             .push(m.clone().into());
                 }
@@ -218,7 +218,7 @@ format_family!(
                 0 => return Err(CustomError::error("Invalid pLink peptide", format!("The correct cross-linker could not be identified with mass {:.3} Da, if a non default cross-linker was used add this as a custom linker modification.", left_over.value), source.full_context())),
                 1 => {
                     // Replace 0 mass mod + determine Nterm or side chain
-                    for p in parsed.peptidoform.peptides_mut() {
+                    for p in parsed.peptidoform.peptidoforms_mut() {
                         let mut n_term = p.get_n_term().to_vec();
                         let mut c_term = p.get_c_term().to_vec();
                         let len = p.len();

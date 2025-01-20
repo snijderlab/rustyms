@@ -1,4 +1,4 @@
-use crate::{system::MassOverCharge, CompoundPeptidoform, Fragment, MassMode, Model};
+use crate::{system::MassOverCharge, CompoundPeptidoformIon, Fragment, MassMode, Model};
 
 use super::AnnotatedSpectrum;
 
@@ -14,7 +14,7 @@ pub trait AnnotatableSpectrum {
 
     /// Create an empty annotated spectrum, which is required to fill the spectrum vector with
     /// [`blank`](crate::spectrum::AnnotatedPeak::background) annotated peaks.
-    fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum;
+    fn empty_annotated(&self, peptide: CompoundPeptidoformIon) -> AnnotatedSpectrum;
 
     /// Search for a specific mz within the tolerance. Has to return the index in the annotated
     /// spectrum vector for closest peak (if there is any).
@@ -24,7 +24,7 @@ pub trait AnnotatableSpectrum {
     /// [`crate::CompoundPeptidoform::generate_theoretical_fragments`].
     fn annotate(
         &self,
-        peptide: CompoundPeptidoform,
+        peptide: CompoundPeptidoformIon,
         theoretical_fragments: &[Fragment],
         model: &Model,
         mode: MassMode,

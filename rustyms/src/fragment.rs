@@ -32,9 +32,9 @@ pub struct Fragment {
     /// All possible annotations for this fragment saved as a tuple of peptide index and its type
     pub ion: FragmentType,
     /// The peptidoform this fragment comes from, saved as the index into the list of peptidoform in the overarching [`crate::CompoundPeptidoform`] struct
-    pub peptidoform_index: Option<usize>,
+    pub peptidoform_ion_index: Option<usize>,
     /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching [`crate::Peptidoform`] struct
-    pub peptide_index: Option<usize>,
+    pub peptidoform_index: Option<usize>,
     /// Any neutral losses applied
     pub neutral_loss: Vec<NeutralLoss>,
     /// m/z deviation, if known (from mzPAF)
@@ -68,16 +68,16 @@ impl Fragment {
     pub fn new(
         theoretical_mass: MolecularFormula,
         charge: Charge,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         ion: FragmentType,
     ) -> Self {
         Self {
             formula: Some(theoretical_mass),
             charge,
             ion,
+            peptidoform_ion_index: Some(peptidoform_ion_index),
             peptidoform_index: Some(peptidoform_index),
-            peptide_index: Some(peptide_index),
             neutral_loss: Vec::new(),
             deviation: None,
             confidence: None,
@@ -92,8 +92,8 @@ impl Fragment {
     #[must_use]
     pub fn generate_all(
         theoretical_mass: &Multi<MolecularFormula>,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         annotation: &FragmentType,
         termini: &Multi<MolecularFormula>,
         neutral_losses: &[NeutralLoss],
@@ -108,13 +108,13 @@ impl Fragment {
             .map(|(((term, mass), charge), loss)| Self {
                 formula: Some(
                     term + mass
-                        + charge.formula_inner(SequencePosition::default(), peptide_index)
+                        + charge.formula_inner(SequencePosition::default(), peptidoform_index)
                         + loss.unwrap_or(&NeutralLoss::Gain(MolecularFormula::default())),
                 ),
                 charge: Charge::new::<crate::system::e>(charge.charge().value.try_into().unwrap()),
                 ion: annotation.clone(),
+                peptidoform_ion_index: Some(peptidoform_ion_index),
                 peptidoform_index: Some(peptidoform_index),
-                peptide_index: Some(peptide_index),
                 neutral_loss: loss.map(|l| vec![l.clone()]).unwrap_or_default(),
                 deviation: None,
                 confidence: None,

@@ -45,8 +45,8 @@ impl MonoSaccharide {
     pub(crate) fn theoretical_fragments(
         composition: &[(Self, isize)],
         model: &Model,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
@@ -64,15 +64,15 @@ impl MonoSaccharide {
             let formula: MolecularFormula = composition
                 .iter()
                 .map(|s| {
-                    s.0.formula_inner(SequencePosition::default(), peptide_index) * s.1 as i32
+                    s.0.formula_inner(SequencePosition::default(), peptidoform_index) * s.1 as i32
                 })
                 .sum();
             fragments.extend(
                 Fragment::new(
                     formula.clone(),
                     Charge::default(),
+                    peptidoform_ion_index,
                     peptidoform_index,
-                    peptide_index,
                     FragmentType::OxoniumComposition(composition.clone(), attachment),
                 )
                 .with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
@@ -82,8 +82,8 @@ impl MonoSaccharide {
                 Fragment::new(
                     base - &formula,
                     Charge::default(),
+                    peptidoform_ion_index,
                     peptidoform_index,
-                    peptide_index,
                     FragmentType::YComposition(composition.clone(), attachment),
                 )
                 .with_charge_range(charge_carriers, model.glycan.other_charge_range)
@@ -96,8 +96,8 @@ impl MonoSaccharide {
             fragments.extend(
                 sugar
                     .diagnostic_ions(
+                        peptidoform_ion_index,
                         peptidoform_index,
-                        peptide_index,
                         DiagnosticPosition::GlycanCompositional(sugar.clone(), attachment),
                         false,
                     )
@@ -162,16 +162,16 @@ impl MonoSaccharide {
     /// According to: <https://doi.org/10.1016/j.trac.2018.09.007>.
     pub(crate) fn diagnostic_ions(
         &self,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         position: DiagnosticPosition,
         add_base: bool,
     ) -> Vec<Fragment> {
         let base = Fragment::new(
             self.formula(),
             Charge::default(),
+            peptidoform_ion_index,
             peptidoform_index,
-            peptide_index,
             FragmentType::Diagnostic(position),
         );
         let mut result =

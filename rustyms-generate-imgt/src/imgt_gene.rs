@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use itertools::Itertools;
 use rustyms::{
-    peptide::{Annotation, Region},
+    peptidoform::{Annotation, Region},
     AminoAcid, CheckedAminoAcid,
 };
 

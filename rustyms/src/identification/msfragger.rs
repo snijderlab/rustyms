@@ -6,9 +6,9 @@ use crate::{
     helper_functions::explain_number_error,
     identification::SpectrumId,
     ontologies::CustomDatabase,
-    peptide::{SemiAmbiguous, SloppyParsingParameters},
+    peptidoform::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    LinearPeptide,
+    Peptidoform,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -42,14 +42,14 @@ format_family!(
     required {
         scan: SpectrumId, |location: Location, _| Ok(SpectrumId::Native(location.get_string()));
         spectrum_file: PathBuf, |location: Location, _| Ok(location.get_string().into());
-        peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        peptide: Option<Peptidoform<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>| location.or_empty().parse_with(|location| Peptidoform::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,
             &SloppyParsingParameters {ignore_prefix_lowercase_n: true, ..Default::default()},
         ));
-        extended_peptide: Box<[Option<LinearPeptide<SemiAmbiguous>>; 3]>, |location: Location, custom_database: Option<&CustomDatabase>| {
-            let peptides = location.clone().array('.').map(|l| l.or_empty().parse_with(|location| LinearPeptide::sloppy_pro_forma(
+        extended_peptide: Box<[Option<Peptidoform<SemiAmbiguous>>; 3]>, |location: Location, custom_database: Option<&CustomDatabase>| {
+            let peptides = location.clone().array('.').map(|l| l.or_empty().parse_with(|location| Peptidoform::sloppy_pro_forma(
                 location.full_line(),
                 location.location.clone(),
                 custom_database,

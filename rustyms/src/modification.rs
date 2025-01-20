@@ -14,11 +14,11 @@ use std::{
 use crate::{
     glycan::{GlycanStructure, MonoSaccharide},
     molecular_charge::CachedCharge,
-    peptide::Linked,
+    peptidoform::Linked,
     placement_rule::{PlacementRule, Position},
     system::OrderedMass,
-    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, LinearPeptide, Model,
-    MolecularFormula, Multi, NeutralLoss, SequenceElement, SequencePosition,
+    AmbiguousLabel, AminoAcid, Chemical, DiagnosticIon, Fragment, Model, MolecularFormula, Multi,
+    NeutralLoss, Peptidoform, SequenceElement, SequencePosition,
 };
 
 include!("shared/modification.rs");
@@ -99,7 +99,11 @@ impl std::iter::Sum for RulePossible {
 
 impl Chemical for SimpleModificationInner {
     /// Get the molecular formula for this modification.
-    fn formula_inner(&self, position: SequencePosition, peptide_index: usize) -> MolecularFormula {
+    fn formula_inner(
+        &self,
+        position: SequencePosition,
+        peptidoform_index: usize,
+    ) -> MolecularFormula {
         match self {
             Self::Mass(m)
             | Self::Gno {
@@ -113,13 +117,13 @@ impl Chemical for SimpleModificationInner {
             | Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula_inner(position, peptide_index) * i.1 as i32
+                    acc + i.0.formula_inner(position, peptidoform_index) * i.1 as i32
                 }),
             Self::GlycanStructure(glycan)
             | Self::Gno {
                 composition: GnoComposition::Topology(glycan),
                 ..
-            } => glycan.formula_inner(position, peptide_index),
+            } => glycan.formula_inner(position, peptidoform_index),
             Self::Formula(formula)
             | Self::Database { formula, .. }
             | Self::Linker { formula, .. } => formula.clone(),
@@ -141,7 +145,7 @@ impl SimpleModificationInner {
     pub(crate) fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
         match self {
             Self::Mass(m)
@@ -156,13 +160,13 @@ impl SimpleModificationInner {
             | Self::Glycan(monosaccharides) => monosaccharides
                 .iter()
                 .fold(MolecularFormula::default(), |acc, i| {
-                    acc + i.0.formula_inner(sequence_index, peptide_index) * i.1 as i32
+                    acc + i.0.formula_inner(sequence_index, peptidoform_index) * i.1 as i32
                 }),
             Self::GlycanStructure(glycan)
             | Self::Gno {
                 composition: GnoComposition::Topology(glycan),
                 ..
-            } => glycan.formula_inner(sequence_index, peptide_index),
+            } => glycan.formula_inner(sequence_index, peptidoform_index),
             Self::Formula(formula)
             | Self::Database { formula, .. }
             | Self::Linker { formula, .. } => formula.clone(),
@@ -490,12 +494,12 @@ impl Modification {
     /// Get the formula for the whole addition (or subtraction) for this modification
     pub(crate) fn formula_inner(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         match self {
             Self::Simple(modification) | Self::Ambiguous { modification, .. } => {
@@ -506,7 +510,7 @@ impl Modification {
                         HashSet::new(),
                     ),
                     s => (
-                        s.formula_inner(sequence_index, peptide_index).into(),
+                        s.formula_inner(sequence_index, peptidoform_index).into(),
                         HashSet::new(),
                     ),
                 }
@@ -524,14 +528,14 @@ impl Modification {
                     applied_cross_links.push(name.clone());
                     (
                         linker
-                            .formula_inner(sequence_index, peptide_index)
+                            .formula_inner(sequence_index, peptidoform_index)
                             .with_label(AmbiguousLabel::CrossLinkBound(name.clone()))
                             .into(),
                         HashSet::from([name.clone()]),
                     )
                 } else {
                     applied_cross_links.push(name.clone());
-                    let link = linker.formula_inner(sequence_index, peptide_index);
+                    let link = linker.formula_inner(sequence_index, peptidoform_index);
                     let (_, stubs, _) = side.allowed_rules(linker);
 
                     if allow_ms_cleavable && !stubs.is_empty() {
@@ -637,8 +641,8 @@ impl Modification {
     pub(crate) fn generate_theoretical_fragments(
         &self,
         model: &Model,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
@@ -647,8 +651,8 @@ impl Modification {
             Self::Simple(modification) | Self::Ambiguous { modification, .. } => modification
                 .generate_theoretical_fragments(
                     model,
+                    peptidoform_ion_index,
                     peptidoform_index,
-                    peptide_index,
                     charge_carriers,
                     full_formula,
                     attachment,
@@ -663,8 +667,8 @@ impl SimpleModificationInner {
     pub(crate) fn generate_theoretical_fragments(
         &self,
         model: &Model,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
@@ -679,8 +683,8 @@ impl SimpleModificationInner {
                 .determine_positions()
                 .generate_theoretical_fragments(
                     model,
+                    peptidoform_ion_index,
                     peptidoform_index,
-                    peptide_index,
                     charge_carriers,
                     full_formula,
                     attachment,
@@ -692,8 +696,8 @@ impl SimpleModificationInner {
             } => MonoSaccharide::theoretical_fragments(
                 composition,
                 model,
+                peptidoform_ion_index,
                 peptidoform_index,
-                peptide_index,
                 charge_carriers,
                 full_formula,
                 attachment,

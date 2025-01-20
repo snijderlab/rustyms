@@ -12,24 +12,24 @@ macro_rules! parse_test {
     ($case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = $crate::CompoundPeptidoform::pro_forma($case, None);
+            let res = $crate::CompoundPeptidoformIon::pro_forma($case, None);
             let res_upper =
-                $crate::CompoundPeptidoform::pro_forma(&$case.to_ascii_uppercase(), None);
+                $crate::CompoundPeptidoformIon::pro_forma(&$case.to_ascii_uppercase(), None);
             let res_lower =
-                $crate::CompoundPeptidoform::pro_forma(&$case.to_ascii_lowercase(), None);
+                $crate::CompoundPeptidoformIon::pro_forma(&$case.to_ascii_lowercase(), None);
             println!("{}", $case);
             assert!(res.is_ok(), "{}", res.err().unwrap());
             assert_eq!(res, res_upper);
             assert_eq!(res, res_lower);
             let back = res.as_ref().unwrap().to_string();
-            let res_back = $crate::CompoundPeptidoform::pro_forma(&back, None);
+            let res_back = $crate::CompoundPeptidoformIon::pro_forma(&back, None);
             assert_eq!(res, res_back, "{} != {back}", $case);
         }
     };
     (ne $case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = $crate::CompoundPeptidoform::pro_forma($case, None);
+            let res = $crate::CompoundPeptidoformIon::pro_forma($case, None);
             println!("{}\n{:?}", $case, res);
             assert!(res.is_err());
         }
@@ -79,7 +79,7 @@ macro_rules! parse_sloppy_test {
     (ne $case:literal, $name:ident) => {
         #[test]
         fn $name() {
-            let res = $crate::LinearPeptide::sloppy_pro_forma(
+            let res = $crate::Peptidoform::sloppy_pro_forma(
                 $case,
                 0..$case.len(),
                 None,

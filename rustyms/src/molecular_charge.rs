@@ -181,7 +181,7 @@ impl Chemical for MolecularCharge {
     fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
-        _peptide_index: usize,
+        _peptidoform_index: usize,
     ) -> MolecularFormula {
         self.charge_carriers
             .iter()

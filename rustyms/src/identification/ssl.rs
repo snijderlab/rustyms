@@ -6,7 +6,7 @@ use crate::{
     },
     ontologies::CustomDatabase,
     system::{isize::Charge, MassOverCharge, Time},
-    LinearPeptide, SemiAmbiguous,
+    Peptidoform, SemiAmbiguous,
 };
 
 use std::path::{Path, PathBuf};
@@ -41,7 +41,7 @@ format_family!(
     optional {
         start_time: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
         end_time: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::pro_forma(location.as_str(), custom_database).map(|p|p.into_semi_ambiguous().unwrap());
         score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         score_type: String, |location: Location, _| Ok(location.get_string());
         rt: Time, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Time::new::<crate::system::time::min>);

@@ -4,9 +4,9 @@ use crate::{
     error::CustomError,
     identification::PeaksFamilyId,
     ontologies::CustomDatabase,
-    peptide::{SemiAmbiguous, SloppyParsingParameters},
+    peptidoform::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    LinearPeptide,
+    Peptidoform,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use super::{
     csv::{parse_csv, CsvLine},
     fasta::FastaIdentifier,
     modification::SimpleModification,
-    peptide::PeptideModificationSearch,
+    peptidoform::PeptideModificationSearch,
     BoxedIdentifiedPeptideIter, IdentifiedPeptide, IdentifiedPeptideSource, MetaData, Modification,
 };
 
@@ -36,7 +36,7 @@ format_family!(
     PeaksData,
     PeaksVersion, [&V12, &V11, &V11_FEATURES, &XPLUS, &AB, &X_PATCHED, &X, &DB_PEPTIDE, &DB_PSM, &DB_PROTEIN_PEPTIDE], b',', None;
     required {
-        peptide: (Option<crate::AminoAcid>, Vec<LinearPeptide<SemiAmbiguous>>, Option<crate::AminoAcid>), |location: Location, custom_database: Option<&CustomDatabase>| {
+        peptide: (Option<crate::AminoAcid>, Vec<Peptidoform<SemiAmbiguous>>, Option<crate::AminoAcid>), |location: Location, custom_database: Option<&CustomDatabase>| {
             let n_flanking: Option<crate::AminoAcid> =
                 (location.as_str().chars().nth(1) == Some('.'))
                 .then(|| location.as_str().chars().next().unwrap().try_into().map_err(|()|
@@ -53,7 +53,7 @@ format_family!(
                         "This flanking residue is not a valid amino acid",
                         crate::error::Context::line(Some(location.line.line_index()), location.full_line(), location.location.end-1, location.location.end)))).transpose()?;
             if c_flanking.is_none() && n_flanking.is_none() {
-                location.array(';').map(|l| LinearPeptide::sloppy_pro_forma(
+                location.array(';').map(|l| Peptidoform::sloppy_pro_forma(
                     l.full_line(),
                     l.location.clone(),
                     custom_database,
@@ -62,7 +62,7 @@ format_family!(
                 .collect::<Result<Vec<_>,_>>()
                 .map(|sequences| (n_flanking, sequences, c_flanking))
             } else {
-            LinearPeptide::sloppy_pro_forma(
+            Peptidoform::sloppy_pro_forma(
                 location.full_line(),
                 n_flanking.map_or(location.location.start, |_| location.location.start+2)..c_flanking.map_or(location.location.end, |_| location.location.end-2),
                 custom_database,

@@ -29,13 +29,13 @@ impl Chemical for PositionedGlycanStructure {
     fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
-        self.sugar.formula_inner(sequence_index, peptide_index)
+        self.sugar.formula_inner(sequence_index, peptidoform_index)
             + self
                 .branches
                 .iter()
-                .map(|f| f.formula_inner(sequence_index, peptide_index))
+                .map(|f| f.formula_inner(sequence_index, peptidoform_index))
                 .sum::<MolecularFormula>()
     }
 }
@@ -46,8 +46,8 @@ impl PositionedGlycanStructure {
     pub fn generate_theoretical_fragments(
         &self,
         model: &Model,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         charge_carriers: &mut CachedCharge,
         full_formula: &Multi<MolecularFormula>,
         attachment: Option<(AminoAcid, usize)>,
@@ -58,7 +58,7 @@ impl PositionedGlycanStructure {
             .then(|| {
                 // Get all base fragments from this node and all its children
                 let mut base_fragments = self
-                    .oxonium_fragments(peptidoform_index, peptide_index, attachment)
+                    .oxonium_fragments(peptidoform_ion_index, peptidoform_index, attachment)
                     .into_iter()
                     .flat_map(|f| {
                         f.with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
@@ -67,7 +67,7 @@ impl PositionedGlycanStructure {
                     .collect_vec();
                 // Generate all Y fragments
                 base_fragments.extend(
-                    self.internal_break_points(peptide_index, attachment)
+                    self.internal_break_points(peptidoform_index, attachment)
                         .iter()
                         .filter(|(_, bonds)| {
                             bonds.iter().all(|b| !matches!(b, GlycanBreakPos::B(_)))
@@ -77,11 +77,11 @@ impl PositionedGlycanStructure {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
                                     full - self
-                                        .formula_inner(SequencePosition::default(), peptide_index)
+                                        .formula_inner(SequencePosition::default(), peptidoform_index)
                                         + f,
                                     Charge::zero(),
+                                    peptidoform_ion_index,
                                     peptidoform_index,
-                                    peptide_index,
                                     FragmentType::Y(
                                         bonds
                                             .iter()
@@ -100,7 +100,7 @@ impl PositionedGlycanStructure {
                 );
                 // Generate all diagnostic ions
                 base_fragments.extend(
-                    self.diagnostic_ions(peptidoform_index, peptide_index, attachment)
+                    self.diagnostic_ions(peptidoform_ion_index, peptidoform_index, attachment)
                         .into_iter()
                         .flat_map(|f| {
                             f.with_charge_range(charge_carriers, model.glycan.oxonium_charge_range)
@@ -114,13 +114,13 @@ impl PositionedGlycanStructure {
     /// Get uncharged diagnostic ions from all positions
     fn diagnostic_ions(
         &self,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         let mut output = self.sugar.diagnostic_ions(
+            peptidoform_ion_index,
             peptidoform_index,
-            peptide_index,
             crate::fragment::DiagnosticPosition::Glycan(
                 self.position(attachment),
                 self.sugar.clone(),
@@ -130,7 +130,7 @@ impl PositionedGlycanStructure {
         output.extend(
             self.branches
                 .iter()
-                .flat_map(|b| b.diagnostic_ions(peptidoform_index, peptide_index, attachment)),
+                .flat_map(|b| b.diagnostic_ions(peptidoform_ion_index, peptidoform_index, attachment)),
         );
 
         output
@@ -139,21 +139,21 @@ impl PositionedGlycanStructure {
     /// Generate all fragments without charge and neutral loss options
     fn oxonium_fragments(
         &self,
+        peptidoform_ion_index: usize,
         peptidoform_index: usize,
-        peptide_index: usize,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<Fragment> {
         // Generate the basic single breakage B fragments
         let mut base_fragments = vec![Fragment::new(
-            self.formula_inner(SequencePosition::default(), peptide_index),
+            self.formula_inner(SequencePosition::default(), peptidoform_index),
             Charge::zero(),
+            peptidoform_ion_index,
             peptidoform_index,
-            peptide_index,
             FragmentType::B(self.position(attachment)),
         )];
         // Extend with all internal fragments, meaning multiple breaking bonds
         base_fragments.extend(
-            self.internal_break_points(peptide_index, attachment)
+            self.internal_break_points(peptidoform_index, attachment)
                 .into_iter()
                 .filter(|(_, breakages)| {
                     !breakages
@@ -171,8 +171,8 @@ impl PositionedGlycanStructure {
                     Fragment::new(
                         formula,
                         Charge::zero(),
+                        peptidoform_ion_index,
                         peptidoform_index,
-                        peptide_index,
                         FragmentType::Oxonium(breakages),
                     )
                 }),
@@ -181,7 +181,7 @@ impl PositionedGlycanStructure {
         base_fragments.extend(
             self.branches
                 .iter()
-                .flat_map(|b| b.oxonium_fragments(peptidoform_index, peptide_index, attachment)),
+                .flat_map(|b| b.oxonium_fragments(peptidoform_ion_index, peptidoform_index, attachment)),
         );
         base_fragments
     }
@@ -189,7 +189,7 @@ impl PositionedGlycanStructure {
     /// All possible bonds that can be broken and the molecular formula that would be held over if these bonds all broke and the broken off parts are lost.
     fn internal_break_points(
         &self,
-        peptide_index: usize,
+        peptidoform_index: usize,
         attachment: Option<(AminoAcid, usize)>,
     ) -> Vec<(MolecularFormula, Vec<GlycanBreakPos>)> {
         // Find every internal fragment ending at this bond (in a B breakage) (all bonds found are Y breakages and endings)
@@ -197,7 +197,7 @@ impl PositionedGlycanStructure {
         if self.branches.is_empty() {
             vec![
                 (
-                    self.formula_inner(SequencePosition::default(), peptide_index),
+                    self.formula_inner(SequencePosition::default(), peptidoform_index),
                     vec![GlycanBreakPos::End(self.position(attachment))],
                 ),
                 (
@@ -208,7 +208,7 @@ impl PositionedGlycanStructure {
         } else {
             self.branches
                 .iter()
-                .map(|b| b.internal_break_points(peptide_index, attachment)) // get all previous options
+                .map(|b| b.internal_break_points(peptidoform_index, attachment)) // get all previous options
                 .fold(Vec::new(), |accumulator, branch_options| {
                     if accumulator.is_empty() {
                         branch_options
@@ -230,7 +230,7 @@ impl PositionedGlycanStructure {
                     (
                         m + self
                             .sugar
-                            .formula_inner(SequencePosition::default(), peptide_index),
+                            .formula_inner(SequencePosition::default(), peptidoform_index),
                         b,
                     )
                 })

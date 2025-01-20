@@ -17,7 +17,7 @@ use crate::{
     modification::SimpleModification,
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge, Time},
-    AminoAcid, LinearPeptide, PeptideModificationSearch, ReturnModification, SemiAmbiguous,
+    AminoAcid, Peptidoform, PeptideModificationSearch, ReturnModification, SemiAmbiguous,
     SloppyParsingParameters, Tolerance,
 };
 
@@ -27,7 +27,7 @@ use super::modification::SimpleModificationInner;
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct MZTabData {
     /// The peptide's sequence corresponding to the PSM
-    pub peptide: Option<LinearPeptide<SemiAmbiguous>>,
+    pub peptide: Option<Peptidoform<SemiAmbiguous>>,
     /// A unique identifier for a PSM within the file. If a PSM can be matched to
     /// multiple proteins, the same PSM should be represented on multiple rows with
     /// different accessions and the same PSM_ID.
@@ -312,7 +312,7 @@ impl MZTabData {
                 if range.is_empty() {
                     None
                 } else {
-                    let mut peptide = LinearPeptide::sloppy_pro_forma(
+                    let mut peptide = Peptidoform::sloppy_pro_forma(
                         line.line,
                         range,
                         custom_database,
@@ -639,7 +639,7 @@ impl MZTabData {
             // exist as two separate modifications the number of N terminal modifications is not a
             // reliable measure to detrmine how many local confidence scores to ignore.
             let c = result.peptide.as_ref().map_or(0, |p| p.get_c_term().len());
-            let n = lc.len() - c - result.peptide.as_ref().map_or(0, LinearPeptide::len);
+            let n = lc.len() - c - result.peptide.as_ref().map_or(0, Peptidoform::len);
             lc[n..lc.len() - c].to_vec()
         });
 

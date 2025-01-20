@@ -5,10 +5,10 @@ use itertools::Itertools;
 use crate::{
     checked_aminoacid::CheckedAminoAcid,
     modification::{Modification, SimpleModification, SimpleModificationInner},
-    peptide::SimpleLinear,
+    peptidoform::SimpleLinear,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
-    AminoAcid, Chemical, LinearPeptide, SemiAmbiguous, SequenceElement, SequencePosition,
+    AminoAcid, Chemical, Peptidoform, SemiAmbiguous, SequenceElement, SequencePosition,
     Tolerance,
 };
 
@@ -231,7 +231,7 @@ pub fn find_isobaric_sets(
     amino_acids: &[AminoAcid],
     fixed: &[(SimpleModification, Option<PlacementRule>)],
     variable: &[(SimpleModification, Option<PlacementRule>)],
-    base: Option<&LinearPeptide<SimpleLinear>>,
+    base: Option<&Peptidoform<SimpleLinear>>,
 ) -> IsobaricSetIterator {
     let bounds = tolerance.bounds(mass);
     let base_mass = base
@@ -258,7 +258,7 @@ pub struct IsobaricSetIterator {
     sizes: (Mass, Mass),
     bounds: (Mass, Mass),
     state: (Option<usize>, Option<usize>, Vec<usize>),
-    base: Option<LinearPeptide<SimpleLinear>>,
+    base: Option<Peptidoform<SimpleLinear>>,
 }
 
 impl IsobaricSetIterator {
@@ -270,7 +270,7 @@ impl IsobaricSetIterator {
         c_term: Vec<(SequenceElement<SemiAmbiguous>, SimpleModification, Mass)>,
         center: Vec<(SequenceElement<SemiAmbiguous>, Mass)>,
         bounds: (Mass, Mass),
-        base: Option<&LinearPeptide<SimpleLinear>>,
+        base: Option<&Peptidoform<SimpleLinear>>,
     ) -> Self {
         let sizes = (center.first().unwrap().1, center.last().unwrap().1);
         let mut iter = Self {
@@ -313,11 +313,11 @@ impl IsobaricSetIterator {
 
     /// # Panics
     /// If the base sequence is empty.
-    fn peptide(&self) -> LinearPeptide<SimpleLinear> {
+    fn peptide(&self) -> Peptidoform<SimpleLinear> {
         let mut sequence = Vec::with_capacity(
             self.base
                 .as_ref()
-                .map(LinearPeptide::len)
+                .map(Peptidoform::len)
                 .unwrap_or_default()
                 + self.state.2.len()
                 + usize::from(self.state.0.is_some())
@@ -361,7 +361,7 @@ impl IsobaricSetIterator {
         } else if let Some(c) = self.state.1.map(|i| self.c_term[i].clone()) {
             sequence.push(c.0.into());
         }
-        LinearPeptide::new(sequence)
+        Peptidoform::new(sequence)
             .n_term(self.base.as_ref().map_or_else(
                 || {
                     self.state.0.map_or(Vec::new(), |i| {
@@ -390,7 +390,7 @@ impl IsobaricSetIterator {
 }
 
 impl Iterator for IsobaricSetIterator {
-    type Item = LinearPeptide<SimpleLinear>;
+    type Item = Peptidoform<SimpleLinear>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // N terminal loop
@@ -508,11 +508,11 @@ mod tests {
     use super::*;
     #[test]
     fn simple_isobaric_sets() {
-        let pep = LinearPeptide::pro_forma("AG", None)
+        let pep = Peptidoform::pro_forma("AG", None)
             .unwrap()
             .into_unambiguous()
             .unwrap();
-        let sets: Vec<LinearPeptide<SimpleLinear>> = find_isobaric_sets(
+        let sets: Vec<Peptidoform<SimpleLinear>> = find_isobaric_sets(
             pep.bare_formula().monoisotopic_mass(),
             Tolerance::new_ppm(10.0),
             AminoAcid::UNIQUE_MASS_AMINO_ACIDS,
@@ -524,11 +524,11 @@ mod tests {
         assert_eq!(
             &sets,
             &[
-                LinearPeptide::pro_forma("GA", None)
+                Peptidoform::pro_forma("GA", None)
                     .unwrap()
                     .into_simple_linear()
                     .unwrap(),
-                LinearPeptide::pro_forma("Q", None)
+                Peptidoform::pro_forma("Q", None)
                     .unwrap()
                     .into_simple_linear()
                     .unwrap(),

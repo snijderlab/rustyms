@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use crate::{
     error::{Context, CustomError},
     modification::{AmbiguousLookup, CrossLinkName, SimpleModification},
-    LinearPeptide, Modification, Peptidoform, SequencePosition,
+    Peptidoform, Modification, PeptidoformIon, SequencePosition,
 };
 
 use super::{GlobalModification, Linear};
@@ -14,12 +14,12 @@ use super::{GlobalModification, Linear};
 /// If there is a cross link with more then 2 locations. Or if there never is a definition for this cross link.
 /// Or if there are peptides that cannot be reached from the first peptide.
 pub fn cross_links(
-    peptides: Vec<LinearPeptide<Linear>>,
+    peptides: Vec<Peptidoform<Linear>>,
     cross_links_found: BTreeMap<usize, Vec<(usize, SequencePosition)>>,
     cross_link_lookup: &[(CrossLinkName, Option<SimpleModification>)],
     line: &str,
-) -> Result<Peptidoform, CustomError> {
-    let mut peptidoform = Peptidoform(peptides.into_iter().map(Into::into).collect());
+) -> Result<PeptidoformIon, CustomError> {
+    let mut peptidoform = PeptidoformIon(peptides.into_iter().map(Into::into).collect());
     for (id, locations) in cross_links_found {
         let definition = &cross_link_lookup[id];
         if let Some(linker) = &definition.1 {
@@ -109,7 +109,7 @@ pub fn cross_links(
         }
     }
 
-    if found_peptides.len() != peptidoform.peptides().len() {
+    if found_peptides.len() != peptidoform.peptidoforms().len() {
         return Err(CustomError::error(
             "Unconnected peptidoform",
             "Not all peptides in this peptidoform are connected with cross-links or branches, if separate peptides were intended use the chimeric notation `+` instead of the peptidoform notation `//`.",
@@ -120,7 +120,7 @@ pub fn cross_links(
     Ok(peptidoform)
 }
 
-impl LinearPeptide<Linear> {
+impl Peptidoform<Linear> {
     /// Apply a global modification if this is a global isotope modification with invalid isotopes it returns false
     #[must_use]
     pub(super) fn apply_global_modifications(
@@ -203,7 +203,7 @@ impl LinearPeptide<Linear> {
     }
 }
 
-impl<T> LinearPeptide<T> {
+impl<T> Peptidoform<T> {
     /// # Errors
     /// If a modification rule is broken it returns an error.
     pub(crate) fn enforce_modification_rules(&self) -> Result<(), CustomError> {

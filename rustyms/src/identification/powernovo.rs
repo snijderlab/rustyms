@@ -4,7 +4,7 @@ use crate::{
         common_parser::OptionalColumn, IdentifiedPeptide, IdentifiedPeptideSource, MetaData,
     },
     ontologies::CustomDatabase,
-    LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
+    Peptidoform, SemiAmbiguous, SloppyParsingParameters,
 };
 
 use std::path::{Path, PathBuf};
@@ -30,7 +30,7 @@ format_family!(
     PowerNovoVersion, [&POWERNOVO_V1_0_1], b',', None;
     required {
         title: String, |location: Location, _| Ok(location.get_string());
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

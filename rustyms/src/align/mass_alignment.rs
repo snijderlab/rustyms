@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 use crate::{
-    peptide::{AtMax, SimpleLinear},
+    peptidoform::{AtMax, SimpleLinear},
     system::Mass,
-    LinearPeptide, MassMode, MolecularFormula, Multi, SequenceElement, SequencePosition,
+    Peptidoform, MassMode, MolecularFormula, Multi, SequenceElement, SequencePosition,
     WithinTolerance,
 };
 
@@ -21,8 +21,8 @@ use super::{
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
 #[allow(clippy::too_many_lines)]
 pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
-    seq_a: &'lifetime LinearPeptide<A>,
-    seq_b: &'lifetime LinearPeptide<B>,
+    seq_a: &'lifetime Peptidoform<A>,
+    seq_b: &'lifetime Peptidoform<B>,
     scoring: AlignScoring<'lifetime>,
     align_type: AlignType,
 ) -> Alignment<'lifetime, A, B> {
@@ -166,8 +166,8 @@ pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<Simpl
 }
 
 pub(super) fn determine_final_score<A, B>(
-    seq_a: &LinearPeptide<A>,
-    seq_b: &LinearPeptide<B>,
+    seq_a: &Peptidoform<A>,
+    seq_b: &Peptidoform<B>,
     start_a: usize,
     start_b: usize,
     path: &[Piece],
@@ -288,7 +288,7 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
 
 /// Get the masses of all sequence elements
 fn calculate_masses<const STEPS: u16>(
-    sequence: &LinearPeptide<impl AtMax<SimpleLinear>>,
+    sequence: &Peptidoform<impl AtMax<SimpleLinear>>,
     mass_mode: MassMode,
 ) -> DiagonalArray<Multi<Mass>> {
     let mut array = DiagonalArray::new(sequence.len(), STEPS);

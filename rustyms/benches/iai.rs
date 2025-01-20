@@ -9,14 +9,14 @@ use iai_callgrind::{
 };
 
 #[inline(never)]
-fn setup(a: &str, b: &str) -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
+fn setup(a: &str, b: &str) -> (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>) {
     let _force_elements_init = black_box(AminoAcid::Alanine.formulas());
     (
-        LinearPeptide::pro_forma(a, None)
+        Peptidoform::pro_forma(a, None)
             .unwrap()
             .into_simple_linear()
             .unwrap(),
-        LinearPeptide::pro_forma(b, None)
+        Peptidoform::pro_forma(b, None)
             .unwrap()
             .into_simple_linear()
             .unwrap(),
@@ -24,19 +24,19 @@ fn setup(a: &str, b: &str) -> (LinearPeptide<SimpleLinear>, LinearPeptide<Simple
 }
 
 #[inline(never)]
-fn setup_simple() -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
+fn setup_simple() -> (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>) {
     setup("ANAGRS", "AGGQRS")
 }
 
 #[inline(never)]
-fn setup_igha() -> (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>) {
+fn setup_igha() -> (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>) {
     setup("ASPTSPKVFPLSLDSTPQDGNVVVACLVQGFFPQEPLSVTWSESGQNVTARNFPPSQDASGDLYTTSSQLTLPATQCPDGKSVTCHVKHYTNSSQDVTVPCRVPPPPPCCHPRLSLHRPALEDLLLGSEANLTCTLTGLRDASGATFTWTPSSGKSAVQGPPERDLCGCYSVSSVLPGCAQPWNHGETFTCTAAHPELKTPLTANITKSGNTFRPEVHLLPPPSEELALNELVTLTCLARGFSPKDVLVRWLQGSQELPREKYLTWASRQEPSQGTTTYAVTSILRVAAEDWKKGETFSCMVGHEALPLAFTQKTIDRMAGSCCVADWQMPPPYVVLDLPQETLEEETPGANLWPTTITFLTLFLLSLFYSTALTVTSVRGPSGKREGPQY", "ASPTSPKVFPLSLCSTQPDGNVVIACLVQGFFPQEPLSVTWSESGQGVTARNFPPSQDASGDLYTTSSQLTLPATQCLAGKSVTCHVKHYTNPSQDVTVPCPVPSTPPTPSPSTPPTPSPSCCHPRLSLHRPALEDLLLGSEANLTCTLTGLRDASGVTFTWTPSSGKSAVQGPPERDLCGCYSVSSVLPGCAEPWNHGKTFTCTAAYPESKTPLTATLSKSGNTFRPEVHLLPPPSEELALNELVTLTCLARGFSPKDVLVRWLQGSQELPREKYLTWASRQEPSQGTTTFAVTSILRVAAEDWKKGDTFSCMVGHEALPLAFTQKTIDRLADWQMPPPYVVLDLPQETLEEETPGANLWPTTITFLTLFLLSLFYSTALTVTSVRGPSGNREGPQY")
 }
 
 #[library_benchmark]
 #[bench::simple_1(setup_simple())]
 #[bench::igha_1(setup_igha())]
-pub fn align_1(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+pub fn align_1(setup: (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>)) {
     align::<1, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
@@ -53,7 +53,7 @@ pub fn align_1(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)
 #[bench::ambiguous_b(setup("ANQRS", "ABQRS"))]
 #[bench::ambiguous_ab(setup("ANZRS", "ABQRS"))]
 // #[bench::igha_8(setup_igha(Some(8)))]
-pub fn align_4(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+pub fn align_4(setup: (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>)) {
     align::<4, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,
@@ -65,7 +65,7 @@ pub fn align_4(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)
 #[library_benchmark]
 #[bench::simple_unbounded(setup_simple())]
 // #[bench::igha_8(setup_igha(Some(8)))]
-pub fn align_unbounded(setup: (LinearPeptide<SimpleLinear>, LinearPeptide<SimpleLinear>)) {
+pub fn align_unbounded(setup: (Peptidoform<SimpleLinear>, Peptidoform<SimpleLinear>)) {
     align::<{ u16::MAX }, SimpleLinear, SimpleLinear>(
         &setup.0,
         &setup.1,

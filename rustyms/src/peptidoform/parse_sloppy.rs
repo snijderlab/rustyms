@@ -10,7 +10,7 @@ use crate::{
     helper_functions::{end_of_enclosure, parse_named_counter, ResultExtensions},
     modification::{Modification, Ontology, SimpleModification, SimpleModificationInner},
     ontologies::CustomDatabase,
-    peptide::*,
+    peptidoform::*,
     system::Mass,
     AminoAcid, SequenceElement,
 };
@@ -31,7 +31,7 @@ pub struct SloppyParsingParameters {
     pub replace_mass_modifications: Option<Vec<SimpleModification>>,
 }
 
-impl LinearPeptide<SemiAmbiguous> {
+impl Peptidoform<SemiAmbiguous> {
     /// Read sloppy ProForma like sequences. Defined by the use of square or round braces to indicate
     /// modifications and missing any particular method of defining the N or C terminal modifications.
     /// Additionally any underscores will be ignored both on the ends and inside the sequence.
@@ -319,7 +319,7 @@ impl Modification {
                 },
                 None,
             ), // pyro Glu with the logic to pick the correct modification based on the amino acid it is placed on
-            _ => crate::peptide::parse_modification::numerical_mod(&name)
+            _ => crate::peptidoform::parse_modification::numerical_mod(&name)
                 .ok()
                 .or_else(|| Ontology::Unimod.find_name(&name, custom_database))
                 .or_else(|| Ontology::Psimod.find_name(&name, custom_database))

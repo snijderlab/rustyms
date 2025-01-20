@@ -18,8 +18,8 @@
 //! _Generated using this algorithm bound to a cli tool: <https://github.com/snijderlab/align-cli>_
 //! ```rust
 //! use rustyms::{*, align::*};
-//! let a = LinearPeptide::pro_forma("ANA", None).unwrap().into_simple_linear().unwrap();
-//! let b = LinearPeptide::pro_forma("AGGA", None).unwrap().into_simple_linear().unwrap();
+//! let a = Peptidoform::pro_forma("ANA", None).unwrap().into_simple_linear().unwrap();
+//! let b = Peptidoform::pro_forma("AGGA", None).unwrap().into_simple_linear().unwrap();
 //! let alignment = align::<4, SimpleLinear, SimpleLinear>(&a, &b, AlignScoring::default(), AlignType::GLOBAL);
 //! assert_eq!(alignment.short(), "1=1:2i1=");
 //! assert_eq!(alignment.ppm().value, 0.0);
@@ -60,13 +60,13 @@ pub mod matrix {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc)]
 mod tests {
-    use crate::{peptide::SimpleLinear, LinearPeptide};
+    use crate::{peptidoform::SimpleLinear, Peptidoform};
 
     use super::{scoring::AlignScoring, AlignType, Alignment};
 
     fn align<'a, const STEPS: u16>(
-        a: &'a LinearPeptide<SimpleLinear>,
-        b: &'a LinearPeptide<SimpleLinear>,
+        a: &'a Peptidoform<SimpleLinear>,
+        b: &'a Peptidoform<SimpleLinear>,
     ) -> Alignment<'a, SimpleLinear, SimpleLinear> {
         super::align::<STEPS, SimpleLinear, SimpleLinear>(
             a,
@@ -76,8 +76,8 @@ mod tests {
         )
     }
 
-    fn linear(aa: &str) -> LinearPeptide<SimpleLinear> {
-        LinearPeptide::pro_forma(aa, None)
+    fn linear(aa: &str) -> Peptidoform<SimpleLinear> {
+        Peptidoform::pro_forma(aa, None)
             .unwrap()
             .into_simple_linear()
             .unwrap()

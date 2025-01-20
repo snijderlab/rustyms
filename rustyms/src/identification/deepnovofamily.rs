@@ -4,9 +4,9 @@ use crate::{
     error::CustomError,
     identification::PeaksFamilyId,
     ontologies::CustomDatabase,
-    peptide::{SemiAmbiguous, SloppyParsingParameters},
+    peptidoform::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, MassOverCharge},
-    LinearPeptide,
+    Peptidoform,
 };
 
 use serde::{Deserialize, Serialize};
@@ -38,8 +38,8 @@ format_family!(
         scan: Vec<PeaksFamilyId>, |location: Location, _| location.or_empty()
             .map_or(Ok(Vec::new()), |l| l.array(';').map(|v| v.parse(ID_ERROR)).collect::<Result<Vec<_>,_>>());
 
-        peptide: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>|
-                location.or_empty().map(|location| LinearPeptide::sloppy_pro_forma(
+        peptide: Option<Peptidoform<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>|
+                location.or_empty().map(|location| Peptidoform::sloppy_pro_forma(
                     location.full_line(),
                     location.location.clone(),
                     custom_database,
@@ -68,7 +68,7 @@ format_family!(
 
     fn post_process(_source: &CsvLine, mut parsed: Self, _custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         if parsed.local_confidence.as_ref().map(Vec::len)
-            != parsed.peptide.as_ref().map(LinearPeptide::len)
+            != parsed.peptide.as_ref().map(Peptidoform::len)
         {
             parsed.local_confidence = parsed.local_confidence.map(interpolate_lc);
         }

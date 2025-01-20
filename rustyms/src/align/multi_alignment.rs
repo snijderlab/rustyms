@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::LinearPeptide;
+use crate::Peptidoform;
 
 use super::{AlignType, MatchType, Score};
 
@@ -10,7 +10,7 @@ type MultiAlignment<'lifetime, Complexity> = Vec<MultiAlignmentLine<'lifetime, C
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 struct MultiAlignmentLine<'lifetime, Complexity> {
-    sequence: Cow<'lifetime, LinearPeptide<Complexity>>,
+    sequence: Cow<'lifetime, Peptidoform<Complexity>>,
     path: Vec<MultiPiece>,
     score: Score,
     start: usize,

@@ -3,13 +3,13 @@ use mzdata::{prelude::*, spectrum::RefPeakDataLevel};
 use crate::{
     spectrum::{AnnotatableSpectrum, AnnotatedPeak, AnnotatedSpectrum},
     system::MassOverCharge,
-    CompoundPeptidoform,
+    CompoundPeptidoformIon,
 };
 
 impl<S: SpectrumLike> AnnotatableSpectrum for S {
     type Tolerance = Tolerance;
 
-    fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum {
+    fn empty_annotated(&self, peptide: CompoundPeptidoformIon) -> AnnotatedSpectrum {
         AnnotatedSpectrum {
             title: self.description().id.clone(),
             num_scans: self.description().acquisition.scans.len() as u64,

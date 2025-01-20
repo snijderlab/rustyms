@@ -11,7 +11,7 @@ use crate::{
         f64::{Mass, MassOverCharge, Time},
         usize::Charge,
     },
-    CompoundPeptidoform,
+    CompoundPeptidoformIon,
 };
 
 use super::{PeakSpectrum, RawPeak};
@@ -30,7 +30,7 @@ pub struct AnnotatedSpectrum {
     /// The found precursor mass
     pub mass: Option<Mass>,
     /// The peptide with which this spectrum was annotated
-    pub peptide: CompoundPeptidoform,
+    pub peptide: CompoundPeptidoformIon,
     /// The spectrum
     pub(super) spectrum: Vec<AnnotatedPeak>,
 }

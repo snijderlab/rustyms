@@ -617,12 +617,12 @@ pub struct Fragment(rustyms::Fragment);
 impl Fragment {
     fn __repr__(&self) -> String {
         format!(
-            "Fragment(formula='{:?}', charge={}, ion='{}', peptidoform_index={}, peptide_index={}, neutral_loss='{:?}')",
+            "Fragment(formula='{:?}', charge={}, ion='{}', peptidoform_ion_index={}, peptidoform_index={}, neutral_loss='{:?}')",
             Self::formula(self),
             self.charge(),
             self.ion().0,
+            self.peptidoform_ion_index().map_or("-".to_string(), |p| p.to_string()),
             self.peptidoform_index().map_or("-".to_string(), |p| p.to_string()),
-            self.peptide_index().map_or("-".to_string(), |p| p.to_string()),
             self.neutral_loss(),
         )
     }
@@ -667,8 +667,8 @@ impl Fragment {
     /// int | None
     ///
     #[getter]
-    fn peptide_index(&self) -> Option<usize> {
-        self.0.peptide_index
+    fn peptidoform_index(&self) -> Option<usize> {
+        self.0.peptidoform_index
     }
 
     /// The peptidoform this fragment comes from, saved as the index into the list of peptides in the overarching crate::ComplexPeptide struct.
@@ -678,8 +678,8 @@ impl Fragment {
     /// int | None
     ///
     #[getter]
-    fn peptidoform_index(&self) -> Option<usize> {
-        self.0.peptidoform_index
+    fn peptidoform_ion_index(&self) -> Option<usize> {
+        self.0.peptidoform_ion_index
     }
 
     /// Any neutral losses applied.
@@ -836,14 +836,14 @@ impl SequencePosition {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct CompoundPeptidoform(rustyms::CompoundPeptidoform);
+pub struct CompoundPeptidoform(rustyms::CompoundPeptidoformIon);
 
 #[pymethods]
 impl CompoundPeptidoform {
     /// Create a new peptide from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::CompoundPeptidoform::pro_forma(proforma, None)
+        rustyms::CompoundPeptidoformIon::pro_forma(proforma, None)
             .map(CompoundPeptidoform)
             .map_err(CustomError)
     }
@@ -869,7 +869,7 @@ impl CompoundPeptidoform {
     #[getter]
     fn peptidoforms(&self) -> Vec<Peptidoform> {
         self.0
-            .peptidoforms()
+            .peptidoform_ions()
             .iter()
             .map(|p| Peptidoform(p.clone()))
             .collect()
@@ -915,7 +915,7 @@ impl CompoundPeptidoform {
     }
 
     fn __len__(&self) -> usize {
-        self.0.peptidoforms().len()
+        self.0.peptidoform_ions().len()
     }
 }
 
@@ -928,14 +928,14 @@ impl CompoundPeptidoform {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct Peptidoform(rustyms::Peptidoform);
+pub struct Peptidoform(rustyms::PeptidoformIon);
 
 #[pymethods]
 impl Peptidoform {
     /// Create a new peptidoform from a ProForma string. Panics
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::Peptidoform::pro_forma(proforma, None)
+        rustyms::PeptidoformIon::pro_forma(proforma, None)
             .map(Peptidoform)
             .map_err(CustomError)
     }
@@ -955,7 +955,7 @@ impl Peptidoform {
     #[getter]
     fn peptides(&self) -> Vec<LinearPeptide> {
         self.0
-            .peptides()
+            .peptidoforms()
             .iter()
             .map(|p| LinearPeptide(p.clone()))
             .collect()
@@ -1001,7 +1001,7 @@ impl Peptidoform {
     }
 
     fn __len__(&self) -> usize {
-        self.0.peptides().len()
+        self.0.peptidoforms().len()
     }
 }
 
@@ -1014,14 +1014,14 @@ impl Peptidoform {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct LinearPeptide(rustyms::LinearPeptide<Linked>);
+pub struct LinearPeptide(rustyms::Peptidoform<Linked>);
 
 #[pymethods]
 impl LinearPeptide {
     /// Create a new peptide from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::LinearPeptide::pro_forma(proforma, None)
+        rustyms::Peptidoform::pro_forma(proforma, None)
             .map(LinearPeptide)
             .map_err(CustomError)
     }

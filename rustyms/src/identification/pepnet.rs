@@ -3,7 +3,7 @@ use crate::{
     identification::{IdentifiedPeptide, IdentifiedPeptideSource, MetaData},
     ontologies::CustomDatabase,
     system::Ratio,
-    LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
+    Peptidoform, SemiAmbiguous, SloppyParsingParameters,
 };
 
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ format_family!(
     PepNetData,
     PepNetVersion, [&PEPNET_V1_0], b'\t', None;
     required {
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

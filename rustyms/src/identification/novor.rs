@@ -6,9 +6,9 @@ use super::{
 use crate::{
     error::CustomError,
     ontologies::CustomDatabase,
-    peptide::{SemiAmbiguous, SloppyParsingParameters},
+    peptidoform::{SemiAmbiguous, SloppyParsingParameters},
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    LinearPeptide,
+    Peptidoform,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ format_family!(
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         mass: Mass, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Mass::new::<crate::system::dalton>);
         score: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

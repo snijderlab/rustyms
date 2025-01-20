@@ -405,13 +405,13 @@ impl Chemical for MonoSaccharide {
     fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
-        self.base_sugar.formula_inner(sequence_index, peptide_index)
+        self.base_sugar.formula_inner(sequence_index, peptidoform_index)
             + self
                 .substituents
                 .as_slice()
-                .formula_inner(sequence_index, peptide_index)
+                .formula_inner(sequence_index, peptidoform_index)
     }
 }
 
@@ -483,7 +483,7 @@ impl Chemical for BaseSugar {
     fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
-        _peptide_index: usize,
+        _peptidoform_index: usize,
     ) -> MolecularFormula {
         match self {
             Self::None => MolecularFormula::default(),
@@ -720,7 +720,7 @@ impl Chemical for GlycanSubstituent {
     fn formula_inner(
         &self,
         _sequence_index: SequencePosition,
-        _peptide_index: usize,
+        _peptidoform_index: usize,
     ) -> MolecularFormula {
         let side = match self {
             Self::Acetimidoyl => molecular_formula!(H 5 C 2 N 1),

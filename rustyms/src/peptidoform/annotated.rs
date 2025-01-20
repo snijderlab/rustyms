@@ -1,11 +1,11 @@
-use crate::LinearPeptide;
+use crate::Peptidoform;
 
 /// An annotated peptide
 pub trait AnnotatedPeptide {
     /// The complexity of the peptide
     type Complexity;
     /// Get the peptide
-    fn peptide(&self) -> &LinearPeptide<Self::Complexity>;
+    fn peptide(&self) -> &Peptidoform<Self::Complexity>;
     /// Get the regions, as a list of the regions in order with the length of each region, these are
     /// required to be as long as the full peptide.
     fn regions(&self) -> &[(Region, usize)];

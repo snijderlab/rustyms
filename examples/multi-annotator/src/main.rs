@@ -98,7 +98,7 @@ fn main() {
                     .parse::<usize>()
                     .unwrap();
                 let z = line.index_column("z").unwrap().0.parse::<usize>().unwrap();
-                let peptide = CompoundPeptidoform::pro_forma(
+                let peptide = CompoundPeptidoformIon::pro_forma(
                     line.index_column("sequence").unwrap().0,
                     custom_database.as_ref(),
                 )

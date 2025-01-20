@@ -4,7 +4,7 @@ use crate::{
     modification::{Ontology, SimpleModification},
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge},
-    LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
+    Peptidoform, SemiAmbiguous, SloppyParsingParameters,
 };
 
 use std::path::{Path, PathBuf};
@@ -36,7 +36,7 @@ format_family!(
         mz: MassOverCharge, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(MassOverCharge::new::<crate::system::mz>);
         z: Charge, |location: Location, _| location.parse::<usize>(NUMBER_ERROR).map(Charge::new::<crate::system::e>);
         raw_file: PathBuf, |location: Location, _| Ok(Path::new(&location.get_string()).to_owned());
-        peptide: LinearPeptide<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| LinearPeptide::sloppy_pro_forma(
+        peptide: Peptidoform<SemiAmbiguous>, |location: Location, custom_database: Option<&CustomDatabase>| Peptidoform::sloppy_pro_forma(
             location.full_line(),
             location.location.clone(),
             custom_database,

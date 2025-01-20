@@ -6,7 +6,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     error::{Context, CustomError}, helper_functions::*, modification::{
         AmbiguousLookup, CrossLinkLookup, Modification, SimpleModification, SimpleModificationInner,
-    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptide::Linked, placement_rule::{PlacementRule, Position}, AminoAcid, CheckedAminoAcid, CompoundPeptidoform, Element, LinearPeptide, MolecularFormula, Peptidoform, SequenceElement, SequencePosition
+    }, molecular_charge::MolecularCharge, ontologies::CustomDatabase, peptidoform::Linked, placement_rule::{PlacementRule, Position}, AminoAcid, CheckedAminoAcid, CompoundPeptidoformIon, Element, Peptidoform, MolecularFormula, PeptidoformIon, SequenceElement, SequencePosition
 };
 
 use super::{GlobalModification, Linear, ReturnModification, SemiAmbiguous};
@@ -19,13 +19,13 @@ enum End {
 }
 
 struct LinearPeptideResult {
-    peptide: LinearPeptide<Linear>,
+    peptide: Peptidoform<Linear>,
     index: usize,
     ending: End,
     cross_links: Vec<(usize, SequencePosition)>,
 }
 
-impl LinearPeptide<Linked> {
+impl Peptidoform<Linked> {
     /// Convenience wrapper to parse a linear peptide in ProForma notation, to handle all possible ProForma sequences look at [`CompoundPeptidoform::pro_forma`].
     /// # Errors
     /// It gives an error when the peptide is not correctly formatted. (Also see the `CompoundPeptidoform` main function for this.)
@@ -34,7 +34,7 @@ impl LinearPeptide<Linked> {
         value: &str,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Self, CustomError> {
-        CompoundPeptidoform::pro_forma(value, custom_database)?
+        CompoundPeptidoformIon::pro_forma(value, custom_database)?
             .singular()
             .ok_or_else(|| {
                 CustomError::error(
@@ -59,7 +59,7 @@ impl LinearPeptide<Linked> {
     }
 }
 
-impl Peptidoform {
+impl PeptidoformIon {
     /// Parse a peptidoform in the [ProForma specification](https://github.com/HUPO-PSI/ProForma).
     ///
     /// # Errors
@@ -69,7 +69,7 @@ impl Peptidoform {
         value: &str,
         custom_database: Option<&CustomDatabase>,
     ) -> Result<Self, CustomError> {
-        CompoundPeptidoform::pro_forma(value, custom_database)?
+        CompoundPeptidoformIon::pro_forma(value, custom_database)?
             .singular()
             .ok_or_else(|| {
                 CustomError::error(
@@ -83,7 +83,7 @@ impl Peptidoform {
     }
 }
 
-impl CompoundPeptidoform {
+impl CompoundPeptidoformIon {
     /// Parse a compound peptidoform in the [ProForma specification](https://github.com/HUPO-PSI/ProForma).
     ///
     /// # Errors
@@ -127,7 +127,7 @@ impl CompoundPeptidoform {
         mut index: usize,
         global_modifications: &[GlobalModification],
         custom_database: Option<&CustomDatabase>,
-    ) -> Result<(Peptidoform, usize), CustomError> {
+    ) -> Result<(PeptidoformIon, usize), CustomError> {
         let mut peptides = Vec::new();
         let mut ending = End::CrossLink;
         let mut cross_link_lookup = Vec::new();
@@ -198,7 +198,7 @@ impl CompoundPeptidoform {
                 Context::line(None, line, index, 1),
             ));
         }
-        let mut peptide = LinearPeptide::default();
+        let mut peptide = Peptidoform::default();
         let chars: &[u8] = line.as_bytes();
         let mut c_term = false;
         let mut ambiguous_aa_counter = std::num::NonZeroU32::MIN;

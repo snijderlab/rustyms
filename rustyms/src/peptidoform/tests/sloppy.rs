@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     modification::{Ontology, SimpleModificationInner},
-    parse_sloppy_test, LinearPeptide, Modification, SemiAmbiguous, SloppyParsingParameters,
+    parse_sloppy_test, Peptidoform, Modification, SemiAmbiguous, SloppyParsingParameters,
 };
 
 #[test]
@@ -47,7 +47,7 @@ fn sloppy_names_custom() {
 #[test]
 fn sloppy_msfragger() {
     assert_eq!(
-        LinearPeptide::<SemiAmbiguous>::sloppy_pro_forma(
+        Peptidoform::<SemiAmbiguous>::sloppy_pro_forma(
             "n[211]GC[779]RQSSEEK",
             0..20,
             None,
@@ -57,7 +57,7 @@ fn sloppy_msfragger() {
             }
         )
         .unwrap(),
-        LinearPeptide::pro_forma("[211]-GC[779]RQSSEEK", None)
+        Peptidoform::pro_forma("[211]-GC[779]RQSSEEK", None)
             .unwrap()
             .into_semi_ambiguous()
             .unwrap()

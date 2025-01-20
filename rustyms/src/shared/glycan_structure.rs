@@ -154,13 +154,13 @@ impl Chemical for GlycanStructure {
     fn formula_inner(
         &self,
         sequence_index: crate::SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
-        self.sugar.formula_inner(sequence_index, peptide_index)
+        self.sugar.formula_inner(sequence_index, peptidoform_index)
             + self
                 .branches
                 .iter()
-                .map(|f| f.formula_inner(sequence_index, peptide_index))
+                .map(|f| f.formula_inner(sequence_index, peptidoform_index))
                 .sum::<MolecularFormula>()
     }
 }

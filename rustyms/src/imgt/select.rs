@@ -2,8 +2,8 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 
-use crate::peptide::{AnnotatedPeptide, Annotation, Region, UnAmbiguous};
-use crate::LinearPeptide;
+use crate::peptidoform::{AnnotatedPeptide, Annotation, Region, UnAmbiguous};
+use crate::Peptidoform;
 
 pub use super::fancy::FancyDisplay;
 pub use super::shared::*;
@@ -171,7 +171,7 @@ pub struct Allele<'a> {
     /// The allele number, in IMGT this follows the name, eg `*01` is the allele in `IGHV3-23*01`
     pub number: usize,
     /// The actual sequence, the sequences present in the database are pure amino acids, no modifications are to be expected
-    pub sequence: &'a LinearPeptide<UnAmbiguous>,
+    pub sequence: &'a Peptidoform<UnAmbiguous>,
     /// The regions in the sequence, every region has an annotation and a length, all lengths together are the same length as the full sequence
     pub regions: &'a [(Region, usize)],
     /// Any additional annotations, every annotation has beside the kind it is also its location, as index in the sequence
@@ -192,7 +192,7 @@ impl<'a> Allele<'a> {
 
 impl<'a> AnnotatedPeptide for Allele<'a> {
     type Complexity = UnAmbiguous;
-    fn peptide(&self) -> &LinearPeptide<Self::Complexity> {
+    fn peptide(&self) -> &Peptidoform<Self::Complexity> {
         self.sequence
     }
     fn annotations(&self) -> &[(Annotation, usize)] {

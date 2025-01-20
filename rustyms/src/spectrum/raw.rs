@@ -12,7 +12,7 @@ use crate::{
         f64::{Mass, MassOverCharge, Ratio, Time},
         usize::Charge,
     },
-    AnnotatedSpectrum, CompoundPeptidoform, Tolerance, WithinTolerance,
+    AnnotatedSpectrum, CompoundPeptidoformIon, Tolerance, WithinTolerance,
 };
 
 /// A raw spectrum (meaning not annotated yet)
@@ -116,7 +116,7 @@ impl RawSpectrum {
 impl AnnotatableSpectrum for RawSpectrum {
     type Tolerance = Tolerance<MassOverCharge>;
 
-    fn empty_annotated(&self, peptide: CompoundPeptidoform) -> AnnotatedSpectrum {
+    fn empty_annotated(&self, peptide: CompoundPeptidoformIon) -> AnnotatedSpectrum {
         AnnotatedSpectrum {
             title: self.title.clone(),
             num_scans: self.num_scans,

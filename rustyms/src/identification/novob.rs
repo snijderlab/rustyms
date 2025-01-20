@@ -5,7 +5,7 @@ use crate::{
     ontologies::CustomDatabase,
     system::Ratio,
     system::{usize::Charge, Mass},
-    AminoAcid, LinearPeptide, SemiAmbiguous, SloppyParsingParameters,
+    AminoAcid, Peptidoform, SemiAmbiguous, SloppyParsingParameters,
 };
 
 use serde::{Deserialize, Serialize};
@@ -94,8 +94,8 @@ format_family!(
 
         score_forward: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         ppm_diff_forward: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        peptide_forward: Option<LinearPeptide<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>|
-            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| LinearPeptide::sloppy_pro_forma(
+        peptide_forward: Option<Peptidoform<SemiAmbiguous>>, |location: Location, custom_database: Option<&CustomDatabase>|
+            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| Peptidoform::sloppy_pro_forma(
                 location.full_line(),
                 location.location.clone(),
                 custom_database,
@@ -104,8 +104,8 @@ format_family!(
 
         score_reverse: f64, |location: Location, _| location.parse::<f64>(NUMBER_ERROR);
         ppm_diff_reverse: Ratio, |location: Location, _| location.parse::<f64>(NUMBER_ERROR).map(Ratio::new::<crate::system::ratio::ppm>);
-        peptide_reverse: Option<LinearPeptide<SemiAmbiguous>>, | location: Location, custom_database: Option<&CustomDatabase>|
-            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| LinearPeptide::sloppy_pro_forma(
+        peptide_reverse: Option<Peptidoform<SemiAmbiguous>>, | location: Location, custom_database: Option<&CustomDatabase>|
+            location.trim_start_matches("['").trim_end_matches("']").or_empty().map(|location| Peptidoform::sloppy_pro_forma(
                 location.full_line(),
                 location.location.clone(),
                 custom_database,

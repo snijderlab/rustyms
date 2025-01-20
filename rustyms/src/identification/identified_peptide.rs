@@ -19,13 +19,13 @@ use crate::{
         SpectrumSequenceListData,
     },
     ontologies::CustomDatabase,
-    peptide::{SemiAmbiguous, SimpleLinear},
+    peptidoform::{SemiAmbiguous, SimpleLinear},
     system::usize::Charge,
     system::{OrderedTime, Time},
-    Fragment, LinearPeptide, Peptidoform,
+    Peptidoform, PeptidoformIon,
 };
 
-use super::CompoundPeptidoform;
+use super::CompoundPeptidoformIon;
 
 /// A peptide that is identified by a de novo or database matching program
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -80,20 +80,20 @@ pub enum MetaData {
 #[derive(Debug, Clone)]
 pub enum ReturnedPeptide<'a> {
     /// A semi ambiguous linear peptide
-    LinearSemiAmbiguous(&'a LinearPeptide<SemiAmbiguous>),
+    LinearSemiAmbiguous(&'a Peptidoform<SemiAmbiguous>),
     /// A simple linear peptide
-    LinearSimpleLinear(&'a LinearPeptide<SimpleLinear>),
+    LinearSimpleLinear(&'a Peptidoform<SimpleLinear>),
     /// A (potentially) cross-linked peptidoform
-    Peptidoform(&'a Peptidoform),
+    Peptidoform(&'a PeptidoformIon),
     /// A (potentially) cross-linked chimeric set of peptidoforms
-    CompoundPeptidoform(Cow<'a, CompoundPeptidoform>),
+    CompoundPeptidoform(Cow<'a, CompoundPeptidoformIon>),
 }
 
 impl MultiChemical for ReturnedPeptide<'_> {
     fn formulas_inner(
         &self,
         _sequence_index: super::SequencePosition,
-        _peptide_index: usize,
+        _peptidoform_index: usize,
     ) -> super::Multi<super::MolecularFormula> {
         match self {
             Self::LinearSemiAmbiguous(p) => p.formulas(),
@@ -118,7 +118,7 @@ impl std::fmt::Display for ReturnedPeptide<'_> {
 #[allow(dead_code)]
 impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying peptide, or None if the underlying result was a peptidoform
-    pub fn peptide(self) -> Option<Cow<'a, LinearPeptide<SimpleLinear>>> {
+    pub fn peptide(self) -> Option<Cow<'a, Peptidoform<SimpleLinear>>> {
         match self {
             Self::LinearSemiAmbiguous(p) => Some(Cow::Owned(p.clone().into())),
             Self::LinearSimpleLinear(p) => Some(Cow::Borrowed(p)),
@@ -126,7 +126,7 @@ impl<'a> ReturnedPeptide<'a> {
         }
     }
     /// Get the underlying result as a peptidoform, if it was a peptide make a new peptidoform from it
-    pub fn peptidoform(self) -> Option<Cow<'a, Peptidoform>> {
+    pub fn peptidoform(self) -> Option<Cow<'a, PeptidoformIon>> {
         match self {
             Self::LinearSemiAmbiguous(p) => Some(Cow::Owned(p.clone().into())),
             Self::LinearSimpleLinear(p) => Some(Cow::Owned(p.clone().into())),
@@ -135,7 +135,7 @@ impl<'a> ReturnedPeptide<'a> {
         }
     }
     /// Get the underlying result as a compound peptidoform, if it was a peptide make a new peptidoform from it
-    pub fn compound_peptidoform(self) -> Cow<'a, CompoundPeptidoform> {
+    pub fn compound_peptidoform(self) -> Cow<'a, CompoundPeptidoformIon> {
         match self {
             Self::LinearSemiAmbiguous(p) => Cow::Owned(p.clone().into()),
             Self::LinearSimpleLinear(p) => Cow::Owned(p.clone().into()),
@@ -670,14 +670,14 @@ impl IdentifiedPeptide {
         }
     }
 
-    /// Get the matched fragments, potentially with m/z and intensity
-    #[doc(hidden)]
-    pub fn matched_fragments(
-        &self,
-    ) -> Option<Vec<(Option<MassOverCharge>, Option<f64>, Fragment)>> {
-        // OPair, MaxQuant, PLGS
-        None
-    }
+    // Get the matched fragments, potentially with m/z and intensity
+    // #[doc(hidden)]
+    // pub fn matched_fragments(
+    //     &self,
+    // ) -> Option<Vec<(Option<MassOverCharge>, Option<f64>, Fragment)>> {
+    //     // OPair, MaxQuant, PLGS
+    //     None
+    // }
 }
 
 /// Multiple spectrum identifiers
@@ -1006,7 +1006,7 @@ pub fn test_identified_peptide(
     }
     if !allow_mass_mods
         && peptide.peptide().is_some_and(|p| {
-            p.compound_peptidoform().peptides().any(|p| {
+            p.compound_peptidoform().peptidoforms().any(|p| {
                 p.sequence().iter().any(|s| {
                     s.modifications.iter().any(|m| {
                         m.simple().is_some_and(|m| {
@@ -1025,8 +1025,8 @@ pub fn test_identified_peptide(
     }
     if let Err(err) = peptide.peptide().map_or(Ok(()), |p| {
         p.compound_peptidoform()
-            .peptides()
-            .try_for_each(LinearPeptide::enforce_modification_rules)
+            .peptidoforms()
+            .try_for_each(Peptidoform::enforce_modification_rules)
     }) {
         return Err(format!(
             "Peptide {} contains misplaced modifications, sequence {}\n{}",

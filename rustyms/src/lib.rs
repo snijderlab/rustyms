@@ -54,7 +54,7 @@ mod multi;
 mod mzpaf;
 mod neutral_loss;
 pub mod ontologies;
-pub mod peptide;
+pub mod peptidoform;
 pub mod placement_rule;
 mod protease;
 #[cfg(feature = "rand")]
@@ -77,7 +77,7 @@ pub use crate::modification::{CrossLinkName, Modification};
 pub use crate::molecular_charge::MolecularCharge;
 pub use crate::multi::*;
 pub use crate::neutral_loss::*;
-pub use crate::peptide::*;
+pub use crate::peptidoform::*;
 pub use crate::protease::*;
 pub use crate::sequence_element::SequenceElement;
 pub use crate::sequence_position::*;
@@ -86,7 +86,7 @@ pub use crate::tolerance::*;
 pub use aminoacids::AminoAcid;
 pub use checked_aminoacid::CheckedAminoAcid;
 pub use fragment::Fragment;
-pub use peptide::{CompoundPeptidoform, LinearPeptide, Peptidoform};
+pub use peptidoform::{CompoundPeptidoformIon, Peptidoform, PeptidoformIon};
 
 #[macro_use]
 extern crate uom;
@@ -98,7 +98,7 @@ mod test {
 
     #[test]
     fn simple_fragments() {
-        let peptide = LinearPeptide::pro_forma("WFWF", None)
+        let peptide = Peptidoform::pro_forma("WFWF", None)
             .unwrap()
             .into_linear()
             .unwrap();
@@ -114,7 +114,7 @@ mod test {
     fn simple_matching() {
         let model = Model::all();
         let spectrum = rawfile::mgf::open("data/example.mgf").unwrap();
-        let peptide = CompoundPeptidoform::pro_forma("WFWF", None).unwrap();
+        let peptide = CompoundPeptidoformIon::pro_forma("WFWF", None).unwrap();
         let fragments = peptide
             .generate_theoretical_fragments(system::usize::Charge::new::<system::e>(1), &model);
         let annotated = spectrum[0].annotate(peptide, &fragments, &model, MassMode::Monoisotopic);

@@ -8,9 +8,9 @@ use crate::{
         CrossLinkName, LinkerSpecificity, Modification, RulePossible, SimpleModification,
         SimpleModificationInner,
     },
-    peptide::{AtLeast, Linked},
+    peptidoform::{AtLeast, Linked},
     placement_rule::PlacementRule,
-    CheckedAminoAcid, DiagnosticIon, LinearPeptide, MolecularFormula, Multi, MultiChemical,
+    CheckedAminoAcid, DiagnosticIon, Peptidoform, MolecularFormula, Multi, MultiChemical,
     SequencePosition,
 };
 use serde::{Deserialize, Serialize};
@@ -140,12 +140,12 @@ impl<T> SequenceElement<T> {
     #[allow(clippy::filter_map_bool_then, clippy::too_many_arguments)] // has side effects
     pub(crate) fn formulas_base(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
@@ -160,7 +160,7 @@ impl<T> SequenceElement<T> {
                         applied_cross_links,
                         allow_ms_cleavable,
                         sequence_index,
-                        peptide_index,
+                        peptidoform_index,
                     ))
                 }
             })
@@ -168,7 +168,7 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptide_index) * formula,
+            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
             seen,
         )
     }
@@ -178,12 +178,12 @@ impl<T> SequenceElement<T> {
     pub(crate) fn formulas_greedy(
         &self,
         placed: &mut [bool],
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
@@ -197,7 +197,7 @@ impl<T> SequenceElement<T> {
                         placed[*id] = true;
                         (
                             modification
-                                .formula_inner(sequence_index, peptide_index)
+                                .formula_inner(sequence_index, peptidoform_index)
                                 .into(),
                             HashSet::default(),
                         )
@@ -209,7 +209,7 @@ impl<T> SequenceElement<T> {
                         applied_cross_links,
                         allow_ms_cleavable,
                         sequence_index,
-                        peptide_index,
+                        peptidoform_index,
                     ))
                 }
             })
@@ -217,7 +217,7 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptide_index) * formula,
+            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
             seen,
         )
     }
@@ -225,12 +225,12 @@ impl<T> SequenceElement<T> {
     /// Get the molecular formulas for this position with all ambiguous modifications, without any global isotype modifications
     pub(crate) fn formulas_all(
         &self,
-        all_peptides: &[LinearPeptide<Linked>],
+        all_peptides: &[Peptidoform<Linked>],
         visited_peptides: &[usize],
         applied_cross_links: &mut Vec<CrossLinkName>,
         allow_ms_cleavable: bool,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> (Multi<MolecularFormula>, HashSet<CrossLinkName>) {
         let (formula, seen) = self
             .modifications
@@ -242,14 +242,14 @@ impl<T> SequenceElement<T> {
                     applied_cross_links,
                     allow_ms_cleavable,
                     sequence_index,
-                    peptide_index,
+                    peptidoform_index,
                 )
             })
             .fold((Multi::default(), HashSet::new()), |(am, av), (m, v)| {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptide_index) * formula,
+            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
             seen,
         )
     }

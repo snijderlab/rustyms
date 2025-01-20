@@ -3,8 +3,8 @@ use std::fmt::Write;
 
 use itertools::Itertools;
 use rustyms::align::AlignScoring;
-use rustyms::peptide::{Annotation, Region};
-use rustyms::LinearPeptide;
+use rustyms::peptidoform::{Annotation, Region};
+use rustyms::Peptidoform;
 use rustyms::UnAmbiguous;
 
 use crate::imgt_gene::IMGTGene;
@@ -294,7 +294,7 @@ impl std::fmt::Display for TemporaryGermline {
 #[derive(Debug, PartialEq, Eq)]
 struct TemporarySequence {
     acc: Vec<String>,
-    sequence: LinearPeptide<UnAmbiguous>,
+    sequence: Peptidoform<UnAmbiguous>,
     regions: HashMap<Vec<(Region, usize)>, Vec<usize>>,
     annotations: HashMap<Vec<(Annotation, usize)>, Vec<usize>>,
     dna: HashMap<String, Vec<usize>>,

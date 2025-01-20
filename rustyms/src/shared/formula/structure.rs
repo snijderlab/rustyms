@@ -33,7 +33,7 @@ pub enum AmbiguousLabel {
         /// What location in the sequence are we talking about
         sequence_index: usize,
         /// Peptide index
-        peptide_index: usize,
+        peptidoform_index: usize,
     },
     /// A ambiguous modification, with the actual position
     Modification {
@@ -42,7 +42,7 @@ pub enum AmbiguousLabel {
         /// Which location
         sequence_index: SequencePosition,
         /// Peptide index
-        peptide_index: usize,
+        peptidoform_index: usize,
     },
     /// The actual charge used, when there are multiple charge carriers
     ChargeCarrier(MolecularFormula),
@@ -64,7 +64,7 @@ pub trait Chemical {
     fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula;
 }
 
@@ -72,10 +72,10 @@ impl<T: Chemical> Chemical for &[T] {
     fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
         self.iter()
-            .map(|f| f.formula_inner(sequence_index, peptide_index))
+            .map(|f| f.formula_inner(sequence_index, peptidoform_index))
             .sum()
     }
 }
@@ -84,10 +84,10 @@ impl<T: Chemical> Chemical for &Vec<T> {
     fn formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> MolecularFormula {
         self.iter()
-            .map(|f| f.formula_inner(sequence_index, peptide_index))
+            .map(|f| f.formula_inner(sequence_index, peptidoform_index))
             .sum()
     }
 }
@@ -104,7 +104,7 @@ pub trait MultiChemical {
     fn formulas_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Multi<MolecularFormula>;
 
     /// Get the charge of this chemical, it returns None if no charge is defined.
@@ -126,9 +126,9 @@ pub trait MultiChemical {
     fn single_formula_inner(
         &self,
         sequence_index: SequencePosition,
-        peptide_index: usize,
+        peptidoform_index: usize,
     ) -> Option<MolecularFormula> {
-        let formulas = self.formulas_inner(sequence_index, peptide_index);
+        let formulas = self.formulas_inner(sequence_index, peptidoform_index);
         (formulas.len() == 1).then_some(formulas.to_vec().pop().unwrap())
     }
 }

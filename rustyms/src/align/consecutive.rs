@@ -2,7 +2,7 @@ use crate::{
     align::AlignScoring,
     align::*,
     imgt::*,
-    peptide::{AnnotatedPeptide, AtMax, Region, SimpleLinear, UnAmbiguous},
+    peptidoform::{AnnotatedPeptide, AtMax, Region, SimpleLinear, UnAmbiguous},
     *,
 };
 use std::collections::HashSet;
@@ -28,7 +28,7 @@ impl<'lifetime, A> ConsecutiveAlignment<'lifetime, A> {
 impl<A: AtMax<Linear>> ConsecutiveAlignment<'_, A> {
     /// Break up in the main alignment into the regions as annotated in the alleles.
     #[allow(clippy::missing_panics_doc)]
-    pub fn regions(&self) -> Vec<(LinearPeptide<A>, Region)> {
+    pub fn regions(&self) -> Vec<(Peptidoform<A>, Region)> {
         let mut b_offset = 0;
         self.alignments
             .iter()
@@ -84,7 +84,7 @@ impl<A: AtMax<Linear>> ConsecutiveAlignment<'_, A> {
 /// If there are not two or more genes listed. If the return number is 0.
 #[allow(clippy::needless_pass_by_value)]
 pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear>>(
-    sequence: &LinearPeptide<A>,
+    sequence: &Peptidoform<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
@@ -149,7 +149,7 @@ pub fn par_consecutive_align<
     const STEPS: u16,
     A: AtMax<SimpleLinear> + AtMax<Linear> + Send + Sync,
 >(
-    sequence: &LinearPeptide<A>,
+    sequence: &Peptidoform<A>,
     genes: &[(GeneType, AlignType)],
     species: Option<HashSet<Species, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
     chains: Option<HashSet<ChainType, impl std::hash::BuildHasher + Clone + Send + Sync + Default>>,
