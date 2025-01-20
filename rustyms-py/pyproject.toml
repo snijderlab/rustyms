@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rustyms"
-requires-python = ">=3.19,<3.14"
+requires-python = ">=3.9,<3.14"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Programming Language :: Rust",
