@@ -610,6 +610,7 @@ impl IdentifiedPeptide {
             | MetaData::DeepNovoFamily(_)
             | MetaData::InstaNovo(_)
             | MetaData::PowerNovo(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::PepNet(_) => None,
         }
     }
@@ -630,6 +631,7 @@ impl IdentifiedPeptide {
             | MetaData::Fasta(_)
             | MetaData::PowerNovo(_)
             | MetaData::DeepNovoFamily(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::InstaNovo(_)
             | MetaData::PepNet(_) => None,
         }
@@ -666,6 +668,7 @@ impl IdentifiedPeptide {
             | MetaData::NovoB(_)
             | MetaData::Fasta(_)
             | MetaData::PowerNovo(_)
+            | MetaData::SpectrumSequenceList(_)
             | MetaData::PepNet(_) => None,
         }
     }
