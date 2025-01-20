@@ -7,18 +7,18 @@ A peptide fragmentation matching library for Rust. Built to handle very complex 
 
 ## Features
 
- - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences (complete specification supported: 'level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
- - Generate theoretical fragments with control over the fragmentation model from any ProForma peptidoform/proteoform
+ - Read [ProForma](https://github.com/HUPO-PSI/ProForma) sequences (complete 2.0 specification supported: 'level 2-ProForma + top-down compliant + cross-linking compliant + glycans compliant + mass spectrum compliant')
+ - Generate theoretical fragments with control over the fragmentation model from any ProForma peptidoform
    - Generate theoretical fragments for chimeric spectra
    - Generate theoretical fragments for cross-links (also disulfides)
    - Generate theoretical fragments for modifications of unknown position
-   - Generate peptide backbone (a, b, c, x, y, and z) and satellite ion fragments (w, d, and v)
+   - Generate peptide backbone (a, b, c, x, y, and z) and satellite ion fragments (d, v, and w)
    - Generate glycan fragments (B, Y, and internal fragments)
  - Integrated with [mzdata](https://crates.io/crates/mzdata) for reading raw data files
  - Match spectra to the generated fragments
  - [Align peptides based on mass](https://pubs.acs.org/doi/10.1021/acs.jproteome.4c00188)
  - Fast access to the IMGT database of antibody germlines
- - Reading of multiple identified peptide file formats (Fasta, MaxQuant, MSFragger, Novor, OPair, Peaks, and Sage)
+ - Reading of multiple identified peptide file formats (among others: Fasta, MaxQuant, MSFragger, Novor, OPair, Peaks, and Sage)
  - Exhaustively fuzz tested for reliability (using [cargo-afl](https://crates.io/crates/cargo-afl))
  - Extensive use of [uom](https://docs.rs/uom/latest/uom/) for compile time unit checking
  - Python bindings are provided to several core components of the rustyms library. Go to the [Python documentation](https://rustyms.readthedocs.io/) for more information.

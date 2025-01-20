@@ -16,7 +16,7 @@ package.authors = [
 package.edition = "2021"
 package.license = "MIT OR Apache-2.0"
 package.rust-version = "1.75.0"
-package.version = "0.9.0-alpha.3"
+package.version = "0.9.0"
 
 [profile.release]
 debug = true
@@ -29,7 +29,7 @@ codegen-units = 1
 afl = "0.15"
 bincode = "1.3"
 clap = { version = "4.5", features = ["derive", "cargo"] }
-directories = "5.0"
+directories = "6.0"
 flate2 = "1.0"
 iai-callgrind = "0.14"
 itertools = "0.14"
