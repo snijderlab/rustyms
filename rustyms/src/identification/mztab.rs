@@ -17,7 +17,7 @@ use crate::{
     modification::SimpleModification,
     ontologies::CustomDatabase,
     system::{usize::Charge, MassOverCharge, Time},
-    AminoAcid, Peptidoform, PeptideModificationSearch, ReturnModification, SemiAmbiguous,
+    AminoAcid, PeptideModificationSearch, Peptidoform, ReturnModification, SemiAmbiguous,
     SloppyParsingParameters, Tolerance,
 };
 

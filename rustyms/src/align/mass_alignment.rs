@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::{
     peptidoform::{AtMax, SimpleLinear},
     system::Mass,
-    Peptidoform, MassMode, MolecularFormula, Multi, SequenceElement, SequencePosition,
+    MassMode, MolecularFormula, Multi, Peptidoform, SequenceElement, SequencePosition,
     WithinTolerance,
 };
 

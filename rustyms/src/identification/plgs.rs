@@ -5,7 +5,7 @@ use crate::{
     ontologies::CustomDatabase,
     peptidoform::SimpleLinear,
     system::{usize::Charge, Mass, MassOverCharge, Time},
-    AminoAcid, Peptidoform, Modification, MolecularFormula, NeutralLoss,
+    AminoAcid, Modification, MolecularFormula, NeutralLoss, Peptidoform,
 };
 use serde::{Deserialize, Serialize};
 

@@ -8,8 +8,7 @@ use crate::{
     peptidoform::SimpleLinear,
     placement_rule::{PlacementRule, Position},
     system::{fraction, Mass, Ratio},
-    AminoAcid, Chemical, Peptidoform, SemiAmbiguous, SequenceElement, SequencePosition,
-    Tolerance,
+    AminoAcid, Chemical, Peptidoform, SemiAmbiguous, SequenceElement, SequencePosition, Tolerance,
 };
 
 /// A list of building blocks for a sequence defined by its sequence elements and its mass.
@@ -315,10 +314,7 @@ impl IsobaricSetIterator {
     /// If the base sequence is empty.
     fn peptide(&self) -> Peptidoform<SimpleLinear> {
         let mut sequence = Vec::with_capacity(
-            self.base
-                .as_ref()
-                .map(Peptidoform::len)
-                .unwrap_or_default()
+            self.base.as_ref().map(Peptidoform::len).unwrap_or_default()
                 + self.state.2.len()
                 + usize::from(self.state.0.is_some())
                 + usize::from(self.state.1.is_some()),

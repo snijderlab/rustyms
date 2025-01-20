@@ -721,13 +721,13 @@ impl<Complexity> Peptidoform<Complexity> {
                             } = m
                             {
                                 (*mid == id).then(|| {
-                                    modification.formula_inner(*pos, peptidoform_index).with_label(
-                                        AmbiguousLabel::Modification {
+                                    modification
+                                        .formula_inner(*pos, peptidoform_index)
+                                        .with_label(AmbiguousLabel::Modification {
                                             id,
                                             sequence_index: *pos,
                                             peptidoform_index,
-                                        },
-                                    )
+                                        })
                                 })
                             } else {
                                 None
@@ -856,7 +856,10 @@ impl<Complexity> Peptidoform<Complexity> {
                     .flat_map(|m| {
                         self.sequence[sequence_index]
                             .aminoacid
-                            .formulas_inner(SequencePosition::Index(sequence_index), peptidoform_index)
+                            .formulas_inner(
+                                SequencePosition::Index(sequence_index),
+                                peptidoform_index,
+                            )
                             .iter()
                             .flat_map(|aa| {
                                 Fragment::generate_all(
@@ -1032,8 +1035,12 @@ impl<Complexity> Peptidoform<Complexity> {
             peptidoform_index,
         );
         if apply_neutral_losses {
-            let neutral_losses =
-                self.potential_neutral_losses(range, all_peptides, peptidoform_index, &mut Vec::new());
+            let neutral_losses = self.potential_neutral_losses(
+                range,
+                all_peptides,
+                peptidoform_index,
+                &mut Vec::new(),
+            );
             let mut all_masses =
                 Vec::with_capacity(ambiguous_mods_masses.len() * (1 + neutral_losses.len()));
             all_masses.extend(ambiguous_mods_masses.iter().cloned());

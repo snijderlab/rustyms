@@ -9,7 +9,7 @@ use crate::{
     },
     peptidoform::Linked,
     system::usize::Charge,
-    Fragment, Peptidoform, Model, MolecularCharge, MolecularFormula, Multi, SequencePosition,
+    Fragment, Model, MolecularCharge, MolecularFormula, Multi, Peptidoform, SequencePosition,
 };
 /// A single peptidoform ion, can contain multiple peptidoforms
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize, Hash)]

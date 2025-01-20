@@ -76,9 +76,10 @@ impl PositionedGlycanStructure {
                         .flat_map(move |(f, bonds)| {
                             full_formula.iter().map(move |full| {
                                 Fragment::new(
-                                    full - self
-                                        .formula_inner(SequencePosition::default(), peptidoform_index)
-                                        + f,
+                                    full - self.formula_inner(
+                                        SequencePosition::default(),
+                                        peptidoform_index,
+                                    ) + f,
                                     Charge::zero(),
                                     peptidoform_ion_index,
                                     peptidoform_index,
@@ -128,9 +129,9 @@ impl PositionedGlycanStructure {
             true,
         );
         output.extend(
-            self.branches
-                .iter()
-                .flat_map(|b| b.diagnostic_ions(peptidoform_ion_index, peptidoform_index, attachment)),
+            self.branches.iter().flat_map(|b| {
+                b.diagnostic_ions(peptidoform_ion_index, peptidoform_index, attachment)
+            }),
         );
 
         output
@@ -178,11 +179,9 @@ impl PositionedGlycanStructure {
                 }),
         );
         // Extend with the theoretical fragments for all branches of this position
-        base_fragments.extend(
-            self.branches
-                .iter()
-                .flat_map(|b| b.oxonium_fragments(peptidoform_ion_index, peptidoform_index, attachment)),
-        );
+        base_fragments.extend(self.branches.iter().flat_map(|b| {
+            b.oxonium_fragments(peptidoform_ion_index, peptidoform_index, attachment)
+        }));
         base_fragments
     }
 

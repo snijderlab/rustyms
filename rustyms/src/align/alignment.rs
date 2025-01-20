@@ -18,9 +18,9 @@ use crate::peptidoform::AtMax;
 use crate::peptidoform::Linear;
 use crate::system::Mass;
 use crate::system::Ratio;
-use crate::Peptidoform;
 use crate::MolecularFormula;
 use crate::Multi;
+use crate::Peptidoform;
 use crate::SequencePosition;
 use crate::SimpleLinear;
 
@@ -597,7 +597,7 @@ mod tests {
     use crate::{
         align::{align, AlignScoring, AlignType},
         peptidoform::SimpleLinear,
-        AminoAcid, Peptidoform, MultiChemical,
+        AminoAcid, MultiChemical, Peptidoform,
     };
 
     #[test]

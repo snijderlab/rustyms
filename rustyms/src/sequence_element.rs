@@ -10,7 +10,7 @@ use crate::{
     },
     peptidoform::{AtLeast, Linked},
     placement_rule::PlacementRule,
-    CheckedAminoAcid, DiagnosticIon, Peptidoform, MolecularFormula, Multi, MultiChemical,
+    CheckedAminoAcid, DiagnosticIon, MolecularFormula, Multi, MultiChemical, Peptidoform,
     SequencePosition,
 };
 use serde::{Deserialize, Serialize};
@@ -168,7 +168,9 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
+            self.aminoacid
+                .formulas_inner(sequence_index, peptidoform_index)
+                * formula,
             seen,
         )
     }
@@ -217,7 +219,9 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
+            self.aminoacid
+                .formulas_inner(sequence_index, peptidoform_index)
+                * formula,
             seen,
         )
     }
@@ -249,7 +253,9 @@ impl<T> SequenceElement<T> {
                 (am * m, av.union(&v).cloned().collect())
             });
         (
-            self.aminoacid.formulas_inner(sequence_index, peptidoform_index) * formula,
+            self.aminoacid
+                .formulas_inner(sequence_index, peptidoform_index)
+                * formula,
             seen,
         )
     }

@@ -46,8 +46,9 @@ impl AnnotatedSpectrum {
                         self.internal_fdr(
                             mzs.iter()
                                 .filter_map(|(mz, pi, ppi)| {
-                                    (*pi == Some(peptidoform_ion_index) && *ppi == Some(peptidoform_index))
-                                        .then_some(*mz)
+                                    (*pi == Some(peptidoform_ion_index)
+                                        && *ppi == Some(peptidoform_index))
+                                    .then_some(*mz)
                                 })
                                 .collect_vec()
                                 .as_slice(),

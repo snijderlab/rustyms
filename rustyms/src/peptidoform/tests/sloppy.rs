@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     modification::{Ontology, SimpleModificationInner},
-    parse_sloppy_test, Peptidoform, Modification, SemiAmbiguous, SloppyParsingParameters,
+    parse_sloppy_test, Modification, Peptidoform, SemiAmbiguous, SloppyParsingParameters,
 };
 
 #[test]

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use crate::{
     error::{Context, CustomError},
     modification::{AmbiguousLookup, CrossLinkName, SimpleModification},
-    Peptidoform, Modification, PeptidoformIon, SequencePosition,
+    Modification, Peptidoform, PeptidoformIon, SequencePosition,
 };
 
 use super::{GlobalModification, Linear};
