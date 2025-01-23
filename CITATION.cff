@@ -1,0 +1,37 @@
+title: rustyms
+version: 0.9.0
+abstract:  A rust library for parsing Pro Forma peptides and matching them against MS spectra .
+authors:
+  - affiliation: Utrecht University
+    family-names: Schulte
+    given-names: Douwe
+    orcid: https://orcid.org/0000-0003-0594-0993
+  - affiliation: VIB-UGent Center for Medical Biotechnology
+    family-names: Gabriels
+    given-names: Ralf
+    orcid: https://orcid.org/0000-0002-1679-1711
+  - affiliation: Utrecht University
+    family-names: Heerdink
+    given-names: Auke
+cff-version: 1.2.0
+identifiers:
+  - description: Main paper (preprint)
+    type: doi
+    value: 10.1101/2025.01.18.633732 
+  - description: Mass alignment algorithm paper
+    type: doi
+    value: 10.1021/acs.jproteome.4c00188
+  - description: Mass alignment algorithm paper (preprint)
+    type: url
+    value: https://www.biorxiv.org/content/10.1101/2024.02.20.581155v1
+  - description: Repository
+    type: url
+    value: https://github.com/snijderlab/rustyms
+keywords:
+  - sequencing
+  - antibody
+  - mass-spectrometry
+  - de novo
+license: MIT OR Apache-2.0
+message: If you use this software, please cite it using these metadata.
+repository-code: https://github.com/snijderlab/rustyms
