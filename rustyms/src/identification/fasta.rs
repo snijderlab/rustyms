@@ -29,6 +29,18 @@ pub struct FastaData {
     annotations: Vec<(Annotation, usize)>,
 }
 
+impl std::cmp::Ord for FastaData {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.line_index.cmp(&other.line_index)
+    }
+}
+
+impl std::cmp::PartialOrd for FastaData {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl AnnotatedPeptide for FastaData {
     type Complexity = SemiAmbiguous;
     fn peptide(&self) -> &Peptidoform<SemiAmbiguous> {

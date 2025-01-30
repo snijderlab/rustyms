@@ -347,7 +347,7 @@ impl MolecularFormula {
     }
 }
 
-/// A selection of ions that together define the charge of a peptide.
+/// A selection of ions that together define the charge of a peptidoform.
 #[pyclass]
 pub struct MolecularCharge(rustyms::MolecularCharge);
 
@@ -608,7 +608,7 @@ impl Modification {
     }
 }
 
-/// A theoretical fragment of a peptide.
+/// A theoretical fragment of a peptidoform.
 #[pyclass]
 #[derive(Debug)]
 pub struct Fragment(rustyms::Fragment);
@@ -660,7 +660,7 @@ impl Fragment {
         FragmentType(self.0.ion.clone())
     }
 
-    /// The peptide this fragment comes from, saved as the index into the list of peptides in the overarching crate::ComplexPeptide struct.
+    /// The peptidoform this fragment comes from, saved as the index into the list of peptidoforms in the overarching crate::PeptidoformIon struct.
     ///
     /// Returns
     /// -------
@@ -671,7 +671,7 @@ impl Fragment {
         self.0.peptidoform_index
     }
 
-    /// The peptidoform this fragment comes from, saved as the index into the list of peptides in the overarching crate::ComplexPeptide struct.
+    /// The peptidoform ion this fragment comes from, saved as the index into the list of peptidoform ions in the overarching crate::CompoundPeptidoformIon struct.
     ///
     /// Returns
     /// -------
@@ -827,7 +827,7 @@ impl SequencePosition {
         matches!(self, SequencePosition(rustyms::SequencePosition::CTerm))
     }
 }
-/// A compound peptidoform with all data as provided by ProForma 2.0.
+/// A compound peptidoform ion with all data as provided by ProForma 2.0.
 ///
 /// Parameters
 /// ----------
@@ -836,46 +836,46 @@ impl SequencePosition {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct CompoundPeptidoform(rustyms::CompoundPeptidoformIon);
+pub struct CompoundPeptidoformIon(rustyms::CompoundPeptidoformIon);
 
 #[pymethods]
-impl CompoundPeptidoform {
-    /// Create a new peptide from a ProForma string.
+impl CompoundPeptidoformIon {
+    /// Create a new compound peptidoform ion from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
         rustyms::CompoundPeptidoformIon::pro_forma(proforma, None)
-            .map(CompoundPeptidoform)
+            .map(CompoundPeptidoformIon)
             .map_err(CustomError)
     }
 
-    /// Create a new peptide from a peptidoform.
+    /// Create a new compound peptidoform ion from a peptidoform ion.
+    #[staticmethod]
+    fn from_peptidoform_ion(peptidoform: PeptidoformIon) -> Self {
+        CompoundPeptidoformIon(peptidoform.0.into())
+    }
+
+    /// Create a new compound peptidoform ion from a peptidoform.
     #[staticmethod]
     fn from_peptidoform(peptidoform: Peptidoform) -> Self {
-        CompoundPeptidoform(peptidoform.0.into())
+        CompoundPeptidoformIon(peptidoform.0.into())
     }
 
-    /// Create a new peptide from a linear peptide.
-    #[staticmethod]
-    fn from_peptide(peptide: LinearPeptide) -> Self {
-        CompoundPeptidoform(peptide.0.into())
-    }
-
-    /// Get all peptidoforms making up this compound peptidoform.
+    /// Get all peptidoform ions making up this compound peptidoform.
     ///
     /// Returns
     /// -------
-    /// List[Peptidoform]
+    /// List[PeptidoformIon]
     ///
     #[getter]
-    fn peptidoforms(&self) -> Vec<Peptidoform> {
+    fn peptidoform_ions(&self) -> Vec<PeptidoformIon> {
         self.0
             .peptidoform_ions()
             .iter()
-            .map(|p| Peptidoform(p.clone()))
+            .map(|p| PeptidoformIon(p.clone()))
             .collect()
     }
 
-    /// Generate the theoretical fragments for this compound peptidoform, with the given maximal charge of the fragments,
+    /// Generate the theoretical fragments for this compound peptidoform ion, with the given maximal charge of the fragments,
     /// and the given model. With the global isotope modifications applied.
     ///
     /// Parameters
@@ -911,11 +911,97 @@ impl CompoundPeptidoform {
     }
 
     fn __repr__(&self) -> String {
-        format!("CompoundPeptidoform({})", self.0)
+        format!("CompoundPeptidoformIon({})", self.0)
     }
 
     fn __len__(&self) -> usize {
         self.0.peptidoform_ions().len()
+    }
+}
+
+/// A peptidoform ion with all data as provided by ProForma 2.0.
+///
+/// Parameters
+/// ----------
+/// proforma : str
+///     The ProForma string.
+///
+#[pyclass]
+#[derive(Clone)]
+pub struct PeptidoformIon(rustyms::PeptidoformIon);
+
+#[pymethods]
+impl PeptidoformIon {
+    /// Create a new peptidoform ion from a ProForma string. Panics
+    #[new]
+    fn new(proforma: &str) -> Result<Self, CustomError> {
+        rustyms::PeptidoformIon::pro_forma(proforma, None)
+            .map(PeptidoformIon)
+            .map_err(CustomError)
+    }
+
+    /// Create a new peptidoform ion from a peptidoform.
+    #[staticmethod]
+    fn from_peptidoform(peptidoform: Peptidoform) -> Self {
+        PeptidoformIon(peptidoform.0.clone().into())
+    }
+
+    /// Get all peptidoforms making up this peptidoform ion.
+    ///
+    /// Returns
+    /// -------
+    /// List[Peptidoform]
+    ///
+    #[getter]
+    fn peptidoforms(&self) -> Vec<Peptidoform> {
+        self.0
+            .peptidoforms()
+            .iter()
+            .map(|p| Peptidoform(p.clone()))
+            .collect()
+    }
+
+    /// Generate the theoretical fragments for this peptidoform ion, with the given maximal charge of the fragments,
+    /// and the given model. With the global isotope modifications applied.
+    ///
+    /// Parameters
+    /// ----------
+    /// max_charge : int
+    ///     The maximal charge of the fragments.
+    /// model : FragmentationModel
+    ///     The model to use for the fragmentation.
+    ///
+    /// Returns
+    /// -------
+    /// list[Fragment]
+    ///   The theoretical fragments.
+    ///
+    fn generate_theoretical_fragments(
+        &self,
+        max_charge: usize,
+        model: &FragmentationModel,
+    ) -> PyResult<Vec<Fragment>> {
+        Ok(self
+            .0
+            .generate_theoretical_fragments(
+                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
+                &match_model(model)?,
+            )
+            .iter()
+            .map(|f| Fragment(f.clone()))
+            .collect())
+    }
+
+    fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PeptidoformIon({})", self.0)
+    }
+
+    fn __len__(&self) -> usize {
+        self.0.peptidoforms().len()
     }
 }
 
@@ -928,68 +1014,16 @@ impl CompoundPeptidoform {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct Peptidoform(rustyms::PeptidoformIon);
+pub struct Peptidoform(rustyms::Peptidoform<Linked>);
 
 #[pymethods]
 impl Peptidoform {
-    /// Create a new peptidoform from a ProForma string. Panics
+    /// Create a new peptidoform from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::PeptidoformIon::pro_forma(proforma, None)
+        rustyms::Peptidoform::pro_forma(proforma, None)
             .map(Peptidoform)
             .map_err(CustomError)
-    }
-
-    /// Create a new peptidoform from a linear peptide.
-    #[staticmethod]
-    fn from_peptide(peptide: LinearPeptide) -> Self {
-        Peptidoform(peptide.0.clone().into())
-    }
-
-    /// Get all peptides making up this peptidoform.
-    ///
-    /// Returns
-    /// -------
-    /// List[LinearPeptide]
-    ///
-    #[getter]
-    fn peptides(&self) -> Vec<LinearPeptide> {
-        self.0
-            .peptidoforms()
-            .iter()
-            .map(|p| LinearPeptide(p.clone()))
-            .collect()
-    }
-
-    /// Generate the theoretical fragments for this peptidoform, with the given maximal charge of the fragments,
-    /// and the given model. With the global isotope modifications applied.
-    ///
-    /// Parameters
-    /// ----------
-    /// max_charge : int
-    ///     The maximal charge of the fragments.
-    /// model : FragmentationModel
-    ///     The model to use for the fragmentation.
-    ///
-    /// Returns
-    /// -------
-    /// list[Fragment]
-    ///   The theoretical fragments.
-    ///
-    fn generate_theoretical_fragments(
-        &self,
-        max_charge: usize,
-        model: &FragmentationModel,
-    ) -> PyResult<Vec<Fragment>> {
-        Ok(self
-            .0
-            .generate_theoretical_fragments(
-                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
-                &match_model(model)?,
-            )
-            .iter()
-            .map(|f| Fragment(f.clone()))
-            .collect())
     }
 
     fn __str__(&self) -> String {
@@ -998,40 +1032,6 @@ impl Peptidoform {
 
     fn __repr__(&self) -> String {
         format!("Peptidoform({})", self.0)
-    }
-
-    fn __len__(&self) -> usize {
-        self.0.peptidoforms().len()
-    }
-}
-
-/// A peptide with all data as provided by ProForma 2.0.
-///
-/// Parameters
-/// ----------
-/// proforma : str
-///     The ProForma string.
-///
-#[pyclass]
-#[derive(Clone)]
-pub struct LinearPeptide(rustyms::Peptidoform<Linked>);
-
-#[pymethods]
-impl LinearPeptide {
-    /// Create a new peptide from a ProForma string.
-    #[new]
-    fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::Peptidoform::pro_forma(proforma, None)
-            .map(LinearPeptide)
-            .map_err(CustomError)
-    }
-
-    fn __str__(&self) -> String {
-        self.0.to_string()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("LinearPeptide({})", self.0)
     }
 
     fn __len__(&self) -> usize {
@@ -1083,7 +1083,7 @@ impl LinearPeptide {
             .collect()
     }
 
-    /// Sequence of the peptide including modifications.
+    /// Sequence of the peptidoform including modifications.
     ///
     /// Returns
     /// -------
@@ -1128,7 +1128,7 @@ impl LinearPeptide {
             .collect()
     }
 
-    /// The precursor charge of the peptide.
+    /// The precursor charge of the peptidoform.
     ///
     /// Returns
     /// -------
@@ -1152,17 +1152,17 @@ impl LinearPeptide {
             .map(|c| MolecularCharge(c.clone()))
     }
 
-    /// Get a copy of the peptide with its sequence reversed.
+    /// Get a copy of the peptidoform with its sequence reversed.
     ///
     /// Returns
     /// -------
-    /// LinearPeptide
+    /// Peptidoform
     ///
-    fn reverse(&self) -> LinearPeptide {
-        LinearPeptide(self.0.reverse())
+    fn reverse(&self) -> Peptidoform {
+        Peptidoform(self.0.reverse())
     }
 
-    /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
+    /// Gives the formulas for the whole peptidoform. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
     ///
     /// Returns
     /// -------
@@ -1177,7 +1177,7 @@ impl LinearPeptide {
         })
     }
 
-    /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
+    /// Generate the theoretical fragments for this peptidoform, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
     ///
     /// Parameters
     /// ----------
@@ -1479,12 +1479,12 @@ impl RawSpectrum {
         self.0.clone().into_iter().map(RawPeak).collect()
     }
 
-    /// Annotate this spectrum with the given peptide
+    /// Annotate this spectrum with the given peptidoform
     ///
     /// Parameters
     /// ----------
-    /// peptide : CompoundPeptide
-    ///     The peptide to annotate the spectrum with.
+    /// peptidoform : CompoundPeptidoformIon
+    ///     The peptidoform to annotate the spectrum with.
     /// model : FragmentationModel
     ///     The model to use for the fragmentation.
     /// mode : MassMode
@@ -1500,22 +1500,22 @@ impl RawSpectrum {
     /// ValueError
     ///     If the model is not one of the valid models.
     ///
-    #[pyo3(signature = (peptide, model, mode=&MassMode::Monoisotopic))]
+    #[pyo3(signature = (peptidoform, model, mode=&MassMode::Monoisotopic))]
     fn annotate(
         &self,
-        peptide: CompoundPeptidoform,
+        peptidoform: CompoundPeptidoformIon,
         model: &FragmentationModel,
         mode: &MassMode,
     ) -> PyResult<AnnotatedSpectrum> {
         let rusty_model = match_model(model)?;
-        let fragments = peptide.0.generate_theoretical_fragments(
+        let fragments = peptidoform.0.generate_theoretical_fragments(
             self.0
                 .charge
                 .unwrap_or(rustyms::system::usize::Charge::new::<rustyms::system::e>(1)),
             &rusty_model,
         );
         Ok(AnnotatedSpectrum(self.0.annotate(
-            peptide.0,
+            peptidoform.0,
             &fragments,
             &rusty_model,
             match mode {
@@ -1622,18 +1622,18 @@ fn rustyms_py03(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AminoAcid>()?;
     m.add_class::<AnnotatedPeak>()?;
     m.add_class::<AnnotatedSpectrum>()?;
-    m.add_class::<CompoundPeptidoform>()?;
+    m.add_class::<CompoundPeptidoformIon>()?;
     m.add_class::<CustomError>()?;
     m.add_class::<Element>()?;
     m.add_class::<Fragment>()?;
     m.add_class::<FragmentationModel>()?;
     m.add_class::<FragmentType>()?;
-    m.add_class::<LinearPeptide>()?;
+    m.add_class::<Peptidoform>()?;
     m.add_class::<MassMode>()?;
     m.add_class::<Modification>()?;
     m.add_class::<MolecularCharge>()?;
     m.add_class::<MolecularFormula>()?;
-    m.add_class::<Peptidoform>()?;
+    m.add_class::<PeptidoformIon>()?;
     m.add_class::<RawPeak>()?;
     m.add_class::<RawSpectrum>()?;
     m.add_class::<SequenceElement>()?;
