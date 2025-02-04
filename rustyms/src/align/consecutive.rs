@@ -27,7 +27,7 @@ impl<'lifetime, A> ConsecutiveAlignment<'lifetime, A> {
 
 impl<A: AtMax<Linear>> ConsecutiveAlignment<'_, A> {
     /// Break up in the main alignment into the regions as annotated in the alleles.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn regions(&self) -> Vec<(Peptidoform<A>, Region)> {
         let mut b_offset = 0;
         self.alignments
@@ -82,7 +82,7 @@ impl<A: AtMax<Linear>> ConsecutiveAlignment<'_, A> {
 /// If the sequence is too short to cover all genes only the genes that could be matched are returned.
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value)]
 pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear>>(
     sequence: &Peptidoform<A>,
     genes: &[(GeneType, AlignType)],
@@ -144,7 +144,7 @@ pub fn consecutive_align<const STEPS: u16, A: AtMax<SimpleLinear> + AtMax<Linear
 /// # Panics
 /// If there are not two or more genes listed. If the return number is 0.
 #[cfg(feature = "rayon")]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value)]
 pub fn par_consecutive_align<
     const STEPS: u16,
     A: AtMax<SimpleLinear> + AtMax<Linear> + Send + Sync,

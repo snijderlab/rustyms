@@ -77,7 +77,6 @@ impl ChargePoint {
 /// A model for the fragmentation, allowing control over what theoretical fragments to generate.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[allow(clippy::struct_excessive_bools)]
 pub struct Model {
     /// a series ions
     pub a: PrimaryIonSeries,
@@ -238,7 +237,6 @@ impl GlycanModel {
 }
 
 /// A struct to handle all possible fragments that could be generated on a single location
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 #[non_exhaustive]
 pub struct PossibleIons<'a> {
@@ -786,7 +784,7 @@ impl Location {
 }
 
 #[test]
-#[allow(clippy::missing_panics_doc, clippy::similar_names)]
+#[expect(clippy::missing_panics_doc, clippy::similar_names)]
 fn location_all() {
     let all = Model::all();
     let ions_n0 = all.ions(PeptidePosition::n(crate::SequencePosition::default(), 2));

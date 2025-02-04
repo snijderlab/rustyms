@@ -13,7 +13,7 @@ impl MolecularFormula {
     /// This approximation slightly overestimates the tail end of the distribution. Especially
     /// for species with multiple higher mass isotopes as it does not take the number of already
     /// chosen atom for lower weighed isotopes into account.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn isotopic_distribution(&self, threshold: f64) -> Array1<f64> {
         let mut result = arr1(&[1.0]);
         for (element, isotope, amount) in self.elements() {

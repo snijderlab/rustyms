@@ -90,7 +90,7 @@ impl From<DeepNovoFamilyData> for IdentifiedPeptide {
 }
 
 /// Interpolate the local confidence when the confidence between AAs is used instead of the confidence of a single AA
-#[allow(clippy::needless_pass_by_value)] // The return value will replace the given value, so moving is fine
+#[expect(clippy::needless_pass_by_value)] // The return value will replace the given value, so moving is fine
 fn interpolate_lc(local_confidence: Vec<f64>) -> Vec<f64> {
     let mut reinterpolated = Vec::with_capacity(local_confidence.len() + 1);
 
@@ -131,7 +131,7 @@ pub const POINTNOVOFAMILY: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
 
 /// All possible DeepNovoFamily versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum DeepNovoFamilyVersion {
     #[default]
     /// DeepNovo version 0.0.1

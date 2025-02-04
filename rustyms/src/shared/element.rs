@@ -250,7 +250,7 @@ pub enum Element {
 
 impl TryFrom<&str> for Element {
     type Error = ();
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value.to_ascii_lowercase().as_str() {
             "h" => Ok(Self::H),
@@ -378,7 +378,7 @@ impl TryFrom<&str> for Element {
 
 impl TryFrom<usize> for Element {
     type Error = ();
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::Electron),
@@ -506,7 +506,7 @@ impl TryFrom<usize> for Element {
 }
 
 impl std::fmt::Display for Element {
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -787,6 +787,6 @@ pub const COMMON_ELEMENT_PARSE_LIST: &[(&str, Element)] = &[
     ("p", Element::P),
 ];
 
-#[allow(clippy::redundant_pub_crate)]
+#[expect(clippy::redundant_pub_crate)]
 /// The shared type to send the data from all the elements from build time to compile time
 pub(crate) type ElementalData = Vec<(Option<Mass>, Option<Mass>, Vec<(u16, Mass, f64)>)>;

@@ -90,7 +90,7 @@ pub const SSL: SpectrumSequenceListFormat = SpectrumSequenceListFormat {
 
 /// All possible SpectrumSequenceList versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum SpectrumSequenceListVersion {
     #[default]
     /// SSL file format

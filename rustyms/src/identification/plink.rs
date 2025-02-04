@@ -137,7 +137,7 @@ format_family!(
         raw_file: PathBuf, |location: Location, _| Ok(Some(location.get_string().into()));
     }
 
-    #[allow(clippy::similar_names)]
+    #[expect(clippy::similar_names)]
     fn post_process(source: &CsvLine, mut parsed: Self, custom_database: Option<&CustomDatabase>) -> Result<Self, CustomError> {
         // Add all modifications
         let pep1 = parsed.peptidoform.peptidoforms()[0].len();

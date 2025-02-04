@@ -97,7 +97,7 @@ impl PeptidoformIon {
     }
 
     /// Set the charge carriers
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn set_charge_carriers(&mut self, charge_carriers: Option<MolecularCharge>) {
         for peptide in &mut self.0 {
             peptide.set_charge_carriers(charge_carriers.clone());

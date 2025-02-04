@@ -271,7 +271,7 @@ pub const O_PAIR: OpairFormat = OpairFormat {
 };
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum OpairMatchKind {
     #[default]
     Decoy,

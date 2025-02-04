@@ -128,7 +128,7 @@ pub fn open_identified_peptides_file<'a>(
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 #[cfg(test)]
 mod tests {
     use super::*;

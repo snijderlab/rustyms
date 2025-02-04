@@ -99,9 +99,9 @@ where
     }
 }
 
-impl<'a, M> Add<M> for Multi<M>
+impl<M> Add<M> for Multi<M>
 where
-    M: Add<M, Output = M> + Clone + 'a,
+    M: Add<M, Output = M> + Clone,
 {
     type Output = Self;
     /// Adds this formula to all formulas in the multi formula
@@ -145,9 +145,9 @@ where
     }
 }
 
-impl<'a, M> Sub<M> for Multi<M>
+impl<M> Sub<M> for Multi<M>
 where
-    M: Sub<M, Output = M> + Clone + 'a,
+    M: Sub<M, Output = M> + Clone,
 {
     type Output = Self;
     /// Subtracts this formula from all formulas in the multi formula
@@ -173,7 +173,7 @@ where
     }
 }
 
-impl<'a, M> Mul<&'a Self> for Multi<M>
+impl<M> Mul<&Self> for Multi<M>
 where
     M: Add<M, Output = M> + Clone,
 {
@@ -235,9 +235,9 @@ where
     }
 }
 
-impl<'a, M> MulAssign<Self> for Multi<M>
+impl<M> MulAssign<Self> for Multi<M>
 where
-    M: Add<M, Output = M> + 'a + Clone,
+    M: Add<M, Output = M> + Clone,
 {
     fn mul_assign(&mut self, rhs: Self) {
         let new_data = self
@@ -314,7 +314,7 @@ impl<'a, M: Clone + 'a> std::iter::FromIterator<&'a M> for Multi<M> {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 impl crate::Multi<crate::MolecularFormula> {
     pub(crate) fn with_labels(self, labels: &[crate::AmbiguousLabel]) -> Self {
         Self(

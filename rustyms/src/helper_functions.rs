@@ -24,7 +24,6 @@ pub fn peptide_range_contains(
 pub trait ResultExtensions<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.
-    #[allow(dead_code)]
     fn flat_err(self) -> Result<T, E>;
 }
 
@@ -49,7 +48,6 @@ impl<T, E> ResultExtensions<T, E> for Result<Result<T, E>, E> {
 pub trait InvertResult<T, E> {
     /// # Errors
     /// If any of the errors contained within has an error.
-    #[allow(dead_code)]
     fn invert(self) -> Result<Option<T>, E>;
 }
 
@@ -173,7 +171,6 @@ impl RangeMaths<usize> for Range<usize> {
 
 /// # Errors
 /// If the name cannot be recognised or a number is not valid.
-#[allow(dead_code)]
 pub fn parse_named_counter<T: Clone>(
     value: &str,
     names: &[(String, T)],
@@ -249,7 +246,6 @@ pub fn check_extension(filename: impl AsRef<Path>, extension: impl AsRef<Path>) 
         .is_some_and(|ext| ext.eq_ignore_ascii_case(extension.as_ref()))
 }
 
-#[allow(dead_code)]
 /// Get the index of the next copy of the given char (looking at the byte value, does not guarantee full character)
 pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     for (i, ch) in chars[start..].iter().enumerate() {
@@ -260,7 +256,6 @@ pub fn next_char(chars: &[u8], start: usize, char: u8) -> Option<usize> {
     None
 }
 
-#[allow(dead_code)]
 /// Find the enclosed text by the given symbols, assumes a single open is already read just before the start, guarantees to only pick full characters
 pub fn end_of_enclosure(text: &str, start: usize, open: u8, close: u8) -> Option<usize> {
     let mut state = 1;
@@ -280,7 +275,6 @@ pub fn end_of_enclosure(text: &str, start: usize, open: u8, close: u8) -> Option
     None
 }
 
-#[allow(dead_code)]
 /// Find the enclosed text by the given symbols, assumes a single open is already read just before the start.
 /// This also takes brackets '[]' into account and these take precedence over the enclosure searched for.
 pub fn end_of_enclosure_with_brackets(
@@ -317,7 +311,6 @@ pub fn end_of_enclosure_with_brackets(
     None
 }
 
-#[allow(dead_code)]
 /// Get the next number, returns length in bytes and the number.
 /// # Panics
 /// If the text is not valid UTF-8.
@@ -356,7 +349,6 @@ pub fn next_num(chars: &[u8], mut start: usize, allow_only_sign: bool) -> Option
 /// A number of characters, used as length or index
 pub type Characters = usize;
 
-#[allow(dead_code)]
 /// Get the next number starting at the character range given, returns length in characters and the number.
 /// # Errors
 /// Returns none if the number is too big to fit in a `isize`.

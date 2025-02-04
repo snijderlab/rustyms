@@ -19,7 +19,7 @@ use super::{
 /// The [`AlignType`] controls the alignment behaviour, global/local or anything in between.
 /// # Panics
 /// It panics when the length of `seq_a` or `seq_b` is bigger than [`isize::MAX`].
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 pub fn align<'lifetime, const STEPS: u16, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
     seq_a: &'lifetime Peptidoform<A>,
     seq_b: &'lifetime Peptidoform<B>,
@@ -263,7 +263,7 @@ fn score<A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>>(
                 })
             }
         };
-        #[allow(clippy::cast_possible_wrap)]
+        #[expect(clippy::cast_possible_wrap)]
         let local = scoring.mass_base as isize
             + if rotated {
                 scoring.rotated as isize * a.0.len() as isize
@@ -361,7 +361,7 @@ impl Matrix {
         }
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn global_start(&mut self, is_a: bool, scoring: AlignScoring<'_>) {
         let max = if is_a { self.a } else { self.b };
         for index in 0..=max {
@@ -480,7 +480,7 @@ impl std::ops::IndexMut<[usize; 2]> for Matrix {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use super::score;
     use crate::align::scoring::AlignScoring;

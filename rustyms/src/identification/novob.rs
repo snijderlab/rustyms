@@ -26,7 +26,7 @@ static NUMBER_ERROR: (&str, &str) = (
 static PARAMETERS_LOCK: OnceLock<SloppyParsingParameters> = OnceLock::new();
 
 /// Global parsing parameters
-#[allow(clippy::missing_panics_doc)] // These modifications exist
+#[expect(clippy::missing_panics_doc)] // These modifications exist
 fn parameters() -> &'static SloppyParsingParameters {
     PARAMETERS_LOCK.get_or_init(|| SloppyParsingParameters {
         custom_alphabet: vec![
@@ -143,7 +143,7 @@ pub const NOVOB_V0_0_1: NovoBFormat = NovoBFormat {
 
 /// All possible NovoB versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum NovoBVersion {
     #[default]
     /// NovoB version 0.0.1

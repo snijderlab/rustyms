@@ -44,7 +44,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 /// A region on an antibody
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
 pub enum Region {
     Framework(usize),

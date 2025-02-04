@@ -234,7 +234,7 @@ impl PeptideModificationSearch {
     }
 
     /// Search for modifications that can be replaced by named modifications in this peptide.
-    #[allow(clippy::similar_names)]
+    #[expect(clippy::similar_names)]
     pub fn search<Complexity>(
         &mut self,
         mut peptide: Peptidoform<Complexity>,
@@ -402,7 +402,7 @@ impl PeptideModificationSearch {
         }
     }
 
-    #[allow(clippy::missing_panics_doc, clippy::too_many_arguments)]
+    #[expect(clippy::missing_panics_doc, clippy::too_many_arguments)]
     fn find_replacement_uncached(
         mass_mode: MassMode,
         tolerance: Tolerance<Mass>,
@@ -486,7 +486,7 @@ impl PeptideModificationSearch {
 }
 
 #[test]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 fn test_replacement() {
     let mut search = PeptideModificationSearch::in_ontologies(vec![Ontology::Unimod], None)
         .replace_formulas(true);

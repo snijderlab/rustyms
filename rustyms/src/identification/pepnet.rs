@@ -64,7 +64,7 @@ pub const PEPNET_V1_0: PepNetFormat = PepNetFormat {
 
 /// All possible PepNet versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum PepNetVersion {
     #[default]
     /// PepNet version 1.0

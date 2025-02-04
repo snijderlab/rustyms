@@ -19,7 +19,7 @@ impl From<&MolecularFormula> for OrderedMass {
 
 impl MolecularFormula {
     /// The mass of the molecular formula of this element, if all element species (isotopes) exists
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn monoisotopic_mass(&self) -> Mass {
         let mut mass = da(*self.additional_mass);
         for (e, i, n) in &self.elements {
@@ -32,7 +32,7 @@ impl MolecularFormula {
     }
 
     /// The average weight of the molecular formula of this element, if all element species (isotopes) exists
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn average_weight(&self) -> Mass {
         let mut mass = da(*self.additional_mass); // Technically this is wrong, the additional mass is defined to be monoisotopic
         for (e, i, n) in &self.elements {
@@ -49,7 +49,6 @@ impl MolecularFormula {
     /// but will be in the form of monoisotopic exact mass + n, where n is the integer dalton offset for that isomer.
     ///
     /// Only available with crate feature 'isotopes'.
-    #[allow(clippy::missing_panics_doc)]
     #[cfg(feature = "isotopes")]
     pub fn most_abundant_mass(&self) -> Mass {
         let isotopes = self.isotopic_distribution(0.01);
@@ -146,7 +145,7 @@ impl std::fmt::Display for AmbiguousLabel {
     }
 }
 
-#[allow(clippy::missing_panics_doc)] // Cannot panic
+#[expect(clippy::missing_panics_doc)] // Cannot panic
 fn to_subscript_num(input: isize) -> String {
     let text = input.to_string();
     let mut output = String::new();
@@ -160,7 +159,7 @@ fn to_subscript_num(input: isize) -> String {
     output
 }
 
-#[allow(clippy::missing_panics_doc)] // Cannot panic
+#[expect(clippy::missing_panics_doc)] // Cannot panic
 fn to_superscript_num(input: u16) -> String {
     let text = input.to_string();
     let mut output = String::new();
@@ -186,7 +185,7 @@ impl std::fmt::Display for MolecularFormula {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
         model::ChargeRange, molecular_formula, AminoAcid, Fragment, MolecularCharge,
@@ -292,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::similar_names)]
+    #[expect(clippy::similar_names)]
     fn labels() {
         let labelled = AminoAcid::AmbiguousAsparagine.formulas();
         let unlabelled: crate::Multi<MolecularFormula> =

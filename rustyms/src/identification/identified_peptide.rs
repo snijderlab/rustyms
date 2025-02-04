@@ -40,7 +40,7 @@ pub struct IdentifiedPeptide {
 
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant, clippy::upper_case_acronyms)]
+#[expect(clippy::large_enum_variant, clippy::upper_case_acronyms)]
 pub enum MetaData {
     /// DeepNovo/PointNovo/PGPointNovo metadata
     DeepNovoFamily(DeepNovoFamilyData),
@@ -115,7 +115,7 @@ impl std::fmt::Display for ReturnedPeptide<'_> {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying peptide, or None if the underlying result was a peptidoform
     pub fn peptide(self) -> Option<Cow<'a, Peptidoform<SimpleLinear>>> {
@@ -807,7 +807,7 @@ where
     /// Allow post processing of the peptide
     /// # Errors
     /// On errors in the post processing, format specific
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     fn post_process(
         source: &Self::Source,
         parsed: Self,
@@ -925,7 +925,7 @@ where
 /// # Errors
 /// * If the peptide was not identified as the correct version of the format (see parameters).
 /// * See errors at``test_identified_peptide()``
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 #[cfg(test)]
 pub fn test_format<T: IdentifiedPeptideSource + Into<IdentifiedPeptide>>(
     reader: impl std::io::Read,
@@ -967,7 +967,7 @@ where
 /// * If the score of the peptide is outside of the range -1.0..=1.0.
 /// * If any of the local scores is outside of range -1.0..=1.0.
 /// * If the peptide contains mass modifications (see parameters).
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 #[cfg(test)]
 pub fn test_identified_peptide(
     peptide: &IdentifiedPeptide,

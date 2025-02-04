@@ -65,7 +65,7 @@ pub enum Context {
     },
 }
 
-#[allow(clippy::needless_pass_by_value, dead_code)] // the impl ToString should be passed like this, otherwise &str gives errors
+#[expect(clippy::needless_pass_by_value)] // the impl ToString should be passed like this, otherwise &str gives errors
 impl Context {
     /// Creates a new context when no context can be given
     pub const fn none() -> Self {
@@ -135,7 +135,7 @@ impl Context {
     }
 
     /// Creates a new context to highlight a certain position
-    #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
+    #[expect(clippy::unwrap_used, clippy::missing_panics_doc)]
     pub fn position(pos: &FilePosition<'_>) -> Self {
         if pos.text.is_empty() {
             Self::Line {
@@ -227,7 +227,7 @@ impl Context {
     fn display(&self, f: &mut fmt::Formatter<'_>, note: Option<&str>) -> fmt::Result {
         const MAX_COLS: usize = 95;
         let mut tail = true; // End with a tailing line ╵
-        #[allow(
+        #[expect(
             clippy::cast_sign_loss,
             clippy::cast_precision_loss,
             clippy::cast_possible_truncation
@@ -330,7 +330,7 @@ impl Context {
                 write!(f, "\n{:pad$} ╷", "", pad = margin)?;
                 let mut number = *start_linenumber + 1;
                 let mut highlights_peek = highlights.iter().peekable();
-                #[allow(unused)]
+
                 for (index, line) in lines.iter().enumerate() {
                     number += 1;
                     write!(f, "\n{number:<margin$} │ {line}")?;

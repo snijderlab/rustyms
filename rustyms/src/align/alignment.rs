@@ -115,7 +115,7 @@ impl<A, B> Ord for Alignment<'_, A, B> {
 
 impl<'lifetime, A: AtMax<SimpleLinear>, B: AtMax<SimpleLinear>> Alignment<'lifetime, A, B> {
     /// Recreate an alignment from a path, the path is [`Self::short`].
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn create_from_path(
         seq_a: &'lifetime Peptidoform<A>,
         seq_b: &'lifetime Peptidoform<B>,
@@ -436,7 +436,7 @@ impl<A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'_, A, B> {
 
     /// Get the mass delta for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn mass_difference(&self) -> Mass {
         self.mass_a()
             .iter()
@@ -448,7 +448,7 @@ impl<A: AtMax<Linear>, B: AtMax<Linear>> Alignment<'_, A, B> {
 
     /// Get the error in ppm for this match, if it is a (partial) local match it will only take the matched amino acids into account.
     /// If there are multiple possible masses for any of the stretches it returns the smallest difference.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn ppm(&self) -> Ratio {
         self.mass_a()
             .iter()
@@ -592,7 +592,7 @@ pub struct Score {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use crate::{
         align::{align, AlignScoring, AlignType},

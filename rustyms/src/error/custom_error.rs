@@ -5,7 +5,7 @@ use std::error;
 use std::fmt;
 
 /// An error. Stored as a pointer to a structure on the heap to prevent large sizes which could be
-/// detremental to performance for the happy path.
+/// detrimental to performance for the happy path.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Eq, Hash)]
 pub struct CustomError {
     content: Box<InnerError>,
@@ -29,7 +29,7 @@ struct InnerError {
     underlying_errors: Vec<CustomError>,
 }
 
-#[allow(clippy::needless_pass_by_value, dead_code)] // The impl ToString should be passed like this, otherwise &str gives errors
+#[expect(clippy::needless_pass_by_value)] // The impl ToString should be passed like this, otherwise &str gives errors
 impl CustomError {
     /// Create a new `CustomError`.
     ///
@@ -233,7 +233,7 @@ impl fmt::Display for CustomError {
 impl error::Error for CustomError {}
 
 #[cfg(test)]
-#[allow(clippy::print_stdout, clippy::missing_panics_doc)]
+#[expect(clippy::print_stdout, clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use crate::error::FilePosition;

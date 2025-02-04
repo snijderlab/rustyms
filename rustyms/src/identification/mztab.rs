@@ -263,7 +263,7 @@ impl MZTabData {
     /// Parse a single PSM line
     /// # Errors
     /// When not in the correct format
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     fn from_line(
         line: PSMLine<'_>,
         global_modifications: &[SimpleModification],
@@ -799,7 +799,7 @@ impl std::str::FromStr for CVTerm {
 }
 
 /// The reliability of a PSM
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub enum PSMReliability {
     High,
@@ -819,7 +819,7 @@ impl std::fmt::Display for PSMReliability {
 }
 
 /// A basic structure for a mzTab file line
-#[allow(clippy::upper_case_acronyms)]
+#[expect(clippy::upper_case_acronyms)]
 enum MZTabLine {
     /// Metadata line
     MTD(usize, String, Vec<Range<usize>>),

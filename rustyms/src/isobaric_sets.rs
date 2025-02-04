@@ -119,7 +119,7 @@ pub fn building_blocks(
                 )
             })
             .flat_map(|(a, m)| {
-                #[allow(clippy::redundant_clone)] // not redundant
+                #[expect(clippy::redundant_clone)] // not redundant
                 let mc = m.clone();
                 a.formulas_all(
                     &[],
@@ -498,7 +498,7 @@ impl Iterator for IsobaricSetIterator {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
 
     use super::*;

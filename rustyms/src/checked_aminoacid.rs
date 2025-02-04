@@ -18,7 +18,7 @@ pub struct CheckedAminoAcid<T> {
     marker: PhantomData<T>,
 }
 
-#[allow(non_upper_case_globals, missing_docs)]
+#[expect(non_upper_case_globals, missing_docs)]
 impl CheckedAminoAcid<UnAmbiguous> {
     pub const A: Self = Self::Alanine;
     pub const C: Self = Self::Cysteine;
@@ -215,7 +215,7 @@ impl CheckedAminoAcid<UnAmbiguous> {
     ];
 }
 
-#[allow(non_upper_case_globals, missing_docs)]
+#[expect(non_upper_case_globals, missing_docs)]
 impl CheckedAminoAcid<SemiAmbiguous> {
     pub const B: Self = Self::AmbiguousAsparagine;
     pub const Z: Self = Self::AmbiguousGlutamine;

@@ -78,7 +78,7 @@ impl RawSpectrum {
     }
 
     /// Filter a spectrum by dividing it in windows and within each window only retain the `top` number of peaks.
-    #[allow(clippy::missing_panics_doc)] // Cannot panic as it checks with peek first
+    #[expect(clippy::missing_panics_doc)] // Cannot panic as it checks with peek first
     pub fn top_x_filter(&mut self, window_size: f64, top: usize) {
         let mut new_spectrum = Vec::with_capacity(
             self.spectrum

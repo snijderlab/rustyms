@@ -67,7 +67,7 @@ pub struct MolecularCharge {
 
 impl MolecularCharge {
     /// Create a default charge state with only protons
-    #[allow(clippy::missing_panics_doc)] // Cannot panic
+    #[expect(clippy::missing_panics_doc)] // Cannot panic
     pub fn proton(charge: isize) -> Self {
         Self {
             charge_carriers: vec![(
@@ -227,7 +227,7 @@ impl std::fmt::Display for MolecularCharge {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use crate::Chemical;
 

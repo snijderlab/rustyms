@@ -615,7 +615,7 @@ impl<Complexity> Peptidoform<Complexity> {
     /// The global isotope modifications are NOT applied.
     /// Additionally it also returns all peptides present as cross-link.
     // TODO: support limit and colocalise
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn ambiguous_patterns(
         &self,
         range: impl RangeBounds<usize>,
@@ -1011,7 +1011,7 @@ impl<Complexity> Peptidoform<Complexity> {
     /// Generate all potential masses for the given stretch of amino acids alongside all peptides seen as part of a cross-link.
     /// Applies ambiguous amino acids and modifications, and neutral losses (if allowed in the model).
     // TODO: take terminal ambiguous into account
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn all_masses(
         &self,
         range: impl RangeBounds<usize> + Clone,
@@ -1059,7 +1059,7 @@ impl<Complexity> Peptidoform<Complexity> {
     }
 
     /// Gives all the formulas for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    #[allow(clippy::missing_panics_doc)] // Global isotope mods are guaranteed to be correct
+    #[expect(clippy::missing_panics_doc)] // Global isotope mods are guaranteed to be correct
     fn bare_formulas_inner(
         &self,
         all_peptides: &[Peptidoform<Linked>],
@@ -1446,7 +1446,7 @@ impl<Complexity: AtMax<Linear>> Peptidoform<Complexity> {
     }
 
     /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
+    #[expect(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn formulas(&self) -> Multi<MolecularFormula> {
         let mut formulas: Multi<MolecularFormula> =
             self.get_n_term_mass(&[], &[], &mut Vec::new(), false, 0)
@@ -1480,7 +1480,7 @@ impl<Complexity: AtMax<Linear>> Peptidoform<Complexity> {
 
 impl Peptidoform<UnAmbiguous> {
     /// Gives the formula for the whole peptide. With the global isotope modifications applied.
-    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
+    #[expect(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn formula(&self) -> MolecularFormula {
         let mut options = self
             .formulas_inner(0, &[], &[], &mut Vec::new(), false)
@@ -1491,7 +1491,7 @@ impl Peptidoform<UnAmbiguous> {
     }
 
     /// Gives the formula for the whole peptide with no C and N terminal modifications. With the global isotope modifications applied.
-    #[allow(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
+    #[expect(clippy::missing_panics_doc)] // Can not panic (unless state is already corrupted)
     pub fn bare_formula(&self) -> MolecularFormula {
         let mut options = self
             .bare_formulas_inner(&[], &[], &mut Vec::new(), false, 0)

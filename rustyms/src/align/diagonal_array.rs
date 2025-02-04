@@ -45,7 +45,7 @@ impl<T> DiagonalArray<T> {
     /// # Safety
     /// This function assumes the index to be valid. Not upholding this does an out of bounds unsafe [`[T]::get_unchecked_mut`].
     /// A debug assertion hold up this promise on debug builds.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub unsafe fn get_unchecked_mut(&mut self, index: [usize; 2]) -> &mut T {
         debug_assert!(self.validate_indices(index));
         let index = Self::length(index[0], self.max_depth) + index[1];
@@ -84,7 +84,7 @@ impl<T> std::ops::IndexMut<[usize; 2]> for DiagonalArray<T> {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use super::DiagonalArray;
 

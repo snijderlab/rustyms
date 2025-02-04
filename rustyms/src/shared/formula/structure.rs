@@ -8,6 +8,7 @@ use std::{
     num::NonZeroU16,
     ops::{Add, AddAssign, Mul, Neg, Sub},
 };
+use thin_vec::ThinVec;
 
 /// A molecular formula, a selection of elements of specified isotopes together forming a structure
 #[allow(clippy::unsafe_derive_deserialize)]
@@ -15,12 +16,12 @@ use std::{
 pub struct MolecularFormula {
     /// Save all constituent parts as the element in question, the isotope (or None for natural distribution), and the number of this part
     /// The elements will be sorted on element/isotope and deduplicated, guaranteed to only contain valid isotopes.
-    pub(in super::super) elements: Vec<(crate::Element, Option<NonZeroU16>, i32)>,
+    pub(in super::super) elements: ThinVec<(crate::Element, Option<NonZeroU16>, i32)>,
     /// Any addition mass, defined to be monoisotopic
     pub(in super::super) additional_mass: OrderedFloat<f64>,
     /// The labels of sources of ambiguity/multiplicity
     #[serde(default)]
-    pub(in super::super) labels: Vec<AmbiguousLabel>,
+    pub(in super::super) labels: ThinVec<AmbiguousLabel>,
 }
 
 /// Keep track of what ambiguous option is used
@@ -53,9 +54,9 @@ pub enum AmbiguousLabel {
 }
 
 /// Any item that has a clearly defined single molecular formula
-#[allow(dead_code)]
 pub trait Chemical {
     /// Get the molecular formula
+    #[allow(dead_code)]
     fn formula(&self) -> MolecularFormula {
         self.formula_inner(SequencePosition::default(), 0)
     }
@@ -93,7 +94,6 @@ impl<T: Chemical> Chemical for &Vec<T> {
 }
 
 /// Any item that has a number of potential chemical formulas
-#[allow(dead_code)]
 pub trait MultiChemical {
     /// Get all possible molecular formulas
     fn formulas(&self) -> Multi<MolecularFormula> {
@@ -123,6 +123,7 @@ pub trait MultiChemical {
     }
 
     /// Return a single formula if this `MultiChemical` has only one possible formula while keeping track of all ambiguous labels
+    #[allow(dead_code)]
     fn single_formula_inner(
         &self,
         sequence_index: SequencePosition,
@@ -143,9 +144,9 @@ impl MolecularFormula {
             None
         } else {
             let result = Self {
-                elements: elements.to_vec(),
+                elements: elements.into(),
                 additional_mass: 0.0.into(),
-                labels: labels.to_vec(),
+                labels: labels.into(),
             };
             Some(result.simplify())
         }
@@ -177,28 +178,27 @@ impl MolecularFormula {
                 index += 1;
             }
         }
-        self.elements.retain(|el| el.2 != 0);
+        self.elements
+            .retain(|el: &(Element, Option<std::num::NonZero<u16>>, i32)| el.2 != 0);
         self
     }
 
     /// Get an empty molecular formula with only a mass of unspecified origin
-    pub const fn with_additional_mass(additional_mass: f64) -> Self {
+    pub fn with_additional_mass(additional_mass: f64) -> Self {
         Self {
-            elements: Vec::new(),
+            elements: ThinVec::new(),
             additional_mass: OrderedFloat(additional_mass),
-            labels: Vec::new(),
+            labels: ThinVec::new(),
         }
     }
 
     /// Add the following labels to this formula
-    #[allow(dead_code)]
     pub(crate) fn with_labels(mut self, labels: &[AmbiguousLabel]) -> Self {
         self.labels.extend_from_slice(labels);
         self
     }
 
     /// Add the following label to this formula
-    #[allow(dead_code)]
     pub(crate) fn with_label(mut self, label: AmbiguousLabel) -> Self {
         self.labels.push(label);
         self

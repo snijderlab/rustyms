@@ -124,7 +124,7 @@ impl AminoAcid {
 
     /// All losses from the base immonium ions. Compiled from the sources below.
     ///
-    /// | AA  | [Wikipedia](https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Amino_acid_fragment_ions.png/400px-Amino_acid_fragment_ions.png) |  0.1016/1044-0305(93)87006-X  | [ionsource](https://www.ionsource.com/Card/immon/immon.htm) | [10.1002/chin.199624319](http://dx.doi.org/10.1002/chin.199624319) | [Prospector   (MS-Comp)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=mscomp) | [10.1186/1477-5956-9-2](http://dx.doi.org/10.1186/1477-5956-9-2) |  10.1016/j.ymeth.2004.08.013   | 10.1385/1597452750 (table 5)  | 10.1021/ac902712f  | [Prospector   (MS-Product)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=msproduct) | [ThermoFisher](https://tools.thermofisher.com/content/sfs/brochures/cms_040030.pdf) | 10.1074/mcp.O113.035915 | 10.1074/mcp.O113.035915 | 10.1021/ac902712f | [Prospector   (MS-Product)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=msproduct) |  | 10.1385/1597452750 (table 5) | Sources | Best mass | Best formula | Loss     | Loss formula | Interpreted loss | Interpreted formula     | Final      |
+    /// | AA    | [Wikipedia](https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Amino_acid_fragment_ions.png/400px-Amino_acid_fragment_ions.png) |  0.1016/1044-0305(93)87006-X  | [ionsource](https://www.ionsource.com/Card/immon/immon.htm) | [10.1002/chin.199624319](http://dx.doi.org/10.1002/chin.199624319) | [Prospector   (MS-Comp)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=mscomp) | [10.1186/1477-5956-9-2](http://dx.doi.org/10.1186/1477-5956-9-2) |  10.1016/j.ymeth.2004.08.013   | 10.1385/1597452750 (table 5)  | 10.1021/ac902712f  | [Prospector   (MS-Product)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=msproduct) | [ThermoFisher](https://tools.thermofisher.com/content/sfs/brochures/cms_040030.pdf) | 10.1074/mcp.O113.035915 | 10.1074/mcp.O113.035915 | 10.1021/ac902712f | [Prospector   (MS-Product)](https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=msproduct) |  | 10.1385/1597452750 (table 5) | Sources | Best mass | Best formula | Loss     | Loss formula | Interpreted loss | Interpreted formula     | Final      |
     /// |-------|---------------------------------------------------------------------------------------------------------------------------|-----------------------------|------------------------------------------------|------------------------------------------|-----------------------------------------------------------------------|-----------------------------------------|-----------------------------|------------------------------|-------------------|--------------------------------------------------------------------------|---------------------------------------------------------------------|-------------------------|-------------------------|-------------------|--------------------------------------------------------------------------|------------------------------|---------|----------:|--------------|----------|--------------|------------------|-------------------------|------------|
     /// | A     | 44                                                                                                                        | 44                          |                                                | 44                                       |                                                                       | 44                                      |                             | 44.05                        |                   |                                                                          | 44.0500                                                             |                         |                         |                   |                                                                          |                              | 6       |   44.0500 |              |          |              |                  |                         |            |
     /// | R     | 129                                                                                                                       | 129                         |                                                | 129                                      |                                                                       | 129                                     |                             | 129.11                       |                   |                                                                          | 129.1140                                                            | 129.1135                | C5H13N4+                |                   |                                                                          |                              | 8       |  129.1138 | C5H13N4+     |          |              |                  |                         |            |
@@ -271,7 +271,8 @@ impl AminoAcid {
         }
     }
 
-    #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
+    // TODO: generalise over used storage type, so using molecularformula, monoisotopic mass, or average mass, also make sure that AAs can return these numbers in a const fashion
+    #[expect(clippy::too_many_lines, clippy::too_many_arguments)]
     pub(crate) fn fragments(
         self,
         n_term: &Multi<MolecularFormula>,
@@ -557,11 +558,7 @@ impl std::fmt::Display for AminoAcid {
 }
 
 #[cfg(test)]
-#[allow(
-    clippy::unreadable_literal,
-    clippy::float_cmp,
-    clippy::missing_panics_doc
-)]
+#[expect(clippy::unreadable_literal, clippy::missing_panics_doc)]
 mod tests {
     use super::*;
 

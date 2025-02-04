@@ -124,7 +124,7 @@ impl std::default::Default for MUPSettings {
 
 /// # Errors
 /// It returns an error when the given line cannot be read as a single modification.
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 fn parse_single_modification(
     line: &str,
     full_modification: &str,

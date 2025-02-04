@@ -58,7 +58,7 @@ pub mod matrix {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use crate::{peptidoform::SimpleLinear, Peptidoform};
 

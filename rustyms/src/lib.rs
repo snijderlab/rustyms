@@ -92,7 +92,7 @@ pub use peptidoform::{CompoundPeptidoformIon, Peptidoform, PeptidoformIon};
 extern crate uom;
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod test {
     use super::*;
 

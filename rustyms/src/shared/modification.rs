@@ -90,7 +90,6 @@ pub enum SimpleModificationInner {
     /// A modification defined with a monoisotopic mass shift
     Mass(OrderedMass),
     /// A modification defined with a molecular formula
-    #[allow(non_snake_case)]
     Formula(MolecularFormula),
     /// A glycan without a defined structure
     Glycan(Vec<(MonoSaccharide, isize)>),

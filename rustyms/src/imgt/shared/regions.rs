@@ -386,7 +386,7 @@ impl Gene {
     /// Get an IMGT name with allele, eg IGHV3-23*03
     /// # Errors
     /// If not recognised as a name, returns a description of the error.
-    #[allow(clippy::missing_panics_doc)] // Cannot panic
+    #[expect(clippy::missing_panics_doc)] // Cannot panic
     pub fn from_imgt_name_with_allele(s: &str) -> Result<(Self, usize), String> {
         let s = s.split(" or ").next().unwrap(); // Just ignore double names
         let (gene, tail) = Self::from_imgt_name_internal(s)?;
@@ -413,7 +413,7 @@ impl Gene {
     /// # Errors
     /// If not recognised as a name, returns a description of the error.
     fn from_imgt_name_internal(s: &str) -> Result<(Self, &str), String> {
-        #[allow(clippy::missing_panics_doc)] // Cannot panic
+        #[expect(clippy::missing_panics_doc)] // Cannot panic
         fn parse_name(s: &str) -> (Option<(Option<usize>, String)>, &str) {
             let num = s
                 .chars()
@@ -560,7 +560,7 @@ pub enum GeneType {
 }
 
 /// Any type of constant gene
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Constant {
     A,
@@ -618,7 +618,7 @@ impl Display for GeneType {
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 #[test]
 fn imgt_names() {
     assert_eq!(

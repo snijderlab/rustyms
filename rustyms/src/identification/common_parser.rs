@@ -27,7 +27,7 @@ macro_rules! format_family {
         #[non_exhaustive]
         #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
         #[doc = $data_doc]
-        #[allow(missing_docs)]
+        #[expect(missing_docs)]
         pub struct $data {
             $($(#[doc = $rdoc])? pub $rname: $rtyp,)*
             $($(#[doc = $odoc])? pub $oname: Option<$otyp>,)*
@@ -81,9 +81,9 @@ macro_rules! format_family {
                     }
                 })
             }
-            #[allow(clippy::redundant_closure_call)] // Macro magic
+            #[expect(clippy::redundant_closure_call)] // Macro magic
             fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
-                #[allow(unused_imports)]
+                #[expect(unused_imports)]
                 use crate::helper_functions::InvertResult;
 
                 let parsed = Self {
@@ -162,12 +162,12 @@ pub struct Location<'a> {
 }
 
 impl<'a> Location<'a> {
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn len(&self) -> usize {
         self.location.len()
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn column(column: usize, source: &'a CsvLine) -> Self {
         Location {
             line: source,
@@ -175,7 +175,7 @@ impl<'a> Location<'a> {
         }
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn optional_column(column: Option<usize>, source: &'a CsvLine) -> Option<Self> {
         column.map(|index| Location {
             line: source,
@@ -183,7 +183,7 @@ impl<'a> Location<'a> {
         })
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn array(self, sep: char) -> std::vec::IntoIter<Self> {
         let mut offset = 0;
         let mut output = Vec::new();
@@ -310,7 +310,7 @@ impl<'a> Location<'a> {
         f(self)
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn split_once(self, p: char) -> Option<(Self, Self)> {
         self.as_str().split_once(p).map(|(start, end)| {
             (
@@ -327,7 +327,7 @@ impl<'a> Location<'a> {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 pub trait OptionalLocation<'a> {
     fn or_empty(self) -> Option<Location<'a>>;
     /// # Errors

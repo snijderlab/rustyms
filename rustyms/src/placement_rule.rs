@@ -157,7 +157,7 @@ impl FromStr for Position {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
 
     use crate::{checked_aminoacid::CheckedAminoAcid, modification::RulePossible};

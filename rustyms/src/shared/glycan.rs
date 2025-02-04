@@ -407,7 +407,8 @@ impl Chemical for MonoSaccharide {
         sequence_index: SequencePosition,
         peptidoform_index: usize,
     ) -> MolecularFormula {
-        self.base_sugar.formula_inner(sequence_index, peptidoform_index)
+        self.base_sugar
+            .formula_inner(sequence_index, peptidoform_index)
             + self
                 .substituents
                 .as_slice()

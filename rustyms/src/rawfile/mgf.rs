@@ -56,7 +56,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Vec<RawSpectrum>, CustomError> {
 /// * Any line in the file could not be read
 /// * When any expected number in the file is not a number
 /// * When there is only one column (separated by space or tab) on a data row
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 pub fn open_raw<T: std::io::Read>(reader: T) -> Result<Vec<RawSpectrum>, CustomError> {
     let reader = BufReader::new(reader);
     let mut current = RawSpectrum::default();
@@ -182,7 +182,7 @@ fn parse_charge(input: &str) -> Result<Charge, ()> {
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 fn parse_title(title: &str, spectrum: &mut RawSpectrum) {
     // basic structure: <name>.<scan>.<scan>.<experiment?>? File:"<name>", NativeID:"(<header>) +"
     let ms_convert_format: Regex =
@@ -215,7 +215,7 @@ fn parse_title(title: &str, spectrum: &mut RawSpectrum) {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     #[test]
@@ -438,7 +438,7 @@ mod tests {
         );
     }
 
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn test_title_helper(
         title: &str,
     ) -> (

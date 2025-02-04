@@ -70,7 +70,7 @@ fn find_mass(mods: &HashMap<String, GNOmeModification>, mut name: String) -> Opt
     mass
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 mod gnome_terms {
     pub const SUBSUMPTION_MOLECULAR_WEIGHT: &str = "GNO:00000012";
     pub const SUBSUMPTION_BASECOMPOSITION: &str = "GNO:00000013";

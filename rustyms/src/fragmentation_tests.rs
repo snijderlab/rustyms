@@ -18,7 +18,7 @@ use itertools::Itertools;
 #[test]
 fn triple_a() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (44.049476, "a+1"),
         (72.044390, "b+1"),
@@ -59,7 +59,7 @@ fn triple_a() {
 #[test]
 fn with_modifications() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: -17.02655@[ 15.99491@
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (84.044389, "a1"),
         (155.081503, "a2"),
@@ -104,7 +104,7 @@ fn with_modifications() {
 // #[test]
 // fn with_possible_modifications() {
 //     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi mods: 15.99491@1 and separately 15.99491@2
-//     #[allow(clippy::unreadable_literal)]
+//     #[expect(clippy::unreadable_literal)]
 //     let theoretical_fragments = &[
 //         (132.047761, "M2-b1"),
 //         (148.042671, "M1-b1"),
@@ -131,7 +131,7 @@ fn with_modifications() {
 // #[test]
 // fn with_double_possible_modifications() {
 //     // Manual addition over previous example
-//     #[allow(clippy::unreadable_literal)]
+//     #[expect(clippy::unreadable_literal)]
 //     let theoretical_fragments = &[
 //         (132.047761, "b1"),
 //         (148.042671, "b1+O"),
@@ -160,7 +160,7 @@ fn with_modifications() {
 #[test]
 fn higher_charges() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (9.615716, "a1+5"),
         (30.217553, "a2+5"),
@@ -191,7 +191,7 @@ fn higher_charges() {
 #[test]
 fn all_aminoacids() {
     // Compare rustyms with https://proteomicsresource.washington.edu/cgi-bin/fragment.cgi
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (44.049476, "a1"),
         (200.150587, "a2"),
@@ -350,7 +350,7 @@ fn all_aminoacids() {
 
 #[test]
 fn glycan_structure_fragmentation() {
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (4593.06932015166, "pep+N4H5S1"),
         (4301.97390015166, "pep+N4H5"),
@@ -431,7 +431,7 @@ fn glycan_structure_fragmentation() {
 
 #[test]
 fn glycan_composition_fragmentation() {
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (4593.06932015166, "pep+N4H5S1"),
         (4301.97390015166, "pep+N4H5"),
@@ -563,7 +563,7 @@ fn custom_database() -> CustomDatabase {
 
 #[test]
 fn intra_link() {
-    #[allow(clippy::unreadable_literal)]
+    #[expect(clippy::unreadable_literal)]
     let theoretical_fragments = &[
         (260.196, "y2+"),
         (407.265, "y3+"),

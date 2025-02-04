@@ -2,7 +2,7 @@
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
 )]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum AminoAcid {
     #[default]
     Alanine = 0,

@@ -5,6 +5,5 @@ mod context;
 /// An error with all its properties
 mod custom_error;
 
-#[allow(unused_imports)]
 pub use context::{Context, FilePosition};
 pub use custom_error::CustomError;

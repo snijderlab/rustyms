@@ -16,7 +16,7 @@ use std::{
 };
 
 /// A single parsed line of a fasta file
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
 pub struct FastaData {
     identifier: FastaIdentifier<Range<usize>>,
@@ -55,9 +55,9 @@ impl AnnotatedPeptide for FastaData {
 }
 
 /// A fasta identifier following the NCBI identifier definition
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Hash)]
-#[allow(clippy::upper_case_acronyms)]
+#[expect(clippy::upper_case_acronyms)]
 pub enum FastaIdentifier<T> {
     Undefined(T),
     Local(T),
@@ -485,7 +485,7 @@ impl FastaData {
                     path.map_or(Context::None, |p| Context::show(p.to_string_lossy())),
                 )
             })?;
-            #[allow(clippy::manual_strip)]
+            #[expect(clippy::manual_strip)]
             if line.starts_with('>') {
                 if let Some(last_header) = last_header {
                     sequences.push(
@@ -561,7 +561,7 @@ impl FastaData {
 
     /// # Errors
     /// When the parsing of the fasta identifier is not succesful
-    #[allow(clippy::missing_panics_doc)] // Regions and annotation parse cannot fail
+    #[expect(clippy::missing_panics_doc)] // Regions and annotation parse cannot fail
     fn parse_header(line_index: usize, full_header: String) -> Result<Self, CustomError> {
         // thread 'main' panicked at C:\Users\5803969\src\rustyms\rustyms\src\identification\fasta.rs:301:26:
         // begin <= end (16 <= 15) when slicing `>Trastuzumab_HC REGIONS=FR1:25;CDR1:8;FR2:17;CDR2:8;FR3:38;CDR3:13;FR4:11;CH1:98;H:15;CH2:110;CH3:105;CHS:2 ANNOTATIONS=C:21;C:5;C:80;C:95;C:109;C:110;C:112;C:146;C:160;C:202;C:217;C:263;C:279;N:299;C:323;C:338;C:369;C:383;C:412;C:427;C:443`
@@ -699,7 +699,7 @@ impl From<FastaData> for IdentifiedPeptide {
 }
 
 #[test]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 fn empty_lines() {
     let file = ">A\naaa\n\naaa";
     let fasta = FastaData::parse_reader(BufReader::new(file.as_bytes()), None).unwrap();
@@ -711,7 +711,7 @@ fn empty_lines() {
 }
 
 #[test]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 fn parse_header() {
     let header = ">sp|UniqueIdentifier|EntryName ProteinName OS=OrganismName OX=OrganismIdentifier PE=ProteinExistence SV=SequenceVersion REGIONS=FR1:12;CDR1:6;FR2:13 ANNOTATIONS=C:12;Conserved:25";
     let header = FastaData::parse_header(0, header.to_string()).unwrap();

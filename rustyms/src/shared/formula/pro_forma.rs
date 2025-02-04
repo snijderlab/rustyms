@@ -28,14 +28,13 @@ impl MolecularFormula {
     /// Example: [13C2]C-2H2N
     /// ```
     /// ## Allow charge
-    /// Allows electrons to be used to define the charge of the formula
+    /// Allows `:z{x}` to define the charge of a formula, eg `:z+1`, `:z-3`. As defined in ProForma 2.1.
     /// ## Allow empty
     /// Allows the string `(empty)` to be used to denote an empty formula
     /// # Errors
     /// If the formula is not valid according to the above specification, with some help on what is going wrong.
     /// # Panics
     /// It can panic if the string contains not UTF8 symbols.
-    #[allow(dead_code)]
     pub fn from_pro_forma(
         value: &str,
         range: impl RangeBounds<usize>,

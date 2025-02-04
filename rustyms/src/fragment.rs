@@ -88,7 +88,7 @@ impl Fragment {
     /// Generate a list of possible fragments from the list of possible preceding termini and neutral losses
     /// # Panics
     /// When the charge range results in a negative charge
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     #[must_use]
     pub fn generate_all(
         theoretical_mass: &Multi<MolecularFormula>,
@@ -335,7 +335,7 @@ pub enum DiagnosticPosition {
 
 /// The possible types of fragments
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize, Default)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum FragmentType {
     /// a
     a(PeptidePosition),
@@ -547,7 +547,7 @@ impl Display for FragmentType {
 
 /// The possible kinds of N terminal backbone fragments.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum BackboneNFragment {
     /// a
     a,
@@ -573,7 +573,7 @@ impl Display for BackboneNFragment {
 
 /// The possible kinds of C terminal backbone fragments.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum BackboneCFragment {
     /// x
     x,
@@ -599,7 +599,7 @@ impl Display for BackboneCFragment {
 
 /// The possible kinds of fragments, same options as [`FragmentType`] but without any additional data
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum FragmentKind {
     /// a
     a,
@@ -701,7 +701,7 @@ impl std::fmt::Display for GlycanBreakPos {
 }
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod tests {
 
     use crate::{AminoAcid, MultiChemical};

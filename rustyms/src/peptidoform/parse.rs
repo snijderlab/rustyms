@@ -72,7 +72,7 @@ impl PeptidoformIon {
     ///
     /// # Errors
     /// It fails when the string is not a valid ProForma string. Or when the string has multiple peptidoforms.
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub fn pro_forma(
         value: &str,
         custom_database: Option<&CustomDatabase>,
@@ -96,7 +96,7 @@ impl CompoundPeptidoformIon {
     ///
     /// # Errors
     /// It fails when the string is not a valid ProForma string.
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub fn pro_forma(
         value: &str,
         custom_database: Option<&CustomDatabase>,
@@ -192,7 +192,7 @@ impl CompoundPeptidoformIon {
 
     /// # Errors
     /// It returns an error if the line is not a supported ProForma line.
-    #[allow(clippy::missing_panics_doc)] // Can not panic
+    #[expect(clippy::missing_panics_doc)] // Can not panic
     fn parse_linear_peptide(
         line: &str,
         mut index: usize,

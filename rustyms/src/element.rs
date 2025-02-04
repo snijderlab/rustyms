@@ -102,7 +102,7 @@ pub fn elemental_data() -> &'static ElementalData {
 static ELEMENTAL_DATA_CELL: OnceLock<ElementalData> = OnceLock::new();
 
 #[cfg(test)]
-#[allow(clippy::missing_panics_doc)]
+#[expect(clippy::missing_panics_doc)]
 mod test {
     #[test]
     fn hill_notation() {

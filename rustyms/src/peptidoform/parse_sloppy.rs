@@ -41,7 +41,7 @@ impl Peptidoform<SemiAmbiguous> {
     ///
     /// # Errors
     /// If it does not fit the above description.
-    #[allow(clippy::missing_panics_doc)] // Cannot panic
+    #[expect(clippy::missing_panics_doc)] // Cannot panic
     pub fn sloppy_pro_forma(
         line: &str,
         location: std::ops::Range<usize>,
@@ -235,7 +235,7 @@ impl Modification {
     /// # Errors
     /// If the name is not in Unimod, PSI-MOD, the custom database, or the predefined list of common trivial names.
     /// Or if this is the case when the modification follows a known structure (eg `mod (AAs)`).
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn sloppy_modification(
         line: &str,
         location: std::ops::Range<usize>,
