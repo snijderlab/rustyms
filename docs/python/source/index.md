@@ -43,10 +43,10 @@ raw_spectrum = rustyms.RawSpectrum(
 )
 
 # Create a new peptide from a ProForma 2.0 string
-peptide = rustyms.LinearPeptide("ACDE/2")
+peptide = rustyms.CompoundPeptidoform("ACDE/2")
 
 # Annotate the spectrum with the peptide
-annotated_spectrum = raw_spectrum.annotate(peptide, "cid_hcd")
+annotated_spectrum = raw_spectrum.annotate(peptide, rustyms.FragmentationModel.CidHcd)
 ```
 
 ## Installation
