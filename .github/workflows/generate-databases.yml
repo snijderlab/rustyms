@@ -1,0 +1,22 @@
+name: Generate databases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 4 1 * *"
+  push:
+    branches: ["release", "main"]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_ENCODED_RUSTFLAGS: --cfg=github_action
+
+jobs:
+  generate-databases:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check
+        run: cargo check
+      - name: Download and build external databases
+        run: bash ./.github/workflows/scripts/update-all-databases.sh
