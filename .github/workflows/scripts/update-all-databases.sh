@@ -14,8 +14,8 @@ function help {
 }
 
 
-# Download all of the relevant databases, decompressing and
-# moving them as needed.
+# Download all of the relevant databases, decompressing, filtering, and moving
+# them as needed.
 function download-dbs {
     echo "Downloading IMGT..."
     mkdir -p rustyms-generate-imgt/data
@@ -23,7 +23,7 @@ function download-dbs {
         | gunzip -c > rustyms-generate-imgt/data/imgt.dat
 
 
-    echo "Downloading PSI-MOD..."
+    echo "Downloading databases..."
     db_data="rustyms-generate-databases/data"
     mkdir -p ${db_data}
     curl https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/refs/heads/master/PSI-MOD-newstyle.obo \
@@ -37,6 +37,9 @@ function download-dbs {
         | sed '/(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)/d' \
         | gzip -c \
         > ${db_data}/GNOme.obo.gz
+    curl https://glycosmos.org/download/glycosmos_glycans_list.csv \
+        | cut -f1,2 -d',' \
+        | gzip > ${db_data}/glycosmos_glycans_list_filtered.csv.gz
 }
 
 # Serialize the databases to binary blobs to build into rustyms.
