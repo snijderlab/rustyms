@@ -13,7 +13,6 @@ function help {
     exit 1
 }
 
-
 # Download all of the relevant databases, decompressing, filtering, and moving
 # them as needed.
 function download-dbs {
