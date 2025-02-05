@@ -38,7 +38,7 @@ function download-dbs {
         > ${db_data}/GNOme.obo.gz
     curl -L https://glycosmos.org/download/glycosmos_glycans_list.csv \
         | cut -f1,2 -d',' \
-        | gzip -c > ${db_data}/glycosmos_glycans_list_filtered.csv.gz
+        | gzip -c > ${db_data}/glycosmos_glycans_list.csv.gz
 }
 
 # Serialize the databases to binary blobs to build into rustyms.
