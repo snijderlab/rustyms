@@ -1,3 +1,4 @@
+rusty-generate-databases/data
 /target
 Cargo.lock
 */target/
