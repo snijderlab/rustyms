@@ -36,7 +36,7 @@ function download-dbs {
         | sed '/(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)/d' \
         | gzip -c \
         > ${db_data}/GNOme.obo.gz
-    curl https://glycosmos.org/download/glycosmos_glycans_list.csv \
+    curl -L https://glycosmos.org/download/glycosmos_glycans_list.csv \
         | cut -f1,2 -d',' \
         | gzip -c > ${db_data}/glycosmos_glycans_list_filtered.csv.gz
 }
