@@ -1,4 +1,6 @@
-use rand::distributions::{Distribution, Standard};
+use std::num::{NonZeroU16, NonZeroU8};
+
+use rand::distr::{Distribution, StandardUniform};
 
 use crate::{
     glycan::{BaseSugar, GlycanStructure, GlycanSubstituent, MonoSaccharide},
@@ -7,61 +9,72 @@ use crate::{
     Element, MolecularFormula,
 };
 
-impl Distribution<SimpleModificationInner> for Standard {
+impl Distribution<SimpleModificationInner> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> SimpleModificationInner {
-        match rng.gen_range(0..=3) {
-            0 => SimpleModificationInner::Mass(rng.gen()),
-            1 => SimpleModificationInner::Formula(rng.gen()),
+        match rng.random_range(0..=3) {
+            0 => SimpleModificationInner::Mass(rng.random()),
+            1 => SimpleModificationInner::Formula(rng.random()),
             2 => {
-                let mut glycans = Vec::new();
-                for _ in 0..rng.gen_range(0..32) {
-                    glycans.push(rng.gen());
+                let mut glycans: Vec<(MonoSaccharide, i8)> = Vec::new();
+                for _ in 0..rng.random_range(0..32) {
+                    glycans.push(rng.random());
                 }
-                SimpleModificationInner::Glycan(glycans)
+                SimpleModificationInner::Glycan(
+                    glycans
+                        .into_iter()
+                        .map(|(ms, number)| (ms, number as isize))
+                        .collect(),
+                )
             }
-            3 => SimpleModificationInner::GlycanStructure(rng.gen()),
+            3 => SimpleModificationInner::GlycanStructure(rng.random()),
             _ => todo!(),
         }
     }
 }
 
-impl Distribution<GlycanStructure> for Standard {
+impl Distribution<GlycanStructure> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> GlycanStructure {
         let mut branches = Vec::new();
-        for _ in 0..rng.gen_range(0..=2) {
-            branches.push(rng.gen());
+        for _ in 0..rng.random_range(0..=2) {
+            branches.push(rng.random());
         }
-        GlycanStructure::new(rng.gen(), branches)
+        GlycanStructure::new(rng.random(), branches)
     }
 }
 
-impl Distribution<MonoSaccharide> for Standard {
+impl Distribution<MonoSaccharide> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> MonoSaccharide {
         let mut substituents = Vec::new();
-        for _ in 0..rng.gen_range(0..5) {
-            substituents.push(rng.gen());
+        for _ in 0..rng.random_range(0..5) {
+            substituents.push(rng.random());
         }
-        MonoSaccharide::new(rng.gen(), &substituents)
+        MonoSaccharide::new(rng.random(), &substituents)
     }
 }
 
-impl Distribution<MolecularFormula> for Standard {
+impl Distribution<MolecularFormula> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> MolecularFormula {
         let mut formula = MolecularFormula::default();
-        for _ in 0..rng.gen_range(0..32) {
-            let element: Element = rng.gen();
-            let isotope = rng.gen();
+        for _ in 0..rng.random_range(0..32) {
+            let element: Element = rng.random();
+            let isotope: u16 = rng.random();
+            let isotope = if rng.random::<f32>() > 0.9 {
+                None
+            } else {
+                NonZeroU16::new(isotope)
+            };
+
             if element.is_valid(isotope) {
-                let _ = formula.add((element, isotope, rng.gen()));
+                let _ = formula.add((element, isotope, rng.random()));
             }
         }
         formula
     }
 }
 
-impl Distribution<GlycanSubstituent> for Standard {
+impl Distribution<GlycanSubstituent> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> GlycanSubstituent {
-        match rng.gen_range(1..=44) {
+        match rng.random_range(1..=44) {
             1 => GlycanSubstituent::Acetimidoyl,
             2 => GlycanSubstituent::Acetyl,
             3 => GlycanSubstituent::AcetylAlanyl,
@@ -78,7 +91,7 @@ impl Distribution<GlycanSubstituent> for Standard {
             14 => GlycanSubstituent::DiMethyl,
             15 => GlycanSubstituent::DiMethylAcetimidoyl,
             16 => GlycanSubstituent::DiMethylGlyceryl,
-            17 => GlycanSubstituent::Element(rng.gen()),
+            17 => GlycanSubstituent::Element(rng.random()),
             18 => GlycanSubstituent::Ethanolamine,
             19 => GlycanSubstituent::EtOH,
             20 => GlycanSubstituent::Formyl,
@@ -110,9 +123,9 @@ impl Distribution<GlycanSubstituent> for Standard {
     }
 }
 
-impl Distribution<BaseSugar> for Standard {
+impl Distribution<BaseSugar> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> BaseSugar {
-        match rng.gen_range(0..=9) {
+        match rng.random_range(0..=9) {
             0 => BaseSugar::None,
             1 => BaseSugar::Sugar,
             2 => BaseSugar::Triose,
@@ -127,14 +140,15 @@ impl Distribution<BaseSugar> for Standard {
     }
 }
 
-impl Distribution<Element> for Standard {
+impl Distribution<Element> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> Element {
-        Element::try_from(rng.gen_range(Element::Electron as usize..Element::Og as usize)).unwrap()
+        Element::try_from(rng.random_range(Element::Electron as usize..Element::Og as usize))
+            .unwrap()
     }
 }
 
-impl Distribution<OrderedMass> for Standard {
+impl Distribution<OrderedMass> for StandardUniform {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> OrderedMass {
-        Mass::new::<dalton>(rng.gen_range(f64::MIN..f64::MAX)).into()
+        Mass::new::<dalton>(rng.random_range(f64::MIN..f64::MAX)).into()
     }
 }
