@@ -11,6 +11,9 @@ use crate::{
 include!("shared/neutral_loss.rs");
 
 impl NeutralLoss {
+    // TODO: extend with full list from annotator, plus figure out a way to make them const
+    //const WATER_LOSS: Self = Self::Loss(molecular_formula!(H 2 O 1));
+
     /// Check if this neutral loss if empty (has an empty molecular formula)
     pub fn is_empty(&self) -> bool {
         match self {

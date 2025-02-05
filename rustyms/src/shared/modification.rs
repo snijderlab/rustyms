@@ -31,6 +31,7 @@ pub enum Modification {
     },
 }
 
+// TODO: document what the usizes mean
 /// Indicate the cross-link side
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum CrossLinkSide {

@@ -5,8 +5,43 @@ use crate::{
     fragment::{Fragment, FragmentType, PeptidePosition},
     model::*,
     molecular_charge::CachedCharge,
-    Multi, MultiChemical, NeutralLoss, SequencePosition,
+    system::Mass,
+    MassMode, Multi, MultiChemical, NeutralLoss, SequencePosition,
 };
+
+use std::borrow::Cow;
+
+// TODO: document
+pub trait IsAminoAcid {
+    fn name(&self) -> Cow<'_, str>;
+    fn three_letter_code(&self) -> Option<Cow<'_, str>>;
+    #[doc(alias = "code")]
+    fn one_letter_code(&self) -> Option<char>;
+    fn pro_forma_definition(&self) -> Cow<'_, str>;
+    fn formulas(&self) -> Cow<'_, Multi<MolecularFormula>>;
+    fn monoisotopic_mass(&self) -> Cow<'_, Multi<Mass>> {
+        Cow::Owned(
+            self.formulas()
+                .iter()
+                .map(MolecularFormula::monoisotopic_mass)
+                .collect(),
+        )
+    }
+    fn average_weight(&self) -> Cow<'_, Multi<Mass>> {
+        Cow::Owned(
+            self.formulas()
+                .iter()
+                .map(MolecularFormula::average_weight)
+                .collect(),
+        )
+    }
+    fn mass(&self, mode: MassMode) -> Cow<'_, Multi<Mass>> {
+        Cow::Owned(self.formulas().iter().map(|f| f.mass(mode)).collect())
+    }
+    fn side_chain(&self) -> Cow<'_, Multi<MolecularFormula>>;
+    fn satellite_ion_fragments(&self) -> Option<Cow<'_, Multi<MolecularFormula>>>;
+    fn immonium_losses(&self) -> Cow<'_, [NeutralLoss]>;
+}
 
 include!("shared/aminoacid.rs");
 

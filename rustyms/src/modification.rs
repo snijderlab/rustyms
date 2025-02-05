@@ -133,7 +133,6 @@ impl Chemical for SimpleModificationInner {
 
 impl SimpleModificationInner {
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
-    #[expect(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Mass(_) | Self::Formula(_) | Self::Glycan(_) | Self::GlycanStructure(_) => None,
@@ -593,9 +592,7 @@ impl Modification {
             Self::Ambiguous { modification, .. } => modification.formula(),
         }
     }
-}
 
-impl Modification {
     /// Check if this is a simple modification
     pub const fn simple(&self) -> Option<&SimpleModification> {
         match self {
@@ -613,7 +610,6 @@ impl Modification {
     }
 
     /// Get a url for more information on this modification. Only defined for modifications from ontologies.
-    #[expect(clippy::missing_panics_doc)]
     pub fn ontology_url(&self) -> Option<String> {
         match self {
             Self::Simple(modification)
