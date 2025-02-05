@@ -57,6 +57,7 @@ function main {
     done
 
     download-dbs
+    build-binaries
 }
 
 main "$@"
