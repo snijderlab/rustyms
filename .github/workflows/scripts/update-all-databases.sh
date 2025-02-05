@@ -26,13 +26,17 @@ function download-dbs {
     echo "Downloading PSI-MOD..."
     db_data="rustyms-generate-databases/data"
     mkdir -p ${db_data}
-    curl https://github.com/HUPO-PSI/psi-mod-CV > ${db_data}/PSI-MOD-newstyle.obo
+    curl https://raw.githubusercontent.com/HUPO-PSI/psi-mod-CV/refs/heads/master/PSI-MOD-newstyle.obo \
+        > ${db_data}/PSI-MOD-newstyle.obo
     curl http://www.unimod.org/obo/unimod.obo > ${db_data}/unimod.obo
-    curl ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/ \
+    curl ftp://ftp.proteininformationresource.org/pir_databases/other_databases/resid/RESIDUES.XML \
         > ${db_data}/RESID-RESIDUES.XML
     curl https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/cv/XLMOD.obo \
         > ${db_data}/XLMOD.obo
-    #curl http://purl.obolibrary.org/obo/gno.obo > ${db_data}/
+    curl -L http://purl.obolibrary.org/obo/gno.obo \
+        | sed '/(property_value: GNO:00000(022|023|041|042|101|102) .*$\n)|(def: .*$\n)/d' \
+        | gzip -c \
+        > ${db_data}/GNOme.obo.gz
 }
 
 # Serialize the databases to binary blobs to build into rustyms.
