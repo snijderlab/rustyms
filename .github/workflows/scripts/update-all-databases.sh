@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 
 function help {
     echo "Usage: generate-all-databases.sh"
