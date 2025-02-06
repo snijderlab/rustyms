@@ -836,28 +836,16 @@ impl SequencePosition {
 ///
 #[pyclass]
 #[derive(Clone)]
-pub struct CompoundPeptidoform(rustyms::CompoundPeptidoformIon);
+pub struct Peptidoform(rustyms::CompoundPeptidoformIon);
 
 #[pymethods]
-impl CompoundPeptidoform {
+impl Peptidoform {
     /// Create a new peptide from a ProForma string.
     #[new]
     fn new(proforma: &str) -> Result<Self, CustomError> {
         rustyms::CompoundPeptidoformIon::pro_forma(proforma, None)
-            .map(CompoundPeptidoform)
+            .map(Peptidoform)
             .map_err(CustomError)
-    }
-
-    /// Create a new peptide from a peptidoform.
-    #[staticmethod]
-    fn from_peptidoform(peptidoform: Peptidoform) -> Self {
-        CompoundPeptidoform(peptidoform.0.into())
-    }
-
-    /// Create a new peptide from a linear peptide.
-    #[staticmethod]
-    fn from_peptide(peptide: LinearPeptide) -> Self {
-        CompoundPeptidoform(peptide.0.into())
     }
 
     /// Get all peptidoforms making up this compound peptidoform.
@@ -871,7 +859,7 @@ impl CompoundPeptidoform {
         self.0
             .peptidoform_ions()
             .iter()
-            .map(|p| Peptidoform(p.clone()))
+            .map(|p| Peptidoform(rustyms::CompoundPeptidoformIon::from(p.clone())))
             .collect()
     }
 
@@ -911,300 +899,11 @@ impl CompoundPeptidoform {
     }
 
     fn __repr__(&self) -> String {
-        format!("CompoundPeptidoform({})", self.0)
-    }
-
-    fn __len__(&self) -> usize {
-        self.0.peptidoform_ions().len()
-    }
-}
-
-/// A peptidoform with all data as provided by ProForma 2.0.
-///
-/// Parameters
-/// ----------
-/// proforma : str
-///     The ProForma string.
-///
-#[pyclass]
-#[derive(Clone)]
-pub struct Peptidoform(rustyms::PeptidoformIon);
-
-#[pymethods]
-impl Peptidoform {
-    /// Create a new peptidoform from a ProForma string. Panics
-    #[new]
-    fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::PeptidoformIon::pro_forma(proforma, None)
-            .map(Peptidoform)
-            .map_err(CustomError)
-    }
-
-    /// Create a new peptidoform from a linear peptide.
-    #[staticmethod]
-    fn from_peptide(peptide: LinearPeptide) -> Self {
-        Peptidoform(peptide.0.clone().into())
-    }
-
-    /// Get all peptides making up this peptidoform.
-    ///
-    /// Returns
-    /// -------
-    /// List[LinearPeptide]
-    ///
-    #[getter]
-    fn peptides(&self) -> Vec<LinearPeptide> {
-        self.0
-            .peptidoforms()
-            .iter()
-            .map(|p| LinearPeptide(p.clone()))
-            .collect()
-    }
-
-    /// Generate the theoretical fragments for this peptidoform, with the given maximal charge of the fragments,
-    /// and the given model. With the global isotope modifications applied.
-    ///
-    /// Parameters
-    /// ----------
-    /// max_charge : int
-    ///     The maximal charge of the fragments.
-    /// model : FragmentationModel
-    ///     The model to use for the fragmentation.
-    ///
-    /// Returns
-    /// -------
-    /// list[Fragment]
-    ///   The theoretical fragments.
-    ///
-    fn generate_theoretical_fragments(
-        &self,
-        max_charge: usize,
-        model: &FragmentationModel,
-    ) -> PyResult<Vec<Fragment>> {
-        Ok(self
-            .0
-            .generate_theoretical_fragments(
-                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
-                &match_model(model)?,
-            )
-            .iter()
-            .map(|f| Fragment(f.clone()))
-            .collect())
-    }
-
-    fn __str__(&self) -> String {
-        self.0.to_string()
-    }
-
-    fn __repr__(&self) -> String {
         format!("Peptidoform({})", self.0)
     }
 
     fn __len__(&self) -> usize {
-        self.0.peptidoforms().len()
-    }
-}
-
-/// A peptide with all data as provided by ProForma 2.0.
-///
-/// Parameters
-/// ----------
-/// proforma : str
-///     The ProForma string.
-///
-#[pyclass]
-#[derive(Clone)]
-pub struct LinearPeptide(rustyms::Peptidoform<Linked>);
-
-#[pymethods]
-impl LinearPeptide {
-    /// Create a new peptide from a ProForma string.
-    #[new]
-    fn new(proforma: &str) -> Result<Self, CustomError> {
-        rustyms::Peptidoform::pro_forma(proforma, None)
-            .map(LinearPeptide)
-            .map_err(CustomError)
-    }
-
-    fn __str__(&self) -> String {
-        self.0.to_string()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("LinearPeptide({})", self.0)
-    }
-
-    fn __len__(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Labile modifications, which will not be found in the actual spectrum.
-    ///
-    /// Returns
-    /// -------
-    /// list[Modification]
-    ///
-    #[getter]
-    fn labile(&self) -> Vec<SimpleModification> {
-        self.0
-            .get_labile()
-            .iter()
-            .map(|x| SimpleModification(x.clone()))
-            .collect()
-    }
-
-    /// N-terminal modification.
-    ///
-    /// Returns
-    /// -------
-    /// list[Modification]
-    ///
-    #[getter]
-    fn n_term(&self) -> Vec<Modification> {
-        self.0
-            .get_n_term()
-            .iter()
-            .map(|m| Modification(m.clone()))
-            .collect()
-    }
-
-    /// C-terminal modification.
-    ///
-    /// Returns
-    /// -------
-    /// list[Modification]
-    ///
-    #[getter]
-    fn c_term(&self) -> Vec<Modification> {
-        self.0
-            .get_c_term()
-            .iter()
-            .map(|m| Modification(m.clone()))
-            .collect()
-    }
-
-    /// Sequence of the peptide including modifications.
-    ///
-    /// Returns
-    /// -------
-    /// list[SequenceElement]
-    ///
-    #[getter]
-    fn sequence(&self) -> Vec<SequenceElement> {
-        self.0
-            .sequence()
-            .iter()
-            .map(|x| SequenceElement(x.clone()))
-            .collect()
-    }
-
-    /// For each ambiguous modification list all possible positions it can be placed on. Indexed by the ambiguous modification id.
-    ///
-    /// Returns
-    /// -------
-    /// list[list[int]]
-    ///
-    #[getter]
-    fn ambiguous_modifications(&self) -> Vec<Vec<SequencePosition>> {
-        self.0
-            .get_ambiguous_modifications()
-            .iter()
-            .map(|p| p.iter().map(|p| SequencePosition(*p)).collect())
-            .collect()
-    }
-
-    /// Stripped sequence, meaning the sequence without any modifications.
-    ///
-    /// Returns
-    /// -------
-    /// str
-    ///
-    #[getter]
-    fn stripped_sequence(&self) -> String {
-        self.0
-            .sequence()
-            .iter()
-            .map(|x| x.aminoacid.char())
-            .collect()
-    }
-
-    /// The precursor charge of the peptide.
-    ///
-    /// Returns
-    /// -------
-    /// int | None
-    ///
-    #[getter]
-    fn charge(&self) -> Option<isize> {
-        self.0.get_charge_carriers().map(|c| c.charge().value)
-    }
-
-    /// The adduct ions, if specified.
-    ///
-    /// Returns
-    /// -------
-    /// MolecularCharge | None
-    ///
-    #[getter]
-    fn charge_carriers(&self) -> Option<MolecularCharge> {
-        self.0
-            .get_charge_carriers()
-            .map(|c| MolecularCharge(c.clone()))
-    }
-
-    /// Get a copy of the peptide with its sequence reversed.
-    ///
-    /// Returns
-    /// -------
-    /// LinearPeptide
-    ///
-    fn reverse(&self) -> LinearPeptide {
-        LinearPeptide(self.0.reverse())
-    }
-
-    /// Gives the formulas for the whole peptide. With the global isotope modifications applied. (Any B/Z will result in multiple possible formulas.)
-    ///
-    /// Returns
-    /// -------
-    /// List[MolecularFormula] | None
-    ///
-    fn formula(&self) -> Option<Vec<MolecularFormula>> {
-        self.0.clone().into_linear().map(|p| {
-            p.formulas()
-                .iter()
-                .map(|f| MolecularFormula(f.clone()))
-                .collect()
-        })
-    }
-
-    /// Generate the theoretical fragments for this peptide, with the given maximal charge of the fragments, and the given model. With the global isotope modifications applied.
-    ///
-    /// Parameters
-    /// ----------
-    /// max_charge : int
-    ///     The maximal charge of the fragments.
-    /// model : FragmentationModel
-    ///     The model to use for the fragmentation.
-    ///
-    /// Returns
-    /// -------
-    /// list[Fragment] | None
-    ///   The theoretical fragments.
-    ///
-    fn generate_theoretical_fragments(
-        &self,
-        max_charge: usize,
-        model: &FragmentationModel,
-    ) -> Option<Vec<Fragment>> {
-        self.0.clone().into_linear().map(|p| {
-            p.generate_theoretical_fragments(
-                rustyms::system::usize::Charge::new::<rustyms::system::e>(max_charge),
-                &match_model(model).unwrap(),
-            )
-            .iter()
-            .map(|f| Fragment(f.clone()))
-            .collect()
-        })
+        self.0.peptidoform_ions().len()
     }
 }
 
@@ -1503,7 +1202,7 @@ impl RawSpectrum {
     #[pyo3(signature = (peptide, model, mode=&MassMode::Monoisotopic))]
     fn annotate(
         &self,
-        peptide: CompoundPeptidoform,
+        peptide: Peptidoform,
         model: &FragmentationModel,
         mode: &MassMode,
     ) -> PyResult<AnnotatedSpectrum> {
@@ -1622,18 +1321,16 @@ fn rustyms_py03(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AminoAcid>()?;
     m.add_class::<AnnotatedPeak>()?;
     m.add_class::<AnnotatedSpectrum>()?;
-    m.add_class::<CompoundPeptidoform>()?;
+    m.add_class::<Peptidoform>()?;
     m.add_class::<CustomError>()?;
     m.add_class::<Element>()?;
     m.add_class::<Fragment>()?;
     m.add_class::<FragmentationModel>()?;
     m.add_class::<FragmentType>()?;
-    m.add_class::<LinearPeptide>()?;
     m.add_class::<MassMode>()?;
     m.add_class::<Modification>()?;
     m.add_class::<MolecularCharge>()?;
     m.add_class::<MolecularFormula>()?;
-    m.add_class::<Peptidoform>()?;
     m.add_class::<RawPeak>()?;
     m.add_class::<RawSpectrum>()?;
     m.add_class::<SequenceElement>()?;
