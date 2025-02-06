@@ -28,6 +28,7 @@ jobs:
           MESSAGE="$(cat /tmp/MESSAGES)"
           echo "MESSAGE=${MESSAGE}" >> "${GITHUB_ENV}"
       - name: Create pull request
+        if: false # temporarily disable
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
