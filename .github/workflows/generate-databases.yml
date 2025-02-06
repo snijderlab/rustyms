@@ -30,6 +30,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.RUSTEOMICS_MZCORE_PR_TOKEN }}
           commit-message: Update external databases and ontologies
           committer: GitHub <noreply@github.com>
           author: GitHub <noreply@github.com>
