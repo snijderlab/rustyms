@@ -13,15 +13,25 @@ function help {
     exit 1
 }
 
-# Download all of the relevant databases, decompressing, filtering, and moving
-# them as needed.
-function download-dbs {
+
+# Download IMGT and process and serialize it to a binary blob.
+function make-imgt {
     echo "Downloading IMGT..."
     mkdir -p rustyms-generate-imgt/data
+    # IMGT is not very reliable, so sometimes the server is down.
+    # The || clause here allows the rest of the script to continue
+    # even if this fails.
     curl https://www.imgt.org/download/LIGM-DB/imgt.dat.Z \
-        | gunzip -c > rustyms-generate-imgt/data/imgt.dat
+        | gunzip -c > rustyms-generate-imgt/data/imgt.dat \
+        || (echo "Failed to download IMGT. Not updating it..." && return 0)
+
+    echo "Serializing IMGT..."
+    cargo run --bin rustyms-generate-imgt
+}
 
 
+# Download the relevant ontologies and serialize them to binary blobs.
+function make-onologies {
     echo "Downloading databases..."
     db_data="rustyms-generate-databases/data"
     mkdir -p ${db_data}
@@ -39,12 +49,8 @@ function download-dbs {
     curl -L https://glycosmos.org/download/glycosmos_glycans_list.csv \
         | cut -f1,2 -d',' \
         | gzip -c > ${db_data}/glycosmos_glycans_list.csv.gz
-}
 
-# Serialize the databases to binary blobs to build into rustyms.
-function build-binaries {
-    echo "Serializing IMGT..."
-    cargo run --bin rustyms-generate-imgt
+
     echo "Serializing the other databases..."
     cargo run --bin rustyms-generate-databases
 }
@@ -62,8 +68,8 @@ function main {
         esac
     done
 
-    download-dbs
-    build-binaries
+    make-imgt
+    make-ontologies
 }
 
 main "$@"
