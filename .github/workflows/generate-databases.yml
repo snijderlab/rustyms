@@ -19,7 +19,9 @@ jobs:
       - name: Check
         run: cargo check
       - name: Download and build external databases
-        run: bash ./.github/workflows/scripts/update-all-databases.sh
+        run: |
+          bash ./.github/workflows/scripts/update-all-databases.sh 2> err
+          echo "MESSAGE=$(cat err)" >> "${GITHUB_ENV}"
       - name: Create pull request
         id: cpr
         uses: peter-evans/create-pull-request@v7
@@ -33,6 +35,9 @@ jobs:
           body: |
             This automated PR updates the binary blobs for external databases
             and ontologies.
+
+            Below are messages from script execution:
+              > {{ env.MESSAGE }}
           labels: |
             A-rustyms-generate-databases
             C-maintenance
