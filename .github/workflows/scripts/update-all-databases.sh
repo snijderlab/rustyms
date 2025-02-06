@@ -47,7 +47,6 @@ function make-ontologies {
         | gzip -c \
         > ${db_data}/GNOme.obo.gz
     curl -L https://glycosmos.org/download/glycosmos_glycans_list.csv \
-        | cut -f1,2 -d',' \
         | gzip -c > ${db_data}/glycosmos_glycans_list.csv.gz
 
 
