@@ -19,11 +19,11 @@ function make-imgt {
     # IMGT is not very reliable, so sometimes the server is down.
     # The || clause here allows the rest of the script to continue
     # even if this fails.
-    (curl https://www.imgt.org/download/LIGM-DB/imgt.dat.Z | gunzip -c > rustyms-generate-imgt/data/imgt.dat) \
-        || (echo "Failed to download IMGT. I did not update it." >> /tmp/MESSAGES && return)
-
-    echo "Serializing IMGT..."
-    cargo run --bin rustyms-generate-imgt
+    curl https://www.imgt.org/download/LIGM-DB/imgt.dat.Z \
+        | gunzip -c > rustyms-generate-imgt/data/imgt.dat \
+        | echo "Serializing IMGT ..." \
+        && cargo run --bin rustyms-generate-imgt \
+        || echo "Failed to download IMGT. I did not update it." >> /tmp/MESSAGES
 }
 
 
