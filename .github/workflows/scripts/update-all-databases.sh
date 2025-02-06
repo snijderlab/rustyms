@@ -31,7 +31,7 @@ function make-imgt {
 
 
 # Download the relevant ontologies and serialize them to binary blobs.
-function make-onologies {
+function make-ontologies {
     echo "Downloading databases..."
     db_data="rustyms-generate-databases/data"
     mkdir -p ${db_data}
