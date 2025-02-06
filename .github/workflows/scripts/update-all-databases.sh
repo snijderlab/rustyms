@@ -21,7 +21,7 @@ function make-imgt {
     # even if this fails.
     curl https://www.imgt.org/download/LIGM-DB/imgt.dat.Z \
         | gunzip -c > rustyms-generate-imgt/data/imgt.dat \
-        | echo "Serializing IMGT ..." \
+        && echo "Serializing IMGT ..." \
         && cargo run --bin rustyms-generate-imgt \
         || echo "Failed to download IMGT. I did not update it." >> /tmp/MESSAGES
 }
