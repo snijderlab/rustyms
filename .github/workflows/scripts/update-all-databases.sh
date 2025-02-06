@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 function help {
     echo "Usage: generate-all-databases.sh"
     echo ""
@@ -51,6 +52,7 @@ function make-ontologies {
     cargo run --bin rustyms-generate-databases
 }
 
+
 function main {
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -69,5 +71,6 @@ function main {
     make-imgt
     make-ontologies
 }
+
 
 main "$@"
