@@ -88,7 +88,6 @@ pub const INSTANOVO_V1_0_0: InstaNovoFormat = InstaNovoFormat {
 
 /// All possible InstaNovo versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum InstaNovoVersion {
     #[default]
     /// InstaNovo version 1.0.0

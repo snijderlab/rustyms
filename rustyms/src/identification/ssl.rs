@@ -90,7 +90,7 @@ pub const SSL: SpectrumSequenceListFormat = SpectrumSequenceListFormat {
 
 /// All possible SpectrumSequenceList versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
+#[expect(clippy::upper_case_acronyms)]
 pub enum SpectrumSequenceListVersion {
     #[default]
     /// SSL file format

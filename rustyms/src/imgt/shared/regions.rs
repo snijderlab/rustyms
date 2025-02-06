@@ -560,7 +560,7 @@ pub enum GeneType {
 }
 
 /// Any type of constant gene
-#[expect(missing_docs)]
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Constant {
     A,

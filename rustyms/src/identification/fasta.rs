@@ -16,7 +16,7 @@ use std::{
 };
 
 /// A single parsed line of a fasta file
-#[expect(missing_docs)]
+#[allow(missing_docs)]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
 pub struct FastaData {
     identifier: FastaIdentifier<Range<usize>>,
@@ -485,7 +485,6 @@ impl FastaData {
                     path.map_or(Context::None, |p| Context::show(p.to_string_lossy())),
                 )
             })?;
-            #[expect(clippy::manual_strip)]
             if line.starts_with('>') {
                 if let Some(last_header) = last_header {
                     sequences.push(

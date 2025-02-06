@@ -124,7 +124,6 @@ pub const VERSION_0_14: SageFormat = SageFormat {
 
 /// All possible Sage versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum SageVersion {
     /// Current sage version
     #[default]

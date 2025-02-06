@@ -40,7 +40,7 @@ pub struct IdentifiedPeptide {
 
 /// The definition of all special metadata for all types of identified peptides that can be read
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[expect(clippy::large_enum_variant, clippy::upper_case_acronyms)]
+#[expect(clippy::upper_case_acronyms)]
 pub enum MetaData {
     /// DeepNovo/PointNovo/PGPointNovo metadata
     DeepNovoFamily(DeepNovoFamilyData),
@@ -115,7 +115,6 @@ impl std::fmt::Display for ReturnedPeptide<'_> {
     }
 }
 
-#[expect(dead_code)]
 impl<'a> ReturnedPeptide<'a> {
     /// Get the underlying peptide, or None if the underlying result was a peptidoform
     pub fn peptide(self) -> Option<Cow<'a, Peptidoform<SimpleLinear>>> {

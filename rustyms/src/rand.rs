@@ -1,4 +1,4 @@
-use std::num::{NonZeroU16, NonZeroU8};
+use std::num::NonZeroU16;
 
 use rand::distr::{Distribution, StandardUniform};
 

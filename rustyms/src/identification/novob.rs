@@ -143,7 +143,6 @@ pub const NOVOB_V0_0_1: NovoBFormat = NovoBFormat {
 
 /// All possible NovoB versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum NovoBVersion {
     #[default]
     /// NovoB version 0.0.1

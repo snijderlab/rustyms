@@ -276,7 +276,6 @@ pub const VERSION_3_0: PLGSFormat = PLGSFormat {
 
 /// All possible PLGS versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum PLGSVersion {
     /// Current PLGS version
     #[default]

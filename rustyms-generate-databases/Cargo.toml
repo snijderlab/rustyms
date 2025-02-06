@@ -20,3 +20,6 @@ uom = { workspace = true }
 
 [features]
 rayon = []
+
+[lints]
+workspace = true

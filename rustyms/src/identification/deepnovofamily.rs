@@ -131,7 +131,6 @@ pub const POINTNOVOFAMILY: DeepNovoFamilyFormat = DeepNovoFamilyFormat {
 
 /// All possible DeepNovoFamily versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum DeepNovoFamilyVersion {
     #[default]
     /// DeepNovo version 0.0.1

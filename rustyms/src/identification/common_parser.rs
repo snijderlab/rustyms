@@ -81,9 +81,9 @@ macro_rules! format_family {
                     }
                 })
             }
-            #[expect(clippy::redundant_closure_call)] // Macro magic
+            #[allow(clippy::redundant_closure_call)] // Macro magic
             fn parse_specific(source: &Self::Source, format: &$format, custom_database: Option<&crate::ontologies::CustomDatabase>) -> Result<Self, CustomError> {
-                #[expect(unused_imports)]
+                #[allow(unused_imports)]
                 use crate::helper_functions::InvertResult;
 
                 let parsed = Self {
@@ -162,7 +162,6 @@ pub struct Location<'a> {
 }
 
 impl<'a> Location<'a> {
-    #[expect(dead_code)]
     pub fn len(&self) -> usize {
         self.location.len()
     }
@@ -183,7 +182,6 @@ impl<'a> Location<'a> {
         })
     }
 
-    #[expect(clippy::needless_pass_by_value)]
     pub fn array(self, sep: char) -> std::vec::IntoIter<Self> {
         let mut offset = 0;
         let mut output = Vec::new();
@@ -310,7 +308,6 @@ impl<'a> Location<'a> {
         f(self)
     }
 
-    #[expect(dead_code)]
     pub fn split_once(self, p: char) -> Option<(Self, Self)> {
         self.as_str().split_once(p).map(|(start, end)| {
             (

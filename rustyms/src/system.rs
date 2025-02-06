@@ -128,7 +128,7 @@ system! {
 }
 
 /// The whole system with f64 as storage type
-#[expect(unused_imports)]
+#[allow(unused_imports)]
 pub mod f64 {
     mod mks {
         pub use super::super::*;
@@ -143,14 +143,13 @@ pub mod f64 {
     pub use super::time::s;
 
     /// Annotate the given number as being in Da
-    #[expect(dead_code)]
     pub fn da(v: f64) -> Mass {
         Mass::new::<super::mass::dalton>(v)
     }
 }
 
 /// All quantities with usize as underlying type
-#[expect(unused_imports)]
+#[allow(unused_imports)]
 pub mod usize {
     mod mks {
         pub use super::super::*;
@@ -166,7 +165,7 @@ pub mod usize {
 }
 
 /// All quantities with isize as underlying type
-#[expect(unused_imports)]
+#[allow(unused_imports)]
 pub mod isize {
     mod mks {
         pub use super::super::*;
@@ -230,7 +229,7 @@ impl OrderedRatio {
     }
 
     /// Get a normal [`Ratio`]
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> Ratio {
         self.0
     }
@@ -298,7 +297,7 @@ impl OrderedMass {
     }
 
     /// Get a normal [`Mass`]
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> Mass {
         self.0
     }
@@ -366,7 +365,7 @@ impl OrderedMassOverCharge {
     }
 
     /// Get a normal [`MassOverCharge`]
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> MassOverCharge {
         self.0
     }
@@ -434,7 +433,7 @@ impl OrderedTime {
     }
 
     /// Get a normal [`Time`]
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub fn into_inner(self) -> Time {
         self.0
     }

@@ -33,3 +33,6 @@ path = "fuzz_targets/peaks.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

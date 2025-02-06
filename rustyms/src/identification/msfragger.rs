@@ -131,7 +131,6 @@ impl From<MSFraggerData> for IdentifiedPeptide {
 pub enum MSFraggerVersion {
     /// Version 21
     #[default]
-    #[expect(clippy::upper_case_acronyms)]
     V21,
     /// Version 22
     V22,

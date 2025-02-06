@@ -12,3 +12,6 @@ clap = { workspace = true }
 itertools = { workspace = true }
 rayon = { workspace = true }
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

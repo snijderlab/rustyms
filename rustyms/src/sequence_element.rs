@@ -137,7 +137,6 @@ impl<T> SequenceElement<T> {
     }
 
     /// Get the molecular formulas for this position without any the ambiguous modifications
-    #[expect(clippy::filter_map_bool_then, clippy::too_many_arguments)] // has side effects
     pub(crate) fn formulas_base(
         &self,
         all_peptides: &[Peptidoform<Linked>],
@@ -176,7 +175,7 @@ impl<T> SequenceElement<T> {
     }
 
     /// Get the molecular formulas for this position with the ambiguous modifications placed on the very first placed (and updating this in `placed`), without any global isotype modifications
-    #[expect(clippy::filter_map_bool_then, clippy::too_many_arguments)] // has side effects
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn formulas_greedy(
         &self,
         placed: &mut [bool],

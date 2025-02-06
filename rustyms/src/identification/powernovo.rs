@@ -84,7 +84,6 @@ pub const POWERNOVO_V1_0_1: PowerNovoFormat = PowerNovoFormat {
 
 /// All possible PowerNovo versions
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
-#[expect(non_camel_case_types)]
 pub enum PowerNovoVersion {
     #[default]
     /// PowerNovo version 1.0.1

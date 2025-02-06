@@ -15,7 +15,6 @@ pub fn find_formulas(
     elements: &[(Element, Option<NonZeroU16>)],
 ) -> Multi<MolecularFormula> {
     let bounds = tolerance.bounds(mass);
-    let mut in_bounds = Vec::new();
     let mut options: Vec<(Mass, MolecularFormula)> = Vec::new();
 
     for (element, isotope) in elements.iter().copied() {
@@ -44,11 +43,11 @@ pub fn find_formulas(
         }
         options.extend_from_slice(&new_options);
     }
-    for (mass, option) in options {
-        if mass >= bounds.0 && mass <= bounds.1 {
-            in_bounds.push(option);
-        }
-    }
-
-    in_bounds.into()
+    options.sort_by(|a, b| a.0.value.total_cmp(&b.0.value));
+    options
+        .into_iter()
+        .skip_while(|(mass, _)| *mass < bounds.0)
+        .take_while(|(mass, _)| *mass < bounds.1)
+        .map(|(_, formula)| formula)
+        .collect()
 }

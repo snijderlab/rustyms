@@ -451,7 +451,7 @@ macro_rules! impl_binop_ref_cases {
 }
 
 /// To be used as `The xx number ` + the explanation from here (does not have a dot).
-pub fn explain_number_error(error: &ParseIntError) -> &'static str {
+pub const fn explain_number_error(error: &ParseIntError) -> &'static str {
     match error.kind() {
         IntErrorKind::Empty => "is empty",
         IntErrorKind::InvalidDigit => "contains an invalid character",
