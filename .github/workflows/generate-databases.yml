@@ -20,3 +20,19 @@ jobs:
         run: cargo check
       - name: Download and build external databases
         run: bash ./.github/workflows/scripts/update-all-databases.sh
+      - name: Create pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: Update external databases and ontologies
+          committer: GitHub <noreply@github.com>
+          author: GitHub <noreply@github.com>
+          branch: update-databases
+          delete-branch: true
+          title: "Update external databases and ontologies"
+          body: |
+            This automated PR updates the binary blobs for external databases
+            and ontologies.
+          labels: |
+            A-rustyms-generate-databases
+            C-maintenance
