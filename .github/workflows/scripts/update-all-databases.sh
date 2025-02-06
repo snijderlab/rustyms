@@ -23,7 +23,7 @@ function make-imgt {
     # even if this fails.
     curl https://www.imgt.org/download/LIGM-DB/imgt.dat.Z \
         | gunzip -c > rustyms-generate-imgt/data/imgt.dat \
-        || (>&2 echo "Failed to download IMGT. I did not update it."  && return 0)
+        || (echo "Failed to download IMGT. I did not update it." >> /tmp/MESSAGES  && return 0)
 
     echo "Serializing IMGT..."
     cargo run --bin rustyms-generate-imgt
@@ -66,6 +66,8 @@ function main {
                 ;;
         esac
     done
+
+    touch /tmp/MESSAGES
 
     make-imgt
     make-ontologies

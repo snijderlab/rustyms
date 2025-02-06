@@ -24,8 +24,9 @@ jobs:
         run: cargo check
       - name: Download and build external databases
         run: |
-          bash ./.github/workflows/scripts/update-all-databases.sh 2> err
-          echo "MESSAGE=$(cat err)" >> "${GITHUB_ENV}"
+          bash ./.github/workflows/scripts/update-all-databases.sh
+          MESSAGE="$(cat /tmp/MESSAGES)"
+          echo "MESSAGE=${MESSAGE}" >> "${GITHUB_ENV}"
       - name: Create pull request
         id: cpr
         uses: peter-evans/create-pull-request@v7
@@ -42,7 +43,7 @@ jobs:
             and ontologies.
 
             Below are messages from script execution:
-              > {{ env.MESSAGE }}
+              > ${{ env.MESSAGE }}
           labels: |
             A-rustyms-generate-databases
             C-maintenance
