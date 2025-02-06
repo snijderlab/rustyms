@@ -31,8 +31,9 @@ pub enum Modification {
     },
 }
 
-// TODO: document what the usizes mean
-/// Indicate the cross-link side
+/// Indicate the cross-link side, it contains a set of all placement rules that apply for the placed
+/// location to find all possible ways of breaking and/or neutral losses. These numbers are the
+/// index into the [`LinkerSpecificity`] rules.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum CrossLinkSide {
     /// The cross-link is symmetric, or if asymmetric it can be placed in both orientations
