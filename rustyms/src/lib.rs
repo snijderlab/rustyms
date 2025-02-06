@@ -39,6 +39,7 @@ mod aminoacids;
 mod checked_aminoacid;
 mod element;
 pub mod error;
+mod formula_search;
 pub mod fragment;
 pub mod glycan;
 mod isobaric_sets;
@@ -70,6 +71,7 @@ mod tolerance;
 
 pub use crate::element::*;
 pub use crate::formula::*;
+pub use crate::formula_search::find_formulas;
 pub use crate::isobaric_sets::{building_blocks, find_isobaric_sets};
 pub use crate::mass_mode::MassMode;
 pub use crate::model::Model;
