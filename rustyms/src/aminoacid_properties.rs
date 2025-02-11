@@ -10,6 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::AminoAcid;
+
 /// All amino acid property classes according to IMGT.
 /// > IMGT standardized criteria for statistical analysis of immunoglobulin V-REGION amino acid properties
 /// >
@@ -206,6 +208,23 @@ impl crate::AminoAcid {
             }
         }
     }
+
+    pub fn pka(&self) -> pKa {
+        self.pka_with_source(pksources::Lide1991)
+    }
+
+    pub fn pka_with_source(self, source: pksources) -> pKa {
+        let table = match source {
+            pksources::Lide1991 => PKA_LIDE1991,
+            pksources::Lehninger => PKA_LEHNINGER,
+        };
+
+        table
+            .iter()
+            .find(|&&(amino_acid, _)| amino_acid == self)
+            .map(|&(_, pka)| pka)
+            .expect("Peptide not found in the specified table")
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
@@ -277,3 +296,90 @@ pub enum HydrogenBondClass {
     None,
     Unknown,
 }
+
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+pub struct pKa {
+    carboxyl: f32,
+    ammonium: f32,
+    sidechain: Option<f32>,
+}
+
+impl pKa {
+    const fn from(carboxyl: f32, ammonium: f32, sidechain: Option<f32>) -> Self {
+        Self {
+            carboxyl,
+            ammonium,
+            sidechain,
+        }
+    }
+    pub const fn carboxyl(self) -> f32 {
+        self.carboxyl
+    }
+    pub const fn ammonium(self) -> f32 {
+        self.ammonium
+    }
+    pub const fn sidechain(self) -> Option<f32> {
+        self.sidechain
+    }
+}
+
+pub enum pksources {
+    Lide1991,
+    Lehninger,
+}
+
+// pKa values from Lide, D. R. (1991). Handbook of Chemistry and Physics: A Ready Reference Book of Chemical and Physical Data.
+const PKA_LIDE1991: &[(AminoAcid, pKa)] = &[
+    (AminoAcid::Arginine, pKa::from(2.03, 9.00, Some(12.10))),
+    (AminoAcid::Histidine, pKa::from(1.70, 9.09, Some(6.04))),
+    (AminoAcid::Lysine, pKa::from(2.15, 9.16, Some(10.67))),
+    (AminoAcid::AsparticAcid, pKa::from(1.95, 9.66, Some(3.71))),
+    (AminoAcid::GlutamicAcid, pKa::from(2.16, 9.58, Some(4.15))),
+    (AminoAcid::Tyrosine, pKa::from(2.24, 9.04, Some(10.10))),
+    (AminoAcid::Cysteine, pKa::from(1.91, 10.28, Some(8.14))),
+    (AminoAcid::Alanine, pKa::from(2.33, 9.71, None)),
+    (AminoAcid::Glycine, pKa::from(2.34, 9.58, None)),
+    (AminoAcid::Proline, pKa::from(1.95, 10.47, None)),
+    (AminoAcid::Serine, pKa::from(2.13, 9.05, None)),
+    (AminoAcid::Threonine, pKa::from(2.20, 8.96, None)),
+    (AminoAcid::Methionine, pKa::from(2.16, 9.08, None)),
+    (AminoAcid::Phenylalanine, pKa::from(2.18, 9.09, None)),
+    (AminoAcid::Tryptophan, pKa::from(2.38, 9.34, None)),
+    (AminoAcid::Valine, pKa::from(2.27, 9.52, None)),
+    (AminoAcid::Isoleucine, pKa::from(2.26, 9.60, None)),
+    (AminoAcid::Leucine, pKa::from(2.32, 9.58, None)),
+    (AminoAcid::Glutamine, pKa::from(2.18, 9.00, None)),
+    (AminoAcid::Asparagine, pKa::from(2.16, 8.73, None)),
+    (AminoAcid::AmbiguousAsparagine, pKa::from(2.16, 8.73, None)),
+    (AminoAcid::AmbiguousGlutamine, pKa::from(2.18, 9.00, None)),
+    // (AminoAcid::Pyrrolysine, todo!()),
+    // (AminoAcid::Unknown, todo!()),
+];
+
+// pKa values from Lehninger, A. L., Nelson, D. L., & Cox, M. M. (2005). Lehninger Principles of Biochemistry. Macmillan.
+const PKA_LEHNINGER: &[(AminoAcid, pKa)] = &[
+    (AminoAcid::Arginine, pKa::from(2.17, 9.04, Some(12.48))),
+    (AminoAcid::Histidine, pKa::from(1.82, 9.17, Some(6.00))),
+    (AminoAcid::Lysine, pKa::from(2.18, 8.95, Some(10.53))),
+    (AminoAcid::AsparticAcid, pKa::from(1.88, 9.60, Some(3.65))),
+    (AminoAcid::GlutamicAcid, pKa::from(2.19, 9.67, Some(4.25))),
+    (AminoAcid::Tyrosine, pKa::from(2.20, 9.11, Some(10.07))),
+    (AminoAcid::Cysteine, pKa::from(1.96, 10.28, Some(8.18))),
+    (AminoAcid::Alanine, pKa::from(2.34, 9.69, None)),
+    (AminoAcid::Glycine, pKa::from(2.34, 9.60, None)),
+    (AminoAcid::Proline, pKa::from(1.99, 10.96, None)),
+    (AminoAcid::Serine, pKa::from(2.21, 9.15, None)),
+    (AminoAcid::Threonine, pKa::from(2.11, 9.62, None)),
+    (AminoAcid::Methionine, pKa::from(2.28, 9.21, None)),
+    (AminoAcid::Phenylalanine, pKa::from(1.83, 9.13, None)),
+    (AminoAcid::Tryptophan, pKa::from(2.38, 9.39, None)),
+    (AminoAcid::Valine, pKa::from(2.32, 9.62, None)),
+    (AminoAcid::Isoleucine, pKa::from(2.36, 9.68, None)),
+    (AminoAcid::Leucine, pKa::from(2.36, 9.60, None)),
+    (AminoAcid::Glutamine, pKa::from(2.17, 9.13, None)),
+    (AminoAcid::Asparagine, pKa::from(2.02, 8.80, None)),
+    (AminoAcid::AmbiguousAsparagine, pKa::from(2.02, 8.80, None)),
+    (AminoAcid::AmbiguousGlutamine, pKa::from(2.17, 9.13, None)),
+    // (AminoAcid::Pyrrolysine, todo!()),
+    // (AminoAcid::Unknown, todo!()),
+];
