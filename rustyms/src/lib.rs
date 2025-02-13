@@ -34,6 +34,8 @@ mod formula;
 #[path = "shared/csv.rs"]
 pub mod csv;
 
+pub mod aminoacid_hydrophobicity;
+pub mod aminoacid_pka;
 pub mod aminoacid_properties;
 mod aminoacids;
 mod checked_aminoacid;
