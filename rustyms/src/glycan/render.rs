@@ -37,13 +37,21 @@ impl MonoSaccharide {
                 _ => outer_modifications.push_str(m.notation()), // This does overlap with mods that are sometimes expected for things
             }
         }
-        let mut outer_mods = |acetyl: usize, glycolyl: usize, nglycolyl: usize, o_carboxy_ethyl: usize| {
-            [GlycanSubstituent::Acetyl.notation().repeat(acetyl),GlycanSubstituent::Glycolyl.notation().repeat(glycolyl),GlycanSubstituent::NGlycolyl.notation().repeat(nglycolyl),GlycanSubstituent::OCarboxyEthyl.notation().repeat(o_carboxy_ethyl),outer_modifications].join("")
-        };
+        let mut outer_mods =
+            |acetyl: usize, glycolyl: usize, nglycolyl: usize, o_carboxy_ethyl: usize| {
+                [
+                    GlycanSubstituent::Acetyl.notation().repeat(acetyl),
+                    GlycanSubstituent::Glycolyl.notation().repeat(glycolyl),
+                    GlycanSubstituent::NGlycolyl.notation().repeat(nglycolyl),
+                    GlycanSubstituent::OCarboxyEthyl
+                        .notation()
+                        .repeat(o_carboxy_ethyl),
+                    outer_modifications,
+                ]
+                .join("")
+            };
         match (&self.base_sugar, nacetyl, acid, amino, deoxy) {
-            (BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), 1, 0, 0, 0)
-                if o_carboxy_ethyl > 0 =>
-            {
+            (BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), 1, 0, 0, 0) if o_carboxy_ethyl > 0 => {
                 (
                     Shape::Hexagon,
                     Colour::Purple,
@@ -61,9 +69,7 @@ impl MonoSaccharide {
                     outer_mods(acetyl, glycolyl, nglycolyl - 1, o_carboxy_ethyl - 1),
                 )
             }
-            (BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), 0, 0, 1, 0)
-                if o_carboxy_ethyl > 0 =>
-            {
+            (BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), 0, 0, 1, 0) if o_carboxy_ethyl > 0 => {
                 (
                     Shape::Hexagon,
                     Colour::Brown,
@@ -87,7 +93,12 @@ impl MonoSaccharide {
                     Some(HexoseIsomer::Sorbose) => (Shape::Pentagon, Colour::Orange),
                     Some(HexoseIsomer::Tagatose) => (Shape::Pentagon, Colour::Yellow),
                 };
-                (s, c, inner_modifications, outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl))
+                (
+                    s,
+                    c,
+                    inner_modifications,
+                    outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl),
+                )
             }
             (BaseSugar::Hexose(isomer), 1, 0, 0, 0) => {
                 let c = match isomer {
@@ -101,7 +112,12 @@ impl MonoSaccharide {
                     Some(HexoseIsomer::Idose) => Colour::Brown,
                     Some(_) | None => Colour::White,
                 };
-                (Shape::Square, c, inner_modifications, outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl))
+                (
+                    Shape::Square,
+                    c,
+                    inner_modifications,
+                    outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl),
+                )
             }
             (BaseSugar::Hexose(isomer), 0, 0, 1, 0) => {
                 let c = match isomer {
@@ -151,7 +167,12 @@ impl MonoSaccharide {
                     Some(HexoseIsomer::Talose) => Colour::LightBlue,
                     Some(_) | None => Colour::White,
                 };
-                (Shape::Triangle, c, inner_modifications, outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl))
+                (
+                    Shape::Triangle,
+                    c,
+                    inner_modifications,
+                    outer_mods(acetyl, glycolyl, nglycolyl, o_carboxy_ethyl),
+                )
             }
             (BaseSugar::Hexose(isomer), 1, 0, 0, 1) => {
                 let c = match isomer {
@@ -208,17 +229,18 @@ impl MonoSaccharide {
                 Shape::Diamond,
                 match (acid, amino, deoxy) {
                     (1, 1, 1) => Colour::Red, // This could either be Sia (Red) or Kdo (Green) for now defaults to red until the isomeric state is tracked
-                    (1, 1, 0) if acetyl > 0 => {
-                        Colour::Purple
-                    }
-                    (1, 1, 0) if glycolyl > 0 => {
-                        Colour::LightBlue
-                    }
+                    (1, 1, 0) if acetyl > 0 => Colour::Purple,
+                    (1, 1, 0) if glycolyl > 0 => Colour::LightBlue,
                     (1, 1, 0) => Colour::Brown,
                     _ => Colour::White,
                 },
                 inner_modifications,
-                outer_mods(acetyl.saturating_sub(1), glycolyl.saturating_sub(1), nglycolyl, o_carboxy_ethyl),
+                outer_mods(
+                    acetyl.saturating_sub(1),
+                    glycolyl.saturating_sub(1),
+                    nglycolyl,
+                    o_carboxy_ethyl,
+                ),
             ),
             (BaseSugar::Hexose(Some(HexoseIsomer::Glucose)), 0, 0, 2, 1) => (
                 Shape::Hexagon,
@@ -713,11 +735,17 @@ fn test_rendering() {
     let rendered = structure.render();
     let svg = rendered.to_svg();
     println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac("Rha2,3,4Ac3(a1-2)[Xyl(b1-3)]Ara(a1-", 0..35, 0).unwrap(); // G01464QV
+    let structure =
+        GlycanStructure::from_short_iupac("Rha2,3,4Ac3(a1-2)[Xyl(b1-3)]Ara(a1-", 0..35, 0).unwrap(); // G01464QV
     let rendered = structure.render();
     let svg = rendered.to_svg();
     println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac("Fruf(b2-1a)[Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)]Glc", 0..70, 0).unwrap(); // G04421VO
+    let structure = GlycanStructure::from_short_iupac(
+        "Fruf(b2-1a)[Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)]Glc",
+        0..70,
+        0,
+    )
+    .unwrap(); // G04421VO
     let rendered = structure.render();
     let svg = rendered.to_svg();
     println!("{svg}");
