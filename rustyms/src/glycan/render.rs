@@ -644,8 +644,8 @@ impl RenderedMonosaccharide {
                     let d = (36.0/360.0*2.0*PI).sin() * SUGAR_SIZE / 2.0;
                     let e = d / (36.0/360.0*2.0*PI).tan();
                     let i = 2.0 * a / (54.0/360.0*2.0*PI).sin() / (1.0 + 1.0 / PHI);
-                    let f = (18.0/360.0 * 2.0 * PI).cos() * i - SUGAR_SIZE / 2.0; 
-                    let g = (18.0/360.0 * 2.0 * PI).sin() * i; 
+                    let f = (18.0/360.0 * 2.0 * PI).cos() * i - SUGAR_SIZE / 2.0;
+                    let g = (18.0/360.0 * 2.0 * PI).sin() * i;
                     let h = (SUGAR_SIZE / 2.0 - b) * (18.0/360.0*2.0*PI).tan();
                     let j = (18.0/360.0*2.0*PI).tan() * g;
                     // dbg!((a,b,c,d,e,i,f,g,h,j));
@@ -674,14 +674,14 @@ impl RenderedMonosaccharide {
             if !element.inner_modifications.is_empty() {
                 write!(buffer, "<text x=\"{}\" y=\"{}\" fill=\"black\" text-anchor=\"middle\" font-style=\"italic\" font-size=\"{}px\" dominant-baseline=\"middle\">{}</text>",
                     (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32 + 0.5) * COLUMN_SIZE, 
+                    (element.y as f32 + 0.5) * COLUMN_SIZE,
                     SUGAR_SIZE / 2.0,
                     element.inner_modifications).unwrap();
             }
             if !element.outer_modifications.is_empty() {
                 write!(buffer, "<text x=\"{}\" y=\"{}\" fill=\"black\" text-anchor=\"middle\" font-size=\"{}px\" dominant-baseline=\"ideographic\">{}</text>",
                     (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32).mul_add(COLUMN_SIZE, -element.shape.height().mul_add(SUGAR_SIZE, -COLUMN_SIZE) / 2.0), 
+                    (element.y as f32).mul_add(COLUMN_SIZE, -element.shape.height().mul_add(SUGAR_SIZE, -COLUMN_SIZE) / 2.0),
                     SUGAR_SIZE / 2.0,
                     element.outer_modifications).unwrap();
             }
