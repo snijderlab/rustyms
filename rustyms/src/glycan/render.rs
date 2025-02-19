@@ -33,11 +33,12 @@ impl MonoSaccharide {
                 GlycanSubstituent::Glycolyl => glycolyl += 1,
                 GlycanSubstituent::OCarboxyEthyl => o_carboxy_ethyl += 1,
                 GlycanSubstituent::NGlycolyl => nglycolyl += 1,
-                GlycanSubstituent::Didehydro => inner_modifications.push_str("en"), // Missing symbols: o for alditols, an for anhydro, on for lactone, am for lactam
-                _ => outer_modifications.push_str(m.notation()), // This does overlap with mods that are sometimes expected for things
+                GlycanSubstituent::Didehydro => inner_modifications.push_str("en"),
+                GlycanSubstituent::Alcohol => inner_modifications.push_str("o"), // Missing symbols: an for anhydro, on for lactone, am for lactam
+                _ => outer_modifications.push_str(m.notation()),
             }
         }
-        let mut outer_mods =
+        let outer_mods =
             |acetyl: usize, glycolyl: usize, nglycolyl: usize, o_carboxy_ethyl: usize| {
                 [
                     GlycanSubstituent::Acetyl.notation().repeat(acetyl),
@@ -331,6 +332,8 @@ enum Shape {
     CrossedSquare,
     DividedDiamond,
     Triangle,
+    LeftPointingTriangle,
+    RightPointingTriangle,
     DividedTriangle,
     Rectangle,
     Star,
@@ -370,8 +373,13 @@ impl GlycanStructure {
             let mut branches = Vec::new();
             let mut sides = Vec::new();
             for branch in &self.branches {
-                let rendered = branch.render();
+                let mut rendered = branch.render();
                 if rendered.is_sideways() && sides.len() < 2 {
+                    if sides.is_empty() && rendered.shape == Shape::Triangle {
+                        rendered.shape = Shape::LeftPointingTriangle;
+                    } else if sides.len() == 1 && rendered.shape == Shape::Triangle {
+                        rendered.shape = Shape::RightPointingTriangle;
+                    }
                     sides.push(rendered);
                 } else {
                     depth = depth.max(rendered.y);
@@ -468,33 +476,41 @@ impl RenderedMonosaccharide {
             && self.sides.is_empty()
     }
 
-    fn to_svg(&self) -> String {
-        const COLUMN_SIZE: f32 = 10.0;
-        const SUGAR_SIZE: f32 = 5.0;
-        const STROKE_SIZE: f32 = 0.5;
-
-        fn render_elements(buffer: &mut String, element: &RenderedMonosaccharide) {
+    fn to_svg(
+        &self,
+        basis: Option<String>,
+        column_size: f32,
+        sugar_size: f32,
+        stroke_size: f32,
+    ) -> String {
+        fn render_element(
+            buffer: &mut String,
+            element: &RenderedMonosaccharide,
+            column_size: f32,
+            sugar_size: f32,
+            stroke_size: f32,
+        ) {
             // First all lines to get good stacking behaviour
             for branch in &element.branches {
                 write!(
                     buffer,
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
-                    (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32 + 0.5) * COLUMN_SIZE,
-                    (branch.x + branch.mid_point) * COLUMN_SIZE,
+                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                    (element.x + element.mid_point) * column_size,
+                    (element.y as f32 + 0.5) * column_size,
+                    (branch.x + branch.mid_point) * column_size,
                     // (branch.y as f32).mul_add(COLUMN_SIZE, branch.shape.height().mul_add(SUGAR_SIZE, -branch.shape.height().mul_add(SUGAR_SIZE, -COLUMN_SIZE) / 2.0))
-                     (branch.y as f32 + 0.5) * COLUMN_SIZE
+                     (branch.y as f32 + 0.5) * column_size
                 )
                 .unwrap();
             }
             for branch in &element.sides {
                 write!(
                     buffer,
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
-                    (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32 + 0.5) * COLUMN_SIZE,
-                    (branch.x + branch.mid_point) * COLUMN_SIZE,
-                    (branch.y as f32 + 0.5) * COLUMN_SIZE
+                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                    (element.x + element.mid_point) * column_size,
+                    (element.y as f32 + 0.5) * column_size,
+                    (branch.x + branch.mid_point) * column_size,
+                    (branch.y as f32 + 0.5) * column_size
                 )
                 .unwrap();
             }
@@ -504,152 +520,177 @@ impl RenderedMonosaccharide {
             match element.shape {
                 Shape::Circle => write!(
                     buffer,
-                    "<circle r=\"{}\" cx=\"{}\" cy=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
-                    SUGAR_SIZE / 2.0,
-                    (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32 + 0.5) * COLUMN_SIZE
+                    "<circle r=\"{}\" cx=\"{}\" cy=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                    sugar_size / 2.0,
+                    (element.x + element.mid_point) * column_size,
+                    (element.y as f32 + 0.5) * column_size
                 )
                 .unwrap(),
                 Shape::Square => write!(
                     buffer,
-                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
-                    (element.x + element.mid_point).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0),
-                    (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0),
-                    SUGAR_SIZE,
-                    SUGAR_SIZE
+                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                    (element.x + element.mid_point).mul_add(column_size, - sugar_size / 2.0),
+                    (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0),
+                    sugar_size,
+                    sugar_size
                 )
                 .unwrap(),
                 Shape::Rectangle => write!(
                     buffer,
-                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
-                    (element.x + element.mid_point).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0),
-                    (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 4.0),
-                    SUGAR_SIZE,
-                    SUGAR_SIZE / 2.0
+                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                    (element.x + element.mid_point).mul_add(column_size, - sugar_size / 2.0),
+                    (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 4.0),
+                    sugar_size,
+                    sugar_size / 2.0
                 )
                 .unwrap(),
                 Shape::CrossedSquare => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE;
-                    let y2 = y1 + SUGAR_SIZE;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let x2 = x1 + sugar_size;
+                    let y2 = y1 + sugar_size;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y1} {x2} {y1} {x2} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x1} {y1} {x1} {y2} {x2} {y2}\" fill=\"white\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/>",
+                    "<polygon points=\"{x1} {y1} {x2} {y1} {x2} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x1} {y1} {x1} {y2} {x2} {y2}\" fill=\"white\" stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/>",
                 )
                 .unwrap();},
                 Shape::DividedDiamond => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 2.0;
-                    let x3 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE / 2.0;
-                    let y3 = y1 + SUGAR_SIZE;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size / 2.0;
+                    let x3 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0;
+                    let y3 = y1 + sugar_size;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x1} {y2} {x2} {y3} {x3} {y2}\" fill=\"white\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/>",
+                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x1} {y2} {x2} {y3} {x3} {y2}\" fill=\"white\" stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/>",
                 )
                 .unwrap();},
                 Shape::Triangle => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 2.0;
-                    let x3 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size / 2.0;
+                    let x3 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                )
+                .unwrap();},
+                Shape::LeftPointingTriangle => {
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0;
+                    let y3 = y1 + sugar_size;
+
+                    write!(
+                    buffer,
+                    "<polygon points=\"{x1} {y2} {x2} {y1} {x2} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                )
+                .unwrap();},
+                Shape::RightPointingTriangle => {
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0;
+                    let y3 = y1 + sugar_size;
+
+                    write!(
+                    buffer,
+                    "<polygon points=\"{x1} {y1} {x2} {y2} {x1} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
                 Shape::DividedTriangle => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 2.0;
-                    let x3 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size / 2.0;
+                    let x3 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y1}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x2} {y1} {x1} {y2} {x2} {y1}\" fill=\"white\"  stroke=\"black\" stroke-width=\"{STROKE_SIZE}\" stroke-linejoin=\"bevel\"/>",
+                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y1}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/><polygon points=\"{x2} {y1} {x1} {y2} {x2} {y1}\" fill=\"white\"  stroke=\"black\" stroke-width=\"{stroke_size}\" stroke-linejoin=\"bevel\"/>",
                 )
                 .unwrap();},
                 Shape::Diamond => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 2.0;
-                    let x3 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE / 2.0;
-                    let y3 = y1 + SUGAR_SIZE;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size / 2.0;
+                    let x3 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0;
+                    let y3 = y1 + sugar_size;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y3} {x1} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y3} {x1} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
                 Shape::FlatDiamond => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 2.0;
-                    let x3 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 4.0);
-                    let y2 = y1 + SUGAR_SIZE / 4.0;
-                    let y3 = y1 + SUGAR_SIZE / 2.0;
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + sugar_size / 2.0;
+                    let x3 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 4.0);
+                    let y2 = y1 + sugar_size / 4.0;
+                    let y3 = y1 + sugar_size / 2.0;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y3} {x1} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x2} {y1} {x3} {y2} {x2} {y3} {x1} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
                 Shape::Hexagon => {
-                    let x1 = (element.x + element.mid_point).mul_add(COLUMN_SIZE,- SUGAR_SIZE / 2.0);
-                    let x2 = x1 + SUGAR_SIZE / 3.0;
-                    let x3 = x1 + SUGAR_SIZE / 3.0 * 2.0;
-                    let x4 = x1 + SUGAR_SIZE;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 4.0);
-                    let y2 = y1 + SUGAR_SIZE / 4.0;
-                    let y3 = y1 + SUGAR_SIZE / 2.0;
+                    let a = sugar_size / 2.0 / 3.0_f32.sqrt();
+                    let x1 = (element.x + element.mid_point).mul_add(column_size,- sugar_size / 2.0);
+                    let x2 = x1 + a;
+                    let x3 = x1 + sugar_size - a;
+                    let x4 = x1 + sugar_size;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 4.0);
+                    let y2 = y1 + sugar_size / 4.0;
+                    let y3 = y1 + sugar_size / 2.0;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y1} {x4} {y2} {x3} {y3} {x2} {y2}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x1} {y2} {x2} {y1} {x3} {y1} {x4} {y2} {x3} {y3} {x2} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
                 Shape::Pentagon => {
-                    let a = (18.0/360.0 * 2.0 * PI).cos() * SUGAR_SIZE / 2.0;
-                    let b = (18.0/360.0 * 2.0 * PI).sin() * SUGAR_SIZE / 2.0;
-                    let c = (36.0/360.0*2.0*PI).cos() * SUGAR_SIZE / 2.0;
-                    let d = (36.0/360.0*2.0*PI).sin() * SUGAR_SIZE / 2.0;
-                    let base_x = (element.x + element.mid_point) * COLUMN_SIZE;
+                    let a = (18.0/360.0 * 2.0 * PI).cos() * sugar_size / 2.0;
+                    let b = (18.0/360.0 * 2.0 * PI).sin() * sugar_size / 2.0;
+                    let c = (36.0/360.0*2.0*PI).cos() * sugar_size / 2.0;
+                    let d = (36.0/360.0*2.0*PI).sin() * sugar_size / 2.0;
+                    let base_x = (element.x + element.mid_point) * column_size;
                     let x1 = base_x - a;
                     let x2 = base_x - d;
                     let x3 = base_x;
                     let x4 = base_x + d;
                     let x5 = base_x + a;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE / 2.0 - b;
-                    let y3 = y1 + SUGAR_SIZE / 2.0 + c;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0 - b;
+                    let y3 = y1 + sugar_size / 2.0 + c;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y2} {x3} {y1} {x5} {y2} {x4} {y3} {x2} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x1} {y2} {x3} {y1} {x5} {y2} {x4} {y3} {x2} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
                 Shape::Star => {
                     const PHI: f32 = 1.618033988749894848204586834365638118_f32;
-                    let a = (18.0/360.0 * 2.0 * PI).cos() * SUGAR_SIZE / 2.0;
-                    let b = (18.0/360.0 * 2.0 * PI).sin() * SUGAR_SIZE / 2.0;
-                    let c = (36.0/360.0*2.0*PI).cos() * SUGAR_SIZE / 2.0;
-                    let d = (36.0/360.0*2.0*PI).sin() * SUGAR_SIZE / 2.0;
-                    let e = d / (36.0/360.0*2.0*PI).tan();
-                    let i = 2.0 * a / (54.0/360.0*2.0*PI).sin() / (1.0 + 1.0 / PHI);
-                    let f = (18.0/360.0 * 2.0 * PI).cos() * i - SUGAR_SIZE / 2.0;
-                    let g = (18.0/360.0 * 2.0 * PI).sin() * i;
-                    let h = (SUGAR_SIZE / 2.0 - b) * (18.0/360.0*2.0*PI).tan();
+                    // Calculate sizes of parts of the pentagram
+                    let a = (18.0/360.0 * 2.0 * PI).cos() * sugar_size / 2.0;
+                    let b = (18.0/360.0 * 2.0 * PI).sin() * sugar_size / 2.0;
+                    let c = (36.0/360.0*2.0*PI).cos() * sugar_size / 2.0;
+                    let d = (36.0/360.0*2.0*PI).sin() * sugar_size / 2.0;
+                    let e = 2.0 * a / (54.0/360.0*2.0*PI).sin() / (1.0 + 1.0 / PHI);
+                    let f = (18.0/360.0 * 2.0 * PI).cos() * e - sugar_size / 2.0;
+                    let g = (18.0/360.0 * 2.0 * PI).sin() * e;
+                    let h = (sugar_size / 2.0 - b) * (18.0/360.0*2.0*PI).tan();
                     let j = (18.0/360.0*2.0*PI).tan() * g;
-                    // dbg!((a,b,c,d,e,i,f,g,h,j));
-                    let base_x = (element.x + element.mid_point) * COLUMN_SIZE;
+                    // Calculate the positions of the pentagram points
+                    let base_x = (element.x + element.mid_point) * column_size;
                     let x1 = base_x - a;
                     let x2 = base_x - d;
                     let x3 = base_x - g;
@@ -659,38 +700,38 @@ impl RenderedMonosaccharide {
                     let x7 = base_x + g;
                     let x8 = base_x + d;
                     let x9 = base_x + a;
-                    let y1 = (element.y as f32 + 0.5).mul_add(COLUMN_SIZE, - SUGAR_SIZE / 2.0);
-                    let y2 = y1 + SUGAR_SIZE / 2.0 - b;
-                    let y3 = y1 + SUGAR_SIZE / 2.0 + j;
-                    let y4 = y1 + SUGAR_SIZE / 2.0 + f;
-                    let y5 = y1 + SUGAR_SIZE / 2.0 + c;
+                    let y1 = (element.y as f32 + 0.5).mul_add(column_size, - sugar_size / 2.0);
+                    let y2 = y1 + sugar_size / 2.0 - b;
+                    let y3 = y1 + sugar_size / 2.0 + j;
+                    let y4 = y1 + sugar_size / 2.0 + f;
+                    let y5 = y1 + sugar_size / 2.0 + c;
 
                     write!(
                     buffer,
-                    "<polygon points=\"{x1} {y2} {x4} {y2} {x5} {y1} {x6} {y2} {x9} {y2} {x7} {y3} {x8} {y5} {x5} {y4} {x2} {y5} {x3} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{STROKE_SIZE}\"/>",
+                    "<polygon points=\"{x1} {y2} {x4} {y2} {x5} {y1} {x6} {y2} {x9} {y2} {x7} {y3} {x8} {y5} {x5} {y4} {x2} {y5} {x3} {y3}\" fill=\"{fill}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
                 )
                 .unwrap();},
             }
             if !element.inner_modifications.is_empty() {
                 write!(buffer, "<text x=\"{}\" y=\"{}\" fill=\"black\" text-anchor=\"middle\" font-style=\"italic\" font-size=\"{}px\" dominant-baseline=\"middle\">{}</text>",
-                    (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32 + 0.5) * COLUMN_SIZE,
-                    SUGAR_SIZE / 2.0,
+                    (element.x + element.mid_point) * column_size,
+                    (element.y as f32 + 0.5) * column_size,
+                    sugar_size / 2.0,
                     element.inner_modifications).unwrap();
             }
             if !element.outer_modifications.is_empty() {
                 write!(buffer, "<text x=\"{}\" y=\"{}\" fill=\"black\" text-anchor=\"middle\" font-size=\"{}px\" dominant-baseline=\"ideographic\">{}</text>",
-                    (element.x + element.mid_point) * COLUMN_SIZE,
-                    (element.y as f32).mul_add(COLUMN_SIZE, -element.shape.height().mul_add(SUGAR_SIZE, -COLUMN_SIZE) / 2.0),
-                    SUGAR_SIZE / 2.0,
+                    (element.x + element.mid_point) * column_size,
+                    (element.y as f32).mul_add(column_size, -element.shape.height().mul_add(sugar_size, -column_size) / 2.0),
+                    sugar_size / 2.0,
                     element.outer_modifications).unwrap();
             }
             // Render all connected sugars
             for branch in &element.branches {
-                render_elements(buffer, branch);
+                render_element(buffer, branch, column_size, sugar_size, stroke_size);
             }
             for branch in &element.sides {
-                render_elements(buffer, branch);
+                render_element(buffer, branch, column_size, sugar_size, stroke_size);
             }
         }
 
@@ -698,12 +739,26 @@ impl RenderedMonosaccharide {
         write!(
             &mut picture,
             "<svg width=\"{}\" height=\"{}\">",
-            self.width * COLUMN_SIZE,
-            (self.y as f32 + 1.0) * COLUMN_SIZE
+            self.width * column_size,
+            (self.y as f32 + 1.0 + f32::from(basis.is_some())) * column_size
         )
         .unwrap();
 
-        render_elements(&mut picture, self);
+        if let Some(basis) = basis {
+            write!(
+                &mut picture,
+                "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"black\" stroke-width=\"{stroke_size}\"/>",
+                (self.y as f32 + 0.5) * column_size,
+                (self.y as f32 + 1.25) * column_size,
+                x=(self.x + self.mid_point) * column_size,
+            )
+            .unwrap();
+            write!(&mut picture, "<text x=\"{}\" y=\"{}\" fill=\"black\" text-anchor=\"middle\" font-size=\"{}px\" dominant-baseline=\"ideographic\">{basis}</text>",
+                    (self.x + self.mid_point) * column_size,
+                    (self.y as f32 + 2.0) * column_size,
+                    sugar_size).unwrap();
+        }
+        render_element(&mut picture, self, column_size, sugar_size, stroke_size);
 
         write!(&mut picture, "</svg>").unwrap();
 
@@ -713,45 +768,51 @@ impl RenderedMonosaccharide {
 
 #[test]
 fn test_rendering() {
-    let structure = GlycanStructure::from_short_iupac("Neu5Ac(a2-6)Gal(b1-4)GlcNAc(b1-2)Man(a1-3)[Gal(b1-4)GlcNAc(b1-2)Man(a1-6)]Man(b1-4)GlcNAc(b1-4)GlcNAc(?1-", 0..105, 0).unwrap(); // G01670UQ
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure =
-        GlycanStructure::from_short_iupac("Fuc(?1-?)Gal(?1-?)GalNAc(?1-", 0..28, 0).unwrap(); // G13523IF
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac(
-        "GlcN(b1-4)GlcNAc(b1-4)GlcNAc(b1-4)GlcNAc6S(?1-",
-        0..46,
-        0,
-    )
-    .unwrap(); // G00613DO
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac("Neu5Gc(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-2)[Gal(a1-3)Gal(b1-4)GlcNAc(b1-4)]Man(a1-3)[Neu5Ac(a2-8)Neu5Ac(a2-3/6)Gal(b1-4)GlcNAc(b1-3)Gal(b1-4)GlcNAc(b1-2)[Neu5Ac(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-6)]Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc(?1-", 0..256, 0).unwrap(); // G00621IU
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure =
-        GlycanStructure::from_short_iupac("Rha2,3,4Ac3(a1-2)[Xyl(b1-3)]Ara(a1-", 0..35, 0).unwrap(); // G01464QV
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac(
-        "Fruf(b2-1a)[Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)]Glc",
-        0..70,
-        0,
-    )
-    .unwrap(); // G04421VO
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    let structure = GlycanStructure::from_short_iupac("Kdn(a2-3)Gal(b1-4)ManNAc(b1-2)[Kdn(a2-3)Gal(b1-4)GlcNAc(b1-4)]Man(a1-3)[GlcNAc(b1-4)][Kdn(a2-3)Gal(b1-4)GlcNAc(b1-2)[Neu5Gc(a2-3)Gal(b1-4)GlcNAc(b1-6)]Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc(b1-", 0..203, 0).unwrap(); // G04458LN
-    let rendered = structure.render();
-    let svg = rendered.to_svg();
-    println!("{svg}");
-    todo!()
+    const COLUMN_SIZE: f32 = 30.0;
+    const SUGAR_SIZE: f32 = 15.0;
+    const STROKE_SIZE: f32 = 1.5;
+    let mut html = String::new();
+    write!(&mut html, "<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Glycan render test</title></head><body>").unwrap();
+
+    let codes = [
+        ("G01670UQ", "Neu5Ac(a2-6)Gal(b1-4)GlcNAc(b1-2)Man(a1-3)[Gal(b1-4)GlcNAc(b1-2)Man(a1-6)]Man(b1-4)GlcNAc(b1-4)GlcNAc(?1-"),
+        ("G13523IF", "Fuc(?1-?)Gal(?1-?)GalNAc(?1-"),
+        ("G00613DO", "GlcN(b1-4)GlcNAc(b1-4)GlcNAc(b1-4)GlcNAc6S(?1-"),
+        ("G00621IU", "Neu5Gc(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-2)[Gal(a1-3)Gal(b1-4)GlcNAc(b1-4)]Man(a1-3)[Neu5Ac(a2-8)Neu5Ac(a2-3/6)Gal(b1-4)GlcNAc(b1-3)Gal(b1-4)GlcNAc(b1-2)[Neu5Ac(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-6)]Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc(?1-"),
+        ("G01464QV", "Rha2,3,4Ac3(a1-2)[Xyl(b1-3)]Ara(a1-"),
+        ("G04421VO", "Fruf(b2-1a)[Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)Glc(a1-2)]Glc"),
+        ("G04458LN", "Kdn(a2-3)Gal(b1-4)ManNAc(b1-2)[Kdn(a2-3)Gal(b1-4)GlcNAc(b1-4)]Man(a1-3)[GlcNAc(b1-4)][Kdn(a2-3)Gal(b1-4)GlcNAc(b1-2)[Neu5Gc(a2-3)Gal(b1-4)GlcNAc(b1-6)]Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc(b1-"),
+        ("G69524KC", "Xyl(?1-?)Ara(?1-?)[Gal(?1-?)]GlcA"),
+        ("G37707YH", "Fuc(a1-2)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-2)[Gal(a1-3)Gal(b1-4)GlcNAc(b1-4)]Man(a1-3)[GlcNAc(b1-4)][Neu5Gc(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-3)Gal(b1-4)GlcNAc(b1-2)[Neu5Ac(a2-3/6)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-6)]Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc(?1-"),
+        ("G07370RP", "Rha(a1-3)Qui(b1-4)Rha(a1-2)Glc(b1-2)[Rha(a1-6)]Glc(b1-"),
+        ("G11504PZ", "Dig3CMe(b1-3)Oli(b1-3)Oli(b1-"),
+        ("G64699IM", "GlcA(b1-3)GalNAc(b1-4)4eLeg?5,7Ac2(a2-"),
+        ("G14402AU", "D-Araf(b1-5)Dha(?2-3)[GalA(a1-4)GalA(a1-4)]GalA(a1-4)GalA"),
+        ("G08395BZ", "Glc(b1-2a)[Ido(b1-3)]Psif"),
+        ("G49642ZT", "Man(?1-?)[Man(?1-?)]Man(?1-?)[Man(?1-?)]Man(?1-?)GlcNAc(?1-?)[Fuc(?1-?)][Fuc(?1-?)]GlcNAc(?1-"),
+        ("G59426OB", "Hex(?1-?)HexNAc(?1-?)HexA(?1-?)Gal(?1-?)GalNAc-ol"),
+        ("G75424NV", "Hex?(?1-?)Hex?NAc(?1-?)[Hex?NAc(?1-?)]Hex?(?1-?)[Hex?(?1-?)[Hex?(?1-?)]Hex?(?1-?)][Hex?NAc(?1-?)]Hex?(?1-?)Hex?NAc(?1-?)Hex?NAc(?1-"),
+        ("G36128WO", "Ido(b1-3)ManNAc(?1-3)[Ido(b1-3)L-AllNAc(b1-3)Ido(b1-4)AltNAc(b1-6)]Tal(b1-4)D-Ido(?1-"),
+        ("G83422GV", "L-6dTal(a1-3)[Fuc(a1-2)Gal(b1-4)GlcNAc(b1-3)Gal(b1-4)]GlcNAc(b1-3)Gal(b1-3)[Neu5Ac(a2-3)Gal(b1-4)[Fuc(a1-3)]GlcNAc(b1-6)]GalNAc(a1-"),
+    ];
+
+    for (_, iupac) in &codes {
+        let structure = GlycanStructure::from_short_iupac(iupac, 0..iupac.len(), 0).unwrap();
+        html.push_str(&structure.render().to_svg(
+            Some("pep".to_string()),
+            COLUMN_SIZE,
+            SUGAR_SIZE,
+            STROKE_SIZE,
+        ));
+    }
+    write!(&mut html, "<hr>").unwrap();
+    for (code, _) in &codes {
+        write!(
+            &mut html,
+            "<image src=\"https://image.glycosmos.org/snfg/png/{code}\"/>"
+        )
+        .unwrap();
+    }
+    write!(&mut html, "</body></html>").unwrap();
+    std::fs::write("../rendered_glycans.html", html).unwrap();
 }
